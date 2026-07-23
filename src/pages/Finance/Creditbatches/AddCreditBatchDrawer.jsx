@@ -48,8 +48,7 @@ export default function AddCreditBatchDrawer({ open, onClose, onSuccess }) {
             try {
                 setCreditTypesLoading(true);
                 const res = await fetch(
-                    "http://88.99.215.90:8600/api/values/credittypes",
-                    { headers: { "ngrok-skip-browser-warning": "true" } }
+                    `${import.meta.env.VITE_APP_FIN_URL}/api/values/credittypes`
                 );
                 const data = await res.json();
                 setCreditTypes(data || []);
@@ -65,8 +64,7 @@ export default function AddCreditBatchDrawer({ open, onClose, onSuccess }) {
             try {
                 setBranchesLoading(true);
                 const res = await fetch(
-                    "http://88.99.215.90:8600/api/values/branches",
-                    { headers: { "ngrok-skip-browser-warning": "true" } }
+                    `${import.meta.env.VITE_APP_FIN_URL}/api/values/branches`
                 );
                 const data = await res.json();
                 setBranches(data.Data || []);
@@ -82,8 +80,7 @@ export default function AddCreditBatchDrawer({ open, onClose, onSuccess }) {
             try {
                 setPostingPeriodsLoading(true);
                 const res = await fetch(
-                    "http://88.99.215.90:8600/api/loaning/GetPostingPeriods",
-                    { headers: { "ngrok-skip-browser-warning": "true" } }
+                    `${import.meta.env.VITE_APP_FIN_URL}/api/loaning/GetPostingPeriods`
                 );
                 const data = await res.json();
                 setPostingPeriods(data || []);
@@ -109,12 +106,11 @@ export default function AddCreditBatchDrawer({ open, onClose, onSuccess }) {
 
         try {
             const res = await fetch(
-                "http://88.99.215.90:8600/api/values/creditbatch/add",
+                `${import.meta.env.VITE_APP_FIN_URL}/api/values/creditbatch/add`,
                 {
                     method: "POST",
                     headers: {
-                        "Content-Type": "application/json",
-                        "ngrok-skip-browser-warning": "true",
+                        "Content-Type": "application/json"
                     },
                     body: JSON.stringify({
                         ...formData,
@@ -263,7 +259,7 @@ export default function AddCreditBatchDrawer({ open, onClose, onSuccess }) {
                             </div>
 
                             {/* Total Value */}
-                            <div>
+                            {/* <div>
                                 <Label>Total Value</Label>
                                 <Input
                                     type="number"
@@ -272,7 +268,7 @@ export default function AddCreditBatchDrawer({ open, onClose, onSuccess }) {
                                     onChange={(e) => handleChange("totalValue", e.target.value)}
                                     required
                                 />
-                            </div>
+                            </div> */}
 
                             {/* Month */}
                             <div>

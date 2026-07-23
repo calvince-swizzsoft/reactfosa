@@ -29,11 +29,11 @@ export default function ParentLoanSelectModal({
         if (!open || !memberNo) return;
 
         fetch(
-            `http://88.99.215.90:8600/api/Loaning/GetAllLoanByMemberNo?MemberNo=${memberNo}`,
-            { headers: { "ngrok-skip-browser-warning": "true" } }
+            `${import.meta.env.VITE_APP_LOANING_URL}/api/Loaning/GetAllLoanByMemberNo?MemberNo=${memberNo}`
         )
             .then(res => res.json())
             .then(data => {
+                console.log("Raw loans data:", data);
                 const list = Array.isArray(data) ? data : [data];
                 setLoans(list.filter(l => l.Id));
             })
@@ -91,7 +91,7 @@ export default function ParentLoanSelectModal({
                                             </p>
                                             <p className="text-xs text-gray-500">
                                                 Amount:{" "}
-                                                {loan.ApprovedAmount?.toLocaleString()}{" "}
+                                                {loan.TotalLoansBalance?.toLocaleString()}{" "}
                                                 | Status:{" "}
                                                 {loan.StatusDescription}
                                             </p>

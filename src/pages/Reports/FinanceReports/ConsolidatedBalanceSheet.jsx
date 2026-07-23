@@ -12,7 +12,7 @@ function ConsolidatedBalanceSheet() {
         setData(null); // loading state
 
         fetch(
-            `http://88.99.215.90:8600/api/reporting/ConsolidatedBalanceSheet?endDate=${endDate}`,
+            `http://95.216.225.26:8006/api/reporting/ConsolidatedBalanceSheet?endDate=${endDate}`,
             { headers: { "ngrok-skip-browser-warning": "true" } }
         )
             .then(res => res.json())
@@ -23,7 +23,7 @@ function ConsolidatedBalanceSheet() {
 
     // useEffect(() => {
     //     fetch(
-    //         "http://88.99.215.90:8600/api/reporting/ConsolidatedBalanceSheet?endDate=2026-01-20",
+    //         "http://95.216.225.26:8006/api/reporting/ConsolidatedBalanceSheet?endDate=2026-01-20",
     //         { headers: { "ngrok-skip-browser-warning": "true" } }
     //     )
     //         .then((res) => res.json())

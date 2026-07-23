@@ -10,7 +10,7 @@ import Swal from "sweetalert2";
 
 
 const LEDGER_API =
-    "http://88.99.215.90:8600/api/values/GetGeneralLeadgersBalances";
+    `${import.meta.env.VITE_APP_LOANING_URL}/api/values/GetGeneralLeadgersBalances`;
 
 
 

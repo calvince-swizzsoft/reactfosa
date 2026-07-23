@@ -34,8 +34,7 @@ export default function LoanAppraised() {
     const fetchLoanDrafts = () => {
         setLoading(true);
         fetch(
-            `${import.meta.env.VITE_APP_LOANING_URL}/api/Loaning/GetLoansBy?status=audited&filterType=1&pageIndex=${pageIndex}&pageSize=${pageSize}`,
-            { headers: { "ngrok-skip-browser-warning": "true" } }
+            `${import.meta.env.VITE_APP_LOANING_URL}/api/Loaning/GetLoansBy?status=audited&filterType=1&pageIndex=${pageIndex}&pageSize=${pageSize}`
         )
             .then((res) => res.json())
             .then((data) => {
@@ -91,7 +90,7 @@ export default function LoanAppraised() {
             Id: id,
             loanAuditOption: parseInt(selectedOption),
         };
-
+        console.log("...lets see the payload");
         console.log(payload);
 
         try {
@@ -101,7 +100,6 @@ export default function LoanAppraised() {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'ngrok-skip-browser-warning': 'true',
                     },
                     body: JSON.stringify(payload),
                 }

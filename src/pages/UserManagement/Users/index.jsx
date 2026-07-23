@@ -35,7 +35,7 @@ export default function Users() {
         setLoading(true);
         try {
             const res = await fetch(
-                "http://88.99.215.90:8600/api/auth/GetUsers"
+                "http://95.216.225.26:8006/api/auth/GetUsers"
             );
             const json = await res.json();
             if (json.success) setUsers(json.data);
@@ -59,7 +59,7 @@ export default function Users() {
             if (result.isConfirmed) {
                 try {
                     const res = await fetch(
-                        `http://88.99.215.90:8600/api/auth/DeleteUser/${id}`,
+                        `http://95.216.225.26:8006/api/auth/DeleteUser/${id}`,
                         { method: "DELETE" }
                     );
 

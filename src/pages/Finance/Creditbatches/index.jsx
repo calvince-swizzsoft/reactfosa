@@ -29,16 +29,27 @@ export default function Creditbatches() {
 
 
     const [entriesDrawerOpen, setEntriesDrawerOpen] = useState(false);
+    const [selectedBatch, setSelectedBatch] = useState(null);
 
 
 
+
+    const updateBatchStatus = (batchId, newStatus, newStatusDescription) => {
+        setBatches((prev) =>
+            prev.map((b) =>
+                b.Id === batchId
+                    ? { ...b, Status: newStatus, StatusDescription: newStatusDescription }
+                    : b
+            )
+        );
+    };
 
     const fetchCreditBatches = () => {
         fetch(
-            "http://88.99.215.90:8600/api/values/creditbatches",
-            {
-                headers: { "ngrok-skip-browser-warning": "true" },
-            }
+            `${import.meta.env.VITE_APP_FIN_URL}/api/values/creditbatches`,
+            // {
+            //     headers: { "ngrok-skip-browser-warning": "true" },
+            // }
         )
             .then((res) => res.json())
             .then((data) => {
@@ -61,15 +72,16 @@ export default function Creditbatches() {
             formData.append("file", file); // key must match backend expectation
 
             const res = await fetch(
-                `http://88.99.215.90:8600/api/values/creditbatch/${batchId}/import`,
+                `${import.meta.env.VITE_APP_FIN_URL}/api/values/creditbatch/${batchId}/import`,
                 {
                     method: "POST",
-                    headers: {
-                        "ngrok-skip-browser-warning": "true",
-                    },
+                    // headers: {
+                    //     "ngrok-skip-browser-warning": "true",
+                    // },
                     body: formData,
                 }
             );
+
 
             const data = await res.json().catch(() => ({}));
             console.log(data);
@@ -117,12 +129,12 @@ export default function Creditbatches() {
             });
 
             const res = await fetch(
-                `http://88.99.215.90:8600/api/values/creditbatch/${batchId}/post`,
+                `${import.meta.env.VITE_APP_FIN_URL}/api/values/creditbatch/${batchId}/post`,
                 {
                     method: "POST",
-                    headers: {
-                        "ngrok-skip-browser-warning": "true",
-                    },
+                    // headers: {
+                    //     "ngrok-skip-browser-warning": "true",
+                    // },
                 }
             );
 
@@ -280,6 +292,7 @@ export default function Creditbatches() {
                                                         className=" text-white w-full bg-gray-700 hover:bg-gray-500 hover:text-white"
                                                         onClick={() => {
                                                             setSelectedBatchId(batch.Id);
+                                                            setSelectedBatch(batch);
                                                             setEntriesDrawerOpen(true);
                                                         }}
                                                     >
@@ -403,7 +416,9 @@ export default function Creditbatches() {
             <CreditBatchEntriesDrawer
                 open={entriesDrawerOpen}
                 creditBatchId={selectedBatchId}
+                batch={selectedBatch}
                 onClose={() => setEntriesDrawerOpen(false)}
+                onBatchPosted={updateBatchStatus}
             />
 
 

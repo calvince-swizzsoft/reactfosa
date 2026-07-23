@@ -15,7 +15,7 @@ function IncomeStatement() {
 
 
     useEffect(() => {
-        fetch("http://88.99.215.90:8600/api/loaning/GetPostingPeriods", {
+        fetch("http://95.216.225.26:8006/api/loaning/GetPostingPeriods", {
             headers: { "ngrok-skip-browser-warning": "true" }
         })
             .then(res => res.json())
@@ -31,7 +31,7 @@ function IncomeStatement() {
 
     // useEffect(() => {
     //     fetch(
-    //         "http://88.99.215.90:8600/api/reporting/IncomeStatement?endDate=2026-01-20&postingPeriod=2F1DA0E0-B1DB-F011-B575-80CE62222714",
+    //         "http://95.216.225.26:8006/api/reporting/IncomeStatement?endDate=2026-01-20&postingPeriod=2F1DA0E0-B1DB-F011-B575-80CE62222714",
     //         { headers: { "ngrok-skip-browser-warning": "true" } }
     //     )
     //         .then(res => res.json())
@@ -45,7 +45,7 @@ function IncomeStatement() {
         setData(null); // loading state
 
         fetch(
-            `http://88.99.215.90:8600/api/reporting/IncomeStatement?endDate=${endDate}&postingPeriod=${selectedPeriod}`,
+            `http://95.216.225.26:8006/api/reporting/IncomeStatement?endDate=${endDate}&postingPeriod=${selectedPeriod}`,
             { headers: { "ngrok-skip-browser-warning": "true" } }
         )
             .then(res => res.json())

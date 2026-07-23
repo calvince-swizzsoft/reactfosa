@@ -21,7 +21,7 @@ import Login from "./pages/Auth/Login";
 import Procureone from "./pages/Procurement/procureone";
 import Procuretwo from "./pages/Procurement/procuretwo";
 import Payroll from "./pages/Payroll/Payroll.jsx";
-import Employees from "./pages/Payroll/Employees";
+//import Employees from "./pages/Payroll/Employees";
 import Departments from "./pages/Payroll/Departments";
 import Procument from "./pages/Procurement/Procument";
 import Finance from "./pages/Finance/Finance";
@@ -100,6 +100,19 @@ import Reports from "./pages/Reports/index.jsx";
 import LoanRegister from "./pages/Loaning/LoanRegister/index.jsx";
 import Roles from "./pages/UserManagement/Roles/Roles.jsx";
 import Users from "./pages/UserManagement/Users/index.jsx";
+import AdministrationCreateRole from "./pages/Administration/Roles/create.jsx";
+import AdministrationUsers from "./pages/Administration/Users/index.jsx";
+import CreateUser from "./pages/Administration/Users/create.jsx";
+import AdministrationModules from "./pages/Administration/Modules/index.jsx";
+
+//import Tellers from "./pages/FosaManagement/Tellers/index.jsx";
+import Tellers from "./pages/FOSA/Tellers/Teller.jsx";
+//import Treasuries from './pages/FOSA/'
+
+import Employees from "./pages/FOSA/Employees/Employees.jsx"
+import FOSASetup from "./pages/FOSA/Setup/index.jsx"
+import FOSATransactions from "./pages/FOSA/Transactions/index.jsx"
+
 
 
 
@@ -108,7 +121,7 @@ export default function App() {
     <Router>
       <Routes>
         {/* Redirect root to login */}
-        {/* <Route path="/" element={<Navigate to="/login" replace />} /> */}
+        <Route path="/" element={<Navigate to="/login" replace />} />
 
         {/* Login route WITHOUT Layout */}
         <Route path="/login" element={<Login />} />
@@ -175,6 +188,11 @@ export default function App() {
           <Route path="Payroll/statutorysetup" element={<StatutorySetup />} />
           <Route path="Payroll/Employees" element={<EmployeeSetup />} />
 
+          {/* Administration */}
+          <Route path="Administration/Roles/create" element={<AdministrationCreateRole />} />
+          <Route path="Administration/Users" element={<AdministrationUsers />} />
+          <Route path="Administration/Users/create" element={<CreateUser />} />
+          <Route path="Administration/Modules" element={<AdministrationModules />} />
 
           {/* Inventory */}
           <Route path="Inventory" element={<InventoryDashboard />} />
@@ -230,6 +248,11 @@ export default function App() {
           <Route path="UserManagement/Roles" element={<Roles />} />
           {/* <Route path="UserManagement/Permissions" element={<Permissions />} /> */}
 
+             {/**FOSA Management */}
+          <Route path="FosaManagement/Employees" element={<Employees />} />
+          <Route path="FosaManagement/Tellers" element={<Tellers />} />
+          <Route path="FosaManagement/Setup" element={<FOSASetup />} />
+          <Route path="FosaManagement/Transactions" element={<FOSATransactions />} />
 
         </Route>
       </Routes>

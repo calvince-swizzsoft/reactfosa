@@ -34,8 +34,7 @@ export default function LoanCaseDetailsDrawer({ open, loan, onClose }) {
 
         setLoadingGuarantors(true);
         fetch(
-            `http://88.99.215.90:8600/api/GuarantorManagement/GetLoanGuarantors/${loan.Id}`,
-            { headers: { "ngrok-skip-browser-warning": "true" } }
+            `${import.meta.env.VITE_APP_LOANING_URL}/api/GuarantorManagement/GetLoanGuarantors/${loan.Id}`
         )
             .then((r) => r.json())
             .then((d) => setGuarantors(d?.Data || []))

@@ -23,7 +23,7 @@ export default function LoanGuarantorsDrawer({ open, onClose, loanCaseId, loan }
             setLoading(true);
             try {
                 const res = await fetch(
-                    `http://88.99.215.90:8600/api/GuarantorManagement/GetLoanGuarantors/${loanCaseId}`,
+                    `${import.meta.env.VITE_APP_LOANING_URL}/api/GuarantorManagement/GetLoanGuarantors/${loanCaseId}`,
                     { headers: { "ngrok-skip-browser-warning": "true" } }
                 );
                 const data = await res.json();

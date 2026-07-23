@@ -1,7 +1,7 @@
 
 import React, { useState } from "react";
 import { FaGoogle, FaApple } from "react-icons/fa";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import Swal from "sweetalert2";
 
 
@@ -32,7 +32,7 @@ export default function Login() {
 
     try {
       const response = await fetch(
-        "http://88.99.215.90:8600/api/auth/login",
+        "http://95.216.225.26:8006/api/auth/login",
         {
           method: "POST",
           headers: {
@@ -221,30 +221,21 @@ export default function Login() {
             >
               {loading ? "Logging in..." : "Login"}
             </button>
+
+            <p className="text-center text-sm text-gray-500 mt-2">
+              <Link to="/Membership/Members" className="text-[#6B4EFF] hover:underline">
+                Continue without logging in
+              </Link>
+            </p>
           </form>
 
-
-          <div className="my-6 flex items-center justify-center">
-            <div className="border-t w-full"></div>
-            <span className="px-2 text-gray-500 text-sm">or continue with</span>
-            <div className="border-t w-full"></div>
-          </div>
-
-          <div className="flex space-x-4">
-            <button className="flex items-center justify-center w-1/2 border rounded-md py-2 hover:bg-gray-50">
-              <FaGoogle className="mr-2 text-red-500" /> Google
-            </button>
-            <button className="flex items-center justify-center w-1/2 border rounded-md py-2 hover:bg-gray-50">
-              <FaApple className="mr-2 text-black" /> Apple
-            </button>
-          </div>
-
-          <p className="text-center text-gray-600 mt-6 text-sm">
+          {/* <p className="text-center text-gray-600 mt-6 text-sm">
             Already have an account?{" "}
             <a href="#" className="text-[#6B4EFF] font-medium hover:underline">
               Sign in
             </a>
-          </p>
+          </p> */}
+          
         </div>
       </div>
     </div>

@@ -34,7 +34,7 @@ export default function Companies() {
     const [openDrawer, setOpenDrawer] = useState(false);
     const [openEdit, setOpenEdit] = useState(false);
     const [selectedCompany, setSelectedCompany] = useState(null);
-    
+
     // Filter states
     const [searchQuery, setSearchQuery] = useState("");
     const [statusFilter, setStatusFilter] = useState("all");
@@ -53,9 +53,7 @@ export default function Companies() {
     const fetchCompanies = async () => {
         try {
             const res = await fetch(
-                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/companies`, {
-                headers: { "ngrok-skip-browser-warning": "true" },
-            }
+                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/companies`
             );
             const json = await res.json();
             setCompanies(json.data || []);
@@ -428,8 +426,8 @@ export default function Companies() {
                     <div className="text-gray-500 text-center mt-4">
                         <img src={NotFoundImage} alt="Not Found" className="mx-auto w-42" />
                         <p className="font-medium text-gray-400">
-                            {searchQuery || statusFilter !== "all" 
-                                ? "No companies match your search criteria." 
+                            {searchQuery || statusFilter !== "all"
+                                ? "No companies match your search criteria."
                                 : "No Companies Found."}
                         </p>
                         {(searchQuery || statusFilter !== "all") && (

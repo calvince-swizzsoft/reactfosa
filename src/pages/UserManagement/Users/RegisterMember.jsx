@@ -39,7 +39,7 @@ export default function RegisterMember({ open, onClose, refresh }) {
     setRolesLoading(true);
     try {
       const response = await fetch(
-        "http://88.99.215.90:8600/api/auth/roles"
+        "http://95.216.225.26:8006/api/auth/roles"
       );
       const data = await response.json();
 

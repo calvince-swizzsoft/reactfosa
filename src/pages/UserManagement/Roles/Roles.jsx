@@ -34,7 +34,7 @@ export default function Roles() {
         setLoading(true);
         try {
             const res = await fetch(
-                "http://88.99.215.90:8600/api/auth/roles"
+                "http://95.216.225.26:8006/api/auth/roles"
             );
             const json = await res.json();
             if (json.success) {
@@ -60,7 +60,7 @@ export default function Roles() {
             if (result.isConfirmed) {
                 try {
                     const res = await fetch(
-                        `http://88.99.215.90:8600/api/auth/roles/${id}`,
+                        `http://95.216.225.26:8006/api/auth/roles/${id}`,
                         { method: "DELETE" }
                     );
 

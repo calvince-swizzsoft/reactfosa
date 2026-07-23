@@ -43,7 +43,7 @@ export default function MemberExit() {
         setLoading(true);
         try {
             const res = await fetch(
-                "http://88.99.215.90:8600/api/MemberExit/GetAll",
+                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/MemberExit/GetAll`,
                 {
                     headers: {
                         "ngrok-skip-browser-warning": "true",
@@ -130,7 +130,7 @@ export default function MemberExit() {
                 SettlementRemarks: formValues.remarks || "",
             };
 
-            const res = await fetch(`http://88.99.215.90:8600/api/MemberExit/Settle`, {
+            const res = await fetch(`${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/MemberExit/Settle`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload),

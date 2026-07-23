@@ -1,23 +1,25 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { FaTimes } from "react-icons/fa";
+import Swal from "sweetalert2";
 
 export default function CreditBatchEntriesDrawer({
     open,
     onClose,
     creditBatchId,
+    batch,
+    onBatchPosted,
 }) {
     const [entries, setEntries] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [batchStatus, setBatchStatus] = useState(null);
 
     useEffect(() => {
         if (!open || !creditBatchId) return;
 
         setLoading(true);
         fetch(
-            `http://88.99.215.90:8600/api/values/${creditBatchId}/entries`,
-            { headers: { "ngrok-skip-browser-warning": "true" } }
+            `${import.meta.env.VITE_APP_FIN_URL}/api/values/${creditBatchId}/entries`
         )
             .then((res) => res.json())
             .then((data) => {
@@ -26,6 +28,63 @@ export default function CreditBatchEntriesDrawer({
             })
             .catch(() => setLoading(false));
     }, [open, creditBatchId]);
+
+    useEffect(() => {
+        if (batch) setBatchStatus(batch.Status);
+    }, [batch]);
+
+    console.log("Batch status:", batchStatus);
+    console.log("Entries:", entries);
+
+    const handlePostBatch = async () => {
+        const result = await Swal.fire({
+            title: "Post Credit Batch?",
+            text: "This action will post the batch and cannot be undone.",
+            icon: "warning",
+            showCancelButton: true,
+            confirmButtonText: "Yes, Post",
+            cancelButtonText: "Cancel",
+            confirmButtonColor: "#4f46e5",
+        });
+
+        if (!result.isConfirmed) return;
+
+        try {
+            Swal.fire({
+                title: "Posting...",
+                allowOutsideClick: false,
+                didOpen: () => Swal.showLoading(),
+            });
+
+            const res = await fetch(
+                `${import.meta.env.VITE_APP_FIN_URL}/api/values/creditbatch/${creditBatchId}/post`,
+                { method: "POST" }
+            );
+
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data?.message || "Failed to post batch");
+
+            setBatchStatus(2);
+            if (onBatchPosted) onBatchPosted(creditBatchId, 2, "Posted");
+
+            // Re-fetch entries so their individual StatusDescription updates to Posted
+            setLoading(true);
+            fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/values/${creditBatchId}/entries`)
+                .then((res) => res.json())
+                .then((data) => {
+                    setEntries(Array.isArray(data) ? data : [data]);
+                    setLoading(false);
+                })
+                .catch(() => setLoading(false));
+
+            Swal.fire("Success", "Credit batch posted successfully", "success");
+        } catch (err) {
+            Swal.fire("Error", err.message, "error");
+        }
+    };
+
+    const statusLabel = batchStatus === 1 ? "Pending" : batchStatus === 2 ? "Posted" : batch?.StatusDescription ?? "";
+    const statusColor = batchStatus === 1 ? "bg-yellow-500" : "bg-green-600";
 
     return (
         <AnimatePresence>
@@ -50,16 +109,36 @@ export default function CreditBatchEntriesDrawer({
                     >
                         {/* Header */}
                         <div className="p-4 flex justify-between items-center bg-indigo-600 rounded-2xl mb-4">
-                            <h2 className="font-bold text-lg text-white">
-                                Credit Batch Entries
-                            </h2>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={onClose}
-                            >
-                                Close
-                            </Button>
+                            <div className="flex items-center gap-3">
+                                <h2 className="font-bold text-lg text-white">
+                                    Credit Batch Entries
+                                </h2>
+                                {batch && (
+                                    <span
+                                        className={`text-xs px-3 py-1 rounded-full text-white font-semibold ${statusColor}`}
+                                    >
+                                        {statusLabel}
+                                    </span>
+                                )}
+                            </div>
+                            <div className="flex items-center gap-2">
+                                {batchStatus === 1 && (
+                                    <Button
+                                        size="sm"
+                                        className="bg-green-500 hover:bg-green-400 text-white"
+                                        onClick={handlePostBatch}
+                                    >
+                                        Post Batch
+                                    </Button>
+                                )}
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={onClose}
+                                >
+                                    Close
+                                </Button>
+                            </div>
                         </div>
 
                         {/* Content */}
@@ -118,6 +197,7 @@ export default function CreditBatchEntriesDrawer({
                                             </span>
 
                                             <span>{entry.Reference}</span>
+
                                         </div>
                                     ))}
                                 </div>

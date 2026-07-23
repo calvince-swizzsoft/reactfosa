@@ -39,7 +39,7 @@
 //         try {
 //             setLoadingId(report.id);
 
-//             const url = `http://88.99.215.90:8600/api/values/${report.api}?startDate=${startDate}&endDate=${endDate}`;
+//             const url = `http://95.216.225.26:8006/api/values/${report.api}?startDate=${startDate}&endDate=${endDate}`;
 
 //             const res = await fetch(url);
 //             if (!res.ok) throw new Error("Failed to generate PDF");
@@ -153,7 +153,7 @@ export default function GenerateSasraForm() {
     const [previewTitle, setPreviewTitle] = useState("");
 
     const getPdfBlobUrl = async (report) => {
-        const url = `http://88.99.215.90:8600/api/values/${report.api}?startDate=${startDate}&endDate=${endDate}`;
+        const url = `http://95.216.225.26:8006/api/values/${report.api}?startDate=${startDate}&endDate=${endDate}`;
         const res = await fetch(url);
         if (!res.ok) throw new Error("Failed to generate PDF");
         const blob = await res.blob();

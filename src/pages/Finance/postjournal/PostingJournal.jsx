@@ -95,7 +95,7 @@ export default function PostingJournal() {
     try {
       const res = await fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/values/PostJournal`, {
         method: "POST",
-        headers: { "ngrok-skip-browser-warning": "true", "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(apiPayload),
       });
       const data = await res.json();
@@ -122,9 +122,7 @@ export default function PostingJournal() {
   useEffect(() => {
     const fetchAccounts = async () => {
       try {
-        const res = await fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/values/GetChartOfAccount`, {
-          headers: { "ngrok-skip-browser-warning": "true" },
-        });
+        const res = await fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/values/GetChartOfAccount`);
         const data = await res.json();
         if (data.Success && Array.isArray(data.Data)) {
           setAccountOptions(
@@ -142,9 +140,7 @@ export default function PostingJournal() {
 
     const fetchBranches = async () => {
       try {
-        const res = await fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/values/branches`, {
-          headers: { "ngrok-skip-browser-warning": "true" },
-        });
+        const res = await fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/values/branches`);
         const data = await res.json();
         if (data.Success && Array.isArray(data.Data)) {
           setBranchOptions(data.Data.map((b) => ({ id: b.Id, description: b.Description })));

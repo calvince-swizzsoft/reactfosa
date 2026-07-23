@@ -3,31 +3,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Swal from "sweetalert2";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import SelectCustomerModal from "./SelectCustomerModal";
-
 import SelectBranchModal from "./SelectBranchModal";
 
+const API_URL = `${import.meta.env.VITE_APP_MEMBERSHIP_URL}`;
 
-
-
-
-const API_URL = "http://88.99.215.90:8600";
-
-export default function AddMemberExitDrawer({
-    open,
-    onClose,
-    refresh,
-}) {
+export default function AddMemberExitDrawer({ open, onClose, refresh }) {
     const [loading, setLoading] = useState(false);
     const [selectCustomerOpen, setSelectCustomerOpen] = useState(false);
     const [selectBranchOpen, setSelectBranchOpen] = useState(false);
     const [accounts, setAccounts] = useState([]);
 
-
     const [form, setForm] = useState({
         CustomerId: "",
-        Customer: null,
         CustomerIndividualIdentityCardNumber: "",
         CustomerIndividualNationality: 1,
         CustomerSerialNumber: 34521,
@@ -49,9 +38,9 @@ export default function AddMemberExitDrawer({
         CustomerStationZoneDescription: "",
         CustomerStationZoneDivisionDescription: "",
         CustomerStationZoneDivisionEmployerDescription: "",
-        CustomerReference1: "ACC-001122",
-        CustomerReference2: "MBR-778899",
-        CustomerReference3: "PF-445566",
+        CustomerReference1: "",
+        CustomerReference2: "",
+        CustomerReference3: "",
         BranchId: "",
         BranchCode: 101,
         BranchDescription: "",
@@ -59,34 +48,44 @@ export default function AddMemberExitDrawer({
         Category: 1793,
         Status: 1,
         Remarks: "Member has submitted voluntary withdrawal request.",
-        MaturityDate: new Date().toISOString().split('T')[0],
+        MaturityDate: new Date().toISOString().split("T")[0],
         IsLocked: false,
-        CreatedBy: "systemg.api",
+        CreatedBy: "system.ui",
         CreatedDate: "",
     });
 
+    // Fetch accounts whenever a customer is selected — same pattern as Receipting
+    useEffect(() => {
+        if (!form.CustomerId) {
+            setAccounts([]);
+            return;
+        }
+        fetch(
+            `${import.meta.env.VITE_APP_FIN_URL}/api/values/CustomerAccount/by-customer?customerId=${form.CustomerId}`
+        )
+            .then((res) => res.json())
+            .then((data) => setAccounts(Array.isArray(data) ? data : []))
+            .catch(() => setAccounts([]));
+    }, [form.CustomerId]);
 
-    const handleCustomerSelect = ({ Customer, Accounts }) => {
+    // Flat member shape from /api/customers (same as Receipting)
+    const handleCustomerSelect = (member) => {
         setForm((prev) => ({
             ...prev,
-            CustomerId: Customer.Id,
-            CustomerIndividualFirstName: Customer.IndividualFirstName,
-            CustomerIndividualLastName: Customer.IndividualLastName,
-            CustomerFullName: `${Customer.IndividualFirstName} ${Customer.IndividualLastName}`,
-            CustomerIndividualIdentityCardNumber:
-                Customer.IndividualIdentityCardNumber,
-            CustomerAddressMobileLine: Customer.AddressMobileLine,
-            CustomerAddressEmail: Customer.AddressEmail,
-            CustomerSerialNumber: Customer.SerialNumber,
-            CustomerReference1: Customer.Reference1,
-            CustomerReference2: Customer.Reference2,
-            CustomerReference3: Customer.Reference3,
-            IsLocked: Customer.IsLocked,
+            CustomerId: member.Id,
+            CustomerIndividualFirstName: member.IndividualFirstName,
+            CustomerIndividualLastName: member.IndividualLastName,
+            CustomerFullName: `${member.IndividualFirstName} ${member.IndividualLastName}`,
+            CustomerIndividualIdentityCardNumber: member.IndividualIdentityCardNumber || "",
+            CustomerAddressMobileLine: member.AddressMobileLine || "",
+            CustomerAddressEmail: member.AddressEmail || "",
+            CustomerSerialNumber: member.SerialNumber || 0,
+            CustomerReference1: member.Reference1 || "",
+            CustomerReference2: member.Reference2 || "",
+            CustomerReference3: member.Reference3 || "",
+            IsLocked: member.IsLocked || false,
         }));
-
-        setAccounts(Accounts || []);
     };
-
 
     const handleBranchSelect = (branch) => {
         setForm((prev) => ({
@@ -99,12 +98,10 @@ export default function AddMemberExitDrawer({
         }));
     };
 
-    const update = (key, value) =>
-        setForm((prev) => ({ ...prev, [key]: value }));
+    const update = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
 
     const handleSubmit = async () => {
         setLoading(true);
-
         try {
             const payload = {
                 ...form,
@@ -120,11 +117,7 @@ export default function AddMemberExitDrawer({
             });
 
             const data = await res.json();
-            console.log("Response:", data);
-            if (!res.ok) {
-                const msg = await res.text();
-                throw new Error(msg || "Failed to create member exit");
-            }
+            if (!res.ok) throw new Error(data?.message || "Failed to create member exit");
 
             Swal.fire("Success", "Member exit created successfully", "success");
             refresh?.();
@@ -135,9 +128,6 @@ export default function AddMemberExitDrawer({
             setLoading(false);
         }
     };
-    console.log("Form data:", form);
-
-    console.log(accounts);
 
     return (
         <AnimatePresence>
@@ -165,52 +155,51 @@ export default function AddMemberExitDrawer({
                             {/* Header */}
                             <div className="flex justify-between bg-indigo-600 p-2 rounded-2xl text-white font-semibold">
                                 <span className="ml-3">Member Exit</span>
-
-
-                                <Button
-                                    variant="outline"
-                                    onClick={onClose}
-                                    disabled={loading}
-                                    className="text-gray-600"
-                                >
+                                <Button variant="outline" onClick={onClose} disabled={loading} className="text-gray-600">
                                     Close
                                 </Button>
                             </div>
 
                             {/* Form */}
                             <div className="bg-gray-50 p-4 rounded-lg shadow border">
+                                <div className="grid grid-cols-2 gap-4 text-sm">
 
-
-                                <div className="grid grid-cols-2 gap-4 text-sm ">
-                                    <div className="flex justify-center items-end w-full">
+                                    {/* Member selector — same style as Receipting's "Received From" */}
+                                    <div>
+                                        <Label>Member</Label>
                                         <Button
-                                            variant="secondary"
-                                            className="bg-gray-500 hover:bg-gray-500 text-gray-50 hover:text-gray-50 w-full border-2 border-gray-400"
+                                            type="button"
+                                            variant="outline"
+                                            className="w-full justify-start bg-white"
                                             onClick={() => setSelectCustomerOpen(true)}
                                         >
-                                            Select Customer
+                                            {form.CustomerFullName || "Click to select member"}
                                         </Button>
                                     </div>
+
+                                    <div>
+                                        <Label>Member No.</Label>
+                                        <Input
+                                            value={form.CustomerReference2}
+                                            readOnly
+                                            className="bg-gray-100"
+                                            placeholder="Auto-filled on selection"
+                                        />
+                                    </div>
+
                                     <div>
                                         <Label>First Name</Label>
-
                                         <Input
                                             value={form.CustomerIndividualFirstName}
-                                            onChange={(e) =>
-                                                update("CustomerIndividualFirstName", e.target.value)
-                                            }
+                                            onChange={(e) => update("CustomerIndividualFirstName", e.target.value)}
                                         />
-
-
                                     </div>
 
                                     <div>
                                         <Label>Last Name</Label>
                                         <Input
                                             value={form.CustomerIndividualLastName}
-                                            onChange={(e) =>
-                                                update("CustomerIndividualLastName", e.target.value)
-                                            }
+                                            onChange={(e) => update("CustomerIndividualLastName", e.target.value)}
                                         />
                                     </div>
 
@@ -218,36 +207,15 @@ export default function AddMemberExitDrawer({
                                         <Label>ID Number</Label>
                                         <Input
                                             value={form.CustomerIndividualIdentityCardNumber}
-                                            onChange={(e) =>
-                                                update(
-                                                    "CustomerIndividualIdentityCardNumber",
-                                                    e.target.value
-                                                )
-                                            }
+                                            onChange={(e) => update("CustomerIndividualIdentityCardNumber", e.target.value)}
                                         />
                                     </div>
-
-                                    {/* <div>
-                                        <Label hidden>Payroll No</Label>
-                                        <Input
-                                            value={form.CustomerIndividualPayrollNumbers}
-                                            onChange={(e) =>
-                                                update(
-                                                    "CustomerIndividualPayrollNumbers",
-                                                    e.target.value
-                                                )
-                                            }
-                                            hidden
-                                        />
-                                    </div> */}
 
                                     <div>
                                         <Label>Phone</Label>
                                         <Input
                                             value={form.CustomerAddressMobileLine}
-                                            onChange={(e) =>
-                                                update("CustomerAddressMobileLine", e.target.value)
-                                            }
+                                            onChange={(e) => update("CustomerAddressMobileLine", e.target.value)}
                                         />
                                     </div>
 
@@ -256,17 +224,16 @@ export default function AddMemberExitDrawer({
                                         <Input
                                             type="email"
                                             value={form.CustomerAddressEmail}
-                                            onChange={(e) =>
-                                                update("CustomerAddressEmail", e.target.value)
-                                            }
+                                            onChange={(e) => update("CustomerAddressEmail", e.target.value)}
                                         />
                                     </div>
 
-
+                                    {/* Accounts — fetched automatically on member selection */}
                                     {accounts.length > 0 && (
-                                        <div className="mt-4 bg-white border rounded-lg p-3 col-span-2">
-                                            <h3 className="font-semibold mb-2 bg-indigo-500 p-3 rounded-xl text-gray-50">Customer Accounts</h3>
-
+                                        <div className="mt-2 bg-white border rounded-lg p-3 col-span-2">
+                                            <h3 className="font-semibold mb-2 bg-indigo-500 p-3 rounded-xl text-gray-50">
+                                                Customer Accounts
+                                            </h3>
                                             <div className="space-y-2 bg-gray-300 p-3 rounded-lg">
                                                 {accounts.map((acc) => (
                                                     <div
@@ -281,10 +248,9 @@ export default function AddMemberExitDrawer({
                                                                 {acc.FullAccountNumber}
                                                             </div>
                                                         </div>
-
                                                         <div className="text-right">
                                                             <div className="font-semibold">
-                                                                {acc.AvailableBalance.toLocaleString()}
+                                                                {Number(acc.AvailableBalance || 0).toLocaleString()}
                                                             </div>
                                                             <div className="text-xs text-gray-500">
                                                                 {acc.StatusDescription}
@@ -301,13 +267,9 @@ export default function AddMemberExitDrawer({
                                         <Input
                                             type="date"
                                             value={form.MaturityDate?.split("T")[0] || ""}
-                                            onChange={(e) =>
-                                                update("MaturityDate", `${e.target.value}T00:00:00Z`)
-                                            }
+                                            onChange={(e) => update("MaturityDate", `${e.target.value}T00:00:00Z`)}
                                             required
                                         />
-
-
                                     </div>
 
                                     <div>
@@ -329,9 +291,7 @@ export default function AddMemberExitDrawer({
                                         <Label>Remarks</Label>
                                         <Input
                                             value={form.Remarks}
-                                            onChange={(e) =>
-                                                update("Remarks", e.target.value)
-                                            }
+                                            onChange={(e) => update("Remarks", e.target.value)}
                                         />
                                     </div>
 
@@ -339,16 +299,14 @@ export default function AddMemberExitDrawer({
                                         <input
                                             type="checkbox"
                                             checked={form.IsLocked}
-                                            onChange={(e) =>
-                                                update("IsLocked", e.target.checked)
-                                            }
+                                            onChange={(e) => update("IsLocked", e.target.checked)}
                                         />
                                         <Label>Lock Record</Label>
                                     </div>
                                 </div>
 
-
-                                <div className="grid grid-cols-2 gap-4 text-sm">
+                                {/* Branch selection */}
+                                <div className="grid grid-cols-2 gap-4 text-sm mt-4">
                                     <div className="flex justify-center items-end w-full">
                                         <Button
                                             variant="secondary"
@@ -360,33 +318,24 @@ export default function AddMemberExitDrawer({
                                     </div>
                                     <div>
                                         <Label>Branch</Label>
-                                        <div className="flex gap-2">
-                                            <Input value={form.BranchDescription} readOnly />
-                                        </div>
-                                    </div>
-
-                                    <div>
-                                        <Label hidden>Branch Code</Label>
-                                        <Input value={form.BranchCode} readOnly hidden />
+                                        <Input value={form.BranchDescription} readOnly />
                                     </div>
                                 </div>
-
-
                             </div>
+
                             {/* Actions */}
                             <div className="flex justify-end gap-3">
                                 <Button variant="outline" onClick={onClose} disabled={loading}>
                                     Cancel
                                 </Button>
                                 <Button onClick={handleSubmit} disabled={loading}>
-                                    {loading ? "loading..." : "Add Exit"}
+                                    {loading ? "Submitting..." : "Add Exit"}
                                 </Button>
                             </div>
                         </div>
                     </motion.div>
                 </>
             )}
-
 
             <SelectBranchModal
                 open={selectBranchOpen}
@@ -399,7 +348,6 @@ export default function AddMemberExitDrawer({
                 onClose={() => setSelectCustomerOpen(false)}
                 onSelect={handleCustomerSelect}
             />
-
         </AnimatePresence>
     );
 }

@@ -27,7 +27,7 @@ export default function AddRole({ open, onClose, refresh }) {
 
         try {
             const response = await fetch(
-                "http://88.99.215.90:8600/api/auth/CreateRole",
+                "http://95.216.225.26:8006/api/auth/CreateRole",
                 {
                     method: "POST",
                     headers: {

@@ -43,11 +43,14 @@ const EMPTY_LINE = {
 
 
 
+
 const money = (n) =>
     Number(n || 0).toLocaleString(undefined, {
         style: "currency",
         currency: "KSH",
     });
+
+
 
 
 const numberToWords = (num) => {
@@ -69,6 +72,7 @@ const numberToWords = (num) => {
 
     return inWords(num).trim();
 };
+
 
 
 export default function Receipting() {
@@ -114,23 +118,17 @@ export default function Receipting() {
         setLines((p) => p.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
 
     useEffect(() => {
-        fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/values/GetChartOfAccount`, {
-            headers: { "ngrok-skip-browser-warning": "true" },
-        })
+        fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/values/GetChartOfAccount`)
             .then((r) => r.json())
             .then((d) => d.Success && setAccounts(d.Data.map((a) => ({ id: a.Id, name: a.AccountName }))));
 
-        fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/values/branches`, {
-            headers: { "ngrok-skip-browser-warning": "true" },
-        })
+        fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/values/branches`)
             .then((r) => r.json())
             .then((d) => d.Success && setBranches(d.Data));
     }, []);
 
     useEffect(() => {
-        fetch(`${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/customers`, {
-            headers: { "ngrok-skip-browser-warning": "true" },
-        })
+        fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/customers`)
             .then((r) => r.json())
             .then((d) => d.success && setMembers(d.data));
     }, []);
@@ -138,9 +136,7 @@ export default function Receipting() {
 
     // Fetch banks with linkages
     useEffect(() => {
-        fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/values/getBankWithLinkages`, {
-            headers: { "ngrok-skip-browser-warning": "true" },
-        })
+        fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/values/getBankWithLinkages`)
             .then((r) => r.json())
             .then((d) => {
                 if (d.Success) setBanks(d.Data);
@@ -155,8 +151,7 @@ export default function Receipting() {
         }
 
         fetch(
-            `${import.meta.env.VITE_APP_FIN_URL}/api/values/CustomerAccount/by-customer?customerId=${selectedMemberId}`,
-            { headers: { "ngrok-skip-browser-warning": "true" } }
+            `${import.meta.env.VITE_APP_FIN_URL}/api/values/CustomerAccount/by-customer?customerId=${selectedMemberId}`
         )
             .then(res => res.json())
             .then(data => {
@@ -238,8 +233,7 @@ export default function Receipting() {
                 {
                     method: "POST",
                     headers: {
-                        "Content-Type": "application/json",
-                        "ngrok-skip-browser-warning": "true",
+                        "Content-Type": "application/json"
                     },
                     body: JSON.stringify(payload),
                 }

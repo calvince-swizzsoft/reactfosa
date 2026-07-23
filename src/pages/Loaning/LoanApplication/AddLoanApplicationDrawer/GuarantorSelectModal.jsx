@@ -92,11 +92,14 @@ export default function GuarantorSelectModal({
                         <div className="max-h-72 overflow-y-auto border rounded-lg">
                             {filtered.map(m => {
                                 const c = m.Customer;
+                                const deposits = (m.Accounts || [])
+                                    .filter(a => a.ProductType === "Savings")
+                                    .reduce((sum, a) => sum + (Number(a.AccountBalance) || 0), 0);
                                 return (
                                     <div
                                         key={c.Id}
                                         onClick={() => {
-                                            onSelect(m);
+                                            onSelect(m, deposits);
                                             onClose();
                                         }}
                                         className="p-3 cursor-pointer hover:bg-indigo-50 border-b"
@@ -104,8 +107,11 @@ export default function GuarantorSelectModal({
                                         <p className="font-medium">
                                             {c.IndividualFirstName} {c.IndividualLastName}
                                         </p>
-                                        <p className="text-xs text-gray-500">
-                                            Payroll: {c.Reference3}
+                                        <p className="text-xs text-gray-500 flex gap-3">
+                                            <span>Payroll: {c.Reference3 || "N/A"}</span>
+                                            <span className="text-green-700 font-semibold">
+                                                Deposits: {deposits.toLocaleString()}
+                                            </span>
                                         </p>
                                     </div>
                                 );

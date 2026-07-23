@@ -15,9 +15,7 @@ export default function LoanRegister() {
 
 
   useEffect(() => {
-    fetch("http://88.99.215.90:8600/api/Loaning/getallloans", {
-      headers: { "ngrok-skip-browser-warning": "true" },
-    })
+    fetch(`${import.meta.env.VITE_APP_LOANING_URL}/api/Loaning/getallloans`)
       .then((r) => r.json())
       .then((d) => setLoans(Array.isArray(d) ? d : d.Data || []))
       .catch(() => Swal.fire("Error", "Failed to load loans", "error"));

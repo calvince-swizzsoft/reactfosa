@@ -35,15 +35,23 @@ export default function CustomerAccounts() {
     const fetchData = async () => {
         try {
             const res = await fetch(
-                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/customeraccounts/all`, {
-                headers: { "ngrok-skip-browser-warning": "true" },
-            }
+                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/customeraccounts/all`
             );
             const json = await res.json();
+            console.log("Customer accounts response:", json);
 
-            setAccounts(json?.data || []);
+            const accountsList = Array.isArray(json)
+                ? json
+                : Array.isArray(json?.data)
+                    ? json.data
+                    : Array.isArray(json?.Data)
+                        ? json.Data
+                        : [];
+
+            setAccounts(accountsList);
         } catch (error) {
             console.error("Fetch Error:", error);
+            setAccounts([]);
         } finally {
             setLoading(false);
         }
