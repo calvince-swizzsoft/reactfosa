@@ -1,6 +1,10 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 
 import Layout from "./components/Layout";
+import RequireAuth from "./components/RequireAuth";
+import PlaceholderModule from "./pages/PlaceholderModule";
+import { AuthProvider } from "./context/AuthContext";
+import { ModuleTreeProvider } from "./context/ModuleTreeContext";
 
 
 import Invcategory from "./pages/Inventory/Category/Invcategory";
@@ -118,16 +122,22 @@ import FOSATransactions from "./pages/FOSA/Transactions/index.jsx"
 
 export default function App() {
   return (
-    <Router>
-      <Routes>
-        {/* Redirect root to login */}
-        <Route path="/" element={<Navigate to="/login" replace />} />
+    <AuthProvider>
+      <ModuleTreeProvider>
+      <Router>
+        <Routes>
+          {/* Redirect root to login */}
+          <Route path="/" element={<Navigate to="/login" replace />} />
 
-        {/* Login route WITHOUT Layout */}
-        <Route path="/login" element={<Login />} />
+          {/* Login route WITHOUT Layout */}
+          <Route path="/login" element={<Login />} />
 
-        {/* All other routes WITH Layout */}
-        <Route path="/*" element={<Layout />}>
+          {/* All other routes require authentication and get the Layout */}
+          <Route element={<RequireAuth />}>
+          <Route path="/*" element={<Layout />}>
+
+          {/* Generic landing page for any backend module without a dedicated page yet */}
+          <Route path="modules/:code" element={<PlaceholderModule />} />
 
           <Route path="department" element={<Departments />} />
           <Route path="leave" element={<Leaves />} />
@@ -254,8 +264,11 @@ export default function App() {
           <Route path="FosaManagement/Setup" element={<FOSASetup />} />
           <Route path="FosaManagement/Transactions" element={<FOSATransactions />} />
 
-        </Route>
-      </Routes>
-    </Router>
+          </Route>
+          </Route>
+        </Routes>
+      </Router>
+      </ModuleTreeProvider>
+    </AuthProvider>
   );
 }

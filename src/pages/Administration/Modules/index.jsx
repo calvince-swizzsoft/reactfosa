@@ -1,53 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { FaChevronRight, FaFolder, FaFolderOpen, FaFileAlt, FaSearch } from "react-icons/fa";
 import Swal from "sweetalert2";
-
-// The API returns a flat list. Each item's own identity is `Code`; its parent
-// is whichever other item has that same value in `AreaCode`. Root modules use
-// AreaCode: 0. The API's own `Children` arrays are inconsistent (a parent can
-// list no children even though other items point back to it), so the tree is
-// always rebuilt here from Code/AreaCode rather than trusted as-is.
-function buildModuleTree(items) {
-  const byCode = new Map();
-  items.forEach((item) => {
-    byCode.set(item.Code, { ...item, Children: [] });
-  });
-
-  const roots = [];
-  byCode.forEach((node) => {
-    const parent = node.AreaCode && node.AreaCode !== node.Code ? byCode.get(node.AreaCode) : null;
-    if (parent) {
-      parent.Children.push(node);
-    } else {
-      roots.push(node);
-    }
-  });
-
-  const sortByCode = (nodes) => {
-    nodes.sort((a, b) => a.Code - b.Code);
-    nodes.forEach((n) => sortByCode(n.Children));
-  };
-  sortByCode(roots);
-
-  return roots;
-}
-
-function nodeMatches(node, query) {
-  return node.Description?.toLowerCase().includes(query) || String(node.Code).includes(query);
-}
-
-// Keep only branches that match the query themselves or contain a match.
-function filterTree(nodes, query) {
-  if (!query) return nodes;
-
-  return nodes.reduce((acc, node) => {
-    const filteredChildren = filterTree(node.Children, query);
-    if (nodeMatches(node, query) || filteredChildren.length > 0) {
-      acc.push({ ...node, Children: filteredChildren });
-    }
-    return acc;
-  }, []);
-}
+import { buildModuleTree, filterTree } from "@/lib/moduleTree";
 
 function ModuleTreeNode({ node, depth, forceExpand }) {
   const hasChildren = node.Children.length > 0;
