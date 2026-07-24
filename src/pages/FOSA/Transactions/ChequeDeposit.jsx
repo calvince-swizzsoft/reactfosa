@@ -114,8 +114,8 @@ function AddChequeDepositDrawer({ open, onClose, onSuccess }) {
     if (!open) return;
     setLoadingData(true);
     Promise.all([
-      fetch(`${BASE}/api/customers`).then((r) => r.json()),
-      fetch(`${BASE}/api/branches`).then((r) => r.json()),
+      fetch(`${BASE}/api/registry/customers`).then((r) => r.json()),
+      fetch(`${BASE}/api/administration/branches`).then((r) => r.json()),
     ]).then(([custData, branchData]) => {
       setCustomers(custData.success ? (Array.isArray(custData.data) ? custData.data : []) : []);
       setBranches(Array.isArray(branchData.data) ? branchData.data : []);

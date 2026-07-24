@@ -5,7 +5,7 @@ import { buildModuleTree } from "@/lib/moduleTree";
 
 // TODO: swap to `/api/navigation` once the backend exposes a role-scoped
 // endpoint; for now /api/modules returns the same Code/AreaCode shape.
-const MODULES_ENDPOINT = `${import.meta.env.VITE_APP_ADMIN_URL}/api/modules`;
+const MODULES_ENDPOINT = `${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/modules`;
 
 const ModuleTreeContext = createContext(null);
 

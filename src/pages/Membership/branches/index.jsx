@@ -62,7 +62,7 @@ export default function Branches() {
     const fetchBranches = async () => {
         try {
             const res = await fetch(
-                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/branches`
+                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/administration/branches`
             );
             const json = await res.json();
             setBranches(json.data || []);
@@ -168,7 +168,7 @@ export default function Branches() {
             if (result.isConfirmed) {
                 try {
                     const res = await fetch(
-                        `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/branches/${id}`,
+                        `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/administration/branches/${id}`,
                         {
                             method: "DELETE"
                         }

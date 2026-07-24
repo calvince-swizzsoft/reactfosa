@@ -41,7 +41,7 @@ export default function Catalogue() {
 
   const fetchCheques = () => {
     setLoading(true);
-    fetch(`${BASE}/api/cheques`)
+    fetch(`${BASE}/api/frontoffice/cheques`)
       .then((r) => r.json())
       .then((d) => setCheques(Array.isArray(d) ? d : []))
       .catch(() => setCheques([]))

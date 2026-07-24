@@ -151,9 +151,9 @@ function AddCashWithdrawalDepositDrawer({ open, onClose, onSuccess }) {
     if (!open) return;
     setLoadingData(true);
     Promise.all([
-      fetch(`${BASE}/api/customers`).then((r) => r.json()),
-      fetch(`${BASE}/api/branches`).then((r) => r.json()),
-      fetch(`${BASE}/api/tellers`).then((r) => r.json()),
+      fetch(`${BASE}/api/registry/customers`).then((r) => r.json()),
+      fetch(`${BASE}/api/administration/branches`).then((r) => r.json()),
+      fetch(`${BASE}/api/frontoffice/tellers`).then((r) => r.json()),
     ]).then(([customerData, branchData, tellerData]) => {
       setCustomers(normalizeList(customerData));
       setBranches(normalizeList(branchData));
@@ -175,7 +175,7 @@ function AddCashWithdrawalDepositDrawer({ open, onClose, onSuccess }) {
     }));
     if (!customerId) return;
     setLoadingAccounts(true);
-    fetch(`${BASE}/api/customer-accounts/${customerId}/accounts`)
+    fetch(`${BASE}/api/accounts/customer-accounts/${customerId}/accounts`)
       .then((r) => r.json())
       .then((d) => {
         const normalizedAccounts = Array.isArray(d)
@@ -227,7 +227,7 @@ function AddCashWithdrawalDepositDrawer({ open, onClose, onSuccess }) {
           TransactionType: Number(form.TransactionType),
           CurrentTellerId: form.CurrentTellerId || selectedTellerId,
         };
-        const res = await fetch(`${BASE}/api/requests?type=1`, {
+        const res = await fetch(`${BASE}/api/frontoffice/requests?type=1`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
@@ -340,7 +340,7 @@ export default function CashWithdrawal() {
 
   const fetchItems = () => {
     setLoading(true);
-    fetch(`${BASE}/api/requests?type=1`)
+    fetch(`${BASE}/api/frontoffice/requests?type=1`)
       .then((r) => r.json())
       .then((d) => {
         const allItems = Array.isArray(d) ? d : [];
@@ -357,7 +357,7 @@ export default function CashWithdrawal() {
     const confirm = await Swal.fire({ title: "Authorize Withdrawal?", icon: "question", showCancelButton: true, confirmButtonColor: "#4f46e5", confirmButtonText: "Authorize" });
     if (!confirm.isConfirmed) return;
     try {
-      const res = await fetch(`${BASE}/api/requests/authorize?id=${id}&opt=1`, { method: "POST" });
+      const res = await fetch(`${BASE}/api/frontoffice/requests/authorize?id=${id}&opt=1`, { method: "POST" });
       if (!res.ok) throw new Error("Authorization failed");
       Swal.fire("Authorized!", "Withdrawal request authorized.", "success");
       fetchItems();
@@ -370,7 +370,7 @@ export default function CashWithdrawal() {
     const confirm = await Swal.fire({ title: "Reject Withdrawal?", icon: "warning", showCancelButton: true, confirmButtonColor: "#dc2626", confirmButtonText: "Reject" });
     if (!confirm.isConfirmed) return;
     try {
-      const res = await fetch(`${BASE}/api/requests/authorize?cashDepositRequestId=${id}&customerTransactionAuthOption=2`, { method: "POST" });
+      const res = await fetch(`${BASE}/api/frontoffice/requests/authorize?cashDepositRequestId=${id}&customerTransactionAuthOption=2`, { method: "POST" });
       if (!res.ok) throw new Error("Rejection failed");
       Swal.fire("Rejected!", "Withdrawal request rejected.", "success");
       fetchItems();
@@ -383,7 +383,7 @@ export default function CashWithdrawal() {
     const confirm = await Swal.fire({ title: "Post Withdrawawl?", icon: "question", showCancelButton: true, confirmButtonColor: "#4f46e5", confirmButtonText: "Post" });
     if (!confirm.isConfirmed) return;
     try {
-      const res = await fetch(`${BASE}/api/requests/post?id=${id}`, { method: "POST" });
+      const res = await fetch(`${BASE}/api/frontoffice/requests/post?id=${id}`, { method: "POST" });
       if (!res.ok) throw new Error("Posting failed");
       Swal.fire("Posted!", "Withdrawawl request posted successfully.", "success");
       fetchItems();

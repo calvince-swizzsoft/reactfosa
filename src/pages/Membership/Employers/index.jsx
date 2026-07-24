@@ -54,7 +54,7 @@ export default function Employers() {
         setLoading(true);
         try {
             const res = await fetch(
-                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/employers`
+                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/humanresource/employers`
             );
             const json = await res.json();
             if (json.success) setEmployers(json.data);
@@ -165,7 +165,7 @@ export default function Employers() {
             if (result.isConfirmed) {
                 try {
                     const res = await fetch(
-                        `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/employers/${id}`,
+                        `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/humanresource/employers/${id}`,
                         { method: "DELETE" }
                     );
                     if (!res.ok) throw new Error("Failed to delete employer");

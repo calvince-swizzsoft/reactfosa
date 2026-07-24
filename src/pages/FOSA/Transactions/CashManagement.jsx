@@ -115,9 +115,9 @@ export default function CashManagement() {
   useEffect(() => {
     setLoadingData(true);
     Promise.all([
-      fetch(`${BASE}/api/branches`).then((r) => r.json()),
-      fetch(`${BASE}/api/tellers`).then((r) => r.json()),
-      fetch(`${BASE}/api/treasurys`).then((r) => r.json()),
+      fetch(`${BASE}/api/administration/branches`).then((r) => r.json()),
+      fetch(`${BASE}/api/frontoffice/tellers`).then((r) => r.json()),
+      fetch(`${BASE}/api/frontoffice/treasurys`).then((r) => r.json()),
       fetch(`${BASE}/api/values/GetChartOfAccount`).then((r) => r.json()),
     ]).then(([branchData, tellerData, treasuryData, coaData]) => {
       setBranches(Array.isArray(branchData.data) ? branchData.data : []);
@@ -138,7 +138,7 @@ export default function CashManagement() {
         TransactionType: Number(form.TransactionType),
         TransactionCode: Number(form.TransactionCode),
       };
-      const res = await fetch(`${BASE}/api/cashmanagement`, {
+      const res = await fetch(`${BASE}/api/frontoffice/cashmanagement`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

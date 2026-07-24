@@ -86,7 +86,7 @@ export default function AddCompanies({ open, onClose, refresh }) {
         setLoading(true);
         try {
             const response = await fetch(
-                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/companies`,
+                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/administration/companies`,
                 {
                     method: "POST",
                     headers: {

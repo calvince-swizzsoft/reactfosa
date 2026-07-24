@@ -29,7 +29,7 @@ export default function AddDivision({ open, onClose, refresh }) {
     const fetchEmployers = async () => {
         try {
             const res = await fetch(
-                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/employers`
+                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/administration/employers`
             );
             const json = await res.json();
             if (json.success) setEmployers(json.data);

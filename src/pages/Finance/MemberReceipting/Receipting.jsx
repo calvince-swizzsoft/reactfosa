@@ -128,7 +128,7 @@ export default function Receipting() {
     }, []);
 
     useEffect(() => {
-        fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/customers`)
+        fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/registry/customers`)
             .then((r) => r.json())
             .then((d) => d.success && setMembers(d.data));
     }, []);

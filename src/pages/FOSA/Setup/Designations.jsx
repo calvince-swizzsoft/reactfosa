@@ -64,7 +64,7 @@ function AddDesignationDrawer({ open, onClose, onSuccess }) {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await fetch(`${BASE}/api/designations`, {
+      const res = await fetch(`${BASE}/api/humanresource/designations`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),

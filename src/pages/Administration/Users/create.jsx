@@ -30,7 +30,7 @@ export default function CreateUser() {
     const fetchEmployees = async () => {
       setEmployeeLoading(true);
       try {
-        const response = await fetch(`${import.meta.env.VITE_APP_ADMIN_URL}/api/employees`);
+        const response = await fetch(`${import.meta.env.VITE_APP_ADMIN_URL}/api/humanresource/employees`);
         const data = await response.json().catch(() => ({}));
 
         if (!response.ok) {
@@ -88,7 +88,7 @@ export default function CreateUser() {
 
       delete payload.confirmPassword;
 
-      const response = await fetch(`${import.meta.env.VITE_APP_ADMIN_URL}/api/users`, {
+      const response = await fetch(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/users`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

@@ -22,7 +22,7 @@ export default function AdministrationUsers() {
     const fetchUsers = async () => {
       setLoading(true);
       try {
-        const response = await fetch(`${import.meta.env.VITE_APP_ADMIN_URL}/api/users`);
+        const response = await fetch(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/users`);
         const data = await response.json().catch(() => []);
 
         if (!response.ok) {
@@ -41,7 +41,7 @@ export default function AdministrationUsers() {
     const fetchRoles = async () => {
       setRoleLoading(true);
       try {
-        const response = await fetch(`${import.meta.env.VITE_APP_ADMIN_URL}/api/roles`);
+        const response = await fetch(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/roles`);
         const data = await response.json().catch(() => ({}));
 
         if (!response.ok) {
@@ -75,7 +75,7 @@ export default function AdministrationUsers() {
   const fetchUserRoles = async (username) => {
     setUserRolesLoading(true);
     try {
-      const response = await fetch(`${import.meta.env.VITE_APP_ADMIN_URL}/api/users/roles?user=${encodeURIComponent(username)}`);
+      const response = await fetch(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/users/roles?user=${encodeURIComponent(username)}`);
       const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
@@ -135,7 +135,7 @@ export default function AdministrationUsers() {
     if (!selectedUser) return;
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_APP_ADMIN_URL}/api/users`, {
+      const response = await fetch(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/users`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -170,7 +170,7 @@ export default function AdministrationUsers() {
     try {
       const username = editForm.userName || selectedUser.userName || selectedUser.UserName || "";
 
-      const response = await fetch(`${import.meta.env.VITE_APP_ADMIN_URL}/api/roles/add`, {
+      const response = await fetch(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/roles/add`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -206,7 +206,7 @@ export default function AdministrationUsers() {
     try {
       const username = editForm.userName || selectedUser.userName || selectedUser.UserName || "";
 
-      const response = await fetch(`${import.meta.env.VITE_APP_ADMIN_URL}/api/roles/remove`, {
+      const response = await fetch(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/roles/remove`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

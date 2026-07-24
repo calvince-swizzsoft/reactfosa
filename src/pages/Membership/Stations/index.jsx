@@ -38,7 +38,7 @@ export default function Stations() {
         setLoading(true);
         try {
             const res = await fetch(
-                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/stations`
+                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/administration/stations`
             );
             const json = await res.json();
             if (json.success) setStations(json.data);
@@ -62,7 +62,7 @@ export default function Stations() {
             if (result.isConfirmed) {
                 try {
                     const res = await fetch(
-                        `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/stations/${id}`,
+                        `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/administration/stations/${id}`,
                         { method: "DELETE" }
                     );
                     if (!res.ok) throw new Error("Failed to delete station");

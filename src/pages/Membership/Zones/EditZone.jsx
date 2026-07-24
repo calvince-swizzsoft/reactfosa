@@ -42,7 +42,7 @@ export default function EditZone({ open, onClose, data, refresh }) {
     const fetchDivisions = async () => {
         try {
             const res = await fetch(
-                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/divisions`
+                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/administration/divisions`
             );
             const json = await res.json();
             if (json.success) setDivisions(json.data);

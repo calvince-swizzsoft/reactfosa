@@ -56,7 +56,7 @@ export default function AddProductDrawer({ open, onClose, refresh }) {
         const fetchChartOfAccounts = async () => {
             try {
                 const res = await fetch(
-                    `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/chartofaccounts`,
+                    `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/accounts/chartofaccounts`,
                     { headers: { "ngrok-skip-browser-warning": "true" } }
                 );
                 const json = await res.json();
@@ -74,7 +74,7 @@ export default function AddProductDrawer({ open, onClose, refresh }) {
         setLoading(true);
         try {
             const res = await fetch(
-                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/savings-products`,
+                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/accounts/savings-products`,
                 {
                     method: "POST",
                     headers: {

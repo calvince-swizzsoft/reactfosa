@@ -310,7 +310,7 @@ export default function MemberEditDrawer({ open, onClose, refresh, member }) {
             };
 
             const response = await fetch(
-                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/customers/${customer.Id}`,
+                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/registry/customers/${customer.Id}`,
                 {
                     method: "PUT",
                     headers: {
@@ -381,7 +381,7 @@ export default function MemberEditDrawer({ open, onClose, refresh, member }) {
                 };
 
                 const response = await fetch(
-                    `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/nextofkin`,
+                    `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/registry/nextofkin`,
                     {
                         method: "POST",
                         headers: {
@@ -470,7 +470,7 @@ export default function MemberEditDrawer({ open, onClose, refresh, member }) {
     const fetchBranches = async () => {
         try {
             const res = await fetch(
-                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/branches`,
+                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/administration/branches`,
                 { headers: { "ngrok-skip-browser-warning": "true" } }
             );
             const json = await res.json();
@@ -482,7 +482,7 @@ export default function MemberEditDrawer({ open, onClose, refresh, member }) {
 
     const loadStations = async () => {
         try {
-            const res = await fetch(`${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/stations`);
+            const res = await fetch(`${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/administration/stations`);
             const json = await res.json();
             if (json.success) {
                 setStations(json.data);

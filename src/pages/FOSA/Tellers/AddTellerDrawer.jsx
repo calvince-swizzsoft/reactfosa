@@ -79,7 +79,7 @@ export default function AddTellerDrawer({ open, onClose, onSuccess }) {
     if (!open) return;
     setLoadingData(true);
     Promise.all([
-      fetch(`${BASE}/api/employees`).then((r) => r.json()),
+      fetch(`${BASE}/api/humanresource/employees`).then((r) => r.json()),
       fetch(`${BASE}/api/values/GetChartOfAccount`).then((r) => r.json()),
     ]).then(([empData, coaData]) => {
       setEmployees(Array.isArray(empData) ? empData : []);
@@ -114,7 +114,7 @@ export default function AddTellerDrawer({ open, onClose, onSuccess }) {
         IsLocked: form.IsLocked,
       };
 
-      const res = await fetch(`${BASE}/api/tellers`, {
+      const res = await fetch(`${BASE}/api/frontoffice/tellers`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

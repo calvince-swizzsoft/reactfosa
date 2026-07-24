@@ -72,7 +72,7 @@ export default function AddStation({ open, onClose, refresh }) {
         setLoading(true);
 
         try {
-            const response = await fetch(`${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/stations`, {
+            const response = await fetch(`${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/administration/stations`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

@@ -183,7 +183,7 @@ function AddSavingsProductDrawer({ open, onClose, onSuccess }) {
         AnnualPercentageYield: Number(form.AnnualPercentageYield),
         Priority: Number(form.Priority),
       };
-      const res = await fetch(`${BASE}/api/savingsproducts`, {
+      const res = await fetch(`${BASE}/api/accounts/savingsproducts`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -260,7 +260,7 @@ function EditSavingsProductDrawer({ open, onClose, onSuccess, item }) {
         AnnualPercentageYield: Number(form.AnnualPercentageYield),
         Priority: Number(form.Priority),
       };
-      const res = await fetch(`${BASE}/api/savingsproducts/${item.Id}`, {
+      const res = await fetch(`${BASE}/api/accounts/savingsproducts/${item.Id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -292,7 +292,7 @@ export default function SavingsProducts() {
 
   const fetchItems = () => {
     setLoading(true);
-    fetch(`${BASE}/api/savingsproducts`)
+    fetch(`${BASE}/api/accounts/savingsproducts`)
       .then((r) => r.json())
       .then((d) => setItems(Array.isArray(d) ? d : []))
       .catch(() => setItems([]))
@@ -307,7 +307,7 @@ export default function SavingsProducts() {
     Swal.fire({ title: "Delete Savings Product?", icon: "warning", showCancelButton: true, confirmButtonColor: "#dc2626", confirmButtonText: "Delete" }).then(async (r) => {
       if (r.isConfirmed) {
         try {
-          const res = await fetch(`${BASE}/api/savingsproducts/${id}`, { method: "DELETE" });
+          const res = await fetch(`${BASE}/api/accounts/savingsproducts/${id}`, { method: "DELETE" });
           if (!res.ok) throw new Error("Failed to delete");
           setItems((prev) => prev.filter((x) => x.Id !== id));
           Swal.fire("Deleted!", "Savings product removed.", "success");

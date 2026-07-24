@@ -16,7 +16,7 @@ export const moduleRouteMap = {
   20004: "/Membership/branches",
 
   // Administration > Operations > Security > Roles (ControllerName: Role)
-  20009: "/UserManagement/Roles",
+  20009: "/Administration/Roles/Create",
   // Administration > Operations > Security > Users
   20010: "/UserManagement/Users",
 

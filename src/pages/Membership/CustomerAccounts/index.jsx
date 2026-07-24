@@ -35,7 +35,7 @@ export default function CustomerAccounts() {
     const fetchData = async () => {
         try {
             const res = await fetch(
-                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/customeraccounts/all`
+                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/accounts/customeraccounts/all`
             );
             const json = await res.json();
             console.log("Customer accounts response:", json);

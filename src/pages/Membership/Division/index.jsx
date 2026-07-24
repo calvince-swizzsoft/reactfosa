@@ -40,7 +40,7 @@ export default function Division() {
         setLoading(true);
         try {
             const res = await fetch(
-                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/divisions`
+                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/administration/divisions`
             );
             const json = await res.json();
             if (json.success) setDivisions(json.data);
@@ -64,7 +64,7 @@ export default function Division() {
             if (result.isConfirmed) {
                 try {
                     const res = await fetch(
-                        `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/divisions/${id}`,
+                        `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/administration/divisions/${id}`,
                         { method: "DELETE" }
                     );
                     if (!res.ok) throw new Error("Failed to delete division");

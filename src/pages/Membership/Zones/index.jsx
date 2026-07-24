@@ -34,7 +34,7 @@ export default function Zones() {
         setLoading(true);
         try {
             const res = await fetch(
-                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/zones`
+                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/administration/zones`
             );
             const json = await res.json();
             if (json.success) setZones(json.data);

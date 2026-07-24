@@ -24,7 +24,7 @@ export default function Employees() {
   const [addDrawerOpen, setAddDrawerOpen] = useState(false);
 
   const fetchEmployees = () => {
-    fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/employees`)
+    fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/humanresource/employees`)
       .then((res) => res.json())
       .then((data) => {
         setEmployees(Array.isArray(data) ? data : []);

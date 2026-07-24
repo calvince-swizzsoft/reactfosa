@@ -101,7 +101,7 @@ function AddCashTransferDrawer({ open, onClose, onSuccess }) {
         OpeningBalance: String(form.OpeningBalance),
         TellerCashBalanceStatus: String(form.TellerCashBalanceStatus),
       };
-      const res = await fetch(`${BASE}/api/transfers/cash`, {
+      const res = await fetch(`${BASE}/api/frontoffice/transfers/cash`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

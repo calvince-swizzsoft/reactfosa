@@ -13,7 +13,7 @@ export default function CustomerSelectModal({ open, onClose, onSelect }) {
     if (!open) return;
     setSearch("");
     setLoading(true);
-    fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/customers`)
+    fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/administration/customers`)
       .then((res) => res.json())
       .then((d) => setCustomers(d.success ? d.data : []))
       .catch((err) => console.error("Failed to load members", err))

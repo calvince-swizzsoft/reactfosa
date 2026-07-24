@@ -70,7 +70,7 @@ export default function EditBranch({ open, onClose, data, refresh }) {
         setLoading(true);
         try {
             const res = await fetch(
-                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/branches/${form.Id}`,
+                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/administration/branches/${form.Id}`,
                 {
                     method: "PUT",
                     headers: {
