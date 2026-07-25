@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { MdPayments } from "react-icons/md";
 
 import AccountConfiguration from "./AccountConfiguration/AccountConfiguration";
-import BankLinkages from "./Bank/BankLinkages";
+import BankLinkages from "@/pages/Administration/Bank/BankLinkages";
 
 export default function Setup() {
   const [selectedUserId, setSelectedUserId] = useState(null);

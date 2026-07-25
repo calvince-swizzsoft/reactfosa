@@ -1,0 +1,132 @@
+import { useEffect, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import Swal from "sweetalert2";
+
+export default function AddLocation({ open, onClose, refresh }) {
+  const [loading, setLoading] = useState(false);
+  const [branches, setBranches] = useState([]);
+  const [form, setForm] = useState({
+    Description: "",
+    BranchId: "",
+    IsLocked: false,
+  });
+
+  const update = (key, value) => {
+    setForm({ ...form, [key]: value });
+  };
+
+  useEffect(() => {
+    const fetchBranches = async () => {
+      try {
+        const res = await fetch(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/branches`);
+        const data = await res.json();
+        const branchList = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
+        setBranches(branchList);
+      } catch (err) {
+        console.error("Failed to fetch branches", err);
+      }
+    };
+    fetchBranches();
+  }, []);
+
+  const handleSubmit = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/locations`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+
+      if (!response.ok) throw new Error("Failed to add location");
+
+      Swal.fire("Success!", "Location added successfully", "success");
+      setForm({ Description: "", BranchId: "", IsLocked: false });
+      refresh();
+      onClose();
+    } catch (err) {
+      Swal.fire("Error", err.message, "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <AnimatePresence>
+      {open && (
+        <>
+          <motion.div
+            className="fixed inset-0 bg-black z-40"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 0.4 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+          />
+
+          <motion.div
+            className="fixed top-3 right-3 w-[80vw] max-w-[950px] bg-white shadow-2xl z-50 flex flex-col rounded-2xl"
+            initial={{ x: "100%" }}
+            animate={{ x: 0 }}
+            exit={{ x: "100%" }}
+            transition={{ type: "spring", stiffness: 260, damping: 30 }}
+          >
+            <div className="bg-gray-200 m-2 rounded-xl">
+              <div className="p-4 flex justify-between items-center bg-indigo-700 rounded-2xl m-2">
+                <h2 className="font-bold text-xl text-white">Add New Location</h2>
+                <Button variant="outline" size="sm" onClick={onClose}>
+                  Close
+                </Button>
+              </div>
+
+              <div className="p-5 overflow-y-auto h-[75vh] bg-gray-50 rounded-xl m-3">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Branch</Label>
+                    <select
+                      className="w-full border border-gray-300 rounded p-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      value={form.BranchId}
+                      onChange={(e) => update("BranchId", e.target.value)}
+                    >
+                      <option value="">Select Branch</option>
+                      {branches.map((b) => (
+                        <option key={b.Id} value={b.Id}>
+                          {b.Description}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <Label>Name</Label>
+                    <Input
+                      value={form.Description}
+                      onChange={(e) => update("Description", e.target.value)}
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2 mt-4">
+                    <input
+                      type="checkbox"
+                      checked={form.IsLocked}
+                      onChange={(e) => update("IsLocked", e.target.checked)}
+                    />
+                    <Label>Is Locked?</Label>
+                  </div>
+                </div>
+
+                <div className="flex justify-end mt-8">
+                  <Button onClick={handleSubmit} disabled={loading} className="bg-indigo-600 hover:bg-indigo-700">
+                    {loading ? "Submitting..." : "Submit"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
+  );
+}

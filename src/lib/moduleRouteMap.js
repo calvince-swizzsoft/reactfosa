@@ -15,10 +15,23 @@ export const moduleRouteMap = {
   // Administration > Setup > Branches (ControllerName: Branch)
   20004: "/Membership/branches",
 
+  // Administration > Setup > Banks (ControllerName: Banks) 
+  20005: "/Administration/Banks", //w currently use BankLinkages but possibly we should implement Banks
+
+   // Administration > Setup > Banks (ControllerName: Banks)
+  20006: "/Administration/Locations",
+
+  // Administration > Setup > Audit Logs (ControllerName: AuditLog)
+  20008: "/Administration/AuditLogs",
+
   // Administration > Operations > Security > Roles (ControllerName: Role)
   20009: "/Administration/Roles/Create",
   // Administration > Operations > Security > Users
-  20010: "/UserManagement/Users",
+  //20010: "/UserManagement/Users",
+
+    20010: "/Administration/Users",
+
+
 
   // Administration > Operations > Access Control List > Modules (ControllerName: Module)
   20012: "/Administration/Modules",
