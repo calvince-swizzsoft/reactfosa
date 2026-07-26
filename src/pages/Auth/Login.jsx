@@ -57,7 +57,8 @@ export default function Login() {
 
       // Backend has no real token yet — use the username as a
       // temporary session marker until a JWT is issued.
-      login(data.userName || data.UserName || form.UserName);
+      const roles = Array.isArray(data.roles) ? data.roles : Array.isArray(data.Roles) ? data.Roles : [];
+      login(data.userName || data.UserName || form.UserName, roles);
 
       Swal.fire("Success!", "Login successful", "success");
 

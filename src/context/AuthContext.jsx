@@ -1,23 +1,32 @@
 import { createContext, useContext, useState } from "react";
-import { getToken, setToken, clearToken, isAuthenticated as hasToken } from "@/lib/auth";
+import {
+  getToken, setToken, clearToken,
+  getRoles, setRoles, clearRoles,
+  isAuthenticated as hasToken,
+} from "@/lib/auth";
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [token, setTokenState] = useState(getToken());
+  const [roles, setRolesState] = useState(getRoles());
 
-  const login = (newToken) => {
+  const login = (newToken, newRoles = []) => {
     setToken(newToken);
     setTokenState(newToken);
+    setRoles(newRoles);
+    setRolesState(newRoles);
   };
 
   const logout = () => {
     clearToken();
+    clearRoles();
     setTokenState(null);
+    setRolesState([]);
   };
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated: Boolean(token), login, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated: Boolean(token), userName: token, roles, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
