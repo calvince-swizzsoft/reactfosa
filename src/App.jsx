@@ -1,6 +1,10 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 
 import Layout from "./components/Layout";
+import RequireAuth from "./components/RequireAuth";
+import PlaceholderModule from "./pages/PlaceholderModule";
+import { AuthProvider } from "./context/AuthContext";
+import { ModuleTreeProvider } from "./context/ModuleTreeContext";
 
 
 import Invcategory from "./pages/Inventory/Category/Invcategory";
@@ -40,7 +44,7 @@ import InventoryDashboard from "./pages/Inventory/InventoryDashboard.jsx";
 import ProVendors from "./pages/Procurement/Vendors/ProVendors.jsx";
 import ProRequisitions from "./pages/Procurement/Requisitions/ProRequisitions.jsx";
 import PurchaseOrder from "./pages/Procurement/PurchaseOrder/PurchaseOrder.jsx";
-import BankLinkages from "./pages/Finance/Setup/Bank/BankLinkages.jsx";
+//import BankLinkages from "./pages/Finance/Setup/Bank/BankLinkages.jsx";
 import AccountConfiguration from "./pages/Finance/Setup/AccountConfiguration/AccountConfiguration.jsx";
 
 //import PurchaseInvoices from "./pages/Finance/PurchaseInvoice/PurchaseInvoices.jsx";
@@ -104,6 +108,9 @@ import AdministrationCreateRole from "./pages/Administration/Roles/create.jsx";
 import AdministrationUsers from "./pages/Administration/Users/index.jsx";
 import CreateUser from "./pages/Administration/Users/create.jsx";
 import AdministrationModules from "./pages/Administration/Modules/index.jsx";
+import BankLinkages from "./pages/Administration/Bank/BankLinkages.jsx";
+import AdministrationLocations from "./pages/Administration/Locations/index.jsx";
+import AuditLogs from "./pages/Administration/Audit Logs/index.jsx";
 
 //import Tellers from "./pages/FosaManagement/Tellers/index.jsx";
 import Tellers from "./pages/FOSA/Tellers/Teller.jsx";
@@ -118,16 +125,22 @@ import FOSATransactions from "./pages/FOSA/Transactions/index.jsx"
 
 export default function App() {
   return (
-    <Router>
-      <Routes>
-        {/* Redirect root to login */}
-        <Route path="/" element={<Navigate to="/login" replace />} />
+    <AuthProvider>
+      <ModuleTreeProvider>
+      <Router>
+        <Routes>
+          {/* Redirect root to login */}
+          <Route path="/" element={<Navigate to="/login" replace />} />
 
-        {/* Login route WITHOUT Layout */}
-        <Route path="/login" element={<Login />} />
+          {/* Login route WITHOUT Layout */}
+          <Route path="/login" element={<Login />} />
 
-        {/* All other routes WITH Layout */}
-        <Route path="/*" element={<Layout />}>
+          {/* All other routes require authentication and get the Layout */}
+          <Route element={<RequireAuth />}>
+          <Route path="/*" element={<Layout />}>
+
+          {/* Generic landing page for any backend module without a dedicated page yet */}
+          <Route path="modules/:code" element={<PlaceholderModule />} />
 
           <Route path="department" element={<Departments />} />
           <Route path="leave" element={<Leaves />} />
@@ -157,7 +170,6 @@ export default function App() {
           <Route path="Finance" element={<Finance />} />
           <Route path="Finance/ChartsOfAccount" element={<ChartOfAccounts />} />
           <Route path="Finance/PostingJournal" element={<PostingJournal />} />
-          <Route path="Finance/BanksSetup" element={<BankLinkages />} />
           <Route path="Finance/AccountConfiguration" element={<AccountConfiguration />} />
           <Route path="Finance/salesInvoice" element={<SalesInvoice />} />
           <Route path="Finance/salesCreditMemo" element={<SalesCreditMemo />} />
@@ -193,6 +205,9 @@ export default function App() {
           <Route path="Administration/Users" element={<AdministrationUsers />} />
           <Route path="Administration/Users/create" element={<CreateUser />} />
           <Route path="Administration/Modules" element={<AdministrationModules />} />
+  <Route path="Administration/Banks" element={<BankLinkages />} />
+          <Route path="Administration/Locations" element={<AdministrationLocations />} />
+          <Route path="Administration/AuditLogs" element={<AuditLogs />} />
 
           {/* Inventory */}
           <Route path="Inventory" element={<InventoryDashboard />} />
@@ -254,8 +269,11 @@ export default function App() {
           <Route path="FosaManagement/Setup" element={<FOSASetup />} />
           <Route path="FosaManagement/Transactions" element={<FOSATransactions />} />
 
-        </Route>
-      </Routes>
-    </Router>
+          </Route>
+          </Route>
+        </Routes>
+      </Router>
+      </ModuleTreeProvider>
+    </AuthProvider>
   );
 }

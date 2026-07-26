@@ -1,59 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
 import { FaChevronRight, FaFolder, FaFolderOpen, FaFileAlt, FaSearch } from "react-icons/fa";
 import Swal from "sweetalert2";
+import { buildModuleTree, filterTree } from "@/lib/moduleTree";
+import { Label } from "@/components/ui/label";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 
-// The API returns a flat list. Each item's own identity is `Code`; its parent
-// is whichever other item has that same value in `AreaCode`. Root modules use
-// AreaCode: 0. The API's own `Children` arrays are inconsistent (a parent can
-// list no children even though other items point back to it), so the tree is
-// always rebuilt here from Code/AreaCode rather than trusted as-is.
-function buildModuleTree(items) {
-  const byCode = new Map();
-  items.forEach((item) => {
-    byCode.set(item.Code, { ...item, Children: [] });
-  });
+const normalizeRoleName = (role) => role?.roleName || role?.RoleName || role?.name || role?.Name || role;
 
-  const roots = [];
-  byCode.forEach((node) => {
-    const parent = node.AreaCode && node.AreaCode !== node.Code ? byCode.get(node.AreaCode) : null;
-    if (parent) {
-      parent.Children.push(node);
-    } else {
-      roots.push(node);
-    }
-  });
-
-  const sortByCode = (nodes) => {
-    nodes.sort((a, b) => a.Code - b.Code);
-    nodes.forEach((n) => sortByCode(n.Children));
-  };
-  sortByCode(roots);
-
-  return roots;
-}
-
-function nodeMatches(node, query) {
-  return node.Description?.toLowerCase().includes(query) || String(node.Code).includes(query);
-}
-
-// Keep only branches that match the query themselves or contain a match.
-function filterTree(nodes, query) {
-  if (!query) return nodes;
-
-  return nodes.reduce((acc, node) => {
-    const filteredChildren = filterTree(node.Children, query);
-    if (nodeMatches(node, query) || filteredChildren.length > 0) {
-      acc.push({ ...node, Children: filteredChildren });
-    }
-    return acc;
-  }, []);
-}
-
-function ModuleTreeNode({ node, depth, forceExpand }) {
+function ModuleTreeNode({ node, depth, forceExpand, roleMode, assignedIds, savingIds, onToggleAssignment }) {
   const hasChildren = node.Children.length > 0;
   const [expanded, setExpanded] = useState(depth === 0);
 
   const isExpanded = forceExpand !== null ? forceExpand : expanded;
+  const isAssigned = assignedIds?.has(String(node.Id));
+  const isSaving = savingIds?.has(String(node.Id));
 
   return (
     <div>
@@ -64,6 +26,17 @@ function ModuleTreeNode({ node, depth, forceExpand }) {
         style={{ paddingLeft: `${depth * 1.25 + 0.5}rem` }}
         onClick={() => hasChildren && setExpanded((prev) => !prev)}
       >
+        {roleMode && (
+          <input
+            type="checkbox"
+            checked={Boolean(isAssigned)}
+            disabled={isSaving}
+            onClick={(e) => e.stopPropagation()}
+            onChange={(e) => onToggleAssignment(node, e.target.checked)}
+            className={`w-4 h-4 shrink-0 accent-indigo-600 ${isSaving ? "opacity-50 cursor-wait" : ""}`}
+          />
+        )}
+
         {hasChildren ? (
           <FaChevronRight
             className={`shrink-0 text-xs text-slate-400 transition-transform ${
@@ -103,7 +76,16 @@ function ModuleTreeNode({ node, depth, forceExpand }) {
       {hasChildren && isExpanded && (
         <div>
           {node.Children.map((child) => (
-            <ModuleTreeNode key={child.Id} node={child} depth={depth + 1} forceExpand={forceExpand} />
+            <ModuleTreeNode
+              key={child.Id}
+              node={child}
+              depth={depth + 1}
+              forceExpand={forceExpand}
+              roleMode={roleMode}
+              assignedIds={assignedIds}
+              savingIds={savingIds}
+              onToggleAssignment={onToggleAssignment}
+            />
           ))}
         </div>
       )}
@@ -117,11 +99,18 @@ export default function AdministrationModules() {
   const [search, setSearch] = useState("");
   const [forceExpand, setForceExpand] = useState(null); // null = per-node state, true/false = override
 
+  const [roles, setRoles] = useState([]);
+  const [rolesLoading, setRolesLoading] = useState(false);
+  const [selectedRole, setSelectedRole] = useState("");
+  const [assignedIds, setAssignedIds] = useState(new Set());
+  const [assignedLoading, setAssignedLoading] = useState(false);
+  const [savingIds, setSavingIds] = useState(new Set());
+
   useEffect(() => {
     const fetchModules = async () => {
       setLoading(true);
       try {
-        const response = await fetch(`${import.meta.env.VITE_APP_ADMIN_URL}/api/modules`);
+        const response = await fetch(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/modules`);
         const data = await response.json().catch(() => []);
 
         if (!response.ok) {
@@ -138,8 +127,97 @@ export default function AdministrationModules() {
       }
     };
 
+    const fetchRoles = async () => {
+      setRolesLoading(true);
+      try {
+        const response = await fetch(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/roles`);
+        const data = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          throw new Error(data?.message || "Failed to load roles");
+        }
+
+        const roleList = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
+        setRoles(roleList.map(normalizeRoleName).filter(Boolean));
+      } catch (error) {
+        Swal.fire("Error", error.message || "Unable to load roles.", "error");
+      } finally {
+        setRolesLoading(false);
+      }
+    };
+
     fetchModules();
+    fetchRoles();
   }, []);
+
+  useEffect(() => {
+    if (!selectedRole) {
+      setAssignedIds(new Set());
+      return;
+    }
+
+    const fetchAssignedModules = async () => {
+      setAssignedLoading(true);
+      try {
+        const response = await fetch(
+          `${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/modules/by-role?role=${encodeURIComponent(selectedRole)}`
+        );
+        const data = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          throw new Error(data?.message || "Failed to load this role's current access");
+        }
+
+        const itemList = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
+        // Each row is a NavigationItemInRoleDTO: its own `Id` is the role-assignment
+        // record, not the module — the module reference is `NavigationItemId`.
+        const ids = itemList.map((item) => item?.NavigationItemId ?? item?.navigationItemId).filter(Boolean);
+        setAssignedIds(new Set(ids.map(String)));
+      } catch (error) {
+        Swal.fire("Error", error.message || "Unable to load current access for this role.", "error");
+        setAssignedIds(new Set());
+      } finally {
+        setAssignedLoading(false);
+      }
+    };
+
+    fetchAssignedModules();
+  }, [selectedRole]);
+
+  const toggleAssignment = async (node, nextChecked) => {
+    if (!selectedRole) return;
+
+    const id = String(node.Id);
+    setSavingIds((prev) => new Set(prev).add(id));
+
+    try {
+      const endpoint = nextChecked ? "add-to-role" : "remove-from-role";
+      const response = await fetch(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/modules/${endpoint}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ NavigationItemId: [node.Id], RoleName: selectedRole }),
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(data?.message || `Failed to ${nextChecked ? "grant" : "revoke"} access to "${node.Description}"`);
+      }
+
+      setAssignedIds((prev) => {
+        const next = new Set(prev);
+        if (nextChecked) next.add(id); else next.delete(id);
+        return next;
+      });
+    } catch (error) {
+      Swal.fire("Error", error.message || "Unable to update role access.", "error");
+    } finally {
+      setSavingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    }
+  };
 
   const tree = useMemo(() => buildModuleTree(rawModules), [rawModules]);
 
@@ -177,6 +255,43 @@ export default function AdministrationModules() {
           )}
         </div>
 
+        <div className="mb-4 rounded-xl border border-slate-200 p-3">
+          <Label className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+            Manage access for role
+          </Label>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <div className="w-64">
+              <Select value={selectedRole} onValueChange={setSelectedRole} disabled={rolesLoading}>
+                <SelectTrigger>
+                  <SelectValue placeholder={rolesLoading ? "Loading roles..." : "Select a role"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {roles.map((roleName) => (
+                    <SelectItem key={roleName} value={roleName}>{roleName}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {selectedRole && (
+              <button
+                type="button"
+                onClick={() => setSelectedRole("")}
+                className="rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
+              >
+                Stop managing
+              </button>
+            )}
+            {selectedRole && assignedLoading && (
+              <span className="text-xs text-slate-400">Loading current access...</span>
+            )}
+          </div>
+          {selectedRole && (
+            <p className="mt-2 text-xs text-slate-500">
+              Check a module to grant <span className="font-semibold text-indigo-700">{selectedRole}</span> access to it; uncheck to revoke.
+            </p>
+          )}
+        </div>
+
         <div className="mb-4 relative">
           <FaSearch className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400" />
           <input
@@ -196,7 +311,16 @@ export default function AdministrationModules() {
         ) : visibleTree.length > 0 ? (
           <div className="max-h-[65vh] overflow-y-auto rounded-xl border border-slate-100 py-2">
             {visibleTree.map((node) => (
-              <ModuleTreeNode key={node.Id} node={node} depth={0} forceExpand={forceExpand} />
+              <ModuleTreeNode
+                key={node.Id}
+                node={node}
+                depth={0}
+                forceExpand={forceExpand}
+                roleMode={Boolean(selectedRole)}
+                assignedIds={assignedIds}
+                savingIds={savingIds}
+                onToggleAssignment={toggleAssignment}
+              />
             ))}
           </div>
         ) : (

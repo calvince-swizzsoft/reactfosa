@@ -152,7 +152,7 @@ const MODAL_CONFIGS = {
   },
   branch: {
     title: "Select Branch",
-    fetchUrl: `${BASE}/api/branches`,
+    fetchUrl: `${BASE}/api/administration/branches`,
     getLabel: (item) => item.Description || item.Name || item.Id,
     getSublabel: (item) => item.Code || item.BranchCode || null,
     idField: "Id",
@@ -180,8 +180,8 @@ export default function BankCheques() {
   useEffect(() => {
     setLoading(true);
     Promise.all([
-      fetch(`${BASE}/api/cheques`).then((r) => r.json()),
-      fetch(`${BASE}/api/branches`).then((r) => r.json()),
+      fetch(`${BASE}/api/frontoffice/cheques`).then((r) => r.json()),
+      fetch(`${BASE}/api/administration/branches`).then((r) => r.json()),
     ])
       .then(([chequeData, branchData]) => {
         setCheques(Array.isArray(chequeData) ? chequeData : []);
@@ -224,7 +224,7 @@ export default function BankCheques() {
     if (!confirm.isConfirmed) return;
     setSubmitting(true);
     try {
-      const res = await fetch(`${BASE}/api/cheques/bank`, {
+      const res = await fetch(`${BASE}/api/frontoffice/cheques/bank`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

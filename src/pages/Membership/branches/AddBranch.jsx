@@ -33,7 +33,7 @@ export default function AddBranch({ open, onClose, refresh }) {
         const fetchCompanies = async () => {
             try {
                 const res = await fetch(
-                    `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/companies`
+                    `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/administration/companies`
                 );
                 const data = await res.json();
                 if (data.success) {
@@ -50,7 +50,7 @@ export default function AddBranch({ open, onClose, refresh }) {
         setLoading(true);
         try {
             const response = await fetch(
-                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/branches`,
+                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/administration/branches`,
                 {
                     method: "POST",
                     headers: {

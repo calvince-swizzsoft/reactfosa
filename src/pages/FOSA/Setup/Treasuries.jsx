@@ -128,7 +128,7 @@ function AddTreasuryDrawer({ open, onClose, onSuccess }) {
     if (!open) return;
     setLoadingData(true);
     Promise.all([
-      fetch(`${BASE}/api/branches`).then((r) => r.json()),
+      fetch(`${BASE}/api/administration/branches`).then((r) => r.json()),
       fetch(`${BASE}/api/values/GetChartOfAccount`).then((r) => r.json()),
     ]).then(([branchData, coaData]) => {
       setBranches(Array.isArray(branchData.data) ? branchData.data : []);
@@ -145,7 +145,7 @@ function AddTreasuryDrawer({ open, onClose, onSuccess }) {
         RangeLowerLimit: Number(form.RangeLowerLimit),
         RangeUpperLimit: Number(form.RangeUpperLimit),
       };
-      const res = await fetch(`${BASE}/api/treasurys`, {
+      const res = await fetch(`${BASE}/api/frontoffice/treasurys`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -181,7 +181,7 @@ function EditTreasuryDrawer({ open, onClose, onSuccess, item }) {
     if (!open) return;
     setLoadingData(true);
     Promise.all([
-      fetch(`${BASE}/api/branches`).then((r) => r.json()),
+      fetch(`${BASE}/api/administration/branches`).then((r) => r.json()),
       fetch(`${BASE}/api/values/GetChartOfAccount`).then((r) => r.json()),
     ]).then(([branchData, coaData]) => {
       setBranches(Array.isArray(branchData.data) ? branchData.data : []);
@@ -210,7 +210,7 @@ function EditTreasuryDrawer({ open, onClose, onSuccess, item }) {
         RangeLowerLimit: Number(form.RangeLowerLimit),
         RangeUpperLimit: Number(form.RangeUpperLimit),
       };
-      const res = await fetch(`${BASE}/api/treasurys/${item.Id}`, {
+      const res = await fetch(`${BASE}/api/frontoffice/treasurys/${item.Id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -242,7 +242,7 @@ export default function Treasuries() {
 
   const fetchItems = () => {
     setLoading(true);
-    fetch(`${BASE}/api/treasurys`)
+    fetch(`${BASE}/api/frontoffice/treasurys`)
       .then((r) => r.json())
       .then((d) => setItems(Array.isArray(d) ? d : []))
       .catch(() => setItems([]))
@@ -257,7 +257,7 @@ export default function Treasuries() {
     Swal.fire({ title: "Delete Treasury?", icon: "warning", showCancelButton: true, confirmButtonColor: "#dc2626", confirmButtonText: "Delete" }).then(async (r) => {
       if (r.isConfirmed) {
         try {
-          const res = await fetch(`${BASE}/api/treasurys/${id}`, { method: "DELETE" });
+          const res = await fetch(`${BASE}/api/frontoffice/treasurys/${id}`, { method: "DELETE" });
           if (!res.ok) throw new Error("Failed to delete");
           setItems((prev) => prev.filter((x) => x.Id !== id));
           Swal.fire("Deleted!", "Treasury removed.", "success");

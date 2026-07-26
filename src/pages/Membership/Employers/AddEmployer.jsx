@@ -29,7 +29,7 @@ export default function AddEmployer({ open, onClose, refresh }) {
     const handleSubmit = async () => {
         setLoading(true);
         try {
-            const response = await fetch(`${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/employers`, {
+            const response = await fetch(`${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/humanresource/employers`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(form),

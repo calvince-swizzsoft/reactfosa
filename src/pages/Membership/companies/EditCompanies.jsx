@@ -118,7 +118,7 @@ export default function EditCompanies({ open, onClose, data, refresh }) {
         setLoading(true);
         try {
             const response = await fetch(
-                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/companies/${form.id}`,
+                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/administration/companies/${form.id}`,
                 {
                     method: "PUT",
                     headers: {

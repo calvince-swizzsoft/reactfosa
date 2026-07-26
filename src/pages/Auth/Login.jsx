@@ -1,16 +1,18 @@
 
 import React, { useState } from "react";
 import { FaGoogle, FaApple } from "react-icons/fa";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
+import { useAuth } from "@/context/AuthContext";
 
 
 export default function Login() {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [loading, setLoading] = useState(false);
 
   const [form, setForm] = useState({
-    Identifier: "",
+    UserName: "",
     Password: "",
   });
 
@@ -23,7 +25,7 @@ export default function Login() {
   const handleLogin = async (e) => {
     e.preventDefault();
 
-    if (!form.Identifier || !form.Password) {
+    if (!form.UserName || !form.Password) {
       Swal.fire("Missing Fields", "Please enter email and password.", "warning");
       return;
     }
@@ -31,19 +33,21 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const response = await fetch(
-        "http://95.216.225.26:8006/api/auth/login",
-        {
+    
+
+       const response = await fetch(`${import.meta.env.VITE_APP_ADMIN_URL}/api/auth/login`,
+  {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            Identifier: form.Identifier,
+            UserName: form.UserName,
             Password: form.Password,
           }),
         }
-      );
+
+       );
 
       const data = await response.json();
 
@@ -51,10 +55,10 @@ export default function Login() {
         throw new Error(data.message || "Login failed");
       }
 
-      // ✅ If your API returns a token
-      if (data.token) {
-        localStorage.setItem("token", data.token);
-      }
+      // Backend has no real token yet — use the username as a
+      // temporary session marker until a JWT is issued.
+      const roles = Array.isArray(data.roles) ? data.roles : Array.isArray(data.Roles) ? data.Roles : [];
+      login(data.userName || data.UserName || form.UserName, roles);
 
       Swal.fire("Success!", "Login successful", "success");
 
@@ -195,8 +199,8 @@ export default function Login() {
               <input
                 type="text"
                 placeholder="Enter email or username"
-                value={form.Identifier}
-                onChange={(e) => update("Identifier", e.target.value)}
+                value={form.UserName}
+                onChange={(e) => update("UserName", e.target.value)}
                 className="w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#6B4EFF]"
               />
             </div>
@@ -221,12 +225,6 @@ export default function Login() {
             >
               {loading ? "Logging in..." : "Login"}
             </button>
-
-            <p className="text-center text-sm text-gray-500 mt-2">
-              <Link to="/Membership/Members" className="text-[#6B4EFF] hover:underline">
-                Continue without logging in
-              </Link>
-            </p>
           </form>
 
           {/* <p className="text-center text-gray-600 mt-6 text-sm">

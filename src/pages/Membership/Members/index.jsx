@@ -34,9 +34,9 @@ import {
 } from "@/components/ui/select";
 
 const MEMBERS_API_URL = `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/values/GetMembersWithDetails?pageIndex=0&pageSize=1000`;
-const ACCOUNTS_API_URL = `${import.meta.env.VITE_APP_FOSA_URL}/api/customer-accounts`;
-const PRODUCTS_API_URL = `${import.meta.env.VITE_APP_FOSA_URL}/api/savingsproducts`;
-const BRANCHES_API_URL = `${import.meta.env.VITE_APP_FOSA_URL}/api/branches`;
+const ACCOUNTS_API_URL = `${import.meta.env.VITE_APP_FOSA_URL}/api/accounts/customer-accounts`;
+const PRODUCTS_API_URL = `${import.meta.env.VITE_APP_FOSA_URL}/api/accounts/savingsproducts`;
+const BRANCHES_API_URL = `${import.meta.env.VITE_APP_FOSA_URL}/api/administration/branches`;
 
 export default function Members() {
     // allMembers holds the full dataset fetched once from the API

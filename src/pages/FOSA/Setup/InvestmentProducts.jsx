@@ -156,7 +156,7 @@ function AddInvestmentProductDrawer({ open, onClose, onSuccess }) {
         MaximumTenure: Number(form.MaximumTenure),
         AnnualPercentageYield: Number(form.AnnualPercentageYield),
       };
-      const res = await fetch(`${BASE}/api/investmentsproducts`, {
+      const res = await fetch(`${BASE}/api/accounts/investmentsproducts`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -224,7 +224,7 @@ function EditInvestmentProductDrawer({ open, onClose, onSuccess, item }) {
         MaximumTenure: Number(form.MaximumTenure),
         AnnualPercentageYield: Number(form.AnnualPercentageYield),
       };
-      const res = await fetch(`${BASE}/api/investmentsproducts/${item.Id}`, {
+      const res = await fetch(`${BASE}/api/accounts/investmentsproducts/${item.Id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -256,7 +256,7 @@ export default function InvestmentProducts() {
 
   const fetchItems = () => {
     setLoading(true);
-    fetch(`${BASE}/api/investmentsproducts`)
+    fetch(`${BASE}/api/accounts/investmentsproducts`)
       .then((r) => r.json())
       .then((d) => setItems(Array.isArray(d) ? d : []))
       .catch(() => setItems([]))
@@ -271,7 +271,7 @@ export default function InvestmentProducts() {
     Swal.fire({ title: "Delete Investment Product?", icon: "warning", showCancelButton: true, confirmButtonColor: "#dc2626", confirmButtonText: "Delete" }).then(async (r) => {
       if (r.isConfirmed) {
         try {
-          const res = await fetch(`${BASE}/api/investmentsproducts/${id}`, { method: "DELETE" });
+          const res = await fetch(`${BASE}/api/accounts/investmentsproducts/${id}`, { method: "DELETE" });
           if (!res.ok) throw new Error("Failed to delete");
           setItems((prev) => prev.filter((x) => x.Id !== id));
           Swal.fire("Deleted!", "Investment product removed.", "success");

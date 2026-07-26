@@ -69,7 +69,7 @@ export default function Products() {
     const fetchProducts = async () => {
         try {
             const res = await fetch(
-                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/savings-products`,
+                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/accounts/savings-products`,
                 { headers: { "ngrok-skip-browser-warning": "true" } }
             );
 

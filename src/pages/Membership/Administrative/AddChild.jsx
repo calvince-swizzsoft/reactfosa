@@ -26,7 +26,7 @@ export default function AddChild({ open, onClose, refresh, parent }) {
         setLoading(true);
         try {
             const response = await fetch(
-                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/administrative-divisions`,
+                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/administration/administrative-divisions`,
                 {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },

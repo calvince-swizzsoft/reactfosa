@@ -64,7 +64,7 @@ function AddDepartmentDrawer({ open, onClose, onSuccess }) {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await fetch(`${BASE}/api/departments`, {
+      const res = await fetch(`${BASE}/api/humanresource/departments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),

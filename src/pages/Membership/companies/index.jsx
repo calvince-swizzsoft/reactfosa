@@ -53,7 +53,7 @@ export default function Companies() {
     const fetchCompanies = async () => {
         try {
             const res = await fetch(
-                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/companies`
+                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/administration/companies`
             );
             const json = await res.json();
             setCompanies(json.data || []);
@@ -162,7 +162,7 @@ export default function Companies() {
         }).then(async (result) => {
             if (result.isConfirmed) {
                 try {
-                    const res = await fetch(`${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/companies/${id}`, {
+                    const res = await fetch(`${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/administration/companies/${id}`, {
                         method: "DELETE",
                     });
 

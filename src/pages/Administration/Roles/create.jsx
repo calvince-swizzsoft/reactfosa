@@ -20,7 +20,7 @@ export default function CreateRole() {
     setLoading(true);
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_APP_ADMIN_URL}/api/roles`, {
+      const response = await fetch(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/roles`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

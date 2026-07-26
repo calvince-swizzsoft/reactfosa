@@ -89,11 +89,11 @@ export default function AddEmployeeDrawer({ open, onClose, onSuccess }) {
     if (!open) return;
     setLoadingData(true);
     Promise.all([
-      fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/customers`).then((r) => r.json()),
-      fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/branches`).then((r) => r.json()),
-      fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/designations`).then((r) => r.json()),
-      fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/departments`).then((r) => r.json()),
-      fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/employeetypes`).then((r) => r.json()),
+      fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/registry/customers`).then((r) => r.json()),
+      fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/administration/branches`).then((r) => r.json()),
+      fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/humanresource/designations`).then((r) => r.json()),
+      fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/humanresource/departments`).then((r) => r.json()),
+      fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/humanresource/employeetypes`).then((r) => r.json()),
     ]).then(([custData, branchData, desigData, deptData, empTypeData]) => {
       const list = custData.success ? custData.data : [];
       setCustomers(list.map((c) => ({
@@ -122,7 +122,7 @@ export default function AddEmployeeDrawer({ open, onClose, onSuccess }) {
         BloodGroup: parseInt(formData.BloodGroup) || 0,
       };
 
-      const res = await fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/employees`, {
+      const res = await fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/humanresource/employees`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

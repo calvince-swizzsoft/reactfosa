@@ -168,9 +168,9 @@ function AddCashDepositDrawer({ open, onClose, onSuccess }) {
     if (!open) return;
     setLoadingData(true);
     Promise.all([
-      fetch(`${BASE}/api/customers`).then((r) => r.json()),
-      fetch(`${BASE}/api/branches`).then((r) => r.json()),
-      fetch(`${BASE}/api/tellers`).then((r) => r.json()),
+      fetch(`${BASE}/api/registry/customers`).then((r) => r.json()),
+      fetch(`${BASE}/api/administration/branches`).then((r) => r.json()),
+      fetch(`${BASE}/api/frontoffice/tellers`).then((r) => r.json()),
     ]).then(([customerData, branchData, tellerData]) => {
       setCustomers(customerData.success ? normalizeList(customerData) : normalizeList(customerData));
       setBranches(normalizeList(branchData));
@@ -192,7 +192,7 @@ function AddCashDepositDrawer({ open, onClose, onSuccess }) {
     }));
     if (!customerId) return;
     setLoadingAccounts(true);
-    fetch(`${BASE}/api/customer-accounts/${customerId}/accounts`)
+    fetch(`${BASE}/api/accounts/customer-accounts/${customerId}/accounts`)
       .then((r) => r.json())
       .then((d) => {
         const normalizedAccounts = Array.isArray(d)
@@ -243,7 +243,7 @@ function AddCashDepositDrawer({ open, onClose, onSuccess }) {
         TransactionType: Number(form.TransactionType),
         CurrentTellerId: form.CurrentTellerId || selectedTellerId,
       };
-      const res = await fetch(`${BASE}/api/requests`, {
+      const res = await fetch(`${BASE}/api/frontoffice/requests`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -355,7 +355,7 @@ export default function CashDeposit() {
 
   const fetchItems = () => {
     setLoading(true);
-    fetch(`${BASE}/api/requests?type=2`)
+    fetch(`${BASE}/api/frontoffice/requests?type=2`)
       .then((r) => r.json())
       .then((d) => {
         const allItems = Array.isArray(d) ? d : [];
@@ -372,7 +372,7 @@ export default function CashDeposit() {
     const confirm = await Swal.fire({ title: "Authorize Deposit?", icon: "question", showCancelButton: true, confirmButtonColor: "#4f46e5", confirmButtonText: "Authorize" });
     if (!confirm.isConfirmed) return;
     try {
-      const res = await fetch(`${BASE}/api/requests/authorize?id=${id}&opt=1`, { method: "POST" });
+      const res = await fetch(`${BASE}/api/frontoffice/requests/authorize?id=${id}&opt=1`, { method: "POST" });
       if (!res.ok) throw new Error("Authorization failed");
       Swal.fire("Authorized!", "Deposit request authorized.", "success");
       setActiveTab("Authorized");
@@ -386,7 +386,7 @@ export default function CashDeposit() {
     const confirm = await Swal.fire({ title: "Reject Deposit?", icon: "warning", showCancelButton: true, confirmButtonColor: "#dc2626", confirmButtonText: "Reject" });
     if (!confirm.isConfirmed) return;
     try {
-      const res = await fetch(`${BASE}/api/requests/authorize?id=${id}&customerTransactionAuthOption=2`, { method: "POST" });
+      const res = await fetch(`${BASE}/api/frontoffice/requests/authorize?id=${id}&customerTransactionAuthOption=2`, { method: "POST" });
       if (!res.ok) throw new Error("Rejection failed");
       Swal.fire("Rejected!", "Deposit request rejected.", "success");
       fetchItems();
@@ -399,7 +399,7 @@ export default function CashDeposit() {
     const confirm = await Swal.fire({ title: "Mark Authorized Deposit as Posted?", icon: "question", showCancelButton: true, confirmButtonColor: "#4f46e5", confirmButtonText: "Mark as Posted" });
     if (!confirm.isConfirmed) return;
     try {
-      const res = await fetch(`${BASE}/api/requests/markposted?id=${id}`, { method: "POST" });
+      const res = await fetch(`${BASE}/api/frontoffice/requests/markposted?id=${id}`, { method: "POST" });
       if (!res.ok) throw new Error("Mark-as-posted failed");
       Swal.fire("Posted!", "Authorized deposit marked as posted successfully.", "success");
       setActiveTab("Posted");

@@ -62,7 +62,7 @@ export default function AddInterAccountTransfer({ open, onClose, onSuccess }) {
   );
 
   useEffect(() => {
-    fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/values/branches`)
+    fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/administration/branches`)
       .then((res) => res.json())
       .then((data) => {
         if (data.Success) setAllBranches(data.Data || []);

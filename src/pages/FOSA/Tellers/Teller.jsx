@@ -22,7 +22,7 @@ export default function Tellers() {
 
   const fetchTellers = () => {
     setLoading(true);
-    fetch(`${BASE}/api/tellers`)
+    fetch(`${BASE}/api/frontoffice/tellers`)
       .then((res) => res.json())
       .then((data) => setTellers(Array.isArray(data) ? data : []))
       .catch(() => setTellers([]))
@@ -42,7 +42,7 @@ export default function Tellers() {
     }).then(async (result) => {
       if (result.isConfirmed) {
         try {
-          const res = await fetch(`${BASE}/api/tellers/${id}`, { method: "DELETE" });
+          const res = await fetch(`${BASE}/api/frontoffice/tellers/${id}`, { method: "DELETE" });
           if (!res.ok) throw new Error("Failed to delete teller");
           setTellers((prev) => prev.filter((t) => t.Id !== id));
           Swal.fire("Deleted!", "Teller removed successfully.", "success");

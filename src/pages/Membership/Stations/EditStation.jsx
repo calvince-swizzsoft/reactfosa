@@ -37,7 +37,7 @@ export default function EditStation({ open, onClose, refresh, station }) {
     const fetchZones = async () => {
         try {
             const res = await fetch(
-                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/zones`
+                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/administration/zones`
             );
             const json = await res.json();
             if (json.success) setZones(json.data);

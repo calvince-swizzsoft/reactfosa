@@ -299,7 +299,7 @@ export default function MemberEditDrawer({ open, onClose, refresh, member }) {
             };
 
             const response = await fetch(
-                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/customers/${customer.Id}`,
+                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/registry/customers/${customer.Id}`,
                 {
                     method: "PUT",
                     headers: {
@@ -365,7 +365,7 @@ export default function MemberEditDrawer({ open, onClose, refresh, member }) {
                 };
 
                 const response = await fetch(
-                    `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/nextofkin`,
+                    `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/registry/nextofkin`,
                     {
                         method: "POST",
                         headers: {

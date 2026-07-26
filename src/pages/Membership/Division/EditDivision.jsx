@@ -40,7 +40,7 @@ export default function EditDivision({ open, onClose, data, refresh }) {
     const fetchEmployers = async () => {
         try {
             const res = await fetch(
-                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/employers`
+                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/administration/employers`
             );
             const json = await res.json();
             if (json.success) setEmployers(json.data);
@@ -59,7 +59,7 @@ export default function EditDivision({ open, onClose, data, refresh }) {
             };
 
             const res = await fetch(
-                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/divisions/${data.Id}`,
+                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/administration/divisions/${data.Id}`,
                 {
                     method: "PUT",
                     headers: { "Content-Type": "application/json" },

@@ -308,7 +308,7 @@ export default function MemberRegistrationDrawer({ open, onClose, refresh }) {
         setCheckingId(true);
         try {
             const response = await fetch(
-                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/customers/search/identity-card?identityCardNumber=${trimmedId}&exactMatch=true`
+                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/registry/customers/search/identity-card?identityCardNumber=${trimmedId}&exactMatch=true`
             );
             if (response.ok) {
                 const data = await response.json();

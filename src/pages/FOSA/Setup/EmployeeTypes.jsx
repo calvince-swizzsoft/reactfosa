@@ -124,7 +124,7 @@ function AddEmployeeTypeDrawer({ open, onClose, onSuccess }) {
     setLoading(true);
     try {
       const payload = { ...form, Category: parseInt(form.Category) || 1 };
-      const res = await fetch(`${BASE}/api/employeetypes`, {
+      const res = await fetch(`${BASE}/api/humanresource/employeetypes`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -181,7 +181,7 @@ function EditEmployeeTypeDrawer({ open, onClose, onSuccess, item }) {
     setLoading(true);
     try {
       const payload = { ...form, Category: parseInt(form.Category) || 1 };
-      const res = await fetch(`${BASE}/api/employeetypes/${item.Id}`, {
+      const res = await fetch(`${BASE}/api/humanresource/employeetypes/${item.Id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -213,7 +213,7 @@ export default function EmployeeTypes() {
 
   const fetchItems = () => {
     setLoading(true);
-    fetch(`${BASE}/api/employeetypes`)
+    fetch(`${BASE}/api/humanresource/employeetypes`)
       .then((r) => r.json())
       .then((d) => setItems(Array.isArray(d) ? d : []))
       .catch(() => setItems([]))
@@ -226,7 +226,7 @@ export default function EmployeeTypes() {
     Swal.fire({ title: "Delete Employee Type?", icon: "warning", showCancelButton: true, confirmButtonColor: "#dc2626", confirmButtonText: "Delete" }).then(async (r) => {
       if (r.isConfirmed) {
         try {
-          const res = await fetch(`${BASE}/api/employeetypes/${id}`, { method: "DELETE" });
+          const res = await fetch(`${BASE}/api/humanresource/employeetypes/${id}`, { method: "DELETE" });
           if (!res.ok) throw new Error("Failed to delete");
           setItems((prev) => prev.filter((x) => x.Id !== id));
           Swal.fire("Deleted!", "Employee Type removed.", "success");

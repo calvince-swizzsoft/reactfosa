@@ -52,7 +52,7 @@ export default function EditEmployer({ open, onClose, data, refresh }) {
         setLoading(true);
         try {
             const response = await fetch(
-                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/employers/${form.id}`,
+                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/humanresource/employers/${form.id}`,
                 {
                     method: "PUT",
                     headers: { "Content-Type": "application/json" },

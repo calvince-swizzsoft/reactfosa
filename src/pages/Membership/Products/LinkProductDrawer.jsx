@@ -24,7 +24,7 @@ export default function LinkProductDrawer({ open, onClose, product }) {
         const fetchCompanies = async () => {
             try {
                 const res = await fetch(
-                    `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/companies`,
+                    `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/administration/companies`,
                     { headers: { "ngrok-skip-browser-warning": "true" } }
                 );
                 const data = await res.json();
@@ -59,7 +59,7 @@ export default function LinkProductDrawer({ open, onClose, product }) {
             };
 
             const res = await fetch(
-                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/company-attached-products`,
+                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/administration/company-attached-products`,
                 {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
