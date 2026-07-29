@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,13 +9,12 @@ import {
 } from "@/components/ui/select";
 import Swal from "sweetalert2";
 import NotFoundImage from "/assets/scopefinding.png";
-import { FaEllipsisV, FaTrash, FaEdit } from "react-icons/fa";
+import { FaEllipsisV, FaTrash, FaEdit, FaPlus } from "react-icons/fa";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-//const BASE = "https://rubani.ngrok.io";
-const BASE = `${import.meta.env.VITE_APP_FIN_URL}`
+const BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 
 const categoryOptions = [
   { value: 1, label: "Full-Time" },
@@ -103,52 +103,6 @@ function EmployeeTypeForm({ form, setForm, coaList, loading, loadingData, submit
   );
 }
 
-function AddEmployeeTypeDrawer({ open, onClose, onSuccess }) {
-  const [form, setForm] = useState(emptyForm);
-  const [loading, setLoading] = useState(false);
-  const [coaList, setCoaList] = useState([]);
-  const [loadingData, setLoadingData] = useState(false);
-
-  useEffect(() => {
-    if (!open) return;
-    setLoadingData(true);
-    fetch(`${BASE}/api/values/GetChartOfAccount`)
-      .then((r) => r.json())
-      .then((d) => setCoaList(Array.isArray(d.Data) ? d.Data : []))
-      .catch(() => setCoaList([]))
-      .finally(() => setLoadingData(false));
-  }, [open]);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      const payload = { ...form, Category: parseInt(form.Category) || 1 };
-      const res = await fetch(`${BASE}/api/humanresource/employeetypes`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.message || "Failed to create employee type");
-      Swal.fire("Success", "Employee Type created successfully", "success");
-      setForm(emptyForm);
-      onSuccess();
-      onClose();
-    } catch (err) {
-      Swal.fire("Error", err.message, "error");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <DrawerShell open={open} onClose={onClose} title="Add Employee Type">
-      <EmployeeTypeForm form={form} setForm={setForm} coaList={coaList} loading={loading} loadingData={loadingData} submitLabel="Create Employee Type" onSubmit={handleSubmit} />
-    </DrawerShell>
-  );
-}
-
 function EditEmployeeTypeDrawer({ open, onClose, onSuccess, item }) {
   const [form, setForm] = useState(emptyForm);
   const [loading, setLoading] = useState(false);
@@ -208,14 +162,13 @@ function EditEmployeeTypeDrawer({ open, onClose, onSuccess, item }) {
 export default function EmployeeTypes() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [addOpen, setAddOpen] = useState(false);
   const [editItem, setEditItem] = useState(null);
 
   const fetchItems = () => {
     setLoading(true);
     fetch(`${BASE}/api/humanresource/employeetypes`)
       .then((r) => r.json())
-      .then((d) => setItems(Array.isArray(d) ? d : []))
+      .then((d) => setItems(Array.isArray(d?.data) ? d.data : Array.isArray(d) ? d : []))
       .catch(() => setItems([]))
       .finally(() => setLoading(false));
   };
@@ -240,7 +193,12 @@ export default function EmployeeTypes() {
   return (
     <div>
       <div className="flex justify-end mb-3">
-        <Button onClick={() => setAddOpen(true)} className="bg-indigo-600 hover:bg-indigo-700">+ Add Employee Type</Button>
+        <Link
+          to="/HumanResource/EmployeeTypes/create"
+          className="inline-flex items-center gap-2 rounded-md bg-indigo-600 hover:bg-indigo-700 px-4 py-2 text-sm font-medium text-white"
+        >
+          <FaPlus /> Add Employee Type
+        </Link>
       </div>
 
       <div className="grid grid-cols-12 gap-2 bg-gray-700 text-gray-100 font-semibold p-3 rounded-lg mb-3">
@@ -286,7 +244,6 @@ export default function EmployeeTypes() {
         </div>
       )}
 
-      <AddEmployeeTypeDrawer open={addOpen} onClose={() => setAddOpen(false)} onSuccess={fetchItems} />
       <EditEmployeeTypeDrawer open={!!editItem} onClose={() => setEditItem(null)} onSuccess={fetchItems} item={editItem} />
     </div>
   );

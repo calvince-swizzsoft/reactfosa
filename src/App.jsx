@@ -105,6 +105,7 @@ import LoanRegister from "./pages/Loaning/LoanRegister/index.jsx";
 import Roles from "./pages/UserManagement/Roles/Roles.jsx";
 import Users from "./pages/UserManagement/Users/index.jsx";
 import AdministrationCreateRole from "./pages/Administration/Roles/create.jsx";
+import AdministrationPermissionTypes from "./pages/Administration/Roles/PermissionTypes.jsx";
 import AdministrationUsers from "./pages/Administration/Users/index.jsx";
 import CreateUser from "./pages/Administration/Users/create.jsx";
 import AdministrationModules from "./pages/Administration/Modules/index.jsx";
@@ -112,13 +113,30 @@ import BankLinkages from "./pages/Administration/Bank/BankLinkages.jsx";
 import AdministrationLocations from "./pages/Administration/Locations/index.jsx";
 import AuditLogs from "./pages/Administration/Audit Logs/index.jsx";
 
-//import Tellers from "./pages/FosaManagement/Tellers/index.jsx";
-import Tellers from "./pages/FOSA/Tellers/Teller.jsx";
+import Tellers from "./pages/Accounts/Tellers/Teller.jsx";
 //import Treasuries from './pages/FOSA/'
 
-import Employees from "./pages/FOSA/Employees/Employees.jsx"
+import Employees from "./pages/HumanResource/Employees/Employees.jsx"
 import FOSASetup from "./pages/FOSA/Setup/index.jsx"
 import FOSATransactions from "./pages/FOSA/Transactions/index.jsx"
+
+import HRDepartments from "./pages/HumanResource/Departments/index.jsx";
+import CreateDepartment from "./pages/HumanResource/Departments/create.jsx";
+import Designations from "./pages/HumanResource/Designations/index.jsx";
+import CreateDesignation from "./pages/HumanResource/Designations/create.jsx";
+import EmployeeTypes from "./pages/HumanResource/EmployeeTypes/index.jsx";
+import CreateEmployeeType from "./pages/HumanResource/EmployeeTypes/create.jsx";
+
+import InvestmentProducts from "./pages/Accounts/InvestmentProducts/index.jsx";
+import CreateInvestmentProduct from "./pages/Accounts/InvestmentProducts/create.jsx";
+import SavingsProducts from "./pages/Accounts/SavingsProducts/index.jsx";
+import CreateSavingsProduct from "./pages/Accounts/SavingsProducts/create.jsx";
+import Treasuries from "./pages/Accounts/Treasuries/index.jsx";
+import CreateTreasury from "./pages/Accounts/Treasuries/create.jsx";
+import CashManagement from "./pages/FOSA/Transactions/CashManagement.jsx";
+import CashDeposit from "./pages/FOSA/Transactions/CashDeposit.jsx";
+import CashWithdrawal from "./pages/FOSA/Transactions/CashWithdrawal.jsx";
+import ChequeDeposit from "./pages/FOSA/Transactions/ChequeDeposit.jsx";
 
 
 
@@ -202,6 +220,7 @@ export default function App() {
 
           {/* Administration */}
           <Route path="Administration/Roles/create" element={<AdministrationCreateRole />} />
+          <Route path="Administration/Roles/PermissionTypes" element={<AdministrationPermissionTypes />} />
           <Route path="Administration/Users" element={<AdministrationUsers />} />
           <Route path="Administration/Users/create" element={<CreateUser />} />
           <Route path="Administration/Modules" element={<AdministrationModules />} />
@@ -264,10 +283,36 @@ export default function App() {
           {/* <Route path="UserManagement/Permissions" element={<Permissions />} /> */}
 
              {/**FOSA Management */}
-          <Route path="FosaManagement/Employees" element={<Employees />} />
-          <Route path="FosaManagement/Tellers" element={<Tellers />} />
           <Route path="FosaManagement/Setup" element={<FOSASetup />} />
-          <Route path="FosaManagement/Transactions" element={<FOSATransactions />} />
+
+          {/**Human Resource */}
+          <Route path="HumanResource/Employees" element={<Employees />} />
+          <Route path="HumanResource/Departments" element={<HRDepartments />} />
+          <Route path="HumanResource/Departments/create" element={<CreateDepartment />} />
+          <Route path="HumanResource/Designations" element={<Designations />} />
+          <Route path="HumanResource/Designations/create" element={<CreateDesignation />} />
+          <Route path="HumanResource/EmployeeTypes" element={<EmployeeTypes />} />
+          <Route path="HumanResource/EmployeeTypes/create" element={<CreateEmployeeType />} />
+
+          {/**Accounts */}
+          <Route path="Accounts/InvestmentProducts" element={<InvestmentProducts />} />
+          <Route path="Accounts/InvestmentProducts/create" element={<CreateInvestmentProduct />} />
+          <Route path="Accounts/SavingsProducts" element={<SavingsProducts />} />
+          <Route path="Accounts/SavingsProducts/create" element={<CreateSavingsProduct />} />
+          <Route path="Accounts/Treasuries" element={<Treasuries />} />
+          <Route path="Accounts/Treasuries/create" element={<CreateTreasury />} />
+          <Route path="Accounts/Tellers" element={<Tellers />} />
+
+          {/**Front Office */}
+           <Route path="FrontOffice/CashManagement" element={<CashManagement />} />
+              <Route path="FrontOffice/CashDeposit" element={<CashDeposit />} />
+                 <Route path="FrontOffice/CashDeposit" element={<CashWithdrawal />} />
+                    <Route path="FrontOffice/ChequeDeposit" element={<ChequeDeposit />} />
+
+                       {/* <Route path="FrontOffice/Transfers" element={<Transfers />} /> */}
+
+
+          <Route path="FrontOffice/Transactions" element={<FOSATransactions />} />
 
           </Route>
           </Route>

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,13 +9,12 @@ import {
 } from "@/components/ui/select";
 import Swal from "sweetalert2";
 import NotFoundImage from "/assets/scopefinding.png";
-import { FaEllipsisV, FaTrash, FaEdit } from "react-icons/fa";
+import { FaEllipsisV, FaTrash, FaEdit, FaPlus } from "react-icons/fa";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-//const BASE = "https://rubani.ngrok.io";
-const BASE = `${import.meta.env.VITE_APP_FIN_URL}`
+const BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 
 const emptyForm = {
   Description: "",
@@ -128,59 +128,6 @@ function InvestmentProductForm({ form, setForm, coaList, loading, loadingData, s
   );
 }
 
-function AddInvestmentProductDrawer({ open, onClose, onSuccess }) {
-  const [form, setForm] = useState(emptyForm);
-  const [loading, setLoading] = useState(false);
-  const [coaList, setCoaList] = useState([]);
-  const [loadingData, setLoadingData] = useState(false);
-
-  useEffect(() => {
-    if (!open) return;
-    setLoadingData(true);
-    fetch(`${BASE}/api/values/GetChartOfAccount`)
-      .then((r) => r.json())
-      .then((d) => setCoaList(Array.isArray(d.Data) ? d.Data : []))
-      .catch(() => setCoaList([]))
-      .finally(() => setLoadingData(false));
-  }, [open]);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      const payload = {
-        ...form,
-        MinimumAmount: Number(form.MinimumAmount),
-        MaximumAmount: Number(form.MaximumAmount),
-        MinimumTenure: Number(form.MinimumTenure),
-        MaximumTenure: Number(form.MaximumTenure),
-        AnnualPercentageYield: Number(form.AnnualPercentageYield),
-      };
-      const res = await fetch(`${BASE}/api/accounts/investmentsproducts`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.message || "Failed to create investment product");
-      Swal.fire("Success", "Investment product created successfully", "success");
-      setForm(emptyForm);
-      onSuccess();
-      onClose();
-    } catch (err) {
-      Swal.fire("Error", err.message, "error");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <DrawerShell open={open} onClose={onClose} title="Add Investment Product">
-      <InvestmentProductForm form={form} setForm={setForm} coaList={coaList} loading={loading} loadingData={loadingData} submitLabel="Create Investment Product" onSubmit={handleSubmit} />
-    </DrawerShell>
-  );
-}
-
 function EditInvestmentProductDrawer({ open, onClose, onSuccess, item }) {
   const [form, setForm] = useState(emptyForm);
   const [loading, setLoading] = useState(false);
@@ -251,7 +198,6 @@ function EditInvestmentProductDrawer({ open, onClose, onSuccess, item }) {
 export default function InvestmentProducts() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [addOpen, setAddOpen] = useState(false);
   const [editItem, setEditItem] = useState(null);
 
   const fetchItems = () => {
@@ -285,7 +231,12 @@ export default function InvestmentProducts() {
   return (
     <div>
       <div className="flex justify-end mb-3">
-        <Button onClick={() => setAddOpen(true)} className="bg-indigo-600 hover:bg-indigo-700">+ Add Investment Product</Button>
+        <Link
+          to="/Accounts/InvestmentProducts/create"
+          className="inline-flex items-center gap-2 rounded-md bg-indigo-600 hover:bg-indigo-700 px-4 py-2 text-sm font-medium text-white"
+        >
+          <FaPlus /> Add Investment Product
+        </Link>
       </div>
 
       <div className="grid grid-cols-12 gap-2 bg-gray-700 text-gray-100 font-semibold p-3 rounded-lg mb-3">
@@ -339,7 +290,6 @@ export default function InvestmentProducts() {
         </div>
       )}
 
-      <AddInvestmentProductDrawer open={addOpen} onClose={() => setAddOpen(false)} onSuccess={fetchItems} />
       <EditInvestmentProductDrawer open={!!editItem} onClose={() => setEditItem(null)} onSuccess={fetchItems} item={editItem} />
     </div>
   );

@@ -1,17 +1,17 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Swal from "sweetalert2";
 import NotFoundImage from "/assets/scopefinding.png";
-import { FaEllipsisV, FaTrash, FaEdit } from "react-icons/fa";
+import { FaEllipsisV, FaTrash, FaEdit, FaPlus } from "react-icons/fa";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-//const BASE = "https://rubani.ngrok.io";
-const BASE = `${import.meta.env.VITE_APP_FIN_URL}`
+const BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 
 const emptyForm = { Description: "", TransactionThresholds: "", IsLocked: false };
 
@@ -56,39 +56,6 @@ function DesignationForm({ form, setForm, loading, submitLabel, onSubmit }) {
   );
 }
 
-function AddDesignationDrawer({ open, onClose, onSuccess }) {
-  const [form, setForm] = useState(emptyForm);
-  const [loading, setLoading] = useState(false);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      const res = await fetch(`${BASE}/api/humanresource/designations`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.message || "Failed to create designation");
-      Swal.fire("Success", "Designation created successfully", "success");
-      setForm(emptyForm);
-      onSuccess();
-      onClose();
-    } catch (err) {
-      Swal.fire("Error", err.message, "error");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <DrawerShell open={open} onClose={onClose} title="Add Designation">
-      <DesignationForm form={form} setForm={setForm} loading={loading} submitLabel="Create Designation" onSubmit={handleSubmit} />
-    </DrawerShell>
-  );
-}
-
 function EditDesignationDrawer({ open, onClose, onSuccess, item }) {
   const [form, setForm] = useState(emptyForm);
   const [loading, setLoading] = useState(false);
@@ -107,7 +74,7 @@ function EditDesignationDrawer({ open, onClose, onSuccess, item }) {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await fetch(`${BASE}/api/designations/${item.Id}`, {
+      const res = await fetch(`${BASE}/api/humanresource/designations/${item.Id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
@@ -134,14 +101,13 @@ function EditDesignationDrawer({ open, onClose, onSuccess, item }) {
 export default function Designations() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [addOpen, setAddOpen] = useState(false);
   const [editItem, setEditItem] = useState(null);
 
   const fetchItems = () => {
     setLoading(true);
-    fetch(`${BASE}/api/designations`)
+    fetch(`${BASE}/api/humanresource/designations`)
       .then((r) => r.json())
-      .then((d) => setItems(Array.isArray(d) ? d : []))
+      .then((d) => setItems(Array.isArray(d?.data) ? d.data : Array.isArray(d) ? d : []))
       .catch(() => setItems([]))
       .finally(() => setLoading(false));
   };
@@ -152,7 +118,7 @@ export default function Designations() {
     Swal.fire({ title: "Delete Designation?", icon: "warning", showCancelButton: true, confirmButtonColor: "#dc2626", confirmButtonText: "Delete" }).then(async (r) => {
       if (r.isConfirmed) {
         try {
-          const res = await fetch(`${BASE}/api/designations/${id}`, { method: "DELETE" });
+          const res = await fetch(`${BASE}/api/humanresource/designations/${id}`, { method: "DELETE" });
           if (!res.ok) throw new Error("Failed to delete");
           setItems((prev) => prev.filter((x) => x.Id !== id));
           Swal.fire("Deleted!", "Designation removed.", "success");
@@ -166,7 +132,12 @@ export default function Designations() {
   return (
     <div>
       <div className="flex justify-end mb-3">
-        <Button onClick={() => setAddOpen(true)} className="bg-indigo-600 hover:bg-indigo-700">+ Add Designation</Button>
+        <Link
+          to="/HumanResource/Designations/create"
+          className="inline-flex items-center gap-2 rounded-md bg-indigo-600 hover:bg-indigo-700 px-4 py-2 text-sm font-medium text-white"
+        >
+          <FaPlus /> Add Designation
+        </Link>
       </div>
 
       <div className="grid grid-cols-12 gap-2 bg-gray-700 text-gray-100 font-semibold p-3 rounded-lg mb-3">
@@ -216,7 +187,6 @@ export default function Designations() {
         </div>
       )}
 
-      <AddDesignationDrawer open={addOpen} onClose={() => setAddOpen(false)} onSuccess={fetchItems} />
       <EditDesignationDrawer open={!!editItem} onClose={() => setEditItem(null)} onSuccess={fetchItems} item={editItem} />
     </div>
   );

@@ -35,9 +35,20 @@ export const moduleRouteMap = {
 
   // Administration > Operations > Access Control List > Modules (ControllerName: Module)
   20012: "/Administration/Modules",
+  // Administration > Operations > Access Control List > Permission Types (ControllerName: Role, permission-type-to-role mapping)
+  20013: "/Administration/Roles/PermissionTypes",
+
+  // Human Resource > Setup > Departments (ControllerName: Department)
+  22003: "/HumanResource/Departments",
+  // Human Resource > Setup > Designations (ControllerName: Designation)
+  22004: "/HumanResource/Designations",
+  // Human Resource > Setup > Employee Types (ControllerName: EmployeeType)
+  22006: "/HumanResource/EmployeeTypes",
+  // Human Resource > Employees (ControllerName: Employee)
+  22007: "/HumanResource/Employees",
 
   // Accounts > Setup > Tellers (ControllerName: Teller, AreaName: FrontOffice)
-  23021: "/FosaManagement/Tellers",
+  23021: "/Accounts/Tellers",
   // Accounts > Setup > Bank Linkages (ControllerName: BankLinkage, matches BankLinkages.jsx)
   23022: "/Finance/BanksSetup",
 
@@ -51,6 +62,19 @@ export const moduleRouteMap = {
   // Accounts > Setup > Financial Products > Loans (ControllerName: LoanProduct)
   23018: "/Loaning/LoanProducts",
 
+  // Accounts > Setup > Financial Products > Savings (ControllerName: SavingsProduct)
+  23016: "/Accounts/SavingsProducts",
+  // Accounts > Setup > Financial Products > Investments (ControllerName: InvestmentProduct)
+  23017: "/Accounts/InvestmentProducts",
+
   // Accounts > Operations > Customer Accounts > Register (ControllerName: CustomerAccounts)
   23044: "/Membership/customersAccount",
+
+  25003: "/FrontOffice/CashManagement",
+
+  25006: "/FrontOffice/CashDeposit",
+
+  // 25009: "/FrontOffice/Transfers",
+
+
 };
