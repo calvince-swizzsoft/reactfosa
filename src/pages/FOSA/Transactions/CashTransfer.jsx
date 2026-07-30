@@ -12,6 +12,7 @@ import {
 import { FaEllipsisV, FaCheckCircle, FaTimesCircle, FaPaperPlane } from "react-icons/fa";
 import Swal from "sweetalert2";
 import NotFoundImage from "/assets/scopefinding.png";
+import { apiFetch } from "@/lib/api";
 
 const BASE = `${import.meta.env.VITE_APP_FIN_URL}`
 
@@ -101,7 +102,7 @@ function AddCashTransferDrawer({ open, onClose, onSuccess }) {
         OpeningBalance: String(form.OpeningBalance),
         TellerCashBalanceStatus: String(form.TellerCashBalanceStatus),
       };
-      const res = await fetch(`${BASE}/api/frontoffice/transfers/cash`, {
+      const res = await apiFetch(`${BASE}/api/frontoffice/transfers/cash`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -228,7 +229,7 @@ export default function CashTransfer() {
 
   const fetchTransfers = () => {
     setLoading(true);
-    fetch(`${BASE}/api/transfers/cash`)
+    apiFetch(`${BASE}/api/transfers/cash`)
       .then((r) => r.json())
       .then((d) => setTransfers(Array.isArray(d) ? d : []))
       .catch(() => setTransfers([]))
@@ -247,7 +248,7 @@ export default function CashTransfer() {
     });
     if (!confirm.isConfirmed) return;
     try {
-      const res = await fetch(`${BASE}/api/transfers/cash/acknowledge?option=2`, {
+      const res = await apiFetch(`${BASE}/api/transfers/cash/acknowledge?option=2`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -286,7 +287,7 @@ export default function CashTransfer() {
     });
     if (!confirm.isConfirmed) return;
     try {
-      const res = await fetch(`${BASE}/api/transfers/cash/acknowledge?option=3`, {
+      const res = await apiFetch(`${BASE}/api/transfers/cash/acknowledge?option=3`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -318,7 +319,7 @@ export default function CashTransfer() {
     });
     if (!confirm.isConfirmed) return;
     try {
-      const res = await fetch(`${BASE}/api/transfers/cash/utilize?request=${id}`, {
+      const res = await apiFetch(`${BASE}/api/transfers/cash/utilize?request=${id}`, {
         method: "POST",
       });
       if (!res.ok) throw new Error("Utilization failed");

@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import Swal from "sweetalert2";
 import NotFoundImage from "/assets/scopefinding.png";
 import { FaExchangeAlt } from "react-icons/fa";
+import { apiFetch } from "@/lib/api";
 
 const BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 
@@ -21,7 +22,7 @@ export default function ChequeTransfer() {
   const fetchCheques = () => {
     setLoading(true);
     setSelected([]);
-    fetch(`${BASE}/api/cheques`)
+    apiFetch(`${BASE}/api/cheques`)
       .then((r) => r.json())
       .then((d) => setCheques(Array.isArray(d) ? d : []))
       .catch(() => setCheques([]))
@@ -79,7 +80,7 @@ export default function ChequeTransfer() {
           TellerDescription: c.TellerDescription,
         }));
 
-      const res = await fetch(`${BASE}/api/transfers/cheques`, {
+      const res = await apiFetch(`${BASE}/api/transfers/cheques`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

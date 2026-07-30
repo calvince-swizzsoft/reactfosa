@@ -12,6 +12,7 @@ import { FaEllipsisV, FaCheckCircle, FaTimesCircle, FaPaperPlane } from "react-i
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { apiFetch } from "@/lib/api";
 
 //const BASE = "https://rubani.ngrok.io";
 const BASE = `${import.meta.env.VITE_APP_FIN_URL}`
@@ -107,13 +108,6 @@ function BranchSelect({ branches, value, onChange, disabled }) {
   );
 }
 
-const transactionTypes = [
-  { value: 1, label: "Cash Withdrawal" },
-  { value: 2, label: "Cash Deposit" },
-  { value: 3, label: "Cheque Deposit" },
-  { value: 4, label: "Payment Voucher" },
-];
-
 const emptyForm = {
   BranchId: "",
   CreditCustomerAccountId: "",
@@ -124,7 +118,6 @@ const emptyForm = {
   CustomerAccountCustomerId: "",
   TotalValue: "",
   Remarks: "",
-  Type: 1,
 };
 
 
@@ -151,9 +144,9 @@ function AddCashWithdrawalDepositDrawer({ open, onClose, onSuccess }) {
     if (!open) return;
     setLoadingData(true);
     Promise.all([
-      fetch(`${BASE}/api/registry/customers`).then((r) => r.json()),
-      fetch(`${BASE}/api/administration/branches`).then((r) => r.json()),
-      fetch(`${BASE}/api/frontoffice/tellers`).then((r) => r.json()),
+      apiFetch(`${BASE}/api/registry/customers`).then((r) => r.json()),
+      apiFetch(`${BASE}/api/administration/branches`).then((r) => r.json()),
+      apiFetch(`${BASE}/api/frontoffice/tellers`).then((r) => r.json()),
     ]).then(([customerData, branchData, tellerData]) => {
       setCustomers(normalizeList(customerData));
       setBranches(normalizeList(branchData));
@@ -175,7 +168,7 @@ function AddCashWithdrawalDepositDrawer({ open, onClose, onSuccess }) {
     }));
     if (!customerId) return;
     setLoadingAccounts(true);
-    fetch(`${BASE}/api/accounts/customer-accounts/${customerId}/accounts`)
+    apiFetch(`${BASE}/api/accounts/customer-accounts/${customerId}/accounts`)
       .then((r) => r.json())
       .then((d) => {
         const normalizedAccounts = Array.isArray(d)
@@ -224,10 +217,10 @@ function AddCashWithdrawalDepositDrawer({ open, onClose, onSuccess }) {
         const payload = {
           ...form,
           Amount: Number(form.TotalValue),
-          TransactionType: Number(form.TransactionType),
+          Type: 1,
           CurrentTellerId: form.CurrentTellerId || selectedTellerId,
         };
-        const res = await fetch(`${BASE}/api/frontoffice/requests?type=1`, {
+        const res = await apiFetch(`${BASE}/api/frontoffice/requests?type=1`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
@@ -286,20 +279,6 @@ function AddCashWithdrawalDepositDrawer({ open, onClose, onSuccess }) {
               <FieldGroup label="Branch">
                 <BranchSelect branches={branches} value={form.BranchId} onChange={handleChange} disabled={loadingData} />
               </FieldGroup>
-              <FieldGroup label="Transaction Type">
-                <Select value={String(form.Type)} onValueChange={(value) => handleChange("Type", Number(value))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select transaction type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {transactionTypes.map((type) => (
-                      <SelectItem key={type.value} value={String(type.value)}>
-                        {type.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </FieldGroup>
               <FieldGroup label="Amount">
                 <Input type="number" value={form.TotalValue} onChange={(e) => handleChange("TotalValue", e.target.value)} required placeholder="1000" />
               </FieldGroup>
@@ -307,7 +286,7 @@ function AddCashWithdrawalDepositDrawer({ open, onClose, onSuccess }) {
                 <Input value={form.Remarks} onChange={(e) => handleChange("Remarks", e.target.value)} placeholder="Enter remarks" />
               </FieldGroup>
               <Button type="submit" disabled={loading} className="w-full bg-indigo-600 hover:bg-indigo-700">
-                {loading ? "Saving..." : "Submit Cash Deposit"}
+                {loading ? "Saving..." : "Submit Cash Withdrawal"}
               </Button>
             </form>
           </motion.div>
@@ -340,7 +319,7 @@ export default function CashWithdrawal() {
 
   const fetchItems = () => {
     setLoading(true);
-    fetch(`${BASE}/api/frontoffice/requests?type=1`)
+    apiFetch(`${BASE}/api/frontoffice/requests?type=1`)
       .then((r) => r.json())
       .then((d) => {
         const allItems = Array.isArray(d) ? d : [];
@@ -357,7 +336,7 @@ export default function CashWithdrawal() {
     const confirm = await Swal.fire({ title: "Authorize Withdrawal?", icon: "question", showCancelButton: true, confirmButtonColor: "#4f46e5", confirmButtonText: "Authorize" });
     if (!confirm.isConfirmed) return;
     try {
-      const res = await fetch(`${BASE}/api/frontoffice/requests/authorize?id=${id}&opt=1`, { method: "POST" });
+      const res = await apiFetch(`${BASE}/api/frontoffice/requests/authorize?id=${id}&opt=1`, { method: "POST" });
       if (!res.ok) throw new Error("Authorization failed");
       Swal.fire("Authorized!", "Withdrawal request authorized.", "success");
       fetchItems();
@@ -370,7 +349,7 @@ export default function CashWithdrawal() {
     const confirm = await Swal.fire({ title: "Reject Withdrawal?", icon: "warning", showCancelButton: true, confirmButtonColor: "#dc2626", confirmButtonText: "Reject" });
     if (!confirm.isConfirmed) return;
     try {
-      const res = await fetch(`${BASE}/api/frontoffice/requests/authorize?cashDepositRequestId=${id}&customerTransactionAuthOption=2`, { method: "POST" });
+      const res = await apiFetch(`${BASE}/api/frontoffice/requests/authorize?cashDepositRequestId=${id}&customerTransactionAuthOption=2`, { method: "POST" });
       if (!res.ok) throw new Error("Rejection failed");
       Swal.fire("Rejected!", "Withdrawal request rejected.", "success");
       fetchItems();
@@ -383,7 +362,7 @@ export default function CashWithdrawal() {
     const confirm = await Swal.fire({ title: "Post Withdrawawl?", icon: "question", showCancelButton: true, confirmButtonColor: "#4f46e5", confirmButtonText: "Post" });
     if (!confirm.isConfirmed) return;
     try {
-      const res = await fetch(`${BASE}/api/frontoffice/requests/post?id=${id}`, { method: "POST" });
+      const res = await apiFetch(`${BASE}/api/frontoffice/requests/post?id=${id}`, { method: "POST" });
       if (!res.ok) throw new Error("Posting failed");
       Swal.fire("Posted!", "Withdrawawl request posted successfully.", "success");
       fetchItems();

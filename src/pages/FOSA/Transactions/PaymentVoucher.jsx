@@ -12,6 +12,7 @@ import { FaEllipsisV, FaCheckCircle, FaTimesCircle, FaPaperPlane } from "react-i
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { apiFetch } from "@/lib/api";
 
 const BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 
@@ -103,8 +104,8 @@ function AddPaymentVoucherDrawer({ open, onClose, onSuccess }) {
     if (!open) return;
     setLoadingData(true);
     Promise.all([
-      fetch(`${BASE}/api/customers`).then((r) => r.json()),
-      fetch(`${BASE}/api/branches`).then((r) => r.json()),
+      apiFetch(`${BASE}/api/customers`).then((r) => r.json()),
+      apiFetch(`${BASE}/api/branches`).then((r) => r.json()),
     ]).then(([custData, branchData]) => {
       setCustomers(custData.success ? (Array.isArray(custData.data) ? custData.data : []) : []);
       setBranches(Array.isArray(branchData.data) ? branchData.data : []);
@@ -125,7 +126,7 @@ function AddPaymentVoucherDrawer({ open, onClose, onSuccess }) {
     }));
     if (!customerId) return;
     setLoadingAccounts(true);
-    fetch(`${BASE}/api/values/CustomerAccount/by-customer?customerId=${customerId}`)
+    apiFetch(`${BASE}/api/values/CustomerAccount/by-customer?customerId=${customerId}`)
       .then((r) => r.json())
       .then((d) => setAccounts(Array.isArray(d) ? d : []))
       .catch(() => setAccounts([]))
@@ -153,7 +154,7 @@ function AddPaymentVoucherDrawer({ open, onClose, onSuccess }) {
     setLoading(true);
     try {
       const payload = { ...form, TotalValue: Number(form.TotalValue) };
-      const res = await fetch(`${BASE}/api/paymentvoucher`, {
+      const res = await apiFetch(`${BASE}/api/paymentvoucher`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -236,7 +237,7 @@ export default function PaymentVoucher() {
 
   const fetchItems = () => {
     setLoading(true);
-    fetch(`${BASE}/api/paymentvoucher`)
+    apiFetch(`${BASE}/api/paymentvoucher`)
       .then((r) => r.json())
       .then((d) => setItems(Array.isArray(d) ? d : []))
       .catch(() => setItems([]))
@@ -249,7 +250,7 @@ export default function PaymentVoucher() {
     const confirm = await Swal.fire({ title: "Authorize Payment Voucher?", icon: "question", showCancelButton: true, confirmButtonColor: "#4f46e5", confirmButtonText: "Authorize" });
     if (!confirm.isConfirmed) return;
     try {
-      const res = await fetch(`${BASE}/api/paymentvoucher/authorize?paymentVoucherRequestId=${id}&customerTransactionAuthOption=1`, { method: "POST" });
+      const res = await apiFetch(`${BASE}/api/paymentvoucher/authorize?paymentVoucherRequestId=${id}&customerTransactionAuthOption=1`, { method: "POST" });
       if (!res.ok) throw new Error("Authorization failed");
       Swal.fire("Authorized!", "Payment voucher request authorized.", "success");
       fetchItems();
@@ -262,7 +263,7 @@ export default function PaymentVoucher() {
     const confirm = await Swal.fire({ title: "Reject Payment Voucher?", icon: "warning", showCancelButton: true, confirmButtonColor: "#dc2626", confirmButtonText: "Reject" });
     if (!confirm.isConfirmed) return;
     try {
-      const res = await fetch(`${BASE}/api/paymentvoucher/authorize?paymentVoucherRequestId=${id}&customerTransactionAuthOption=2`, { method: "POST" });
+      const res = await apiFetch(`${BASE}/api/paymentvoucher/authorize?paymentVoucherRequestId=${id}&customerTransactionAuthOption=2`, { method: "POST" });
       if (!res.ok) throw new Error("Rejection failed");
       Swal.fire("Rejected!", "Payment voucher request rejected.", "success");
       fetchItems();
@@ -275,7 +276,7 @@ export default function PaymentVoucher() {
     const confirm = await Swal.fire({ title: "Post Payment Voucher?", icon: "question", showCancelButton: true, confirmButtonColor: "#4f46e5", confirmButtonText: "Post" });
     if (!confirm.isConfirmed) return;
     try {
-      const res = await fetch(`${BASE}/api/paymentvoucher/post?paymentVoucherRequestId=${id}`, { method: "POST" });
+      const res = await apiFetch(`${BASE}/api/paymentvoucher/post?paymentVoucherRequestId=${id}`, { method: "POST" });
       if (!res.ok) throw new Error("Posting failed");
       Swal.fire("Posted!", "Payment voucher request posted successfully.", "success");
       fetchItems();

@@ -106,6 +106,8 @@ import Roles from "./pages/UserManagement/Roles/Roles.jsx";
 import Users from "./pages/UserManagement/Users/index.jsx";
 import AdministrationCreateRole from "./pages/Administration/Roles/create.jsx";
 import AdministrationPermissionTypes from "./pages/Administration/Roles/PermissionTypes.jsx";
+import AdministrationWorkflows from "./pages/Administration/Workflow/index.jsx";
+import ApprovalRequests from "./pages/CommandHub/ApprovalRequests/index.jsx";
 import AdministrationUsers from "./pages/Administration/Users/index.jsx";
 import CreateUser from "./pages/Administration/Users/create.jsx";
 import AdministrationModules from "./pages/Administration/Modules/index.jsx";
@@ -227,6 +229,7 @@ export default function App() {
   <Route path="Administration/Banks" element={<BankLinkages />} />
           <Route path="Administration/Locations" element={<AdministrationLocations />} />
           <Route path="Administration/AuditLogs" element={<AuditLogs />} />
+          <Route path="Administration/Workflow" element={<AdministrationWorkflows />} />
 
           {/* Inventory */}
           <Route path="Inventory" element={<InventoryDashboard />} />
@@ -313,6 +316,9 @@ export default function App() {
 
 
           <Route path="FrontOffice/Transactions" element={<FOSATransactions />} />
+
+          {/**Approval Requests */}
+          <Route path="CommandHub/ApprovalRequests" element={<ApprovalRequests />} />
 
           </Route>
           </Route>

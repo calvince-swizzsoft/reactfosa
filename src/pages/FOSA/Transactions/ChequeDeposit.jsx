@@ -12,6 +12,7 @@ import { FaEllipsisV, FaCheckCircle, FaTimesCircle, FaPaperPlane } from "react-i
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { apiFetch } from "@/lib/api";
 
 const BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 
@@ -62,13 +63,6 @@ function AccountSelect({ accounts, value, onChange, disabled, placeholder }) {
   );
 }
 
-const transactionTypes = [
-  { value: 1, label: "Cash Withdrawal" },
-  { value: 2, label: "Cash Deposit" },
-  { value: 3, label: "Cheque Deposit" },
-  { value: 4, label: "Payment Voucher" },
-];
-
 function BranchSelect({ branches, value, onChange, disabled }) {
   return (
     <Select value={value} onValueChange={(v) => onChange("BranchId", v)} disabled={disabled}>
@@ -114,8 +108,8 @@ function AddChequeDepositDrawer({ open, onClose, onSuccess }) {
     if (!open) return;
     setLoadingData(true);
     Promise.all([
-      fetch(`${BASE}/api/registry/customers`).then((r) => r.json()),
-      fetch(`${BASE}/api/administration/branches`).then((r) => r.json()),
+      apiFetch(`${BASE}/api/registry/customers`).then((r) => r.json()),
+      apiFetch(`${BASE}/api/administration/branches`).then((r) => r.json()),
     ]).then(([custData, branchData]) => {
       setCustomers(custData.success ? (Array.isArray(custData.data) ? custData.data : []) : []);
       setBranches(Array.isArray(branchData.data) ? branchData.data : []);
@@ -136,7 +130,7 @@ function AddChequeDepositDrawer({ open, onClose, onSuccess }) {
     }));
     if (!customerId) return;
     setLoadingAccounts(true);
-    fetch(`${BASE}/api/values/CustomerAccount/by-customer?customerId=${customerId}`)
+    apiFetch(`${BASE}/api/values/CustomerAccount/by-customer?customerId=${customerId}`)
       .then((r) => r.json())
       .then((d) => setAccounts(Array.isArray(d) ? d : []))
       .catch(() => setAccounts([]))
@@ -164,9 +158,9 @@ function AddChequeDepositDrawer({ open, onClose, onSuccess }) {
     setLoading(true);
     try {
       const payload = { ...form, TotalValue: Number(form.Amount) };
-      //const res = await fetch(`${BASE}api/chequedeposit`, {
+      //const res = await apiFetch(`${BASE}api/chequedeposit`, {
       console.log("Submitting payload:", payload);
-      const res = await fetch(`${BASE}/api/deposit`, {
+      const res = await apiFetch(`${BASE}/api/deposit`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -214,20 +208,6 @@ function AddChequeDepositDrawer({ open, onClose, onSuccess }) {
               </FieldGroup>
               <FieldGroup label="Branch">
                 <BranchSelect branches={branches} value={form.BranchId} onChange={handleChange} disabled={loadingData} />
-              </FieldGroup>
-              <FieldGroup label="Transaction Type">
-                <Select value={String(form.Type)} onValueChange={(value) => handleChange("Type", Number(value))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select transaction type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {transactionTypes.map((type) => (
-                      <SelectItem key={type.value} value={String(type.value)}>
-                        {type.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
               </FieldGroup>
               <FieldGroup label="Amount">
                 <Input type="number" value={form.Amount} onChange={(e) => handleChange("Amount", e.target.value)} required placeholder="1000" />
@@ -284,7 +264,7 @@ export default function ChequeDeposit() {
 
   const fetchItems = () => {
     setLoading(true);
-    fetch(`${BASE}/api/deposit`)
+    apiFetch(`${BASE}/api/deposit`)
       .then((r) => r.json())
       .then((d) => {
         const allItems = Array.isArray(d) ? d : [];
@@ -300,7 +280,7 @@ export default function ChequeDeposit() {
     const confirm = await Swal.fire({ title: "Authorize Cheque Deposit?", icon: "question", showCancelButton: true, confirmButtonColor: "#4f46e5", confirmButtonText: "Authorize" });
     if (!confirm.isConfirmed) return;
     try {
-      const res = await fetch(`${BASE}/api/chequedeposit/authorize?chequeDepositRequestId=${id}&customerTransactionAuthOption=1`, { method: "POST" });
+      const res = await apiFetch(`${BASE}/api/chequedeposit/authorize?chequeDepositRequestId=${id}&customerTransactionAuthOption=1`, { method: "POST" });
       if (!res.ok) throw new Error("Authorization failed");
       Swal.fire("Authorized!", "Cheque deposit request authorized.", "success");
       fetchItems();
@@ -313,7 +293,7 @@ export default function ChequeDeposit() {
     const confirm = await Swal.fire({ title: "Reject Cheque Deposit?", icon: "warning", showCancelButton: true, confirmButtonColor: "#dc2626", confirmButtonText: "Reject" });
     if (!confirm.isConfirmed) return;
     try {
-      const res = await fetch(`${BASE}/api/chequedeposit/authorize?chequeDepositRequestId=${id}&customerTransactionAuthOption=2`, { method: "POST" });
+      const res = await apiFetch(`${BASE}/api/chequedeposit/authorize?chequeDepositRequestId=${id}&customerTransactionAuthOption=2`, { method: "POST" });
       if (!res.ok) throw new Error("Rejection failed");
       Swal.fire("Rejected!", "Cheque deposit request rejected.", "success");
       fetchItems();
@@ -326,7 +306,7 @@ export default function ChequeDeposit() {
     const confirm = await Swal.fire({ title: "Post Cheque Deposit?", icon: "question", showCancelButton: true, confirmButtonColor: "#4f46e5", confirmButtonText: "Post" });
     if (!confirm.isConfirmed) return;
     try {
-      const res = await fetch(`${BASE}/api/chequedeposit/post?chequeDepositRequestId=${id}`, { method: "POST" });
+      const res = await apiFetch(`${BASE}/api/chequedeposit/post?chequeDepositRequestId=${id}`, { method: "POST" });
       if (!res.ok) throw new Error("Posting failed");
       Swal.fire("Posted!", "Cheque deposit request posted successfully.", "success");
       fetchItems();
