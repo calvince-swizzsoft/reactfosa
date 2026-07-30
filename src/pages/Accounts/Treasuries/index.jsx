@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,13 +9,12 @@ import {
 } from "@/components/ui/select";
 import Swal from "sweetalert2";
 import NotFoundImage from "/assets/scopefinding.png";
-import { FaEllipsisV, FaTrash, FaEdit } from "react-icons/fa";
+import { FaEllipsisV, FaTrash, FaEdit, FaPlus } from "react-icons/fa";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-//const BASE = "https://rubani.ngrok.io";
-const BASE = `${import.meta.env.VITE_APP_FIN_URL}`
+const BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 
 const emptyForm = {
   Description: "",
@@ -117,59 +117,6 @@ function TreasuryForm({ form, setForm, branches, coaList, loading, loadingData, 
   );
 }
 
-function AddTreasuryDrawer({ open, onClose, onSuccess }) {
-  const [form, setForm] = useState(emptyForm);
-  const [loading, setLoading] = useState(false);
-  const [branches, setBranches] = useState([]);
-  const [coaList, setCoaList] = useState([]);
-  const [loadingData, setLoadingData] = useState(false);
-
-  useEffect(() => {
-    if (!open) return;
-    setLoadingData(true);
-    Promise.all([
-      fetch(`${BASE}/api/administration/branches`).then((r) => r.json()),
-      fetch(`${BASE}/api/values/GetChartOfAccount`).then((r) => r.json()),
-    ]).then(([branchData, coaData]) => {
-      setBranches(Array.isArray(branchData.data) ? branchData.data : []);
-      setCoaList(Array.isArray(coaData.Data) ? coaData.Data : []);
-    }).catch(() => { }).finally(() => setLoadingData(false));
-  }, [open]);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      const payload = {
-        ...form,
-        RangeLowerLimit: Number(form.RangeLowerLimit),
-        RangeUpperLimit: Number(form.RangeUpperLimit),
-      };
-      const res = await fetch(`${BASE}/api/frontoffice/treasurys`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.message || "Failed to create treasury");
-      Swal.fire("Success", "Treasury created successfully", "success");
-      setForm(emptyForm);
-      onSuccess();
-      onClose();
-    } catch (err) {
-      Swal.fire("Error", err.message, "error");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <DrawerShell open={open} onClose={onClose} title="Add Treasury">
-      <TreasuryForm form={form} setForm={setForm} branches={branches} coaList={coaList} loading={loading} loadingData={loadingData} submitLabel="Create Treasury" onSubmit={handleSubmit} />
-    </DrawerShell>
-  );
-}
-
 function EditTreasuryDrawer({ open, onClose, onSuccess, item }) {
   const [form, setForm] = useState(emptyForm);
   const [loading, setLoading] = useState(false);
@@ -237,7 +184,6 @@ function EditTreasuryDrawer({ open, onClose, onSuccess, item }) {
 export default function Treasuries() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [addOpen, setAddOpen] = useState(false);
   const [editItem, setEditItem] = useState(null);
 
   const fetchItems = () => {
@@ -271,7 +217,12 @@ export default function Treasuries() {
   return (
     <div>
       <div className="flex justify-end mb-3">
-        <Button onClick={() => setAddOpen(true)} className="bg-indigo-600 hover:bg-indigo-700">+ Add Treasury</Button>
+        <Link
+          to="/Accounts/Treasuries/create"
+          className="inline-flex items-center gap-2 rounded-md bg-indigo-600 hover:bg-indigo-700 px-4 py-2 text-sm font-medium text-white"
+        >
+          <FaPlus /> Add Treasury
+        </Link>
       </div>
 
       <div className="grid grid-cols-12 gap-2 bg-gray-700 text-gray-100 font-semibold p-3 rounded-lg mb-3">
@@ -325,7 +276,6 @@ export default function Treasuries() {
         </div>
       )}
 
-      <AddTreasuryDrawer open={addOpen} onClose={() => setAddOpen(false)} onSuccess={fetchItems} />
       <EditTreasuryDrawer open={!!editItem} onClose={() => setEditItem(null)} onSuccess={fetchItems} item={editItem} />
     </div>
   );

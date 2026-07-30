@@ -1,25 +1,17 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaCog, FaExternalLinkAlt } from "react-icons/fa";
-import Designations from "./Designations";
-import Departments from "./Departments";
-import EmployeeTypes from "./EmployeeTypes";
-import SavingsProducts from "./SavingsProducts";
-import InvestmentProducts from "./InvestmentProducts";
-import Treasuries from "./Treasuries";
 
+// Departments, Designations, and Employee Types moved to HumanResource;
+// Savings Products, Investment Products, and Treasuries moved to Accounts —
+// each now its own module with its own index + create page, as part of the
+// module-driven routing split. They no longer live here.
 const tabs = [
-  { id: "designations", label: "Designations" },
-  { id: "departments", label: "Departments" },
-  { id: "employeetypes", label: "Employee Types" },
-  { id: "savingsproducts", label: "Savings Products" },
-  { id: "investmentsproducts", label: "Investment Products" },
-  { id: "treasuries", label: "Treasuries" },
   { id: "branches", label: "Branches" },
 ];
 
 export default function FOSASetup() {
-  const [activeTab, setActiveTab] = useState("designations");
+  const [activeTab, setActiveTab] = useState(null);
   const navigate = useNavigate();
 
   const handleTabClick = (tabId) => {
@@ -58,12 +50,7 @@ export default function FOSASetup() {
 
       {/* Tab Content */}
       <div className="bg-gray-100 p-4 rounded-lg">
-        {activeTab === "designations" && <Designations />}
-        {activeTab === "departments" && <Departments />}
-        {activeTab === "employeetypes" && <EmployeeTypes />}
-        {activeTab === "savingsproducts" && <SavingsProducts />}
-        {activeTab === "investmentsproducts" && <InvestmentProducts />}
-        {activeTab === "treasuries" && <Treasuries />}
+        <p className="text-sm text-gray-500">Select "Branches" above to manage branches.</p>
       </div>
     </div>
   );
