@@ -43,21 +43,6 @@ function FieldGroup({ label, children }) {
 
 
 
-function TellerSelect({ tellers, value, onChange, disabled }) {
-  return (
-    <Select value={value ? String(value) : ""} onValueChange={onChange} disabled={disabled}>
-      <SelectTrigger><SelectValue placeholder={disabled ? "Loading..." : "Search & select teller"} /></SelectTrigger>
-      <SelectContent>
-        {tellers.map((t) => (
-          <SelectItem key={String(t.Id)} value={String(t.Id)}>
-            {t.Description || t.Name || t.Id}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  );
-}
-
 function CustomerSelect({ customers, value, onChange, disabled }) {
   return (
     <Select value={value ? String(value) : ""} onValueChange={onChange} disabled={disabled}>
@@ -142,7 +127,6 @@ const emptyForm = {
   TotalValue: "",
   Remarks: "",
   TransactionType: 2,
-  CurrentTellerId: ""
 };
 
 function AddCashDepositDrawer({ open, onClose, onSuccess }) {
@@ -150,11 +134,9 @@ function AddCashDepositDrawer({ open, onClose, onSuccess }) {
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(false);
   const [customers, setCustomers] = useState([]);
-  const [tellers, setTellers] = useState([]);
   const [accounts, setAccounts] = useState([]);
   const [branches, setBranches] = useState([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
-  const [selectedTellerId, setSelectedTellerId] = useState("");
   const [loadingAccounts, setLoadingAccounts] = useState(false);
 
   const normalizeList = (response) => {
@@ -170,11 +152,9 @@ function AddCashDepositDrawer({ open, onClose, onSuccess }) {
     Promise.all([
       fetch(`${BASE}/api/registry/customers`).then((r) => r.json()),
       fetch(`${BASE}/api/administration/branches`).then((r) => r.json()),
-      fetch(`${BASE}/api/frontoffice/tellers`).then((r) => r.json()),
-    ]).then(([customerData, branchData, tellerData]) => {
+    ]).then(([customerData, branchData]) => {
       setCustomers(customerData.success ? normalizeList(customerData) : normalizeList(customerData));
       setBranches(normalizeList(branchData));
-      setTellers(normalizeList(tellerData));
     }).catch(() => { }).finally(() => setLoadingData(false));
   }, [open]);
 
@@ -207,15 +187,6 @@ function AddCashDepositDrawer({ open, onClose, onSuccess }) {
       .finally(() => setLoadingAccounts(false));
   };
 
-   const handleTellerChange = (tellerId) => {
-    setSelectedTellerId(tellerId);
-    setForm((p) => ({
-      ...p,
-      CurrentTellerId: tellerId,
-    }));
-    if (!tellerId) return;
-  };
-
   console.log("Selected Customer ID:", selectedCustomerId, accounts);
   const handleAccountChange = (accountId) => {
     const acct = accounts.find((a) => a.Id === accountId);
@@ -241,7 +212,6 @@ function AddCashDepositDrawer({ open, onClose, onSuccess }) {
         ...form,
         Amount: Number(form.TotalValue),
         TransactionType: Number(form.TransactionType),
-        CurrentTellerId: form.CurrentTellerId || selectedTellerId,
       };
       const res = await fetch(`${BASE}/api/frontoffice/requests`, {
         method: "POST",
@@ -260,7 +230,6 @@ function AddCashDepositDrawer({ open, onClose, onSuccess }) {
 
       setForm(emptyForm);
       setSelectedCustomerId("");
-      setSelectedTellerId("");
       setAccounts([]);
       onSuccess();
       onClose();
@@ -282,9 +251,6 @@ function AddCashDepositDrawer({ open, onClose, onSuccess }) {
               <Button variant="outline" size="sm" onClick={onClose}>Close</Button>
             </div>
             <form onSubmit={handleSubmit} className="p-4 space-y-4">
-              <FieldGroup label="Teller">
-                <TellerSelect tellers={tellers} value={selectedTellerId} onChange={handleTellerChange} disabled={loadingData} />
-              </FieldGroup>
               <FieldGroup label="Customer">
                 <CustomerSelect customers={customers} value={selectedCustomerId} onChange={handleCustomerChange} disabled={loadingData} />
               </FieldGroup>
