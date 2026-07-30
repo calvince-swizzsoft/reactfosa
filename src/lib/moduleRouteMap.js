@@ -76,5 +76,7 @@ export const moduleRouteMap = {
 
   // 25009: "/FrontOffice/Transfers",
 
+20014: "/Administration/Workflow",
 
+26010: "/CommandHub/ApprovalRequests"
 };
