@@ -6,6 +6,7 @@ import {
 } from "@/components/ui/select";
 import Swal from "sweetalert2";
 import NotFoundImage from "/assets/scopefinding.png";
+import { apiFetch } from "@/lib/api";
 
 const BASE = `${import.meta.env.VITE_APP_FIN_URL}`
 
@@ -42,8 +43,8 @@ export default function ClearCheques() {
   useEffect(() => {
     setLoading(true);
     Promise.all([
-      fetch(`${BASE}/api/cheques`).then((r) => r.json()),
-      fetch(`${BASE}/api/unpay`).then((r) => r.json()),
+      apiFetch(`${BASE}/api/cheques`).then((r) => r.json()),
+      apiFetch(`${BASE}/api/unpay`).then((r) => r.json()),
     ])
       .then(([chequeData, reasonData]) => {
         setCheques(Array.isArray(chequeData) ? chequeData : []);
@@ -88,7 +89,7 @@ export default function ClearCheques() {
           ? { Id: reason.Id, Code: reason.Code, Description: reason.Description }
           : {},
       };
-      const res = await fetch(`${BASE}/api/cheques/clear`, {
+      const res = await apiFetch(`${BASE}/api/cheques/clear`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

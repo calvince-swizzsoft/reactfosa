@@ -12,6 +12,7 @@ import { FaEllipsisV, FaCheckCircle, FaTimesCircle, FaPaperPlane } from "react-i
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { apiFetch } from "@/lib/api";
 
 //const BASE = "https://rubani.ngrok.io";
 const BASE = `${import.meta.env.VITE_APP_FIN_URL}`
@@ -109,13 +110,6 @@ function BranchSelect({ branches, value, onChange, disabled }) {
   );
 }
 
-const transactionTypes = [
-  { value: 1, label: "Cash Withdrawal" },
-  { value: 2, label: "Cash Deposit" },
-  { value: 3, label: "Cheque Deposit" },
-  { value: 4, label: "Payment Voucher" },
-];
-
 const emptyForm = {
   BranchId: "",
   CreditCustomerAccountId: "",
@@ -126,7 +120,7 @@ const emptyForm = {
   CustomerAccountCustomerId: "",
   TotalValue: "",
   Remarks: "",
-  TransactionType: 2,
+  Type: 2,
 };
 
 function AddCashDepositDrawer({ open, onClose, onSuccess }) {
@@ -150,8 +144,8 @@ function AddCashDepositDrawer({ open, onClose, onSuccess }) {
     if (!open) return;
     setLoadingData(true);
     Promise.all([
-      fetch(`${BASE}/api/registry/customers`).then((r) => r.json()),
-      fetch(`${BASE}/api/administration/branches`).then((r) => r.json()),
+      apiFetch(`${BASE}/api/registry/customers`).then((r) => r.json()),
+      apiFetch(`${BASE}/api/administration/branches`).then((r) => r.json()),
     ]).then(([customerData, branchData]) => {
       setCustomers(customerData.success ? normalizeList(customerData) : normalizeList(customerData));
       setBranches(normalizeList(branchData));
@@ -172,7 +166,7 @@ function AddCashDepositDrawer({ open, onClose, onSuccess }) {
     }));
     if (!customerId) return;
     setLoadingAccounts(true);
-    fetch(`${BASE}/api/accounts/customer-accounts/${customerId}/accounts`)
+    apiFetch(`${BASE}/api/accounts/customer-accounts/${customerId}/accounts`)
       .then((r) => r.json())
       .then((d) => {
         const normalizedAccounts = Array.isArray(d)
@@ -211,9 +205,8 @@ function AddCashDepositDrawer({ open, onClose, onSuccess }) {
       const payload = {
         ...form,
         Amount: Number(form.TotalValue),
-        TransactionType: Number(form.TransactionType),
       };
-      const res = await fetch(`${BASE}/api/frontoffice/requests`, {
+      const res = await apiFetch(`${BASE}/api/frontoffice/requests`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -267,20 +260,6 @@ function AddCashDepositDrawer({ open, onClose, onSuccess }) {
               <FieldGroup label="Branch">
                 <BranchSelect branches={branches} value={form.BranchId} onChange={handleChange} disabled={loadingData} />
               </FieldGroup>
-              <FieldGroup label="Transaction Type">
-                <Select value={String(form.TransactionType)} onValueChange={(value) => handleChange("TransactionType", Number(value))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select transaction type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {transactionTypes.map((type) => (
-                      <SelectItem key={type.value} value={String(type.value)}>
-                        {type.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </FieldGroup>
               <FieldGroup label="Amount">
                 <Input type="number" value={form.TotalValue} onChange={(e) => handleChange("TotalValue", e.target.value)} required placeholder="1000" />
               </FieldGroup>
@@ -313,7 +292,7 @@ export default function CashDeposit() {
 
   const matchesTransactionType = (item, expectedType) => {
     const typeValue = Number(
-      item.TransactionType ?? item.TransactionTypeId ?? item.TransactionTypeCode ?? 0
+      item.TransactionType ?? item.Type ?? item.TransactionTypeId ?? item.TypeId ?? item.TransactionTypeCode ?? item.TypeCode ?? 0
     );
 
     return typeValue === expectedType;
@@ -321,7 +300,7 @@ export default function CashDeposit() {
 
   const fetchItems = () => {
     setLoading(true);
-    fetch(`${BASE}/api/frontoffice/requests?type=2`)
+    apiFetch(`${BASE}/api/frontoffice/requests?type=2`)
       .then((r) => r.json())
       .then((d) => {
         const allItems = Array.isArray(d) ? d : [];
@@ -338,7 +317,7 @@ export default function CashDeposit() {
     const confirm = await Swal.fire({ title: "Authorize Deposit?", icon: "question", showCancelButton: true, confirmButtonColor: "#4f46e5", confirmButtonText: "Authorize" });
     if (!confirm.isConfirmed) return;
     try {
-      const res = await fetch(`${BASE}/api/frontoffice/requests/authorize?id=${id}&opt=1`, { method: "POST" });
+      const res = await apiFetch(`${BASE}/api/frontoffice/requests/authorize?id=${id}&opt=1`, { method: "POST" });
       if (!res.ok) throw new Error("Authorization failed");
       Swal.fire("Authorized!", "Deposit request authorized.", "success");
       setActiveTab("Authorized");
@@ -352,7 +331,7 @@ export default function CashDeposit() {
     const confirm = await Swal.fire({ title: "Reject Deposit?", icon: "warning", showCancelButton: true, confirmButtonColor: "#dc2626", confirmButtonText: "Reject" });
     if (!confirm.isConfirmed) return;
     try {
-      const res = await fetch(`${BASE}/api/frontoffice/requests/authorize?id=${id}&customerTransactionAuthOption=2`, { method: "POST" });
+      const res = await apiFetch(`${BASE}/api/frontoffice/requests/authorize?id=${id}&customerTransactionAuthOption=2`, { method: "POST" });
       if (!res.ok) throw new Error("Rejection failed");
       Swal.fire("Rejected!", "Deposit request rejected.", "success");
       fetchItems();
@@ -365,7 +344,7 @@ export default function CashDeposit() {
     const confirm = await Swal.fire({ title: "Mark Authorized Deposit as Posted?", icon: "question", showCancelButton: true, confirmButtonColor: "#4f46e5", confirmButtonText: "Mark as Posted" });
     if (!confirm.isConfirmed) return;
     try {
-      const res = await fetch(`${BASE}/api/frontoffice/requests/markposted?id=${id}`, { method: "POST" });
+      const res = await apiFetch(`${BASE}/api/frontoffice/requests/markposted?id=${id}`, { method: "POST" });
       if (!res.ok) throw new Error("Mark-as-posted failed");
       Swal.fire("Posted!", "Authorized deposit marked as posted successfully.", "success");
       setActiveTab("Posted");

@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Swal from "sweetalert2";
 import NotFoundImage from "/assets/scopefinding.png";
+import { apiFetch } from "@/lib/api";
 
 const BASE = `${import.meta.env.VITE_APP_FIN_URL}`
 
@@ -34,7 +35,7 @@ function AddUnpayReasonDrawer({ open, onClose, onSuccess }) {
         Description: form.Description,
         IsLocked: form.IsLocked,
       };
-      const res = await fetch(`${BASE}/api/unpay`, {
+      const res = await apiFetch(`${BASE}/api/unpay`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -118,7 +119,7 @@ export default function UnpayReasons() {
 
   const fetchReasons = () => {
     setLoading(true);
-    fetch(`${BASE}/api/unpay`)
+    apiFetch(`${BASE}/api/unpay`)
       .then((r) => r.json())
       .then((d) => setReasons(Array.isArray(d) ? d : []))
       .catch(() => setReasons([]))

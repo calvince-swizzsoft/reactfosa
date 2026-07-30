@@ -1,5 +1,6 @@
 const TOKEN_KEY = "token";
 const ROLES_KEY = "roles";
+const USERNAME_KEY = "userName";
 
 export function getToken() {
   return localStorage.getItem(TOKEN_KEY);
@@ -11,6 +12,18 @@ export function setToken(token) {
 
 export function clearToken() {
   localStorage.removeItem(TOKEN_KEY);
+}
+
+export function getUserName() {
+  return localStorage.getItem(USERNAME_KEY);
+}
+
+export function setUserName(userName) {
+  localStorage.setItem(USERNAME_KEY, userName);
+}
+
+export function clearUserName() {
+  localStorage.removeItem(USERNAME_KEY);
 }
 
 export function getRoles() {

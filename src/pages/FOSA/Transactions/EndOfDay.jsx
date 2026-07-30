@@ -208,6 +208,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import Swal from "sweetalert2";
 import { FaSun } from "react-icons/fa";
+import { apiFetch } from "@/lib/api";
 
 // const BASE = "https://rubani.ngrok.io";
 const BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
@@ -233,8 +234,8 @@ export default function EndOfDay() {
 
       try {
         const [employeeRes, tellerRes] = await Promise.all([
-          fetch(`${BASE}/api/employees`),
-          fetch(`${BASE}/api/tellers`),
+          apiFetch(`${BASE}/api/employees`),
+          apiFetch(`${BASE}/api/tellers`),
         ]);
 
         const [employeeData, tellerData] = await Promise.all([
@@ -318,7 +319,7 @@ export default function EndOfDay() {
 
       console.log("End of Day Payload:", payload);
 
-      const res = await fetch(`${BASE}/api/endofday`, {
+      const res = await apiFetch(`${BASE}/api/endofday`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

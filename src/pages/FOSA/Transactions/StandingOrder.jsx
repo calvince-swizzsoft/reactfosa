@@ -12,6 +12,7 @@ import { FaEllipsisV, FaTimes } from "react-icons/fa";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { apiFetch } from "@/lib/api";
 
 const BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 const LOANING_URL = `${import.meta.env.VITE_APP_LOANING_URL}`;
@@ -137,12 +138,12 @@ function AddStandingOrderDrawer({ open, onClose, onSuccess }) {
     if (!open) return;
     setLoadingData(true);
     Promise.all([
-      fetch(`${BASE}api/branches`).then((r) => r.json()),
-      fetch(`${BASE}api/loaning/GetPostingPeriods`).then((r) => r.json()),
-      fetch(`${BASE}api/savingsproducts`).then((r) => r.json()),
-      fetch(`${LOANING_URL}api/Loansetups/GetLoanProducts`).then((r) => r.json()),
-      fetch(`${BASE}api/investmentsproducts`).then((r) => r.json()),
-      fetch(`${MEMBERSHIP_URL}api/employers`).then((r) => r.json()),
+      apiFetch(`${BASE}api/branches`).then((r) => r.json()),
+      apiFetch(`${BASE}api/loaning/GetPostingPeriods`).then((r) => r.json()),
+      apiFetch(`${BASE}api/savingsproducts`).then((r) => r.json()),
+      apiFetch(`${LOANING_URL}api/Loansetups/GetLoanProducts`).then((r) => r.json()),
+      apiFetch(`${BASE}api/investmentsproducts`).then((r) => r.json()),
+      apiFetch(`${MEMBERSHIP_URL}api/employers`).then((r) => r.json()),
     ])
       .then(([branchData, periodsData, savingsData, loanData, investData, employerData]) => {
         setBranches(Array.isArray(branchData.data) ? branchData.data : (Array.isArray(branchData.Data) ? branchData.Data : []));
@@ -207,7 +208,7 @@ function AddStandingOrderDrawer({ open, onClose, onSuccess }) {
 
       console.log("Standing Order Payload:", payload);
 
-      const res = await fetch(`${BASE}api/standingorder`, {
+      const res = await apiFetch(`${BASE}api/standingorder`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -444,7 +445,7 @@ export default function StandingOrder() {
 
   const fetchItems = () => {
     setLoading(true);
-    fetch(`${BASE}api/standingorder`)
+    apiFetch(`${BASE}api/standingorder`)
       .then((r) => r.json())
       .then((d) => setItems(Array.isArray(d) ? d : (Array.isArray(d?.data) ? d.data : [])))
       .catch(() => setItems([]))
@@ -463,7 +464,7 @@ export default function StandingOrder() {
     });
     if (!result.isConfirmed) return;
     try {
-      const res = await fetch(`${BASE}api/standingorder/${id}`, { method: "DELETE" });
+      const res = await apiFetch(`${BASE}api/standingorder/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Failed to delete standing order");
       Swal.fire("Deleted!", "Standing order removed.", "success");
       fetchItems();

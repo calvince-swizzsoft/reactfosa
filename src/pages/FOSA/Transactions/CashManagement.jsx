@@ -6,6 +6,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import Swal from "sweetalert2";
+import { apiFetch } from "@/lib/api";
 
 //const BASE = "https://rubani.ngrok.io";
 const BASE = `${import.meta.env.VITE_APP_FIN_URL}`
@@ -115,10 +116,10 @@ export default function CashManagement() {
   useEffect(() => {
     setLoadingData(true);
     Promise.all([
-      fetch(`${BASE}/api/administration/branches`).then((r) => r.json()),
-      fetch(`${BASE}/api/frontoffice/tellers`).then((r) => r.json()),
-      fetch(`${BASE}/api/frontoffice/treasurys`).then((r) => r.json()),
-      fetch(`${BASE}/api/values/GetChartOfAccount`).then((r) => r.json()),
+      apiFetch(`${BASE}/api/administration/branches`).then((r) => r.json()),
+      apiFetch(`${BASE}/api/frontoffice/tellers`).then((r) => r.json()),
+      apiFetch(`${BASE}/api/frontoffice/treasurys`).then((r) => r.json()),
+      apiFetch(`${BASE}/api/values/GetChartOfAccount`).then((r) => r.json()),
     ]).then(([branchData, tellerData, treasuryData, coaData]) => {
       setBranches(Array.isArray(branchData.data) ? branchData.data : []);
       setTellers(Array.isArray(tellerData) ? tellerData : []);
@@ -138,7 +139,7 @@ export default function CashManagement() {
         TransactionType: Number(form.TransactionType),
         TransactionCode: Number(form.TransactionCode),
       };
-      const res = await fetch(`${BASE}/api/frontoffice/cashmanagement`, {
+      const res = await apiFetch(`${BASE}/api/frontoffice/cashmanagement`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

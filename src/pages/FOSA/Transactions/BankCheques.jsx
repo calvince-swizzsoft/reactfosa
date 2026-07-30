@@ -8,6 +8,7 @@ import {
 import { FaSearch, FaChevronDown, FaTimes, FaSpinner } from "react-icons/fa";
 import Swal from "sweetalert2";
 import NotFoundImage from "/assets/scopefinding.png";
+import { apiFetch } from "@/lib/api";
 
 //const BASE = "https://calvins.ngrok.io";
 const BASE = `${import.meta.env.VITE_APP_FIN_URL}`
@@ -19,7 +20,7 @@ function SearchSelectModal({ title, fetchUrl, getLabel, getSublabel, onSelect, o
   const [query, setQuery] = useState("");
 
   useEffect(() => {
-    fetch(fetchUrl)
+    apiFetch(fetchUrl)
       .then((r) => r.json())
       .then((d) => setItems(Array.isArray(d) ? d : (Array.isArray(d?.Data) ? d.Data : (Array.isArray(d?.data) ? d.data : []))))
       .catch(() => setItems([]))
@@ -180,8 +181,8 @@ export default function BankCheques() {
   useEffect(() => {
     setLoading(true);
     Promise.all([
-      fetch(`${BASE}/api/frontoffice/cheques`).then((r) => r.json()),
-      fetch(`${BASE}/api/administration/branches`).then((r) => r.json()),
+      apiFetch(`${BASE}/api/frontoffice/cheques`).then((r) => r.json()),
+      apiFetch(`${BASE}/api/administration/branches`).then((r) => r.json()),
     ])
       .then(([chequeData, branchData]) => {
         setCheques(Array.isArray(chequeData) ? chequeData : []);
@@ -224,7 +225,7 @@ export default function BankCheques() {
     if (!confirm.isConfirmed) return;
     setSubmitting(true);
     try {
-      const res = await fetch(`${BASE}/api/frontoffice/cheques/bank`, {
+      const res = await apiFetch(`${BASE}/api/frontoffice/cheques/bank`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

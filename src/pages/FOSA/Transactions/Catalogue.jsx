@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import NotFoundImage from "/assets/scopefinding.png";
+import { apiFetch } from "@/lib/api";
 
 const BASE = `${import.meta.env.VITE_APP_FIN_URL}`
 
@@ -41,7 +42,7 @@ export default function Catalogue() {
 
   const fetchCheques = () => {
     setLoading(true);
-    fetch(`${BASE}/api/frontoffice/cheques`)
+    apiFetch(`${BASE}/api/frontoffice/cheques`)
       .then((r) => r.json())
       .then((d) => setCheques(Array.isArray(d) ? d : []))
       .catch(() => setCheques([]))
