@@ -68,7 +68,16 @@ export const moduleRouteMap = {
   23017: "/Accounts/InvestmentProducts",
 
   // Accounts > Operations > Customer Accounts > Register (ControllerName: CustomerAccounts)
-  23044: "/Membership/customersAccount",
+  23044: "/Accounts/CustomerAccounts",
+
+  // Registry > Employer (ControllerName: Employer)
+  21003: "/Registry/Employer",
+
+  // Registry > Zone (ControllerName: Zone)
+  21004: "/Registry/Zone",
+
+  // Registry > Customers (ControllerName: Customer) — replaces the old Members flow
+  21007: "/Registry/Customers",
 
   25003: "/FrontOffice/CashManagement",
 

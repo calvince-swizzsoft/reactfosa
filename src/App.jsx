@@ -15,7 +15,7 @@ import InvTransactions from "./pages/Inventory/Transcations/InvTransactions";
 import ChartOfAccounts from "./pages/Finance/COA/ChartsOfAccount";
 
 
-//import Home from "./pages/Home";
+import Home from "./pages/Home";
 //import Channel from "./pages/Channel";
 
 
@@ -72,6 +72,11 @@ import SalesInvoice from "./pages/Finance/AccountsReceivable/Salesinvoice/salesI
 import DocumentAttach from "./pages/Procurement/Document/index.jsx";
 import VendorComparison from "./pages/Procurement/VendorComparison/index.jsx";
 import Membership from "./pages/Membership/index.jsx";
+import Customers from "./pages/Registry/Customers/index.jsx";
+import RegistryZones from "./pages/Registry/Zone/index.jsx";
+import RegistryDivisions from "./pages/Registry/Division/index.jsx";
+import RegistryEmployers from "./pages/Registry/Employer/index.jsx";
+import CustomerAccounts from "./pages/Accounts/CustomerAccounts/index.jsx";
 import Members from "./pages/Membership/Members/index.jsx";
 import CustomersAccount from "./pages/Membership/CustomerAccounts/index.jsx";
 import Employers from "./pages/Membership/Employers/index.jsx";
@@ -162,6 +167,9 @@ export default function App() {
           {/* Generic landing page for any backend module without a dedicated page yet */}
           <Route path="modules/:code" element={<PlaceholderModule />} />
 
+          {/* Post-login landing page: redirects to the user's first granted module */}
+          <Route path="home" element={<Home />} />
+
           <Route path="department" element={<Departments />} />
           <Route path="leave" element={<Leaves />} />
 
@@ -248,6 +256,11 @@ export default function App() {
 
           {/**Membership */}
           <Route path="Membership" element={<Membership />} />
+          <Route path="Registry/Customers" element={<Customers />} />
+          <Route path="Registry/Zone" element={<RegistryZones />} />
+          <Route path="Registry/Division" element={<RegistryDivisions />} />
+          <Route path="Registry/Employer" element={<RegistryEmployers />} />
+          <Route path="Accounts/CustomerAccounts" element={<CustomerAccounts />} />
           <Route path="Membership/companies" element={<Companies />} />
           <Route path="Membership/branches" element={<Branches />} />
           <Route path="Membership/Division" element={<Division />} />

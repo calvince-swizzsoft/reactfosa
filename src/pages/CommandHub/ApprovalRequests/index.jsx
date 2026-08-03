@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { FaSearch } from "react-icons/fa";
 import Swal from "sweetalert2";
 import { useAuth } from "@/context/AuthContext";
+import { apiFetch } from "@/lib/api";
 import {
-  normalizeWorkflow,
   normalizeWorkflowItem,
   paddedReferenceNumber,
   toApprovalWorkflowItemDto,
@@ -11,6 +11,19 @@ import {
 } from "@/lib/workflowFormat";
 
 const ADMIN_URL = import.meta.env.VITE_APP_ADMIN_URL;
+
+// GetItems(int systemPermissionType, int status, string text, DateTime
+// startDate, DateTime endDate, int pageIndex = 1, int pageSize = 20) takes
+// none of its filter args as optional (only pageIndex/pageSize have
+// defaults) — Web API 404s the whole action if any of them are missing from
+// the query string. systemPermissionType 0 = no type filter (this page
+// wants a role's tasks across every permission type, not one), and the
+// start/end dates span the full DateTime range so no date filter is
+// effectively applied either.
+const NO_PERMISSION_TYPE_FILTER = 0;
+const MIN_DATE = "0001-01-01T00:00:00";
+const MAX_DATE = "9999-12-31T23:59:59";
+const MAX_PAGE_SIZE = 1000; // this page has no pager UI, so ask for everything in one page
 
 async function promptDecision(item, decision) {
   const isApprove = decision === "approve";
@@ -55,47 +68,33 @@ export default function ApprovalRequests() {
   const fetchMyTasks = async () => {
     setLoading(true);
     try {
-      const workflowsResponse = await fetch(`${ADMIN_URL}/api/administration/workflows`);
-      const workflowsData = await workflowsResponse.json().catch(() => ({}));
+      // Hits the items endpoint directly (server-side scoped to the caller's
+      // role via the bearer token) instead of pulling every workflow and every
+      // item on it and filtering client-side — that older approach exposed
+      // every role's pending approvals to every user's browser regardless of
+      // what they were actually entitled to see.
+      const params = new URLSearchParams({
+        systemPermissionType: String(NO_PERMISSION_TYPE_FILTER),
+        status: String(WorkflowRecordStatus.Pending),
+        text: "",
+        startDate: MIN_DATE,
+        endDate: MAX_DATE,
+        pageIndex: "1",
+        pageSize: String(MAX_PAGE_SIZE),
+      });
+      const response = await apiFetch(`${ADMIN_URL}/api/administration/workflows/items?${params.toString()}`);
+      const data = await response.json().catch(() => ({}));
 
-      if (!workflowsResponse.ok) {
-        throw new Error(workflowsData?.message || "Failed to load workflows");
+      if (!response.ok) {
+        throw new Error(data?.message || "Failed to load your approval requests");
       }
 
-      const workflowList = Array.isArray(workflowsData?.data)
-        ? workflowsData.data
-        : Array.isArray(workflowsData)
-        ? workflowsData
-        : [];
+      const list = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
+      const allItems = list.map(normalizeWorkflowItem);
 
-      // Only workflows still awaiting a decision can have actionable items —
-      // no point fetching items for ones already approved/rejected.
-      const pendingWorkflows = workflowList
-        .map(normalizeWorkflow)
-        .filter((w) => w.status === WorkflowRecordStatus.Pending);
-
-      const itemResults = await Promise.allSettled(
-        pendingWorkflows.map(async (workflow) => {
-          const response = await fetch(
-            `${ADMIN_URL}/api/administration/workflows/${workflow.id}/items`
-          );
-          const data = await response.json().catch(() => ({}));
-
-          if (!response.ok) {
-            throw new Error(data?.message || `Failed to load items for workflow ${workflow.id}`);
-          }
-
-          const list = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
-          return list.map(normalizeWorkflowItem);
-        })
-      );
-
-      const allItems = [];
-      itemResults.forEach((result) => {
-        if (result.status === "fulfilled") allItems.push(...result.value);
-        else console.error("[ApprovalRequests] Failed to load items for a workflow:", result.reason);
-      });
-
+      // The endpoint already scopes results to the caller's role(s) — this is
+      // defense-in-depth against rendering an action button, not the actual
+      // security boundary.
       const myTasks = allItems.filter(
         (item) =>
           item.status === WorkflowRecordStatus.Pending &&
@@ -129,7 +128,7 @@ export default function ApprovalRequests() {
         UsedBiometrics: Boolean(formValues.usedBiometrics),
       };
 
-      const response = await fetch(`${ADMIN_URL}/api/administration/workflows/items/approve`, {
+      const response = await apiFetch(`${ADMIN_URL}/api/administration/workflows/items/approve`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

@@ -61,7 +61,7 @@ export default function Login() {
 
       Swal.fire("Success!", "Login successful", "success");
 
-      navigate("/Membership/Members");
+      navigate("/home");
     } catch (error) {
       Swal.fire("Error", error.message, "error");
     } finally {

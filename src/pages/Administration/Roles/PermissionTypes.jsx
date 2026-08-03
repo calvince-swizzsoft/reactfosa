@@ -274,7 +274,7 @@ export default function AdministrationPermissionTypes() {
             <SelectTrigger id="permissionType">
               <SelectValue placeholder={permissionTypesLoading ? "Loading permission types..." : "Select a permission type"} />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="max-h-60 overflow-y-auto">
               {permissionTypes.map((permissionType) => (
                 <SelectItem key={permissionType} value={permissionType}>{permissionType}</SelectItem>
               ))}

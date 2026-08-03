@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/select";
 import Swal from "sweetalert2";
 import NotFoundImage from "/assets/scopefinding.png";
-import { FaEllipsisV, FaTrash, FaEdit, FaPlus } from "react-icons/fa";
+import { FaEllipsisV, FaTrash, FaEdit, FaPlus, FaChartLine } from "react-icons/fa";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -165,13 +165,14 @@ function EditInvestmentProductDrawer({ open, onClose, onSuccess, item }) {
     try {
       const payload = {
         ...form,
+        Id: item.Id,
         MinimumAmount: Number(form.MinimumAmount),
         MaximumAmount: Number(form.MaximumAmount),
         MinimumTenure: Number(form.MinimumTenure),
         MaximumTenure: Number(form.MaximumTenure),
         AnnualPercentageYield: Number(form.AnnualPercentageYield),
       };
-      const res = await fetch(`${BASE}/api/accounts/investmentsproducts/${item.Id}`, {
+      const res = await fetch(`${BASE}/api/accounts/investmentsproducts`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -204,7 +205,16 @@ export default function InvestmentProducts() {
     setLoading(true);
     fetch(`${BASE}/api/accounts/investmentsproducts`)
       .then((r) => r.json())
-      .then((d) => setItems(Array.isArray(d) ? d : []))
+      .then((d) => {
+        const normalized = Array.isArray(d)
+          ? d
+          : Array.isArray(d?.Data)
+            ? d.Data
+            : Array.isArray(d?.data)
+              ? d.data
+              : [];
+        setItems(normalized);
+      })
       .catch(() => setItems([]))
       .finally(() => setLoading(false));
   };
@@ -229,8 +239,11 @@ export default function InvestmentProducts() {
   };
 
   return (
-    <div>
-      <div className="flex justify-end mb-3">
+    <div className="bg-white m-8 px-8 py-8 shadow-2xl rounded-lg relative">
+      <div className="flex justify-between items-center mb-6 bg-indigo-800 px-6 py-3 rounded-2xl">
+        <h2 className="text-xl font-bold text-white flex items-center gap-2">
+          <FaChartLine /> Investment Products
+        </h2>
         <Link
           to="/Accounts/InvestmentProducts/create"
           className="inline-flex items-center gap-2 rounded-md bg-indigo-600 hover:bg-indigo-700 px-4 py-2 text-sm font-medium text-white"
@@ -239,56 +252,66 @@ export default function InvestmentProducts() {
         </Link>
       </div>
 
-      <div className="grid grid-cols-12 gap-2 bg-gray-700 text-gray-100 font-semibold p-3 rounded-lg mb-3">
-        <span className="col-span-4">Description</span>
-        <span className="col-span-2">Min Amount</span>
-        <span className="col-span-2">Max Amount</span>
-        <span className="col-span-2">APY (%)</span>
-        <span className="col-span-1">Status</span>
-        <span className="col-span-1 text-right">Actions</span>
-      </div>
+      <div className="bg-gray-200 p-4 rounded-sm">
+        <div className="grid grid-cols-12 gap-4 bg-gray-700 text-gray-100 font-semibold p-3 rounded-lg mb-4">
+          <span className="col-span-4">Description</span>
+          <span className="col-span-2">Min Amount</span>
+          <span className="col-span-2">Max Amount</span>
+          <span className="col-span-2">APY (%)</span>
+          <span className="col-span-1">Status</span>
+          <span className="col-span-1 text-right">Actions</span>
+        </div>
 
-      {loading ? (
-        <div className="space-y-2 animate-pulse">
-          {[1, 2, 3].map((i) => <div key={i} className="h-12 bg-gray-100 rounded-lg" />)}
-        </div>
-      ) : items.length > 0 ? (
-        <div className="space-y-2">
-          {items.map((item) => (
-            <div key={item.Id} className="grid grid-cols-12 gap-2 items-center bg-white px-4 py-3 rounded-lg shadow border">
-              <span className="col-span-4 font-medium text-indigo-700">{item.Description}</span>
-              <span className="col-span-2 text-sm text-gray-600">{item.MinimumAmount?.toLocaleString() ?? "—"}</span>
-              <span className="col-span-2 text-sm text-gray-600">{item.MaximumAmount?.toLocaleString() ?? "—"}</span>
-              <span className="col-span-2 text-sm text-gray-600">{item.AnnualPercentageYield ?? "—"}</span>
-              <span className="col-span-1">
-                <span className={`px-2 py-1 rounded text-xs font-semibold ${item.IsLocked ? "bg-red-100 text-red-600" : "bg-green-100 text-green-600"}`}>
-                  {item.IsLocked ? "Locked" : "Active"}
-                </span>
-              </span>
-              <div className="col-span-1 flex justify-end">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8"><FaEllipsisV className="text-gray-500" /></Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => setEditItem(item)}>
-                      <FaEdit className="mr-2 text-indigo-600" /> Edit
-                    </DropdownMenuItem>
-                    <DropdownMenuItem className="text-red-600" onClick={() => handleDelete(item.Id)}>
-                      <FaTrash className="mr-2" /> Delete
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+        {loading ? (
+          <div className="space-y-2 animate-pulse">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="grid grid-cols-12 gap-2 bg-gray-50 p-6 rounded">
+                {Array.from({ length: 12 }).map((_, j) => (
+                  <div key={j} className="h-4 bg-gray-200 rounded"></div>
+                ))}
               </div>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="text-center mt-4">
-          <img src={NotFoundImage} alt="Not Found" className="mx-auto w-32 h-auto" />
-          <p className="text-gray-400 mt-2">No investment products found.</p>
-        </div>
-      )}
+            ))}
+          </div>
+        ) : items.length > 0 ? (
+          <div className="space-y-2">
+            {items.map((item) => (
+              <div key={item.Id} className="bg-white rounded-lg shadow-lg border">
+                <div className="grid grid-cols-12 gap-2 items-center py-4 px-6 hover:shadow-xl transition-all">
+                  <span className="col-span-4 font-medium text-indigo-700">{item.Description}</span>
+                  <span className="col-span-2 text-sm text-gray-600">{item.MinimumAmount?.toLocaleString() ?? "—"}</span>
+                  <span className="col-span-2 text-sm text-gray-600">{item.MaximumAmount?.toLocaleString() ?? "—"}</span>
+                  <span className="col-span-2 text-sm text-gray-600">{item.AnnualPercentageYield ?? "—"}</span>
+                  <span className="col-span-1">
+                    <span className={`px-2 py-1 rounded text-xs font-semibold ${item.IsLocked ? "bg-red-100 text-red-600" : "bg-green-100 text-green-600"}`}>
+                      {item.IsLocked ? "Locked" : "Active"}
+                    </span>
+                  </span>
+                  <div className="col-span-1 flex justify-end">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8"><FaEllipsisV className="text-gray-500" /></Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => setEditItem(item)}>
+                          <FaEdit className="mr-2 text-indigo-600" /> Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="text-red-600" onClick={() => handleDelete(item.Id)}>
+                          <FaTrash className="mr-2" /> Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-gray-500 text-center mt-4">
+            <img src={NotFoundImage} alt="Not Found" className="mx-auto w-42" />
+            <p className="font-medium text-gray-400">No Investment Products Found.</p>
+          </div>
+        )}
+      </div>
 
       <EditInvestmentProductDrawer open={!!editItem} onClose={() => setEditItem(null)} onSuccess={fetchItems} item={editItem} />
     </div>

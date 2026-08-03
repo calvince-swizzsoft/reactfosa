@@ -66,3 +66,39 @@ export function nodeContainsPath(node, pathname, routeMap) {
 export function findActiveRoot(tree, pathname, routeMap) {
   return tree.find((node) => nodeContainsPath(node, pathname, routeMap)) ?? tree[0] ?? null;
 }
+
+// First navigable leaf in the tree, walking the same Code-ascending,
+// depth-first order buildModuleTree already sorts into. A node is a leaf
+// when it has no children — the same convention SidebarNode.jsx uses to
+// decide link vs. expandable folder. Returns null if the tree has no
+// leaves (e.g. an empty tree).
+export function findFirstLeaf(tree, routeMap) {
+  for (const node of tree) {
+    if (node.Children.length === 0) {
+      return resolveModulePath(node, routeMap);
+    }
+    const path = findFirstLeaf(node.Children, routeMap);
+    if (path) return path;
+  }
+  return null;
+}
+
+// True when `pathname` is a route governed by the module/role permission
+// system — either the generic `/modules/:code` placeholder or one of the
+// hand-curated moduleRouteMap destinations (or a sub-path of one, e.g.
+// "/Administration/Users/create" under the "/Administration/Users" grant).
+// Legacy pages with no module code at all are deliberately left out of
+// this check since there's no permission data to enforce against them.
+export function isModuleControlledPath(pathname, routeMap) {
+  if (/^\/modules\/[^/]+/.test(pathname)) return true;
+
+  return Object.values(routeMap).some(
+    (mappedPath) => pathname === mappedPath || pathname.startsWith(`${mappedPath}/`)
+  );
+}
+
+// True if some node in the tree resolves to, or is an ancestor of, the
+// given pathname — i.e. the current route is one the user's role(s) grant.
+export function isPathGranted(tree, pathname, routeMap) {
+  return tree.some((node) => nodeContainsPath(node, pathname, routeMap));
+}

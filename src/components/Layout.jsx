@@ -9,7 +9,7 @@ import Navbar from "./Navbar";
 import bgcircle from "../assets/circle.jpg";
 import { Outlet } from "react-router-dom";
 import { useModuleTree } from "@/context/ModuleTreeContext";
-import { findActiveRoot } from "@/lib/moduleTree";
+import { findActiveRoot, isModuleControlledPath, isPathGranted } from "@/lib/moduleTree";
 import { moduleRouteMap } from "@/lib/moduleRouteMap";
 
 export default function Layout() {
@@ -23,6 +23,15 @@ export default function Layout() {
   const openSidebar = () => setSidebarOpen(true);
 
   const sidebarUnavailable = loading || error;
+
+  // Only enforce on routes actually modeled in the permission system —
+  // legacy pages with no module code are deliberately left ungated.
+  // Suppressed while the tree hasn't finished loading, so a granted route
+  // never flashes "access denied" before the fetch resolves.
+  const accessDenied =
+    !sidebarUnavailable &&
+    isModuleControlledPath(location.pathname, moduleRouteMap) &&
+    !isPathGranted(tree, location.pathname, moduleRouteMap);
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -123,7 +132,19 @@ export default function Layout() {
               backgroundPosition: "center",
             }}
           >
-            <Outlet />
+            {accessDenied ? (
+              <div className="flex min-h-[60vh] items-center justify-center p-6">
+                <div className="max-w-md rounded-2xl bg-white p-8 text-center shadow-xl">
+                  <h2 className="text-xl font-semibold text-slate-800">Access denied</h2>
+                  <p className="mt-2 text-sm text-slate-500">
+                    You don't have access to this page. Contact an administrator if you
+                    believe this is a mistake.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <Outlet />
+            )}
           </div>
         </div>
       </div>

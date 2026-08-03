@@ -77,7 +77,7 @@ async function fetchModulesForRoles(roles) {
 export function ModuleTreeProvider({ children }) {
   const { isAuthenticated, roles } = useAuth();
   const [tree, setTree] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(() => isAuthenticated && roles?.length > 0);
   const [error, setError] = useState(null);
   const [attempt, setAttempt] = useState(0);
 
