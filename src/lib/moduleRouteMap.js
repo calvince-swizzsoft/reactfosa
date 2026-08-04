@@ -70,6 +70,16 @@ export const moduleRouteMap = {
   // Accounts > Operations > Customer Accounts > Register (ControllerName: CustomerAccounts)
   23044: "/Accounts/CustomerAccounts",
 
+  // Accounts > Operations > Standing Orders (ControllerName: StandingOrder)
+  23048: "/Accounts/StandingOrders",
+  // Accounts > Operations > Standing Orders > Execution (ControllerName: StandingOrderExecution, admin/ops only)
+  23039: "/Accounts/StandingOrders/Execution",
+
+  // Accounts > Operations > Statements > Customer Account Statement (ControllerName: CustomerAccountStatement)
+  23051: "/Accounts/CustomerAccountStatement",
+  // Accounts > Operations > Statements > General Ledger Statement (ControllerName: GeneralLedgerStatement)
+  26012: "/Accounts/GeneralLedgerStatement",
+
   // Registry > Employer (ControllerName: Employer)
   21003: "/Registry/Employer",
 

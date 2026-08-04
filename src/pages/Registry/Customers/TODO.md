@@ -13,14 +13,12 @@ First pass covers Individual customer registration only (list + create), against
   Types, Specimen, Capture Specimen. (Investment Products and Savings
   Products are done — checklist tabs populated from
   `/api/accounts/investmentsproducts` / `/api/accounts/savingsproducts`,
-  feeding `MandatoryInvestmentProducts` / `MandatorySavingsProducts`.)
-  Credit/Debit Types still map to `MandatoryDebitTypes` (no credit-type
-  equivalent field exists on `CreateCustomerRequest` yet — confirm with
-  backend). `MandatoryProducts.InvestmentProductCollection`/
-  `SavingsProductCollection` are still sent empty — unclear whether the
-  backend wants selections there too, or only in the top-level
-  `MandatoryInvestmentProducts`/`MandatorySavingsProducts` arrays; confirm
-  before populating both.
+  feeding `additionalInvestmentProducts` / `additionalSavingsProducts` as
+  `{ id }` per the current `CreateCustomerRequest` — company-mandatory
+  products now auto-attach server-side, so these arrays are opt-in extras
+  only.) Debit Types still maps to `additionalDebitTypes` but has no picker
+  UI yet (no credit-type equivalent field exists on `CreateCustomerRequest`
+  — confirm with backend if one is needed).
 - **Edit / Delete / View actions** on the Customers list — no update or delete
   endpoint was available yet when this was built.
 - **`individualNationality`** is a bare numeric input right now (no enum or

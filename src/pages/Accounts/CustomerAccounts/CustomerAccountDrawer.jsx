@@ -99,7 +99,13 @@ export default function CustomerAccountDrawer({ open, onClose, onSuccess }) {
       if (!res.ok || data.success === false) {
         throw new Error(data.message || "Failed to create account(s)");
       }
-      Swal.fire("Success", data.message || "Account(s) created successfully", "success");
+      // Bulk-create's `data` is the customer's full current account list
+      // (not just what this call created) — deliberately unused here rather
+      // than shown as "created accounts". 201 means something new was
+      // actually created; a 200 here means the call succeeded but nothing
+      // new was needed (customer already had every attached product), so
+      // the icon reflects that instead of always showing a plain success.
+      Swal.fire("Success", data.message || "Account(s) created successfully", res.status === 201 ? "success" : "info");
       onSuccess();
       onClose();
     } catch (err) {

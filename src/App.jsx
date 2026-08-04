@@ -77,6 +77,10 @@ import RegistryZones from "./pages/Registry/Zone/index.jsx";
 import RegistryDivisions from "./pages/Registry/Division/index.jsx";
 import RegistryEmployers from "./pages/Registry/Employer/index.jsx";
 import CustomerAccounts from "./pages/Accounts/CustomerAccounts/index.jsx";
+import StandingOrders from "./pages/Accounts/StandingOrders/index.jsx";
+import StandingOrderExecution from "./pages/Accounts/StandingOrders/Execution.jsx";
+import CustomerAccountStatement from "./pages/Accounts/CustomerAccountStatement/index.jsx";
+import GeneralLedgerStatement from "./pages/Accounts/GeneralLedgerStatement/index.jsx";
 import Members from "./pages/Membership/Members/index.jsx";
 import CustomersAccount from "./pages/Membership/CustomerAccounts/index.jsx";
 import Employers from "./pages/Membership/Employers/index.jsx";
@@ -261,6 +265,10 @@ export default function App() {
           <Route path="Registry/Division" element={<RegistryDivisions />} />
           <Route path="Registry/Employer" element={<RegistryEmployers />} />
           <Route path="Accounts/CustomerAccounts" element={<CustomerAccounts />} />
+          <Route path="Accounts/StandingOrders" element={<StandingOrders />} />
+          <Route path="Accounts/StandingOrders/Execution" element={<StandingOrderExecution />} />
+          <Route path="Accounts/CustomerAccountStatement" element={<CustomerAccountStatement />} />
+          <Route path="Accounts/GeneralLedgerStatement" element={<GeneralLedgerStatement />} />
           <Route path="Membership/companies" element={<Companies />} />
           <Route path="Membership/branches" element={<Branches />} />
           <Route path="Membership/Division" element={<Division />} />

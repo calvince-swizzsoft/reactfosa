@@ -1,12 +1,14 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import NotFoundImage from "/assets/scopefinding.png";
-import { FaWallet, FaPlus, FaChevronLeft, FaChevronRight } from "react-icons/fa";
+import { FaWallet, FaPlus, FaChevronLeft, FaChevronRight, FaCog } from "react-icons/fa";
 import { apiFetch } from "@/lib/api";
+import { statusBadgeClass } from "@/lib/workflowFormat";
 import CustomerAccountDrawer from "./CustomerAccountDrawer";
+import CustomerAccountDetailDrawer from "./CustomerAccountDetailDrawer";
 
 const FIN_BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 const CUSTOMER_ACCOUNT_BASE = `${FIN_BASE}/api/accounts/customer-accounts`;
@@ -25,9 +27,12 @@ export default function CustomerAccounts() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [detailAccount, setDetailAccount] = useState(null);
 
   const [search, setSearch] = useState("");
   const [customerFilter, setCustomerFilter] = useState(0);
+  const [productTypeFilter, setProductTypeFilter] = useState("");
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(20);
   // The Registry/Accounts API's response envelope is just
@@ -80,13 +85,38 @@ export default function CustomerAccounts() {
     setPageIndex(0);
   };
 
-  // CustomerFullName is a computed property on CustomerAccountDTO that
-  // already branches on customer type (Individual: salutation + first +
-  // last name; Partnership/Corporation/MicroCredit: the non-individual
-  // group name) — use it directly rather than reconstructing the name
-  // client-side.
-  const customerName = (item) =>
-    item.CustomerFullName || item.customerFullName || item.CustomerId || "—";
+  // CustomerFullName is a computed property on CustomerAccountDTO meant to
+  // already branch on customer type (Individual: first + last name;
+  // Partnership/Corporation/MicroCredit: the non-individual group name) —
+  // but it comes back null on plenty of real records, so fall back to
+  // reconstructing it client-side from the same raw parts rather than
+  // ever showing the row's raw CustomerId GUID.
+  const customerName = (item) => {
+    if (item.CustomerFullName) return item.CustomerFullName;
+    const individualName = [item.CustomerIndividualFirstName, item.CustomerIndividualLastName]
+      .filter(Boolean)
+      .join(" ");
+    return individualName || item.CustomerNonIndividualDescription || item.CustomerId || "—";
+  };
+
+  const customerType = (item) => item.CustomerTypeDescription || "—";
+
+  // No dedicated Savings/Investment flag exists on this DTO — Type/
+  // TypeDescription is the closest match by this API's own naming
+  // convention (every other "kind of thing" field here is a numeric code
+  // plus a *Description sibling). There's no server-side filter param for
+  // it either, so the dropdown below filters client-side over whatever
+  // page is currently loaded.
+  const productType = (item) => item.TypeDescription || "—";
+
+  const productTypeOptions = useMemo(
+    () => [...new Set(items.map((item) => item.TypeDescription).filter(Boolean))],
+    [items]
+  );
+
+  const visibleItems = productTypeFilter
+    ? items.filter((item) => item.TypeDescription === productTypeFilter)
+    : items;
 
   return (
     <div className="bg-white m-8 px-8 py-8 shadow-2xl rounded-lg relative">
@@ -115,14 +145,34 @@ export default function CustomerAccounts() {
             ))}
           </SelectContent>
         </Select>
+        <Select value={productTypeFilter || "all"} onValueChange={(v) => setProductTypeFilter(v === "all" ? "" : v)}>
+          <SelectTrigger className="w-48"><SelectValue placeholder="Product Type" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Product Types</SelectItem>
+            {productTypeOptions.map((t) => (
+              <SelectItem key={t} value={t}>{t}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <select
+          value={pageSize}
+          onChange={(e) => { setPageSize(Number(e.target.value)); setPageIndex(0); }}
+          className="border p-2 rounded-lg"
+        >
+          {[10, 20, 50, 100].map((s) => (
+            <option key={s} value={s}>{s} per page</option>
+          ))}
+        </select>
       </div>
 
       <div className="bg-gray-200 p-4 rounded-sm">
         <div className="grid grid-cols-12 gap-4 bg-gray-700 text-gray-100 font-semibold p-3 rounded-lg mb-4">
           <span className="col-span-3">Account Number</span>
           <span className="col-span-3">Customer</span>
-          <span className="col-span-3">Product</span>
-          <span className="col-span-3">Book Balance</span>
+          <span className="col-span-2">Product</span>
+          <span className="col-span-2">Book Balance</span>
+          <span className="col-span-1">Status</span>
+          <span className="col-span-1 text-right">Actions</span>
         </div>
 
         {loading ? (
@@ -135,17 +185,42 @@ export default function CustomerAccounts() {
               </div>
             ))}
           </div>
-        ) : items.length > 0 ? (
+        ) : visibleItems.length > 0 ? (
           <div className="space-y-2">
-            {items.map((item) => (
+            {visibleItems.map((item) => (
               <div key={item.Id} className="bg-white rounded-lg shadow-lg border">
                 <div className="grid grid-cols-12 gap-2 items-center py-4 px-6 hover:shadow-xl transition-all">
                   <span className="col-span-3 font-medium text-indigo-700">{item.FullAccountNumber || "—"}</span>
-                  <span className="col-span-3 text-sm text-gray-600">{customerName(item)}</span>
-                  <span className="col-span-3 text-sm text-gray-600">{item.CustomerAccountTypeTargetProductDescription || "—"}</span>
-                  <span className="col-span-3 text-sm text-gray-600">
+                  <div className="col-span-3">
+                    <p className="text-sm text-gray-700">{customerName(item)}</p>
+                    <p className="text-xs text-gray-400">{customerType(item)}</p>
+                  </div>
+                  <div className="col-span-2">
+                    <p className="text-sm text-gray-700">{item.CustomerAccountTypeTargetProductDescription || "—"}</p>
+                    <p className="text-xs text-gray-400">{productType(item)}</p>
+                  </div>
+                  <span className="col-span-2 text-sm text-gray-600">
                     {typeof item.BookBalance === "number" ? item.BookBalance.toLocaleString() : "—"}
                   </span>
+                  <div className="col-span-1 flex flex-col gap-1 items-start">
+                    <span className={`px-2 py-0.5 rounded text-xs font-semibold ${statusBadgeClass(item.StatusDescription)}`}>
+                      {item.StatusDescription || "—"}
+                    </span>
+                    <span className={`px-2 py-0.5 rounded text-xs font-semibold ${statusBadgeClass(item.RecordStatusDescription)}`}>
+                      {item.RecordStatusDescription || "—"}
+                    </span>
+                  </div>
+                  <div className="col-span-1 flex justify-end">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => { setDetailAccount(item); setDetailOpen(true); }}
+                      title="Manage account"
+                    >
+                      <FaCog className="text-indigo-600" />
+                    </Button>
+                  </div>
                 </div>
               </div>
             ))}
@@ -184,6 +259,13 @@ export default function CustomerAccounts() {
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         onSuccess={fetchItems}
+      />
+
+      <CustomerAccountDetailDrawer
+        open={detailOpen}
+        onClose={() => setDetailOpen(false)}
+        onSuccess={fetchItems}
+        account={detailAccount}
       />
     </div>
   );

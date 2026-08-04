@@ -194,56 +194,55 @@ export default function CreateCustomerDrawer({ open, onClose, onSuccess }) {
     setLoading(true);
     try {
       const today = new Date().toISOString();
+      // Company-mandatory debit types/products auto-attach server-side now —
+      // these arrays are strictly for extras the user opts into on top of
+      // that mandatory set, keyed by id (see CreateCustomerRequest).
       const payload = {
-        Customer: {
-          BranchId: form.branchId,
-          Type: 0,
-          PersonalIdentificationNumber: form.personalIdentificationNumber,
-          IndividualType: Number(form.individualType),
-          IndividualFirstName: form.individualFirstName,
-          IndividualLastName: form.individualLastName,
-          IndividualIdentityCardType: Number(form.individualIdentityCardType),
-          IndividualIdentityCardNumber: form.individualIdentityCardNumber,
-          IndividualIdentityCardSerialNumber: form.individualIdentityCardSerialNumber,
-          IndividualPayrollNumbers: form.individualPayrollNumbers,
-          IndividualSalutation: Number(form.individualSalutation),
-          IndividualGender: Number(form.individualGender),
-          IndividualMaritalStatus: Number(form.individualMaritalStatus),
-          IndividualNationality: Number(form.individualNationality) || 0,
-          IndividualBirthDate: toIsoOrNull(form.individualBirthDate),
-          DurationStartDate: today,
-          DurationEndDate: today,
-          IndividualEmploymentDesignation: form.individualEmploymentDesignation,
-          IndividualEmploymentDate: toIsoOrNull(form.individualEmploymentDate),
-          IndividualClassification: Number(form.individualClassification),
-          BankName: form.bankName,
-          BranchName: form.branchName,
-          AddressAddressLine1: form.addressAddressLine1,
-          AddressAddressLine2: form.addressAddressLine2,
-          AddressStreet: form.addressStreet,
-          AddressPostalCode: form.addressPostalCode,
-          AddressCity: form.addressCity,
-          AddressEmail: form.addressEmail,
-          AddressLandLine: form.addressLandLine,
-          AddressMobileLine: form.addressMobileLine,
-          StationId: form.stationId,
-          Reference1: form.reference1,
-          Reference2: form.reference2,
-          Reference3: form.reference3,
-          Remarks: form.remarks,
-          IsDefaulter: form.isDefaulter,
-          IsLocked: form.isLocked,
-          InhibitGuaranteeing: form.inhibitGuaranteeing,
-          RecordStatus: 0,
+        customer: {
+          branchId: form.branchId,
+          type: 0,
+          personalIdentificationNumber: form.personalIdentificationNumber,
+          individualType: Number(form.individualType),
+          individualFirstName: form.individualFirstName,
+          individualLastName: form.individualLastName,
+          individualIdentityCardType: Number(form.individualIdentityCardType),
+          individualIdentityCardNumber: form.individualIdentityCardNumber,
+          individualIdentityCardSerialNumber: form.individualIdentityCardSerialNumber,
+          individualPayrollNumbers: form.individualPayrollNumbers,
+          individualSalutation: Number(form.individualSalutation),
+          individualGender: Number(form.individualGender),
+          individualMaritalStatus: Number(form.individualMaritalStatus),
+          individualNationality: Number(form.individualNationality) || 0,
+          individualBirthDate: toIsoOrNull(form.individualBirthDate),
+          durationStartDate: today,
+          durationEndDate: today,
+          individualEmploymentDesignation: form.individualEmploymentDesignation,
+          individualEmploymentDate: toIsoOrNull(form.individualEmploymentDate),
+          individualClassification: Number(form.individualClassification),
+          bankName: form.bankName,
+          branchName: form.branchName,
+          addressAddressLine1: form.addressAddressLine1,
+          addressAddressLine2: form.addressAddressLine2,
+          addressStreet: form.addressStreet,
+          addressPostalCode: form.addressPostalCode,
+          addressCity: form.addressCity,
+          addressEmail: form.addressEmail,
+          addressLandLine: form.addressLandLine,
+          addressMobileLine: form.addressMobileLine,
+          stationId: form.stationId,
+          reference1: form.reference1,
+          reference2: form.reference2,
+          reference3: form.reference3,
+          remarks: form.remarks,
+          isDefaulter: form.isDefaulter,
+          isLocked: form.isLocked,
+          inhibitGuaranteeing: form.inhibitGuaranteeing,
+          recordStatus: 0,
         },
-        MandatoryDebitTypes: [],
-        MandatoryInvestmentProducts: investmentProducts.filter((p) => selectedInvestmentProductIds.includes(p.Id)),
-        MandatorySavingsProducts: savingsProducts.filter((p) => selectedSavingsProductIds.includes(p.Id)),
-        MandatoryProducts: {
-          InvestmentProductCollection: [],
-          SavingsProductCollection: [],
-        },
-        ModuleNavigationItemCode: 0,
+        additionalDebitTypes: [],
+        additionalInvestmentProducts: selectedInvestmentProductIds.map((id) => ({ id })),
+        additionalSavingsProducts: selectedSavingsProductIds.map((id) => ({ id })),
+        moduleNavigationItemCode: 21007,
       };
 
       const res = await apiFetch(`${FIN_BASE}/api/registry/customer`, {
@@ -455,7 +454,7 @@ export default function CreateCustomerDrawer({ open, onClose, onSuccess }) {
 
                   {activeTab === "investmentProducts" && (
                     <section>
-                      <p className="text-sm text-gray-500 mb-3">Select the investment products this customer should be enrolled in.</p>
+                      <p className="text-sm text-gray-500 mb-3">Select any additional investment products for this customer, on top of any mandatory products attached automatically.</p>
                       {loadingData ? (
                         <p className="text-sm text-gray-400">Loading investment products...</p>
                       ) : investmentProducts.length === 0 ? (
@@ -480,7 +479,7 @@ export default function CreateCustomerDrawer({ open, onClose, onSuccess }) {
 
                   {activeTab === "savingsProducts" && (
                     <section>
-                      <p className="text-sm text-gray-500 mb-3">Select the savings products this customer should be enrolled in.</p>
+                      <p className="text-sm text-gray-500 mb-3">Select any additional savings products for this customer, on top of any mandatory products attached automatically.</p>
                       {loadingData ? (
                         <p className="text-sm text-gray-400">Loading savings products...</p>
                       ) : savingsProducts.length === 0 ? (
