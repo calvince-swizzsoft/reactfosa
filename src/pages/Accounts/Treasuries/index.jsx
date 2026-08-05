@@ -13,6 +13,7 @@ import { FaEllipsisV, FaTrash, FaEdit, FaPlus } from "react-icons/fa";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { apiFetch, normalizeList } from "@/lib/api";
 
 const BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 
@@ -128,10 +129,12 @@ function EditTreasuryDrawer({ open, onClose, onSuccess, item }) {
     if (!open) return;
     setLoadingData(true);
     Promise.all([
-      fetch(`${BASE}/api/administration/branches`).then((r) => r.json()),
-      fetch(`${BASE}/api/values/GetChartOfAccount`).then((r) => r.json()),
+      apiFetch(`${BASE}/api/administration/branches`).then((r) => r.json()),
+      apiFetch(`${BASE}/api/values/GetChartOfAccount`).then((r) => r.json()),
     ]).then(([branchData, coaData]) => {
-      setBranches(Array.isArray(branchData.data) ? branchData.data : []);
+      // GET / now returns PageCollectionInfo<BranchDTO> (paged), not a
+      // bare array.
+      setBranches(normalizeList(branchData));
       setCoaList(Array.isArray(coaData.Data) ? coaData.Data : []);
     }).catch(() => { }).finally(() => setLoadingData(false));
   }, [open]);

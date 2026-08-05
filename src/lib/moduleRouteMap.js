@@ -11,9 +11,9 @@
 // this map incrementally as more of the module list is reviewed.
 export const moduleRouteMap = {
   // Administration > Setup > Companies (ControllerName: Company)
-  20003: "/Membership/companies",
+  20003: "/Administration/Company",
   // Administration > Setup > Branches (ControllerName: Branch)
-  20004: "/Membership/branches",
+  20004: "/Administration/Branches",
 
   // Administration > Setup > Banks (ControllerName: Banks) 
   20005: "/Administration/Banks", //w currently use BankLinkages but possibly we should implement Banks
@@ -79,6 +79,16 @@ export const moduleRouteMap = {
   23051: "/Accounts/CustomerAccountStatement",
   // Accounts > Operations > Statements > General Ledger Statement (ControllerName: GeneralLedgerStatement)
   26012: "/Accounts/GeneralLedgerStatement",
+
+  // Dashboard > Messaging > Text Alerts — legacy hex-sum code (0x00006590 + 8)
+  // from the old app's NavigationMenu seed list, per user instruction.
+  // textalert-api-spec.md §5 explicitly warns this code belongs to a
+  // different, read-only reference controller (Areas/Dashboard, plural
+  // TextAlertsController) than the create-capable one this route serves
+  // (Areas/Messaging, singular TextAlertController) — there's no seeded nav
+  // entry for the latter. Replace with the real code once one exists in
+  // GET /api/administration/modules.
+  26008: "/Messaging/TextAlerts",
 
   // Registry > Employer (ControllerName: Employer)
   21003: "/Registry/Employer",

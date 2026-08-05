@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Swal from "sweetalert2";
+import { apiFetch, normalizeList } from "@/lib/api";
 
 export default function EditLocation({ open, onClose, data, refresh }) {
   const [loading, setLoading] = useState(false);
@@ -29,10 +30,11 @@ export default function EditLocation({ open, onClose, data, refresh }) {
   useEffect(() => {
     const fetchBranches = async () => {
       try {
-        const res = await fetch(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/branches`);
+        const res = await apiFetch(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/branches`);
         const json = await res.json();
-        const branchList = Array.isArray(json?.data) ? json.data : Array.isArray(json) ? json : [];
-        setBranches(branchList);
+        // GET / now returns PageCollectionInfo<BranchDTO> (paged), not a
+        // bare array.
+        setBranches(normalizeList(json));
       } catch (err) {
         console.error("Failed to fetch branches", err);
       }

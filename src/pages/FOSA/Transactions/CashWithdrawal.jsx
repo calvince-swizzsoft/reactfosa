@@ -130,10 +130,13 @@ function AddCashWithdrawalDepositDrawer({ open, onClose, onSuccess }) {
   const [selectedTellerId, setSelectedTellerId] = useState("");
   const [loadingAccounts, setLoadingAccounts] = useState(false);
 
+  // Also unwraps the paged { pageCollection: [...] } shape — branches (and
+  // other now-paged endpoints) return that instead of a bare array/`.data`.
   const normalizeList = (response) => {
-    if (Array.isArray(response)) return response;
-    if (Array.isArray(response?.data)) return response.data;
-    if (Array.isArray(response?.Data)) return response.Data;
+    const payload = response?.data ?? response?.Data ?? response;
+    if (Array.isArray(payload)) return payload;
+    if (Array.isArray(payload?.pageCollection)) return payload.pageCollection;
+    if (Array.isArray(payload?.PageCollection)) return payload.PageCollection;
     return [];
   };
 
@@ -333,7 +336,13 @@ export default function CashWithdrawal() {
     if (!confirm.isConfirmed) return;
     try {
       const res = await apiFetch(`${BASE}/api/frontoffice/requests/post?id=${id}`, { method: "POST" });
-      if (!res.ok) throw new Error("Posting failed");
+      if (!res.ok) {
+        // This controller isn't on the { success, message, data } envelope
+        // — a 400 here is Web API's plain BadRequest(string), which
+        // serializes as { Message: "..." } (capital M), not { message }.
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.Message || body?.message || `Posting failed (${res.status})`);
+      }
       Swal.fire("Posted!", "Authorized withdrawal posted successfully.", "success");
       setActiveTab("Posted");
       fetchItems();

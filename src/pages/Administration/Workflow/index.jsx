@@ -2,7 +2,15 @@ import { useEffect, useMemo, useState } from "react";
 import { FaSearch } from "react-icons/fa";
 import Swal from "sweetalert2";
 import WorkflowDetailsDrawer from "./WorkflowDetailsDrawer";
-import { normalizeWorkflow, statusBadgeClass } from "@/lib/workflowFormat";
+import {
+  normalizeWorkflow,
+  statusBadgeClass,
+  WorkflowRecordStatus,
+  WORKFLOW_MATCHED_STATUS_NOT_MATCHED,
+} from "@/lib/workflowFormat";
+import { apiFetch, normalizeList } from "@/lib/api";
+
+const ADMIN_URL = import.meta.env.VITE_APP_ADMIN_URL;
 
 function ApprovalsMeter({ current, required }) {
   const pct = required > 0 ? Math.min(100, Math.round((current / required) * 100)) : 0;
@@ -30,29 +38,69 @@ export default function AdministrationWorkflows() {
   const [selectedWorkflow, setSelectedWorkflow] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  useEffect(() => {
-    const fetchWorkflows = async () => {
-      setLoading(true);
-      try {
-        const response = await fetch(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/workflows`);
-        const data = await response.json().catch(() => ({}));
+  const fetchWorkflows = async () => {
+    setLoading(true);
+    try {
+      const response = await apiFetch(`${ADMIN_URL}/api/administration/workflows`);
+      const data = await response.json().catch(() => ({}));
 
-        if (!response.ok) {
-          throw new Error(data?.message || "Failed to load workflows");
-        }
-
-        const list = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
-        setWorkflows(list.map(normalizeWorkflow));
-      } catch (error) {
-        Swal.fire("Error", error.message || "Unable to load workflows.", "error");
-        setWorkflows([]);
-      } finally {
-        setLoading(false);
+      if (!response.ok) {
+        throw new Error(data?.message || "Failed to load workflows");
       }
-    };
 
+      setWorkflows(normalizeList(data).map(normalizeWorkflow));
+    } catch (error) {
+      Swal.fire("Error", error.message || "Unable to load workflows.", "error");
+      setWorkflows([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchWorkflows();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const [matchingIds, setMatchingIds] = useState(new Set());
+
+  const handleMatch = async (workflow) => {
+    const r = await Swal.fire({
+      title: "Manually match this workflow?",
+      text: "Runs the same processing the dispatcher would have, synchronously, right now.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#4f46e5",
+      confirmButtonText: "Match",
+    });
+    if (!r.isConfirmed) return;
+
+    setMatchingIds((prev) => new Set(prev).add(workflow.id));
+    try {
+      const response = await apiFetch(`${ADMIN_URL}/api/administration/workflows/${workflow.id}/match`, {
+        method: "POST",
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(data?.message || "Failed to match this workflow");
+      }
+
+      // 400 = workflow hasn't reached a final Approved/Rejected status yet;
+      // already-matched is a harmless success, not an error — either way
+      // the server's own message says what happened.
+      Swal.fire("Done", data?.message || "Workflow matched successfully.", "success");
+      fetchWorkflows();
+    } catch (error) {
+      Swal.fire("Error", error.message || "Unable to match this workflow.", "error");
+    } finally {
+      setMatchingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(workflow.id);
+        return next;
+      });
+    }
+  };
 
   const query = search.trim().toLowerCase();
   const visibleWorkflows = useMemo(() => {
@@ -127,13 +175,27 @@ export default function AdministrationWorkflows() {
                       <ApprovalsMeter current={workflow.currentApprovals} required={workflow.requiredApprovals} />
                     </td>
                     <td className="px-4 py-2.5 text-right">
-                      <button
-                        type="button"
-                        onClick={() => openDetails(workflow)}
-                        className="rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
-                      >
-                        View
-                      </button>
+                      <div className="flex justify-end gap-2">
+                        {(workflow.status === WorkflowRecordStatus.Approved || workflow.status === WorkflowRecordStatus.Rejected) &&
+                          Number(workflow.matchedStatus) === WORKFLOW_MATCHED_STATUS_NOT_MATCHED && (
+                            <button
+                              type="button"
+                              disabled={matchingIds.has(workflow.id)}
+                              onClick={() => handleMatch(workflow)}
+                              title="Stuck at Not Matched despite reaching a final status — run the dispatcher's processing manually"
+                              className="rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+                            >
+                              {matchingIds.has(workflow.id) ? "Matching..." : "Match"}
+                            </button>
+                          )}
+                        <button
+                          type="button"
+                          onClick={() => openDetails(workflow)}
+                          className="rounded-md border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                        >
+                          View
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))

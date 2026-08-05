@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/select";
 import { FaVault } from "react-icons/fa6";
 import Swal from "sweetalert2";
+import { apiFetch, normalizeList } from "@/lib/api";
 
 const BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 
@@ -38,10 +39,12 @@ export default function CreateTreasury() {
   useEffect(() => {
     setLoadingData(true);
     Promise.all([
-      fetch(`${BASE}/api/administration/branches`).then((r) => r.json()),
-      fetch(`${BASE}/api/values/GetChartOfAccount`).then((r) => r.json()),
+      apiFetch(`${BASE}/api/administration/branches`).then((r) => r.json()),
+      apiFetch(`${BASE}/api/values/GetChartOfAccount`).then((r) => r.json()),
     ]).then(([branchData, coaData]) => {
-      setBranches(Array.isArray(branchData.data) ? branchData.data : []);
+      // GET / now returns PageCollectionInfo<BranchDTO> (paged), not a
+      // bare array.
+      setBranches(normalizeList(branchData));
       setCoaList(Array.isArray(coaData.Data) ? coaData.Data : []);
     }).catch(() => { }).finally(() => setLoadingData(false));
   }, []);

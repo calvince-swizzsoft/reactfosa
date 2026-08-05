@@ -5,26 +5,23 @@ import {
     FaPlus,
     FaPhone,
     FaEnvelope,
-    FaTrash,
     FaChevronDown,
     FaChevronUp,
-    FaEllipsisV,
+    FaChevronLeft,
+    FaChevronRight,
+    FaEdit,
     FaMapMarkerAlt,
     FaSearch,
     FaFilter,
 } from "react-icons/fa";
 
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-
-import Swal from "sweetalert2";
 import NotFoundImage from "/assets/scopefinding.png";
 import AddCompanies from "./AddCompanies";
 import EditCompanies from "./EditCompanies";
+import { apiFetch } from "@/lib/api";
+
+const FIN_BASE = `${import.meta.env.VITE_APP_MEMBERSHIP_URL}`;
+const COMPANY_BASE = `${FIN_BASE}/api/administration/companies`;
 
 export default function Companies() {
     const [companies, setCompanies] = useState([]);
@@ -35,103 +32,108 @@ export default function Companies() {
     const [openEdit, setOpenEdit] = useState(false);
     const [selectedCompany, setSelectedCompany] = useState(null);
 
-    // Filter states
     const [searchQuery, setSearchQuery] = useState("");
     const [statusFilter, setStatusFilter] = useState("all");
     const [sortBy, setSortBy] = useState("name");
     const [sortOrder, setSortOrder] = useState("asc");
     const [showFilters, setShowFilters] = useState(false);
 
-    useEffect(() => {
-        fetchCompanies();
-    }, []);
+    const [pageIndex, setPageIndex] = useState(0);
+    const [pageSize, setPageSize] = useState(20);
+    const [itemsCount, setItemsCount] = useState(0);
 
-    useEffect(() => {
-        applyFilters();
-    }, [companies, searchQuery, statusFilter, sortBy, sortOrder]);
+    // GET / returns PageCollectionInfo<CompanyDTO> — { pageIndex, pageSize,
+    // pageCollection, itemsCount } — not a bare array, and sorted by
+    // sequentialId ascending (oldest first) rather than newest-first like
+    // the old MVC grid, hence the client-side "date desc" default below.
+    const normalizeList = (d) => {
+        const payload = d?.data ?? d?.Data ?? d;
+        if (Array.isArray(payload)) return payload;
+        if (Array.isArray(payload?.PageCollection)) return payload.PageCollection;
+        if (Array.isArray(payload?.pageCollection)) return payload.pageCollection;
+        return [];
+    };
 
     const fetchCompanies = async () => {
+        setLoading(true);
         try {
-            const res = await fetch(
-                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/administration/companies`
-            );
+            const params = new URLSearchParams({
+                pageIndex: String(pageIndex),
+                pageSize: String(pageSize),
+                text: searchQuery,
+            });
+            const res = await apiFetch(`${COMPANY_BASE}?${params.toString()}`);
             const json = await res.json();
-            setCompanies(json.data || []);
+            const payload = json?.data ?? json?.Data ?? {};
+            setCompanies(normalizeList(json));
+            setItemsCount(payload.itemsCount ?? payload.ItemsCount ?? 0);
         } catch (err) {
             console.error("Fetch Companies Error:", err);
+            setCompanies([]);
+            setItemsCount(0);
         } finally {
             setLoading(false);
         }
     };
 
+    useEffect(() => {
+        fetchCompanies();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [pageIndex, pageSize]);
+
+    // Server-side text search is debounced-by-submit (Enter/blur) via a
+    // separate effect so every keystroke doesn't refetch the page.
+    useEffect(() => {
+        const timeout = setTimeout(() => {
+            setPageIndex(0);
+            fetchCompanies();
+        }, 400);
+        return () => clearTimeout(timeout);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchQuery]);
+
+    useEffect(() => {
+        applyFilters();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [companies, statusFilter, sortBy, sortOrder]);
+
+    // Status filter/sort apply on top of whatever page is currently
+    // loaded — there's no server-side equivalent for these, same pattern
+    // as CustomerAccounts' client-side product-type filter.
     const applyFilters = () => {
         let filtered = [...companies];
 
-        // Search filter
-        if (searchQuery.trim()) {
-            const query = searchQuery.toLowerCase().trim();
-            filtered = filtered.filter(company =>
-                company.Description?.toLowerCase().includes(query) ||
-                company.AddressEmail?.toLowerCase().includes(query) ||
-                company.AddressMobileLine?.toLowerCase().includes(query) ||
-                company.RegistrationNumber?.toLowerCase().includes(query) ||
-                company.AddressCity?.toLowerCase().includes(query)
-            );
-        }
-
-        // Status filter (if you have a status field, adjust as needed)
         if (statusFilter !== "all") {
-            filtered = filtered.filter(company => {
-                // Adjust this based on your actual data structure
-                if (statusFilter === "2fa_enabled") {
-                    return company.EnforceTwoFactorAuthentication === true;
-                }
-                if (statusFilter === "2fa_disabled") {
-                    return company.EnforceTwoFactorAuthentication === false;
-                }
-                if (statusFilter === "biometrics_enabled") {
-                    return company.EnforceBiometricsForCashWithdrawal === true;
-                }
+            filtered = filtered.filter((company) => {
+                if (statusFilter === "2fa_enabled") return company.EnforceTwoFactorAuthentication === true;
+                if (statusFilter === "2fa_disabled") return company.EnforceTwoFactorAuthentication === false;
+                if (statusFilter === "biometrics_enabled") return company.EnforceBiometricsForCashWithdrawal === true;
+                if (statusFilter === "locked") return company.IsLocked === true;
                 return true;
             });
         }
 
-        // Sorting
         filtered.sort((a, b) => {
             let valueA, valueB;
-
             switch (sortBy) {
-                case "name":
-                    valueA = a.Description || "";
-                    valueB = b.Description || "";
-                    break;
                 case "email":
-                    valueA = a.AddressEmail || "";
-                    valueB = b.AddressEmail || "";
+                    valueA = a.AddressEmail || ""; valueB = b.AddressEmail || "";
                     break;
                 case "date":
-                    valueA = new Date(a.CreatedDate);
-                    valueB = new Date(b.CreatedDate);
+                    valueA = new Date(a.CreatedDate); valueB = new Date(b.CreatedDate);
                     break;
                 case "phone":
-                    valueA = a.AddressMobileLine || "";
-                    valueB = b.AddressMobileLine || "";
+                    valueA = a.AddressMobileLine || ""; valueB = b.AddressMobileLine || "";
                     break;
                 default:
-                    valueA = a.Description || "";
-                    valueB = b.Description || "";
+                    valueA = a.Description || ""; valueB = b.Description || "";
             }
-
             if (valueA < valueB) return sortOrder === "asc" ? -1 : 1;
             if (valueA > valueB) return sortOrder === "asc" ? 1 : -1;
             return 0;
         });
 
         setFilteredCompanies(filtered);
-    };
-
-    const handleSearch = (e) => {
-        setSearchQuery(e.target.value);
     };
 
     const handleSort = (field) => {
@@ -150,34 +152,9 @@ export default function Companies() {
         setSortOrder("asc");
     };
 
-    const handleDelete = async (id) => {
-        Swal.fire({
-            title: "Delete Company?",
-            text: "This action cannot be undone.",
-            icon: "warning",
-            showCancelButton: true,
-            confirmButtonColor: "#dc2626",
-            cancelButtonColor: "#6b7280",
-            confirmButtonText: "Delete",
-        }).then(async (result) => {
-            if (result.isConfirmed) {
-                try {
-                    const res = await fetch(`${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/administration/companies/${id}`, {
-                        method: "DELETE",
-                    });
-
-                    if (!res.ok) {
-                        throw new Error("Failed to delete company");
-                    }
-
-                    setCompanies((prev) => prev.filter((c) => c.Id !== id));
-                    Swal.fire("Deleted!", "Company removed successfully.", "success");
-                } catch (error) {
-                    Swal.fire("Error", error.message, "error");
-                }
-            }
-        });
-    };
+    const hasNextPage = itemsCount
+        ? (pageIndex + 1) * pageSize < itemsCount
+        : companies.length === pageSize;
 
     return (
         <div className="bg-white m-8 px-8 py-8 shadow-2xl rounded-lg relative">
@@ -186,7 +163,7 @@ export default function Companies() {
                 <h2 className="text-xl font-bold text-white flex items-center gap-2">
                     <FaBuilding className="text-white" /> Companies
                     <span className="text-sm font-normal ml-2">
-                        ({filteredCompanies.length} {filteredCompanies.length === 1 ? 'company' : 'companies'})
+                        ({itemsCount || filteredCompanies.length} {itemsCount === 1 ? 'company' : 'companies'})
                     </span>
                 </h2>
                 <Button
@@ -200,19 +177,17 @@ export default function Companies() {
             {/* Search and Filter Bar */}
             <div className="mb-6 bg-gray-100 p-4 rounded-lg">
                 <div className="flex flex-col md:flex-row gap-4">
-                    {/* Search Input */}
                     <div className="flex-1 relative">
                         <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                         <input
                             type="text"
-                            placeholder="Search companies by name, email, phone, city, or registration number..."
+                            placeholder="Search companies by name, registration, or PIN..."
                             className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                             value={searchQuery}
-                            onChange={handleSearch}
+                            onChange={(e) => setSearchQuery(e.target.value)}
                         />
                     </div>
 
-                    {/* Filter Toggle Button */}
                     <Button
                         variant="outline"
                         className="flex items-center gap-2"
@@ -222,7 +197,16 @@ export default function Companies() {
                         {showFilters ? 'Hide Filters' : 'Show Filters'}
                     </Button>
 
-                    {/* Clear Filters Button */}
+                    <select
+                        value={pageSize}
+                        onChange={(e) => { setPageSize(Number(e.target.value)); setPageIndex(0); }}
+                        className="border border-gray-300 rounded-lg px-3"
+                    >
+                        {[10, 20, 50, 100].map((s) => (
+                            <option key={s} value={s}>{s} per page</option>
+                        ))}
+                    </select>
+
                     {(searchQuery || statusFilter !== "all") && (
                         <Button
                             variant="ghost"
@@ -234,10 +218,8 @@ export default function Companies() {
                     )}
                 </div>
 
-                {/* Advanced Filters */}
                 {showFilters && (
                     <div className="mt-4 p-4 bg-white border border-gray-200 rounded-lg grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {/* Status Filter */}
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">
                                 Status Filter
@@ -251,15 +233,15 @@ export default function Companies() {
                                 <option value="2fa_enabled">2FA Enabled</option>
                                 <option value="2fa_disabled">2FA Disabled</option>
                                 <option value="biometrics_enabled">Biometrics Enabled</option>
+                                <option value="locked">Locked</option>
                             </select>
                         </div>
 
-                        {/* Sort Options */}
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Sort By
+                                Sort By (current page)
                             </label>
-                            <div className="flex gap-2">
+                            <div className="flex gap-2 flex-wrap">
                                 {['name', 'email', 'date', 'phone'].map((field) => (
                                     <Button
                                         key={field}
@@ -270,9 +252,7 @@ export default function Companies() {
                                     >
                                         {field}
                                         {sortBy === field && (
-                                            <span className="ml-1">
-                                                {sortOrder === 'asc' ? '↑' : '↓'}
-                                            </span>
+                                            <span className="ml-1">{sortOrder === 'asc' ? '↑' : '↓'}</span>
                                         )}
                                     </Button>
                                 ))}
@@ -282,7 +262,7 @@ export default function Companies() {
                 )}
             </div>
 
-            {/* Table Header */}
+            {/* Table */}
             <div className="bg-gray-200 p-4 rounded-sm">
                 <div className="grid grid-cols-12 gap-4 bg-gray-700 text-gray-100 font-semibold p-3 rounded-lg mb-4">
                     <span className="col-span-3">Company</span>
@@ -292,7 +272,6 @@ export default function Companies() {
                     <span className="col-span-2 text-right">Actions</span>
                 </div>
 
-                {/* Loading State */}
                 {loading ? (
                     <div className="space-y-2 animate-pulse">
                         {[1, 2, 3].map((i) => (
@@ -306,11 +285,7 @@ export default function Companies() {
                 ) : filteredCompanies.length > 0 ? (
                     <div className="space-y-2">
                         {filteredCompanies.map((company) => (
-                            <div
-                                key={company.Id}
-                                className="bg-white rounded-lg shadow-lg border"
-                            >
-                                {/* Main Row */}
+                            <div key={company.Id} className="bg-white rounded-lg shadow-lg border">
                                 <div className="grid grid-cols-12 gap-2 items-center py-4 px-6 hover:shadow-xl transition-all">
                                     <span className="font-medium text-indigo-700 col-span-3">
                                         {company.Description}
@@ -327,66 +302,32 @@ export default function Companies() {
                                     </span>
 
                                     <span className="col-span-2 text-sm text-gray-600">
-                                        {new Date(company.CreatedDate).toLocaleDateString()}
+                                        {company.CreatedDate ? new Date(company.CreatedDate).toLocaleDateString() : "—"}
                                     </span>
 
-                                    {/* Expand Button */}
-                                    <span className="col-span-1">
+                                    <div className="col-span-2 flex justify-end gap-2">
                                         <Button
                                             size="sm"
                                             variant="outline"
                                             className="bg-gray-700 hover:bg-gray-600 text-white"
                                             onClick={() =>
-                                                setExpandedCompany(
-                                                    expandedCompany === company.Id ? null : company.Id
-                                                )
+                                                setExpandedCompany(expandedCompany === company.Id ? null : company.Id)
                                             }
                                         >
-                                            {expandedCompany === company.Id ? (
-                                                <>
-                                                    <FaChevronUp /> Hide Details
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <FaChevronDown /> View Details
-                                                </>
-                                            )}
+                                            {expandedCompany === company.Id ? <FaChevronUp /> : <FaChevronDown />}
                                         </Button>
-                                    </span>
-
-                                    {/* Actions */}
-                                    <div className="col-span-1 flex justify-end">
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" size="icon" className="h-8 w-8">
-                                                    <FaEllipsisV className="h-4 w-4 text-gray-600" />
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end" className="w-32">
-                                                <DropdownMenuItem
-                                                    onClick={() => {
-                                                        setSelectedCompany(company);
-                                                        setOpenEdit(true);
-                                                    }}
-                                                >
-                                                    Edit
-                                                </DropdownMenuItem>
-
-                                                <DropdownMenuItem
-                                                    className="text-red-600"
-                                                    onClick={() => handleDelete(company.Id)}
-                                                >
-                                                    <FaTrash className="mr-2" /> Delete
-                                                </DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
+                                        <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            onClick={() => { setSelectedCompany(company); setOpenEdit(true); }}
+                                        >
+                                            <FaEdit className="text-indigo-600" />
+                                        </Button>
                                     </div>
                                 </div>
 
-                                {/* Expanded Section */}
                                 {expandedCompany === company.Id && (
                                     <div className="border-t bg-gray-400 p-4 mx-1 mb-1 rounded-b-lg space-y-4">
-                                        {/* Address */}
                                         <div className="bg-white p-4 rounded-lg shadow border">
                                             <div className="bg-gray-200 rounded-xl p-3">
                                                 <h3 className="font-bold text-white bg-indigo-700 p-3 rounded-xl mb-2 flex items-center gap-2">
@@ -402,7 +343,6 @@ export default function Companies() {
                                             </div>
                                         </div>
 
-                                        {/* Extra System Info */}
                                         <div className="bg-white p-4 rounded-lg shadow border">
                                             <div className="bg-gray-200 rounded-xl p-3">
                                                 <h3 className="font-bold text-white bg-indigo-700 p-3 rounded-xl mb-2 flex items-center gap-2">
@@ -413,7 +353,7 @@ export default function Companies() {
                                                     <span><b>PIN:</b> {company.PersonalIdentificationNumber}</span>
                                                     <span><b>2FA:</b> {company.EnforceTwoFactorAuthentication ? "Enabled" : "Disabled"}</span>
                                                     <span><b>Biometrics:</b> {company.EnforceBiometricsForCashWithdrawal ? "Required" : "No"}</span>
-                                                    <span><b>System Lock:</b> {company.EnforceSystemLock ? "Yes" : "No"}</span>
+                                                    <span><b>Locked:</b> {company.IsLocked ? "Yes" : "No"}</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -431,17 +371,36 @@ export default function Companies() {
                                 : "No Companies Found."}
                         </p>
                         {(searchQuery || statusFilter !== "all") && (
-                            <Button
-                                variant="outline"
-                                className="mt-2"
-                                onClick={clearFilters}
-                            >
+                            <Button variant="outline" className="mt-2" onClick={clearFilters}>
                                 Clear Filters
                             </Button>
                         )}
                     </div>
                 )}
+
+                <div className="flex justify-center items-center mt-4">
+                    <Button
+                        type="button"
+                        size="sm"
+                        disabled={pageIndex === 0}
+                        onClick={() => setPageIndex((p) => Math.max(0, p - 1))}
+                        className="flex items-center gap-1 m-2"
+                    >
+                        <FaChevronLeft /> Prev
+                    </Button>
+                    <span>Page {pageIndex + 1}</span>
+                    <Button
+                        type="button"
+                        size="sm"
+                        disabled={!hasNextPage}
+                        onClick={() => setPageIndex((p) => p + 1)}
+                        className="flex items-center gap-1 m-2"
+                    >
+                        Next <FaChevronRight />
+                    </Button>
+                </div>
             </div>
+
             <AddCompanies
                 open={openDrawer}
                 onClose={() => setOpenDrawer(false)}

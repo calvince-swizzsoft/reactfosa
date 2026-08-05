@@ -7,6 +7,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import Swal from "sweetalert2";
+import { apiFetch, normalizeList } from "@/lib/api";
 
 const normalizeRoleName = (role) => role?.roleName || role?.RoleName || role?.name || role?.Name || role;
 
@@ -89,15 +90,17 @@ export default function AdministrationPermissionTypes() {
     const fetchBranches = async () => {
       setBranchesLoading(true);
       try {
-        const response = await fetch(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/branches`);
+        const response = await apiFetch(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/branches`);
         const data = await response.json().catch(() => ({}));
 
         if (!response.ok) {
           throw new Error(data?.message || "Failed to load branches");
         }
 
-        const branchList = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
-        setBranches(branchList);
+        // GET / now returns PageCollectionInfo<BranchDTO> (paged), not a
+        // bare array — the old Array.isArray(data?.data) check silently
+        // returned [] once that shape landed, breaking this dropdown.
+        setBranches(normalizeList(data));
       } catch (error) {
         Swal.fire("Error", error.message || "Unable to load branches.", "error");
       } finally {

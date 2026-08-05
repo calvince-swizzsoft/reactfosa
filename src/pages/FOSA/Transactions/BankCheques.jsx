@@ -8,7 +8,7 @@ import {
 import { FaSearch, FaChevronDown, FaTimes, FaSpinner } from "react-icons/fa";
 import Swal from "sweetalert2";
 import NotFoundImage from "/assets/scopefinding.png";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, normalizeList } from "@/lib/api";
 
 //const BASE = "https://calvins.ngrok.io";
 const BASE = `${import.meta.env.VITE_APP_FIN_URL}`
@@ -22,7 +22,9 @@ function SearchSelectModal({ title, fetchUrl, getLabel, getSublabel, onSelect, o
   useEffect(() => {
     apiFetch(fetchUrl)
       .then((r) => r.json())
-      .then((d) => setItems(Array.isArray(d) ? d : (Array.isArray(d?.Data) ? d.Data : (Array.isArray(d?.data) ? d.data : []))))
+      // Also unwraps the paged { pageCollection: [...] } shape — the
+      // branches endpoint returns that now, not a bare array/`.data`.
+      .then((d) => setItems(normalizeList(d)))
       .catch(() => setItems([]))
       .finally(() => setLoading(false));
   }, [fetchUrl]);
@@ -186,7 +188,9 @@ export default function BankCheques() {
     ])
       .then(([chequeData, branchData]) => {
         setCheques(Array.isArray(chequeData) ? chequeData : []);
-        setBranches(Array.isArray(branchData?.data) ? branchData.data : (Array.isArray(branchData) ? branchData : []));
+        // GET / now returns PageCollectionInfo<BranchDTO> (paged), not a
+        // bare array.
+        setBranches(normalizeList(branchData));
       })
       .catch(() => { })
       .finally(() => setLoading(false));

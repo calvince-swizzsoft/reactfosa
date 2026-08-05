@@ -1,69 +1,65 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card } from "@/components/ui/card";
 import Swal from "sweetalert2";
+import { apiFetch } from "@/lib/api";
 
-export default function AddBranch({ open, onClose, refresh }) {
+const FIN_BASE = `${import.meta.env.VITE_APP_MEMBERSHIP_URL}`;
+const BRANCH_BASE = `${FIN_BASE}/api/administration/branches`;
+
+const normalizeList = (d) => {
+    const payload = d?.data ?? d?.Data ?? d;
+    return Array.isArray(payload) ? payload : [];
+};
+
+export default function EditBranch({ open, onClose, data, refresh }) {
     const [loading, setLoading] = useState(false);
+    const [loadingCompanies, setLoadingCompanies] = useState(false);
     const [companies, setCompanies] = useState([]);
-    const [form, setForm] = useState({
-        companyId: "",
-        code: "",
-        description: "",
-        addressAddressLine1: "",
-        addressAddressLine2: "",
-        addressStreet: "",
-        addressPostalCode: "",
-        addressCity: "",
-        addressEmail: "",
-        addressLandLine: "",
-        addressMobileLine: "",
-        isLocked: false,
-    });
+    const [form, setForm] = useState({});
 
-    const update = (key, value) => {
-        setForm({ ...form, [key]: value });
-    };
-
-    // Fetch companies for the dropdown
     useEffect(() => {
-        const fetchCompanies = async () => {
-            try {
-                const res = await fetch(
-                    `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/administration/companies`
-                );
-                const data = await res.json();
-                if (data.success) {
-                    setCompanies(data.data);
-                }
-            } catch (err) {
-                console.error("Failed to fetch companies", err);
-            }
-        };
-        fetchCompanies();
-    }, []);
+        if (!open || !data) return;
+        setForm({
+            id: data.Id,
+            companyId: data.CompanyId || "",
+            description: data.Description || "",
+            addressAddressLine1: data.AddressAddressLine1 || "",
+            addressAddressLine2: data.AddressAddressLine2 || "",
+            addressStreet: data.AddressStreet || "",
+            addressPostalCode: data.AddressPostalCode || "",
+            addressCity: data.AddressCity || "",
+            addressEmail: data.AddressEmail || "",
+            addressLandLine: data.AddressLandLine || "",
+            addressMobileLine: data.AddressMobileLine || "",
+        });
 
-    const handleSubmit = async () => {
+        setLoadingCompanies(true);
+        // Was previously fetching the wrong path (/api/companies, a 404) —
+        // fixed to the real endpoint, and to the unpaged /all variant since
+        // GET / (paged) doesn't return a bare array to .map() over.
+        apiFetch(`${FIN_BASE}/api/administration/companies/all`)
+            .then((r) => r.json())
+            .then((d) => setCompanies(normalizeList(d)))
+            .catch(() => setCompanies([]))
+            .finally(() => setLoadingCompanies(false));
+    }, [open, data]);
+
+    const update = (key, value) => setForm((p) => ({ ...p, [key]: value }));
+
+    const handleUpdate = async () => {
         setLoading(true);
         try {
-            const response = await fetch(
-                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/administration/branches`,
-                {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "ngrok-skip-browser-warning": "true",
-                    },
-                    body: JSON.stringify(form),
-                }
-            );
+            const res = await apiFetch(`${BRANCH_BASE}/${form.id}`, {
+                method: "PUT",
+                body: JSON.stringify(form),
+            });
+            const respData = await res.json().catch(() => ({}));
+            if (!res.ok || respData.success === false) throw new Error(respData.message || "Failed to update branch");
 
-            if (!response.ok) throw new Error("Failed to add branch");
-
-            Swal.fire("Success!", "Branch added successfully", "success");
+            Swal.fire("Success!", respData.message || "Branch updated successfully", "success");
             refresh();
             onClose();
         } catch (err) {
@@ -72,6 +68,8 @@ export default function AddBranch({ open, onClose, refresh }) {
             setLoading(false);
         }
     };
+
+    if (!data) return null;
 
     return (
         <AnimatePresence>
@@ -94,7 +92,7 @@ export default function AddBranch({ open, onClose, refresh }) {
                     >
                         <div className="bg-gray-200 m-2 rounded-xl">
                             <div className="p-4 flex justify-between items-center bg-indigo-700 rounded-2xl m-2">
-                                <h2 className="font-bold text-xl text-white">Add New Branch</h2>
+                                <h2 className="font-bold text-xl text-white">Edit Branch</h2>
                                 <Button variant="outline" size="sm" onClick={onClose}>
                                     Close
                                 </Button>
@@ -102,35 +100,30 @@ export default function AddBranch({ open, onClose, refresh }) {
 
                             <div className="p-5 overflow-y-auto h-[75vh] bg-gray-50 rounded-xl m-3">
                                 <div className="grid grid-cols-2 gap-4">
-                                    {/* Company Select */}
                                     <div>
                                         <Label>Company</Label>
                                         <select
                                             className="w-full border rounded p-2"
-                                            value={form.companyId}
+                                            value={form.companyId || ""}
                                             onChange={(e) => update("companyId", e.target.value)}
+                                            disabled={loadingCompanies}
                                         >
-                                            <option value="">Select Company</option>
+                                            <option value="">{loadingCompanies ? "Loading..." : "Select Company"}</option>
                                             {companies.map((c) => (
-                                                <option key={c.Id} value={c.Id}>
-                                                    {c.Description}
-                                                </option>
+                                                <option key={c.Id} value={c.Id}>{c.Description}</option>
                                             ))}
                                         </select>
                                     </div>
 
                                     <div>
                                         <Label>Code</Label>
-                                        <Input
-                                            value={form.code}
-                                            onChange={(e) => update("code", e.target.value)}
-                                        />
+                                        <Input value={data.PaddedCode || data.Code || ""} disabled className="bg-gray-100" />
                                     </div>
 
-                                    <div>
+                                    <div className="col-span-2">
                                         <Label>Description</Label>
                                         <Input
-                                            value={form.description}
+                                            value={form.description || ""}
                                             onChange={(e) => update("description", e.target.value)}
                                         />
                                     </div>
@@ -148,25 +141,21 @@ export default function AddBranch({ open, onClose, refresh }) {
                                         <div key={key}>
                                             <Label>{label}</Label>
                                             <Input
-                                                value={form[key]}
+                                                value={form[key] || ""}
                                                 onChange={(e) => update(key, e.target.value)}
                                             />
                                         </div>
                                     ))}
-
-                                    <div className="flex items-center gap-2 mt-4">
-                                        <input
-                                            type="checkbox"
-                                            checked={form.isLocked}
-                                            onChange={(e) => update("isLocked", e.target.checked)}
-                                        />
-                                        <Label>Is Locked?</Label>
-                                    </div>
                                 </div>
 
+                                <p className="text-xs text-gray-400 mt-4">
+                                    Code is assigned by the server and read-only. To lock/unlock this branch, use the
+                                    lock icon on the branch row instead — it's a separate action from saving this form.
+                                </p>
+
                                 <div className="flex justify-end mt-8">
-                                    <Button onClick={handleSubmit} disabled={loading}>
-                                        {loading ? "Submitting..." : "Submit"}
+                                    <Button onClick={handleUpdate} disabled={loading}>
+                                        {loading ? "Updating..." : "Update Branch"}
                                     </Button>
                                 </div>
                             </div>

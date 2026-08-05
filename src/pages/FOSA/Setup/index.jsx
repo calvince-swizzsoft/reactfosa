@@ -16,7 +16,7 @@ export default function FOSASetup() {
 
   const handleTabClick = (tabId) => {
     if (tabId === "branches") {
-      navigate("/Membership/branches");
+      navigate("/Administration/Branches");
       return;
     }
     setActiveTab(tabId);

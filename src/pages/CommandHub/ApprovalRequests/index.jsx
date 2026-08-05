@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { FaSearch } from "react-icons/fa";
 import Swal from "sweetalert2";
 import { useAuth } from "@/context/AuthContext";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, normalizeList } from "@/lib/api";
 import {
   normalizeWorkflowItem,
   paddedReferenceNumber,
@@ -12,15 +12,23 @@ import {
 
 const ADMIN_URL = import.meta.env.VITE_APP_ADMIN_URL;
 
-// GetItems(int systemPermissionType, int status, string text, DateTime
-// startDate, DateTime endDate, int pageIndex = 1, int pageSize = 20) takes
-// none of its filter args as optional (only pageIndex/pageSize have
-// defaults) — Web API 404s the whole action if any of them are missing from
-// the query string. systemPermissionType 0 = no type filter (this page
-// wants a role's tasks across every permission type, not one), and the
-// start/end dates span the full DateTime range so no date filter is
-// effectively applied either.
-const NO_PERMISSION_TYPE_FILTER = 0;
+// /items/mine resolves scope purely from the caller's roles (JWT) server
+// side and returns pending/other-status items across every permission type
+// those roles can act on in one call — no systemPermissionType param at
+// all (sending 0 doesn't mean "no filter" here, real values start at
+// 44992+, so 0 matched nothing and this page returned empty). Don't loop
+// GET /items over every permission type client-side either; that's what
+// this endpoint replaces. GET /items?systemPermissionType=X is still the
+// right call for a single-type/tabbed view (e.g. a dedicated "Customer
+// Verifications" screen) — unchanged, not used here.
+// pageIndex is 0-based here (AllMatchingPaged's Skip(pageSize * pageIndex),
+// same as every other paged endpoint in this API) — /items, /items/mine,
+// and /queueable used to default to 1-based, which silently skipped every
+// real row once pageSize was reached (itemsCount still came back correct,
+// just paired with an empty pageCollection). Fixed server-side to default
+// to 0; this page passes pageIndex explicitly so it needed the same fix.
+// The start/end dates span the full DateTime range so no date filter is
+// effectively applied.
 const MIN_DATE = "0001-01-01T00:00:00";
 const MAX_DATE = "9999-12-31T23:59:59";
 const MAX_PAGE_SIZE = 1000; // this page has no pager UI, so ask for everything in one page
@@ -68,28 +76,36 @@ export default function ApprovalRequests() {
   const fetchMyTasks = async () => {
     setLoading(true);
     try {
-      // Hits the items endpoint directly (server-side scoped to the caller's
-      // role via the bearer token) instead of pulling every workflow and every
-      // item on it and filtering client-side — that older approach exposed
-      // every role's pending approvals to every user's browser regardless of
-      // what they were actually entitled to see.
+      // Hits the unified /items/mine endpoint directly (server-side scoped
+      // to the caller's role via the bearer token) instead of pulling every
+      // workflow and every item on it and filtering client-side — that
+      // older approach exposed every role's pending approvals to every
+      // user's browser regardless of what they were actually entitled to
+      // see.
       const params = new URLSearchParams({
-        systemPermissionType: String(NO_PERMISSION_TYPE_FILTER),
         status: String(WorkflowRecordStatus.Pending),
         text: "",
         startDate: MIN_DATE,
         endDate: MAX_DATE,
-        pageIndex: "1",
+        pageIndex: "0",
         pageSize: String(MAX_PAGE_SIZE),
       });
-      const response = await apiFetch(`${ADMIN_URL}/api/administration/workflows/items?${params.toString()}`);
+      const response = await apiFetch(`${ADMIN_URL}/api/administration/workflows/items/mine?${params.toString()}`);
       const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
         throw new Error(data?.message || "Failed to load your approval requests");
       }
 
-      const list = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
+      // Unlike most of this API, /items/mine's response isn't wrapped in
+      // the { success, message, data } envelope — it's the bare
+      // PageCollectionInfo object itself, PascalCase keys included
+      // (confirmed against a real response: { PageIndex, PageCollection,
+      // ItemsCount, ... } with no success/message/data at all).
+      // normalizeList still handles it since it falls back to checking
+      // `.PageCollection` directly on the response when there's no
+      // `.data`/`.Data` wrapper.
+      const list = normalizeList(data);
       const allItems = list.map(normalizeWorkflowItem);
 
       // The endpoint already scopes results to the caller's role(s) — this is
@@ -116,6 +132,14 @@ export default function ApprovalRequests() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [myRoleSet]);
 
+  // POST /items/approve only marks the WorkflowItem itself approved/
+  // rejected, synchronously — it does NOT flip the underlying customer's
+  // (or customer account's) recordStatus. That happens asynchronously once
+  // a separate dispatcher service picks up the queued job, so the success
+  // message below is about the workflow item only. Don't add UI here that
+  // implies the customer/account is immediately verified — poll
+  // GET /api/registry/customer/{id} (or the account equivalent) and check
+  // recordStatus if a screen ever needs to confirm that part landed.
   const handleDecision = async (item, decision) => {
     const formValues = await promptDecision(item, decision);
     if (!formValues) return;

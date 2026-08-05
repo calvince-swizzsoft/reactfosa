@@ -130,10 +130,13 @@ function AddCashDepositDrawer({ open, onClose, onSuccess }) {
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
   const [loadingAccounts, setLoadingAccounts] = useState(false);
 
+  // Also unwraps the paged { pageCollection: [...] } shape — branches (and
+  // other now-paged endpoints) return that instead of a bare array/`.data`.
   const normalizeList = (response) => {
-    if (Array.isArray(response)) return response;
-    if (Array.isArray(response?.data)) return response.data;
-    if (Array.isArray(response?.Data)) return response.Data;
+    const payload = response?.data ?? response?.Data ?? response;
+    if (Array.isArray(payload)) return payload;
+    if (Array.isArray(payload?.pageCollection)) return payload.pageCollection;
+    if (Array.isArray(payload?.PageCollection)) return payload.PageCollection;
     return [];
   };
 
@@ -301,7 +304,17 @@ export default function CashDeposit() {
       .then((r) => r.json())
       .then((d) => {
         const allItems = Array.isArray(d) ? d : [];
-        console.log("[CashDeposit] raw item sample:", allItems[0]);
+        // Raw Status (the int PostCashDepositRequest checks against
+        // CashDepositRequestAuthStatus.Authorized == 2) next to the
+        // display-only StatusDescription — items bucketed into the
+        // "Authorized" tab by StatusDescription but posting 400 means these
+        // two have gone out of sync for that row.
+        console.log(
+          "[CashDeposit] Id/Status/StatusDescription for items showing as Authorized:",
+          allItems
+            .filter((item) => (item.StatusDescription || "") === "Authorized")
+            .map((item) => ({ Id: item.Id, Status: item.Status, StatusDescription: item.StatusDescription }))
+        );
         setItems(allItems.filter((item) => matchesTransactionType(item, 2)));
       })
       .catch(() => setItems([]))
@@ -315,7 +328,13 @@ export default function CashDeposit() {
     if (!confirm.isConfirmed) return;
     try {
       const res = await apiFetch(`${BASE}/api/frontoffice/requests/post?id=${id}`, { method: "POST" });
-      if (!res.ok) throw new Error("Posting failed");
+      if (!res.ok) {
+        // This controller isn't on the { success, message, data } envelope
+        // — a 400 here is Web API's plain BadRequest(string), which
+        // serializes as { Message: "..." } (capital M), not { message }.
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.Message || body?.message || `Posting failed (${res.status})`);
+      }
       Swal.fire("Posted!", "Authorized deposit posted successfully.", "success");
       setActiveTab("Posted");
       fetchItems();

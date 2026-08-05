@@ -9,7 +9,7 @@ import {
 import Swal from "sweetalert2";
 import NotFoundImage from "/assets/scopefinding.png";
 import { FaMoneyCheckAlt, FaPlus, FaPaperPlane } from "react-icons/fa";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, normalizeList } from "@/lib/api";
 
 const BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 
@@ -108,8 +108,10 @@ function AddChequeDepositDrawer({ open, onClose, onSuccess }) {
       apiFetch(`${BASE}/api/registry/customers`).then((r) => r.json()),
       apiFetch(`${BASE}/api/administration/branches`).then((r) => r.json()),
     ]).then(([custData, branchData]) => {
-      setCustomers(custData.success ? (Array.isArray(custData.data) ? custData.data : []) : []);
-      setBranches(Array.isArray(branchData.data) ? branchData.data : []);
+      setCustomers(custData.success ? normalizeList(custData) : []);
+      // GET / now returns PageCollectionInfo<BranchDTO> (paged), not a
+      // bare array.
+      setBranches(normalizeList(branchData));
     }).catch(() => { }).finally(() => setLoadingData(false));
   }, [open]);
 

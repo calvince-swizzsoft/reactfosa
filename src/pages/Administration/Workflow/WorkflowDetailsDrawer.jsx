@@ -9,6 +9,7 @@ import {
   statusBadgeClass,
   formatDateTime,
 } from "@/lib/workflowFormat";
+import { apiFetch, normalizeList } from "@/lib/api";
 
 export default function WorkflowDetailsDrawer({ open, onClose, workflow }) {
   const [items, setItems] = useState([]);
@@ -22,7 +23,7 @@ export default function WorkflowDetailsDrawer({ open, onClose, workflow }) {
     const fetchItems = async () => {
       setItemsLoading(true);
       try {
-        const response = await fetch(
+        const response = await apiFetch(
           `${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/workflows/${workflow.id}/items`
         );
         const data = await response.json().catch(() => ({}));
@@ -31,8 +32,7 @@ export default function WorkflowDetailsDrawer({ open, onClose, workflow }) {
           throw new Error(data?.message || "Failed to load workflow items");
         }
 
-        const list = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
-        setItems(list.map(normalizeWorkflowItem));
+        setItems(normalizeList(data).map(normalizeWorkflowItem));
       } catch (error) {
         Swal.fire("Error", error.message || "Unable to load workflow items.", "error");
         setItems([]);
@@ -44,7 +44,7 @@ export default function WorkflowDetailsDrawer({ open, onClose, workflow }) {
     const fetchEntries = async () => {
       setEntriesLoading(true);
       try {
-        const response = await fetch(
+        const response = await apiFetch(
           `${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/workflows/${workflow.id}/entries`
         );
         const data = await response.json().catch(() => ({}));
@@ -53,8 +53,7 @@ export default function WorkflowDetailsDrawer({ open, onClose, workflow }) {
           throw new Error(data?.message || "Failed to load workflow entries");
         }
 
-        const list = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
-        setEntries(list.map(normalizeWorkflowItemEntry));
+        setEntries(normalizeList(data).map(normalizeWorkflowItemEntry));
       } catch (error) {
         Swal.fire("Error", error.message || "Unable to load workflow entries.", "error");
         setEntries([]);

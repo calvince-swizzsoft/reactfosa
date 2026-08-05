@@ -5,26 +5,26 @@ import {
     FaPlus,
     FaPhone,
     FaEnvelope,
-    FaTrash,
     FaChevronDown,
     FaChevronUp,
-    FaEllipsisV,
+    FaChevronLeft,
+    FaChevronRight,
+    FaEdit,
+    FaLock,
+    FaLockOpen,
     FaMapMarkerAlt,
     FaSearch,
     FaFilter,
 } from "react-icons/fa";
 
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-
 import Swal from "sweetalert2";
 import NotFoundImage from "/assets/scopefinding.png";
 import AddBranch from "./AddBranch";
 import EditBranch from "./EditBranch";
+import { apiFetch } from "@/lib/api";
+
+const FIN_BASE = `${import.meta.env.VITE_APP_MEMBERSHIP_URL}`;
+const BRANCH_BASE = `${FIN_BASE}/api/administration/branches`;
 
 export default function Branches() {
     const [branches, setBranches] = useState([]);
@@ -35,7 +35,6 @@ export default function Branches() {
     const [selectedBranch, setSelectedBranch] = useState(null);
     const [openBranch, setOpenBranch] = useState(false);
 
-    // Filter states
     const [searchQuery, setSearchQuery] = useState("");
     const [companyFilter, setCompanyFilter] = useState("all");
     const [sortBy, setSortBy] = useState("name");
@@ -43,99 +42,103 @@ export default function Branches() {
     const [showFilters, setShowFilters] = useState(false);
     const [uniqueCompanies, setUniqueCompanies] = useState([]);
 
-    useEffect(() => {
-        fetchBranches();
-    }, []);
+    const [pageIndex, setPageIndex] = useState(0);
+    const [pageSize, setPageSize] = useState(20);
+    const [itemsCount, setItemsCount] = useState(0);
 
-    useEffect(() => {
-        if (branches.length > 0) {
-            // Extract unique companies for filter dropdown
-            const companies = [...new Set(branches
-                .map(branch => branch.CompanyDescription)
-                .filter(company => company && company.trim() !== "")
-            )];
-            setUniqueCompanies(companies);
-        }
-        applyFilters();
-    }, [branches, searchQuery, companyFilter, sortBy, sortOrder]);
+    // GET / returns PageCollectionInfo<BranchDTO> — { pageIndex, pageSize,
+    // pageCollection, itemsCount } — not a bare array, sorted by
+    // sequentialId ascending (oldest first), same convention as
+    // company-api-spec.md.
+    const normalizeList = (d) => {
+        const payload = d?.data ?? d?.Data ?? d;
+        if (Array.isArray(payload)) return payload;
+        if (Array.isArray(payload?.PageCollection)) return payload.PageCollection;
+        if (Array.isArray(payload?.pageCollection)) return payload.pageCollection;
+        return [];
+    };
 
     const fetchBranches = async () => {
+        setLoading(true);
         try {
-            const res = await fetch(
-                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/administration/branches`
-            );
+            const params = new URLSearchParams({
+                pageIndex: String(pageIndex),
+                pageSize: String(pageSize),
+                text: searchQuery,
+            });
+            const res = await apiFetch(`${BRANCH_BASE}?${params.toString()}`);
             const json = await res.json();
-            setBranches(json.data || []);
+            const payload = json?.data ?? json?.Data ?? {};
+            setBranches(normalizeList(json));
+            setItemsCount(payload.itemsCount ?? payload.ItemsCount ?? 0);
         } catch (err) {
             console.error("Fetch Branches Error:", err);
+            setBranches([]);
+            setItemsCount(0);
         } finally {
             setLoading(false);
         }
     };
 
+    useEffect(() => {
+        fetchBranches();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [pageIndex, pageSize]);
+
+    useEffect(() => {
+        const timeout = setTimeout(() => {
+            setPageIndex(0);
+            fetchBranches();
+        }, 400);
+        return () => clearTimeout(timeout);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchQuery]);
+
+    useEffect(() => {
+        if (branches.length > 0) {
+            const companies = [...new Set(branches
+                .map((branch) => branch.CompanyDescription)
+                .filter((company) => company && company.trim() !== "")
+            )];
+            setUniqueCompanies(companies);
+        }
+        applyFilters();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [branches, companyFilter, sortBy, sortOrder]);
+
+    // Company filter/sort apply on top of whatever page is currently
+    // loaded — same pattern as the Companies list's status filter.
     const applyFilters = () => {
         let filtered = [...branches];
 
-        // Search filter
-        if (searchQuery.trim()) {
-            const query = searchQuery.toLowerCase().trim();
-            filtered = filtered.filter(branch =>
-                branch.Description?.toLowerCase().includes(query) ||
-                branch.AddressEmail?.toLowerCase().includes(query) ||
-                branch.AddressMobileLine?.toLowerCase().includes(query) ||
-                branch.CompanyDescription?.toLowerCase().includes(query) ||
-                branch.AddressCity?.toLowerCase().includes(query) ||
-                branch.AddressStreet?.toLowerCase().includes(query)
-            );
-        }
-
-        // Company filter
         if (companyFilter !== "all") {
-            filtered = filtered.filter(branch =>
-                branch.CompanyDescription === companyFilter
-            );
+            filtered = filtered.filter((branch) => branch.CompanyDescription === companyFilter);
         }
 
-        // Sorting
         filtered.sort((a, b) => {
             let valueA, valueB;
-
             switch (sortBy) {
-                case "name":
-                    valueA = a.Description || "";
-                    valueB = b.Description || "";
-                    break;
                 case "email":
-                    valueA = a.AddressEmail || "";
-                    valueB = b.AddressEmail || "";
+                    valueA = a.AddressEmail || ""; valueB = b.AddressEmail || "";
                     break;
                 case "company":
-                    valueA = a.CompanyDescription || "";
-                    valueB = b.CompanyDescription || "";
+                    valueA = a.CompanyDescription || ""; valueB = b.CompanyDescription || "";
                     break;
                 case "phone":
-                    valueA = a.AddressMobileLine || "";
-                    valueB = b.AddressMobileLine || "";
+                    valueA = a.AddressMobileLine || ""; valueB = b.AddressMobileLine || "";
                     break;
                 case "city":
-                    valueA = a.AddressCity || "";
-                    valueB = b.AddressCity || "";
+                    valueA = a.AddressCity || ""; valueB = b.AddressCity || "";
                     break;
                 default:
-                    valueA = a.Description || "";
-                    valueB = b.Description || "";
+                    valueA = a.Description || ""; valueB = b.Description || "";
             }
-
             if (valueA < valueB) return sortOrder === "asc" ? -1 : 1;
             if (valueA > valueB) return sortOrder === "asc" ? 1 : -1;
             return 0;
         });
 
         setFilteredBranches(filtered);
-    };
-
-    const handleSearch = (e) => {
-        setSearchQuery(e.target.value);
     };
 
     const handleSort = (field) => {
@@ -154,37 +157,34 @@ export default function Branches() {
         setSortOrder("asc");
     };
 
-    // DELETE /api/branches/{id}
-    const handleDelete = async (id) => {
-        Swal.fire({
-            title: "Delete Branch?",
-            text: "This action cannot be undone.",
+    // Branches don't have a hard delete — the old raw-SQL controller did,
+    // but the rewritten one follows the same soft-lock convention as every
+    // other aggregate here. PATCH /{id}/toggle-lock is the removal
+    // equivalent.
+    const handleToggleLock = async (branch) => {
+        const willLock = !branch.IsLocked;
+        const r = await Swal.fire({
+            title: willLock ? "Lock this branch?" : "Unlock this branch?",
             icon: "warning",
             showCancelButton: true,
-            confirmButtonColor: "#dc2626",
-            cancelButtonColor: "#6b7280",
-            confirmButtonText: "Delete",
-        }).then(async (result) => {
-            if (result.isConfirmed) {
-                try {
-                    const res = await fetch(
-                        `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/administration/branches/${id}`,
-                        {
-                            method: "DELETE"
-                        }
-                    );
-
-                    if (!res.ok) throw new Error("Failed to delete branch");
-
-                    setBranches((prev) => prev.filter((b) => b.Id !== id));
-
-                    Swal.fire("Deleted!", "Branch removed successfully.", "success");
-                } catch (error) {
-                    Swal.fire("Error", error.message, "error");
-                }
-            }
+            confirmButtonColor: willLock ? "#dc2626" : "#4f46e5",
+            confirmButtonText: willLock ? "Lock" : "Unlock",
         });
+        if (!r.isConfirmed) return;
+        try {
+            const res = await apiFetch(`${BRANCH_BASE}/${branch.Id}/toggle-lock`, { method: "PATCH" });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || data.success === false) throw new Error(data.message || "Failed to toggle lock");
+            Swal.fire("Done", data.message || `Branch ${willLock ? "locked" : "unlocked"} successfully`, "success");
+            fetchBranches();
+        } catch (err) {
+            Swal.fire("Error", err.message, "error");
+        }
     };
+
+    const hasNextPage = itemsCount
+        ? (pageIndex + 1) * pageSize < itemsCount
+        : branches.length === pageSize;
 
     return (
         <div className="bg-white m-8 px-8 py-8 shadow-2xl rounded-lg relative">
@@ -193,7 +193,7 @@ export default function Branches() {
                 <h2 className="text-xl font-bold text-white flex items-center gap-2">
                     <FaBuilding className="text-white" /> Branches
                     <span className="text-sm font-normal ml-2">
-                        ({filteredBranches.length} {filteredBranches.length === 1 ? 'branch' : 'branches'})
+                        ({itemsCount || filteredBranches.length} {itemsCount === 1 ? 'branch' : 'branches'})
                     </span>
                 </h2>
                 <Button
@@ -207,19 +207,17 @@ export default function Branches() {
             {/* Search and Filter Bar */}
             <div className="mb-6 bg-gray-100 p-4 rounded-lg">
                 <div className="flex flex-col md:flex-row gap-4">
-                    {/* Search Input */}
                     <div className="flex-1 relative">
                         <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                         <input
                             type="text"
-                            placeholder="Search branches by name, email, phone, company, city, or street..."
+                            placeholder="Search branches by name..."
                             className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                             value={searchQuery}
-                            onChange={handleSearch}
+                            onChange={(e) => setSearchQuery(e.target.value)}
                         />
                     </div>
 
-                    {/* Filter Toggle Button */}
                     <Button
                         variant="outline"
                         className="flex items-center gap-2"
@@ -229,7 +227,16 @@ export default function Branches() {
                         {showFilters ? 'Hide Filters' : 'Show Filters'}
                     </Button>
 
-                    {/* Clear Filters Button */}
+                    <select
+                        value={pageSize}
+                        onChange={(e) => { setPageSize(Number(e.target.value)); setPageIndex(0); }}
+                        className="border border-gray-300 rounded-lg px-3"
+                    >
+                        {[10, 20, 50, 100].map((s) => (
+                            <option key={s} value={s}>{s} per page</option>
+                        ))}
+                    </select>
+
                     {(searchQuery || companyFilter !== "all") && (
                         <Button
                             variant="ghost"
@@ -241,13 +248,11 @@ export default function Branches() {
                     )}
                 </div>
 
-                {/* Advanced Filters */}
                 {showFilters && (
                     <div className="mt-4 p-4 bg-white border border-gray-200 rounded-lg grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {/* Company Filter */}
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Filter by Company
+                                Filter by Company (current page)
                             </label>
                             <select
                                 className="w-full p-2 border border-gray-300 rounded-lg"
@@ -256,17 +261,14 @@ export default function Branches() {
                             >
                                 <option value="all">All Companies</option>
                                 {uniqueCompanies.map((company, index) => (
-                                    <option key={index} value={company}>
-                                        {company}
-                                    </option>
+                                    <option key={index} value={company}>{company}</option>
                                 ))}
                             </select>
                         </div>
 
-                        {/* Sort Options */}
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Sort By
+                                Sort By (current page)
                             </label>
                             <div className="flex flex-wrap gap-2">
                                 {['name', 'company', 'email', 'phone', 'city'].map((field) => (
@@ -279,9 +281,7 @@ export default function Branches() {
                                     >
                                         {field}
                                         {sortBy === field && (
-                                            <span className="ml-1">
-                                                {sortOrder === 'asc' ? '↑' : '↓'}
-                                            </span>
+                                            <span className="ml-1">{sortOrder === 'asc' ? '↑' : '↓'}</span>
                                         )}
                                     </Button>
                                 ))}
@@ -291,7 +291,7 @@ export default function Branches() {
                 )}
             </div>
 
-            {/* Table Header */}
+            {/* Table */}
             <div className="bg-gray-200 p-4 rounded-sm">
                 <div className="grid grid-cols-12 gap-4 bg-gray-700 text-gray-100 font-semibold p-3 rounded-lg mb-4">
                     <span className="col-span-3">Branch</span>
@@ -301,7 +301,6 @@ export default function Branches() {
                     <span className="col-span-2 text-right">Actions</span>
                 </div>
 
-                {/* Loading */}
                 {loading ? (
                     <div className="space-y-2 animate-pulse">
                         {[1, 2, 3].map((i) => (
@@ -316,10 +315,12 @@ export default function Branches() {
                     <div className="space-y-2">
                         {filteredBranches.map((branch) => (
                             <div key={branch.Id} className="bg-white rounded-lg shadow-lg border">
-                                {/* Main Row */}
                                 <div className="grid grid-cols-12 gap-2 items-center py-4 px-6 hover:shadow-xl transition-all">
                                     <span className="font-medium text-indigo-700 col-span-3">
                                         {branch.Description}
+                                        {branch.IsLocked && (
+                                            <span className="ml-2 px-2 py-0.5 rounded text-xs font-semibold bg-red-100 text-red-600">Locked</span>
+                                        )}
                                     </span>
 
                                     <span className="col-span-3 truncate">
@@ -336,69 +337,44 @@ export default function Branches() {
                                         {branch.CompanyDescription}
                                     </span>
 
-                                    {/* Expand */}
-                                    <span className="col-span-1">
+                                    <div className="col-span-2 flex justify-end gap-1">
                                         <Button
                                             size="sm"
                                             variant="outline"
                                             className="bg-gray-700 hover:bg-gray-600 text-white"
                                             onClick={() =>
-                                                setExpandedBranch(
-                                                    expandedBranch === branch.Id ? null : branch.Id
-                                                )
+                                                setExpandedBranch(expandedBranch === branch.Id ? null : branch.Id)
                                             }
                                         >
-                                            {expandedBranch === branch.Id ? (
-                                                <>
-                                                    <FaChevronUp /> Hide Details
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <FaChevronDown /> View Details
-                                                </>
-                                            )}
+                                            {expandedBranch === branch.Id ? <FaChevronUp /> : <FaChevronDown />}
                                         </Button>
-                                    </span>
-
-                                    {/* Actions */}
-                                    <div className="col-span-1 flex justify-end">
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" size="icon" className="h-8 w-8">
-                                                    <FaEllipsisV className="h-4 w-4 text-gray-600" />
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end" className="w-32">
-                                                <DropdownMenuItem
-                                                    onClick={() => {
-                                                        setSelectedBranch(branch);
-                                                        setOpenEdit(true);
-                                                    }}
-                                                >
-                                                    Edit
-                                                </DropdownMenuItem>
-
-                                                <DropdownMenuItem
-                                                    className="text-red-600"
-                                                    onClick={() => handleDelete(branch.Id)}
-                                                >
-                                                    <FaTrash className="mr-2" /> Delete
-                                                </DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
+                                        <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            onClick={() => { setSelectedBranch(branch); setOpenEdit(true); }}
+                                        >
+                                            <FaEdit className="text-indigo-600" />
+                                        </Button>
+                                        <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            title={branch.IsLocked ? "Unlock" : "Lock"}
+                                            onClick={() => handleToggleLock(branch)}
+                                        >
+                                            {branch.IsLocked ? <FaLockOpen className="text-amber-600" /> : <FaLock className="text-gray-500" />}
+                                        </Button>
                                     </div>
                                 </div>
 
-                                {/* Expanded Section */}
                                 {expandedBranch === branch.Id && (
                                     <div className="border-t bg-gray-400 p-4 mx-1 mb-1 rounded-b-lg space-y-4">
-                                        {/* Address */}
                                         <div className="bg-white p-4 rounded-lg shadow border">
                                             <div className="bg-gray-200 rounded-xl p-3">
                                                 <h3 className="font-bold text-white bg-indigo-700 p-3 rounded-xl mb-2 flex items-center gap-2">
                                                     <FaMapMarkerAlt /> Address
                                                 </h3>
                                                 <div className="grid grid-cols-2 p-3 bg-gray-50 rounded-xl border-2 gap-3 text-sm text-gray-700">
+                                                    <span><b>Code:</b> {branch.PaddedCode || branch.Code}</span>
                                                     <span><b>Line 1:</b> {branch.AddressAddressLine1}</span>
                                                     <span><b>Line 2:</b> {branch.AddressAddressLine2}</span>
                                                     <span><b>Street:</b> {branch.AddressStreet}</span>
@@ -408,7 +384,6 @@ export default function Branches() {
                                             </div>
                                         </div>
 
-                                        {/* Company Info */}
                                         <div className="bg-white p-4 rounded-lg shadow border">
                                             <div className="bg-gray-200 rounded-xl p-3">
                                                 <h3 className="font-bold text-white bg-indigo-700 p-3 rounded-xl mb-2">
@@ -436,19 +411,36 @@ export default function Branches() {
                                 : "No Branches Found."}
                         </p>
                         {(searchQuery || companyFilter !== "all") && (
-                            <Button
-                                variant="outline"
-                                className="mt-2"
-                                onClick={clearFilters}
-                            >
+                            <Button variant="outline" className="mt-2" onClick={clearFilters}>
                                 Clear Filters
                             </Button>
                         )}
                     </div>
                 )}
+
+                <div className="flex justify-center items-center mt-4">
+                    <Button
+                        type="button"
+                        size="sm"
+                        disabled={pageIndex === 0}
+                        onClick={() => setPageIndex((p) => Math.max(0, p - 1))}
+                        className="flex items-center gap-1 m-2"
+                    >
+                        <FaChevronLeft /> Prev
+                    </Button>
+                    <span>Page {pageIndex + 1}</span>
+                    <Button
+                        type="button"
+                        size="sm"
+                        disabled={!hasNextPage}
+                        onClick={() => setPageIndex((p) => p + 1)}
+                        className="flex items-center gap-1 m-2"
+                    >
+                        Next <FaChevronRight />
+                    </Button>
+                </div>
             </div>
 
-            {/* Drawers */}
             <AddBranch
                 open={openBranch}
                 onClose={() => setOpenBranch(false)}

@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import Swal from "sweetalert2";
+import { apiFetch, normalizeList } from "@/lib/api";
 
 const defaultFormData = {
   CustomerId: "",
@@ -90,7 +91,7 @@ export default function AddEmployeeDrawer({ open, onClose, onSuccess }) {
     setLoadingData(true);
     Promise.all([
       fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/registry/customers`).then((r) => r.json()),
-      fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/administration/branches`).then((r) => r.json()),
+      apiFetch(`${import.meta.env.VITE_APP_FIN_URL}/api/administration/branches`).then((r) => r.json()),
       fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/humanresource/designations`).then((r) => r.json()),
       fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/humanresource/departments`).then((r) => r.json()),
       fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/humanresource/employeetypes`).then((r) => r.json()),
@@ -100,7 +101,9 @@ export default function AddEmployeeDrawer({ open, onClose, onSuccess }) {
         Id: c.Id,
         Description: `${c.IndividualFirstName ?? ""} ${c.IndividualLastName ?? ""}`.trim() || c.Id,
       })));
-      setBranches(Array.isArray(branchData.data) ? branchData.data : []);
+      // GET / now returns PageCollectionInfo<BranchDTO> (paged), not a
+      // bare array.
+      setBranches(normalizeList(branchData));
       setDesignations(Array.isArray(desigData) ? desigData : []);
       setDepartments(Array.isArray(deptData) ? deptData : []);
       setEmployeeTypes(Array.isArray(empTypeData) ? empTypeData : []);

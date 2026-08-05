@@ -32,6 +32,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { apiFetch, normalizeList } from "@/lib/api";
 
 const MEMBERS_API_URL = `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/values/GetMembersWithDetails?pageIndex=0&pageSize=1000`;
 const ACCOUNTS_API_URL = `${import.meta.env.VITE_APP_FOSA_URL}/api/accounts/customer-accounts`;
@@ -139,19 +140,12 @@ export default function Members() {
     const fetchBranches = async () => {
         setLoadingBranches(true);
         try {
-            const res = await fetch(BRANCHES_API_URL);
+            const res = await apiFetch(BRANCHES_API_URL);
             const json = await res.json();
-            console.log("Branches Response:", json);
 
-            const branchesList = Array.isArray(json)
-                ? json
-                : Array.isArray(json?.data)
-                    ? json.data
-                    : Array.isArray(json?.Data)
-                        ? json.Data
-                        : [];
-
-            setBranches(branchesList);
+            // GET / now returns PageCollectionInfo<BranchDTO> (paged), not
+            // a bare array — normalizeList unwraps pageCollection too.
+            setBranches(normalizeList(json));
 
             if (branchesList.length > 0) {
                 setSelectedBranch(branchesList[0].Id);

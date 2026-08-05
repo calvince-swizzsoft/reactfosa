@@ -85,8 +85,9 @@ import Members from "./pages/Membership/Members/index.jsx";
 import CustomersAccount from "./pages/Membership/CustomerAccounts/index.jsx";
 import Employers from "./pages/Membership/Employers/index.jsx";
 import CustomersAccounts from "./pages/Membership/CustomerAccounts/index.jsx";
-import Companies from "./pages/Membership/companies/index.jsx";
-import Branches from "./pages/Membership/branches/index.jsx";
+import Companies from "./pages/Administration/Company/index.jsx";
+import Branches from "./pages/Administration/Branches/index.jsx";
+import TextAlerts from "./pages/Messaging/TextAlerts/index.jsx";
 import Division from "./pages/Membership/Division/index.jsx";
 import Zones from "./pages/Membership/Zones/index.jsx";
 import Stations from "./pages/Membership/Stations/index.jsx";
@@ -269,8 +270,9 @@ export default function App() {
           <Route path="Accounts/StandingOrders/Execution" element={<StandingOrderExecution />} />
           <Route path="Accounts/CustomerAccountStatement" element={<CustomerAccountStatement />} />
           <Route path="Accounts/GeneralLedgerStatement" element={<GeneralLedgerStatement />} />
-          <Route path="Membership/companies" element={<Companies />} />
-          <Route path="Membership/branches" element={<Branches />} />
+          <Route path="Administration/Company" element={<Companies />} />
+          <Route path="Administration/Branches" element={<Branches />} />
+          <Route path="Messaging/TextAlerts" element={<TextAlerts />} />
           <Route path="Membership/Division" element={<Division />} />
           <Route path="Membership/Zones" element={<Zones />} />
           <Route path="Membership/Stations" element={<Stations />} />

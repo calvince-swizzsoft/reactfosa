@@ -6,7 +6,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import Swal from "sweetalert2";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, normalizeList } from "@/lib/api";
 
 //const BASE = "https://rubani.ngrok.io";
 const BASE = `${import.meta.env.VITE_APP_FIN_URL}`
@@ -121,7 +121,9 @@ export default function CashManagement() {
       apiFetch(`${BASE}/api/frontoffice/treasurys`).then((r) => r.json()),
       apiFetch(`${BASE}/api/values/GetChartOfAccount`).then((r) => r.json()),
     ]).then(([branchData, tellerData, treasuryData, coaData]) => {
-      setBranches(Array.isArray(branchData.data) ? branchData.data : []);
+      // GET / now returns PageCollectionInfo<BranchDTO> (paged), not a
+      // bare array.
+      setBranches(normalizeList(branchData));
       setTellers(Array.isArray(tellerData) ? tellerData : []);
       setTreasuries(Array.isArray(treasuryData) ? treasuryData : []);
       setCoaList(Array.isArray(coaData.Data) ? coaData.Data : []);

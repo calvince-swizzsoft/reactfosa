@@ -12,6 +12,7 @@ import {
     SelectContent,
     SelectItem,
 } from "@/components/ui/select";
+import { apiFetch, normalizeList } from "@/lib/api";
 
 export default function MemberEditDrawer({ open, onClose, refresh, member }) {
     const [branches, setBranches] = useState([]);
@@ -469,12 +470,13 @@ export default function MemberEditDrawer({ open, onClose, refresh, member }) {
 
     const fetchBranches = async () => {
         try {
-            const res = await fetch(
-                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/administration/branches`,
-                { headers: { "ngrok-skip-browser-warning": "true" } }
+            const res = await apiFetch(
+                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/administration/branches`
             );
             const json = await res.json();
-            setBranches(json.data || []);
+            // GET / now returns PageCollectionInfo<BranchDTO> (paged), not
+            // a bare array.
+            setBranches(normalizeList(json));
         } catch (err) {
             console.error("Fetch Branches Error:", err);
         }

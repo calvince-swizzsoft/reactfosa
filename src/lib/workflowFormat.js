@@ -5,6 +5,12 @@
 
 export const WorkflowRecordStatus = { Pending: 0, Approved: 2, Rejected: 3 };
 
+// Only the NotMatched value is documented (customer-verification-api-spec.md
+// §3) — the rest of the MatchedStatus enum isn't enumerated anywhere, so
+// don't invent other values here. This is enough to drive "is this workflow
+// eligible for a manual /match" without knowing what "Matched" is numerically.
+export const WORKFLOW_MATCHED_STATUS_NOT_MATCHED = 0;
+
 export const normalizeWorkflow = (row) => ({
   id: row?.id ?? row?.Id ?? "",
   branchId: row?.branchId ?? row?.BranchId ?? "",
@@ -13,7 +19,7 @@ export const normalizeWorkflow = (row) => ({
   referenceNumber: row?.referenceNumber ?? row?.ReferenceNumber ?? "",
   status: row?.status ?? row?.Status ?? "",
   statusDescription: row?.statusDescription ?? row?.StatusDescription ?? "",
-  matchedStatus: row?.matchedStatus ?? row?.MatchedStatus ?? "",
+  matchedStatus: row?.matchedStatus ?? row?.MatchedStatus ?? WORKFLOW_MATCHED_STATUS_NOT_MATCHED,
   matchedStatusDescription: row?.matchedStatusDescription ?? row?.MatchedStatusDescription ?? "",
   systemPermissionType: row?.systemPermissionType ?? row?.SystemPermissionType ?? "",
   systemPermissionTypeDescription:

@@ -13,6 +13,7 @@ import {
 import Swal from "sweetalert2";
 import { Trash2, Plus } from "lucide-react";
 import CustomerSelectModal from "./CustomerSelectModal";
+import { apiFetch, normalizeList } from "@/lib/api";
 
 const today = new Date();
 const todayStr = today.toISOString().split("T")[0];
@@ -62,10 +63,15 @@ export default function AddInterAccountTransfer({ open, onClose, onSuccess }) {
   );
 
   useEffect(() => {
-    fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/administration/branches`)
+    apiFetch(`${import.meta.env.VITE_APP_FIN_URL}/api/administration/branches`)
       .then((res) => res.json())
       .then((data) => {
-        if (data.Success) setAllBranches(data.Data || []);
+        // Was checking `data.Success`/`data.Data` (capitalized) against an
+        // envelope that's always been lowercase `success`/`data` — this
+        // condition never matched, so allBranches was empty regardless of
+        // the branch API rewrite. Also now unwraps the paged
+        // { pageCollection: [...] } shape GET / returns.
+        setAllBranches(normalizeList(data));
       })
       .catch((err) => {
         console.error(err);
