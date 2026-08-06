@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
 import NotFoundImage from "/assets/scopefinding.png";
 import { apiFetch } from "@/lib/api";
 
@@ -39,17 +41,28 @@ function SkeletonRow() {
 export default function Catalogue() {
   const [cheques, setCheques] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [pageIndex, setPageIndex] = useState(0);
+  const [pageSize] = useState(20);
+  const [itemsCount, setItemsCount] = useState(0);
 
   const fetchCheques = () => {
     setLoading(true);
-    apiFetch(`${BASE}/api/frontoffice/cheques`)
+    // ChequesController.Index (GET /) is paged and enveloped
+    // ({ success, message, data: PageCollectionInfo }), not a bare array.
+    apiFetch(`${BASE}/api/frontoffice/cheques?pageIndex=${pageIndex}&pageSize=${pageSize}`)
       .then((r) => r.json())
-      .then((d) => setCheques(Array.isArray(d) ? d : []))
-      .catch(() => setCheques([]))
+      .then((body) => {
+        const page = body?.data ?? body;
+        setCheques(page?.pageCollection || page?.PageCollection || []);
+        setItemsCount(page?.itemsCount || page?.ItemsCount || 0);
+      })
+      .catch(() => { setCheques([]); setItemsCount(0); })
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { fetchCheques(); }, []);
+  useEffect(() => { fetchCheques(); }, [pageIndex]);
+
+  const hasNextPage = itemsCount ? (pageIndex + 1) * pageSize < itemsCount : cheques.length === pageSize;
 
   return (
     <div>
@@ -106,6 +119,28 @@ export default function Catalogue() {
           <p className="text-gray-400 mt-2">No cheques found in the catalogue.</p>
         </div>
       )}
+
+      <div className="flex justify-center items-center mt-4">
+        <Button
+          type="button"
+          size="sm"
+          disabled={pageIndex === 0}
+          onClick={() => setPageIndex((p) => Math.max(0, p - 1))}
+          className="flex items-center gap-1 m-2"
+        >
+          <FaChevronLeft /> Prev
+        </Button>
+        <span>Page {pageIndex + 1}</span>
+        <Button
+          type="button"
+          size="sm"
+          disabled={!hasNextPage}
+          onClick={() => setPageIndex((p) => p + 1)}
+          className="flex items-center gap-1 m-2"
+        >
+          Next <FaChevronRight />
+        </Button>
+      </div>
     </div>
   );
 }

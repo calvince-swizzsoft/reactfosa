@@ -6,40 +6,34 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import Swal from "sweetalert2";
+import { FaExchangeAlt } from "react-icons/fa";
 import { apiFetch, normalizeList } from "@/lib/api";
+import { TreasuryTransactionType } from "../lib/frontOfficeEnums";
+import DenominationCountFields, { emptyDenominationCounts, sumDenominations } from "../lib/DenominationCountFields";
 
-//const BASE = "https://rubani.ngrok.io";
-const BASE = `${import.meta.env.VITE_APP_FIN_URL}`
+const FIN_BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
+const CASH_MANAGEMENT_BASE = `${FIN_BASE}/api/frontoffice/cashmanagement`;
 
-const transactionTypeOptions = [
-  { value: 1, label: "Treasury to Treasury" },
-  { value: 2, label: "Treasury to Bank" },
-  { value: 4, label: "Bank to Treasury" },
-  { value: 8, label: "Treasury to Teller" },
+// Read directly from CashManagementController.Create (the doc's §5.1 was
+// too thin to build this form correctly):
+// - `branchId` on the body is the SOURCE branch — the server resolves
+//   "your" treasury from it (FindTreasuryByBranchId), it is not a picker
+//   for an arbitrary branch.
+// - `id` on the body is overloaded: it holds the *counterparty* Bank's id
+//   for BankToTreasury/TreasuryToBank, or the destination Treasury's id
+//   for TreasuryToTreasury. TreasuryToTeller uses a real dedicated
+//   `tellerId` field instead.
+// - `destinationBranchId` only matters for TreasuryToTreasury (the branch
+//   the destination treasury belongs to) — derived automatically from the
+//   selected destination treasury's own BranchId, not asked for directly.
+// - This endpoint's response is genuinely just { success, message } — no
+//   `data`, no JournalDTO — so there is no receipt to render here.
+const TRANSACTION_TYPE_OPTIONS = [
+  { value: TreasuryTransactionType.BankToTreasury, label: "Bank to Treasury" },
+  { value: TreasuryTransactionType.TreasuryToBank, label: "Treasury to Bank" },
+  { value: TreasuryTransactionType.TreasuryToTeller, label: "Treasury to Teller" },
+  { value: TreasuryTransactionType.TreasuryToTreasury, label: "Treasury to Treasury" },
 ];
-
-const transactionCodeOptions = [
-  { value: 7, label: "Bank to Treasury" },
-  { value: 8, label: "Treasury to Bank" },
-  { value: 9, label: "Treasury to Teller" },
-  { value: 10, label: "Treasury to Treasury" },
-];
-
-const emptyForm = {
-  BranchId: "",
-  TellerId: "",
-  TreasuryId: "",
-  PostingPeriodId: "",
-  ChartOfAccountId: "",
-  PrimaryDescription: "",
-  SecondaryDescription: "",
-  Reference: "",
-  TotalAmount: "",
-  TransactionType: "",
-  TotalValue: "",
-  TransactionCode: "",
-  Description: "",
-};
 
 function FieldGroup({ label, children }) {
   return (
@@ -50,110 +44,97 @@ function FieldGroup({ label, children }) {
   );
 }
 
-function BranchSelect({ branches, value, onChange, disabled }) {
-  return (
-    <Select value={value} onValueChange={(v) => onChange("BranchId", v)} disabled={disabled}>
-      <SelectTrigger><SelectValue placeholder={disabled ? "Loading..." : "Select Branch"} /></SelectTrigger>
-      <SelectContent>
-        {branches.map((b) => (
-          <SelectItem key={b.Id} value={b.Id}>{b.Description}</SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  );
-}
-
-function TellerSelect({ tellers, value, onChange, disabled }) {
-  return (
-    <Select value={value} onValueChange={(v) => onChange("TellerId", v)} disabled={disabled}>
-      <SelectTrigger><SelectValue placeholder={disabled ? "Loading..." : "Select Teller"} /></SelectTrigger>
-      <SelectContent>
-        {tellers.map((t) => (
-          <SelectItem key={t.Id} value={t.Id}>{t.Description || t.Name || t.Id}</SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  );
-}
-
-function TreasurySelect({ treasuries, value, onChange, disabled }) {
-  return (
-    <Select value={value} onValueChange={(v) => onChange("TreasuryId", v)} disabled={disabled}>
-      <SelectTrigger><SelectValue placeholder={disabled ? "Loading..." : "Select Treasury"} /></SelectTrigger>
-      <SelectContent>
-        {treasuries.map((t) => (
-          <SelectItem key={t.Id} value={t.Id}>{t.Description}</SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  );
-}
-
-function CoaSelect({ coaList, value, onChange, disabled }) {
-  return (
-    <Select value={value} onValueChange={(v) => onChange("ChartOfAccountId", v)} disabled={disabled}>
-      <SelectTrigger><SelectValue placeholder={disabled ? "Loading..." : "Select Chart of Account"} /></SelectTrigger>
-      <SelectContent>
-        {coaList.map((c) => (
-          <SelectItem key={c.Id} value={c.Id}>{c.AccountCode} — {c.AccountName}</SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  );
-}
-
 export default function CashManagement() {
-  const [form, setForm] = useState(emptyForm);
-  const [loading, setLoading] = useState(false);
-  const [loadingData, setLoadingData] = useState(true);
   const [branches, setBranches] = useState([]);
   const [tellers, setTellers] = useState([]);
   const [treasuries, setTreasuries] = useState([]);
-  const [coaList, setCoaList] = useState([]);
+  const [banks, setBanks] = useState([]);
+  const [loadingData, setLoadingData] = useState(true);
+  const [loading, setLoading] = useState(false);
 
-  const handleChange = (field, value) => setForm((p) => ({ ...p, [field]: value }));
+  const [branchId, setBranchId] = useState("");
+  const [transactionType, setTransactionType] = useState(TreasuryTransactionType.TreasuryToTeller);
+  const [tellerId, setTellerId] = useState("");
+  const [destinationTreasuryId, setDestinationTreasuryId] = useState("");
+  const [bankId, setBankId] = useState("");
+  const [reference, setReference] = useState("");
+  const [counts, setCounts] = useState(emptyDenominationCounts);
 
   useEffect(() => {
     setLoadingData(true);
     Promise.all([
-      apiFetch(`${BASE}/api/administration/branches`).then((r) => r.json()),
-      apiFetch(`${BASE}/api/frontoffice/tellers`).then((r) => r.json()),
-      apiFetch(`${BASE}/api/frontoffice/treasurys`).then((r) => r.json()),
-      apiFetch(`${BASE}/api/values/GetChartOfAccount`).then((r) => r.json()),
-    ]).then(([branchData, tellerData, treasuryData, coaData]) => {
-      // GET / now returns PageCollectionInfo<BranchDTO> (paged), not a
-      // bare array.
+      apiFetch(`${FIN_BASE}/api/administration/branches`).then((r) => r.json()),
+      apiFetch(`${FIN_BASE}/api/frontoffice/tellers`).then((r) => r.json()),
+      apiFetch(`${FIN_BASE}/api/frontoffice/treasurys`).then((r) => r.json()),
+      // Reusing the same bank+linkage picker as BankLinkages.jsx/BankCheques.jsx
+      // — CashManagementController matches the selected bank against a
+      // BankLinkage by BankName server-side, so this is the right source
+      // list even though the id submitted is the raw Bank's id, not the
+      // linkage's. Unconfirmed field name for that raw Bank id — see TODO.md.
+      apiFetch(`${FIN_BASE}/api/values/getBankWithLinkages`).then((r) => r.json()),
+    ]).then(([branchData, tellerData, treasuryData, bankData]) => {
       setBranches(normalizeList(branchData));
-      setTellers(Array.isArray(tellerData) ? tellerData : []);
-      setTreasuries(Array.isArray(treasuryData) ? treasuryData : []);
-      setCoaList(Array.isArray(coaData.Data) ? coaData.Data : []);
+      setTellers(normalizeList(tellerData));
+      setTreasuries(normalizeList(treasuryData));
+      setBanks(normalizeList(bankData));
     }).catch(() => { }).finally(() => setLoadingData(false));
   }, []);
 
+  const handleCountChange = (key, value) => setCounts((p) => ({ ...p, [key]: value }));
+  const totalValue = sumDenominations(counts);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!branchId) {
+      Swal.fire("Missing Field", "Select your branch first.", "warning");
+      return;
+    }
+    if (totalValue <= 0) {
+      Swal.fire("Missing Amount", "Enter a denomination count first.", "warning");
+      return;
+    }
+    if (transactionType === TreasuryTransactionType.TreasuryToTeller && !tellerId) {
+      Swal.fire("Missing Field", "Select a destination teller.", "warning");
+      return;
+    }
+    if (transactionType === TreasuryTransactionType.TreasuryToTreasury && !destinationTreasuryId) {
+      Swal.fire("Missing Field", "Select a destination treasury.", "warning");
+      return;
+    }
+    if ((transactionType === TreasuryTransactionType.BankToTreasury || transactionType === TreasuryTransactionType.TreasuryToBank) && !bankId) {
+      Swal.fire("Missing Field", "Select a bank.", "warning");
+      return;
+    }
+
+    const destinationTreasury = treasuries.find((t) => t.Id === destinationTreasuryId);
+
+    const payload = {
+      BranchId: branchId,
+      TransactionType: transactionType,
+      TotalValue: totalValue,
+      Reference: reference,
+      TellerId: transactionType === TreasuryTransactionType.TreasuryToTeller ? tellerId : undefined,
+      Id: transactionType === TreasuryTransactionType.TreasuryToTreasury
+        ? destinationTreasuryId
+        : (transactionType === TreasuryTransactionType.BankToTreasury || transactionType === TreasuryTransactionType.TreasuryToBank)
+          ? bankId
+          : undefined,
+      DestinationBranchId: transactionType === TreasuryTransactionType.TreasuryToTreasury ? destinationTreasury?.BranchId : undefined,
+      ...counts,
+    };
+
     setLoading(true);
     try {
-      const payload = {
-        ...form,
-        TotalAmount: Number(form.TotalAmount),
-        TotalValue: Number(form.TotalAmount),
-        TransactionType: Number(form.TransactionType),
-        TransactionCode: Number(form.TransactionCode),
-      };
-      const res = await apiFetch(`${BASE}/api/frontoffice/cashmanagement`, {
+      const res = await apiFetch(CASH_MANAGEMENT_BASE, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.message || "Failed to submit cash management transaction");
-      Swal.fire({
-        title: "Transaction Submitted",
-        html: `<p>Reference: <strong>${data.Reference || form.Reference || "—"}</strong></p><p>Amount: <strong>${Number(form.TotalAmount).toLocaleString()}</strong></p>`,
-        icon: "success",
-      });
-      setForm(emptyForm);
+      if (!res.ok || data.success === false) throw new Error(data.message || "Transaction failed");
+
+      Swal.fire("Success", data.message || "Cash movement posted successfully", "success");
+      setCounts(emptyDenominationCounts);
+      setReference("");
     } catch (err) {
       Swal.fire("Error", err.message, "error");
     } finally {
@@ -162,81 +143,79 @@ export default function CashManagement() {
   };
 
   return (
-    <div>
-      <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-5">
-        <FieldGroup label="Branch">
-          <BranchSelect branches={branches} value={form.BranchId} onChange={handleChange} disabled={loadingData} />
-        </FieldGroup>
+    <div className="bg-white m-8 px-8 py-8 shadow-2xl rounded-lg relative max-w-2xl mx-auto">
+      <div className="flex justify-between items-center mb-6 bg-indigo-800 px-6 py-3 rounded-2xl">
+        <h2 className="text-xl font-bold text-white flex items-center gap-2">
+          <FaExchangeAlt /> Treasury Cash Movement
+        </h2>
+      </div>
 
-        <FieldGroup label="Teller">
-          <TellerSelect tellers={tellers} value={form.TellerId} onChange={handleChange} disabled={loadingData} />
-        </FieldGroup>
-
-        <FieldGroup label="Treasury">
-          <TreasurySelect treasuries={treasuries} value={form.TreasuryId} onChange={handleChange} disabled={loadingData} />
-        </FieldGroup>
-
-        {/* <FieldGroup label="Chart of Account">
-          <CoaSelect coaList={coaList} value={form.ChartOfAccountId} onChange={handleChange} disabled={loadingData} />
-        </FieldGroup> */}
-
-        <FieldGroup label="Transaction Type">
-          <Select value={String(form.TransactionType)} onValueChange={(v) => handleChange("TransactionType", v)}>
-            <SelectTrigger><SelectValue placeholder="Select Transaction Type" /></SelectTrigger>
-            <SelectContent>
-              {transactionTypeOptions.map((o) => (
-                <SelectItem key={o.value} value={String(o.value)}>{o.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </FieldGroup>
-
-        {/* <FieldGroup label="Transaction Code">
-          <Select value={String(form.TransactionCode)} onValueChange={(v) => handleChange("TransactionCode", v)}>
-            <SelectTrigger><SelectValue placeholder="Select Transaction Code" /></SelectTrigger>
-            <SelectContent>
-              {transactionCodeOptions.map((o) => (
-                <SelectItem key={o.value} value={String(o.value)}>{o.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </FieldGroup> */}
-
-        <FieldGroup label="Total Amount">
-          <Input type="number" value={form.TotalAmount} onChange={(e) => handleChange("TotalAmount", e.target.value)} placeholder="10000" required />
-        </FieldGroup>
-
-        {/* <FieldGroup label="Total Value">
-          <Input type="number" value={form.TotalValue} onChange={(e) => handleChange("TotalValue", e.target.value)} placeholder="10000" />
-        </FieldGroup> */}
-        {/* 
-        <FieldGroup label="Posting Period ID">
-          <Input value={form.PostingPeriodId} onChange={(e) => handleChange("PostingPeriodId", e.target.value)} placeholder="Enter posting period ID" />
-        </FieldGroup> */}
-
-        {/* <FieldGroup label="Reference">
-          <Input value={form.Reference} onChange={(e) => handleChange("Reference", e.target.value)} placeholder="Enter reference" />
-        </FieldGroup>
-
-        <FieldGroup label="Primary Description">
-          <Input value={form.PrimaryDescription} onChange={(e) => handleChange("PrimaryDescription", e.target.value)} placeholder="Primary description" />
-        </FieldGroup>
-
-        <FieldGroup label="Secondary Description">
-          <Input value={form.SecondaryDescription} onChange={(e) => handleChange("SecondaryDescription", e.target.value)} placeholder="Secondary description" />
-        </FieldGroup>
-
-        <div className="col-span-2">
-          <FieldGroup label="Description">
-            <Input value={form.Description} onChange={(e) => handleChange("Description", e.target.value)} placeholder="Transaction description" />
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <FieldGroup label="Your Branch">
+            <Select value={branchId ? String(branchId) : ""} onValueChange={setBranchId} disabled={loadingData}>
+              <SelectTrigger><SelectValue placeholder={loadingData ? "Loading..." : "Select Branch"} /></SelectTrigger>
+              <SelectContent className="max-h-60 overflow-y-auto">
+                {branches.map((b) => <SelectItem key={String(b.Id)} value={String(b.Id)}>{b.Description}</SelectItem>)}
+              </SelectContent>
+            </Select>
           </FieldGroup>
-        </div> */}
 
-        <div className="col-span-2">
-          <Button type="submit" disabled={loading || loadingData} className="w-full bg-indigo-600 hover:bg-indigo-700 py-3 text-base">
-            {loading ? "Submitting..." : "Submit Cash Management Transaction"}
-          </Button>
+          <FieldGroup label="Movement">
+            <Select value={String(transactionType)} onValueChange={(v) => setTransactionType(Number(v))}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {TRANSACTION_TYPE_OPTIONS.map((o) => <SelectItem key={o.value} value={String(o.value)}>{o.label}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </FieldGroup>
+
+          {transactionType === TreasuryTransactionType.TreasuryToTeller && (
+            <FieldGroup label="Destination Teller">
+              <Select value={tellerId ? String(tellerId) : ""} onValueChange={setTellerId} disabled={loadingData}>
+                <SelectTrigger><SelectValue placeholder={loadingData ? "Loading..." : "Select Teller"} /></SelectTrigger>
+                <SelectContent className="max-h-60 overflow-y-auto">
+                  {tellers.map((t) => <SelectItem key={String(t.Id)} value={String(t.Id)}>{t.Description}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </FieldGroup>
+          )}
+
+          {transactionType === TreasuryTransactionType.TreasuryToTreasury && (
+            <FieldGroup label="Destination Treasury">
+              <Select value={destinationTreasuryId ? String(destinationTreasuryId) : ""} onValueChange={setDestinationTreasuryId} disabled={loadingData}>
+                <SelectTrigger><SelectValue placeholder={loadingData ? "Loading..." : "Select Treasury"} /></SelectTrigger>
+                <SelectContent className="max-h-60 overflow-y-auto">
+                  {treasuries.map((t) => <SelectItem key={String(t.Id)} value={String(t.Id)}>{t.Description} ({t.BranchDescription})</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </FieldGroup>
+          )}
+
+          {(transactionType === TreasuryTransactionType.BankToTreasury || transactionType === TreasuryTransactionType.TreasuryToBank) && (
+            <FieldGroup label="Bank">
+              <Select value={bankId ? String(bankId) : ""} onValueChange={setBankId} disabled={loadingData}>
+                <SelectTrigger><SelectValue placeholder={loadingData ? "Loading..." : "Select Bank"} /></SelectTrigger>
+                <SelectContent className="max-h-60 overflow-y-auto">
+                  {banks.map((b) => <SelectItem key={String(b.Id)} value={String(b.Id)}>{b.Description || b.BankName}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </FieldGroup>
+          )}
+
+          <FieldGroup label="Reference">
+            <Input value={reference} onChange={(e) => setReference(e.target.value)} placeholder="Optional" />
+          </FieldGroup>
         </div>
+
+        <div>
+          <Label className="text-sm font-semibold text-gray-700 mb-2 block">Denomination Count</Label>
+          <DenominationCountFields counts={counts} onChange={handleCountChange} />
+        </div>
+
+        <Button type="submit" disabled={loading || loadingData} className="w-full bg-indigo-600 hover:bg-indigo-700">
+          {loading ? "Submitting..." : "Submit Movement"}
+        </Button>
       </form>
     </div>
   );

@@ -108,8 +108,10 @@ export default function CustomerAccountStatement() {
 
     call
       .then((page) => {
-        setLines(page?.pageCollection || []);
-        setItemsCount(page?.itemsCount || 0);
+        // Server returns PascalCase (PageCollection/ItemsCount) — confirmed
+        // against a real response, not the lowercase this used to assume.
+        setLines(page?.PageCollection || page?.pageCollection || []);
+        setItemsCount(page?.ItemsCount || page?.itemsCount || 0);
       })
       .catch((err) => {
         setLines([]);
@@ -291,7 +293,7 @@ export default function CustomerAccountStatement() {
             ) : lines.length > 0 ? (
               <div className="bg-white rounded-lg shadow-lg border">
                 {lines.map((line) => (
-                  <StatementRow key={line.id} line={line} />
+                  <StatementRow key={line.Id} line={line} />
                 ))}
               </div>
             ) : (

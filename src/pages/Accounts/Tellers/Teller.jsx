@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import Swal from "sweetalert2";
 import NotFoundImage from "/assets/scopefinding.png";
+import { apiFetch, normalizeList } from "@/lib/api";
 
 // const BASE = "https://rubani.ngrok.io";
 
@@ -22,9 +23,9 @@ export default function Tellers() {
 
   const fetchTellers = () => {
     setLoading(true);
-    fetch(`${BASE}/api/frontoffice/tellers`)
+    apiFetch(`${BASE}/api/frontoffice/tellers`)
       .then((res) => res.json())
-      .then((data) => setTellers(Array.isArray(data) ? data : []))
+      .then((data) => setTellers(normalizeList(data)))
       .catch(() => setTellers([]))
       .finally(() => setLoading(false));
   };
@@ -42,7 +43,7 @@ export default function Tellers() {
     }).then(async (result) => {
       if (result.isConfirmed) {
         try {
-          const res = await fetch(`${BASE}/api/frontoffice/tellers/${id}`, { method: "DELETE" });
+          const res = await apiFetch(`${BASE}/api/frontoffice/tellers/${id}`, { method: "DELETE" });
           if (!res.ok) throw new Error("Failed to delete teller");
           setTellers((prev) => prev.filter((t) => t.Id !== id));
           Swal.fire("Deleted!", "Teller removed successfully.", "success");

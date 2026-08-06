@@ -183,11 +183,13 @@ export default function BankCheques() {
   useEffect(() => {
     setLoading(true);
     Promise.all([
-      apiFetch(`${BASE}/api/frontoffice/cheques`).then((r) => r.json()),
+      // ChequesController.Index (GET /) is paged and enveloped
+      // ({ success, message, data: PageCollectionInfo }), not a bare array.
+      apiFetch(`${BASE}/api/frontoffice/cheques?pageSize=1000`).then((r) => r.json()),
       apiFetch(`${BASE}/api/administration/branches`).then((r) => r.json()),
     ])
       .then(([chequeData, branchData]) => {
-        setCheques(Array.isArray(chequeData) ? chequeData : []);
+        setCheques(normalizeList(chequeData));
         // GET / now returns PageCollectionInfo<BranchDTO> (paged), not a
         // bare array.
         setBranches(normalizeList(branchData));

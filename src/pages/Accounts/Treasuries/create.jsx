@@ -60,9 +60,8 @@ export default function CreateTreasury() {
         RangeLowerLimit: Number(form.RangeLowerLimit),
         RangeUpperLimit: Number(form.RangeUpperLimit),
       };
-      const res = await fetch(`${BASE}/api/frontoffice/treasurys`, {
+      const res = await apiFetch(`${BASE}/api/frontoffice/treasurys`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
       const data = await res.json().catch(() => ({}));

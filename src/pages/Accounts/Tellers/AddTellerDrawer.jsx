@@ -7,6 +7,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import Swal from "sweetalert2";
+import { apiFetch } from "@/lib/api";
 
 //const BASE = "https://rubani.ngrok.io";
 const BASE = `${import.meta.env.VITE_APP_FIN_URL}`
@@ -79,8 +80,8 @@ export default function AddTellerDrawer({ open, onClose, onSuccess }) {
     if (!open) return;
     setLoadingData(true);
     Promise.all([
-      fetch(`${BASE}/api/humanresource/employees`).then((r) => r.json()),
-      fetch(`${BASE}/api/values/GetChartOfAccount`).then((r) => r.json()),
+      apiFetch(`${BASE}/api/humanresource/employees`).then((r) => r.json()),
+      apiFetch(`${BASE}/api/values/GetChartOfAccount`).then((r) => r.json()),
     ]).then(([empData, coaData]) => {
       setEmployees(Array.isArray(empData) ? empData : []);
       setAccounts(Array.isArray(coaData.Data) ? coaData.Data : []);
@@ -114,9 +115,8 @@ export default function AddTellerDrawer({ open, onClose, onSuccess }) {
         IsLocked: form.IsLocked,
       };
 
-      const res = await fetch(`${BASE}/api/frontoffice/tellers`, {
+      const res = await apiFetch(`${BASE}/api/frontoffice/tellers`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 

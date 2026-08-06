@@ -157,29 +157,33 @@ export const formatStatementDate = (iso) => {
 };
 
 // Shared row renderer for the GeneralLedgerTransaction line shape — used by
-// both statement screens' tables so the columns stay in sync.
+// both statement screens' tables so the columns stay in sync. Field names
+// are PascalCase, matching the real server response (confirmed against a
+// live GET .../mini payload) — this used to read all-lowercase field names,
+// which meant every cell silently rendered blank/"—" even on a successful,
+// non-empty response.
 export function StatementRow({ line, showGlAccount = false }) {
   return (
     <div className="grid grid-cols-12 gap-2 items-center py-3 px-4 text-sm border-b last:border-b-0">
-      <span className="col-span-2 text-gray-600">{formatStatementDate(line.journalValueDate || line.journalCreatedDate)}</span>
+      <span className="col-span-2 text-gray-600">{formatStatementDate(line.JournalValueDate || line.JournalCreatedDate)}</span>
       <div className={showGlAccount ? "col-span-3" : "col-span-4"}>
-        <p className="text-gray-700">{line.journalPrimaryDescription || "—"}</p>
-        {line.journalSecondaryDescription && (
-          <p className="text-xs text-gray-400">{line.journalSecondaryDescription}</p>
+        <p className="text-gray-700">{line.JournalPrimaryDescription || "—"}</p>
+        {line.JournalSecondaryDescription && (
+          <p className="text-xs text-gray-400">{line.JournalSecondaryDescription}</p>
         )}
       </div>
       {showGlAccount && (
         <div className="col-span-2">
-          <p className="text-gray-700">{line.glAccountName || "—"}</p>
-          {line.customerFullName && <p className="text-xs text-gray-400">{line.customerFullName}</p>}
+          <p className="text-gray-700">{line.GLAccountName || "—"}</p>
+          {line.CustomerFullName && <p className="text-xs text-gray-400">{line.CustomerFullName}</p>}
         </div>
       )}
-      <span className="col-span-1 text-gray-500">{line.journalReference || "—"}</span>
-      <span className="col-span-1 text-right text-red-600">{line.debit ? formatMoney(line.debit) : ""}</span>
-      <span className="col-span-1 text-right text-green-600">{line.credit ? formatMoney(line.credit) : ""}</span>
-      <span className="col-span-1 text-right font-medium text-gray-800">{formatMoney(line.runningBalance)}</span>
+      <span className="col-span-1 text-gray-500">{line.JournalReference || "—"}</span>
+      <span className="col-span-1 text-right text-red-600">{line.Debit ? formatMoney(line.Debit) : ""}</span>
+      <span className="col-span-1 text-right text-green-600">{line.Credit ? formatMoney(line.Credit) : ""}</span>
+      <span className="col-span-1 text-right font-medium text-gray-800">{formatMoney(line.RunningBalance)}</span>
       <span className="col-span-1 text-right">
-        {line.journalIsLocked && (
+        {line.JournalIsLocked && (
           <span className="px-2 py-0.5 rounded text-xs font-semibold bg-red-100 text-red-600">Reversed</span>
         )}
       </span>

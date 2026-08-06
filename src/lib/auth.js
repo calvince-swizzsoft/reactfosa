@@ -46,3 +46,24 @@ export function clearRoles() {
 export function isAuthenticated() {
   return Boolean(getToken());
 }
+
+// Reads the "EmployeeId" claim out of the JWT payload client-side — the
+// same claim name JwtTokenService.cs embeds and EndOfDayController.cs (and
+// friends) resolve server-side via ClaimsPrincipal.FindFirst("EmployeeId").
+// The payload segment is only base64url-encoded, not encrypted, so decoding
+// it here doesn't expose anything the server doesn't already trust this
+// token to carry. Used where a screen needs to look up "my own" teller/
+// employee record (no self-lookup endpoint exists — every lookup takes an
+// explicit employeeId).
+export function getEmployeeIdFromToken() {
+  const token = getToken();
+  if (!token) return null;
+  try {
+    const payload = token.split(".")[1];
+    const json = atob(payload.replace(/-/g, "+").replace(/_/g, "/"));
+    const claims = JSON.parse(json);
+    return claims.EmployeeId || null;
+  } catch {
+    return null;
+  }
+}

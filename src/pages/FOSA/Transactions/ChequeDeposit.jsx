@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -7,18 +6,23 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import Swal from "sweetalert2";
-import NotFoundImage from "/assets/scopefinding.png";
-import { FaMoneyCheckAlt, FaPlus, FaPaperPlane } from "react-icons/fa";
+import { FaMoneyCheckAlt } from "react-icons/fa";
 import { apiFetch, normalizeList } from "@/lib/api";
+import { createTransaction } from "./requestsApi";
+import { FrontOfficeTransactionType } from "../lib/frontOfficeEnums";
+import ReceiptModal from "../lib/ReceiptModal";
 
-const BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
+const FIN_BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 
-const statusColors = {
-  Pending: "bg-yellow-100 text-yellow-700",
-  Authorized: "bg-green-100 text-green-700",
-  Posted: "bg-blue-100 text-blue-700",
-  Rejected: "bg-red-100 text-red-700",
-};
+// Cheque deposits are NOT a queue like Cash Deposit/Withdrawal — confirmed
+// against the real CashDepositController: the ChequeDeposit branch in
+// ProcessCustomerTransactionAsync never checks a limit or creates a
+// pending CashDepositRequest, it always creates the ExternalCheque +
+// posts the journal in the same call (WORKFLOW.md §5: "Cheque deposit —
+// Always posts directly"). GET / also only ever returns rows for
+// type=1/2, so there's no request queue to list here even if we wanted
+// one. This is a single-shot form; the resulting cheque then lives in the
+// cheque lifecycle (Catalogue/BankCheques/ClearCheques — §1E), not here.
 
 function FieldGroup({ label, children }) {
   return (
@@ -29,152 +33,88 @@ function FieldGroup({ label, children }) {
   );
 }
 
-function CustomerSelect({ customers, value, onChange, disabled }) {
-  return (
-    <Select value={value} onValueChange={onChange} disabled={disabled}>
-      <SelectTrigger><SelectValue placeholder={disabled ? "Loading..." : "Search & select customer"} /></SelectTrigger>
-      <SelectContent>
-        {customers.map((c) => (
-          <SelectItem key={c.Id} value={c.Id}>
-            {c.IndividualFirstName} {c.IndividualLastName}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  );
-}
-
-function AccountSelect({ accounts, value, onChange, disabled, placeholder }) {
-  return (
-    <Select value={value} onValueChange={onChange} disabled={disabled}>
-      <SelectTrigger><SelectValue placeholder={placeholder || "Select account"} /></SelectTrigger>
-      <SelectContent>
-        {accounts.map((a) => (
-          <SelectItem key={a.Id} value={a.Id}>
-            {a.CustomerAccountTypeTargetProductDescription
-              || a.FullAccountNumber || `${a.AccountNumber || a.Id}`}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  );
-}
-
-function BranchSelect({ branches, value, onChange, disabled }) {
-  return (
-    <Select value={value} onValueChange={(v) => onChange("BranchId", v)} disabled={disabled}>
-      <SelectTrigger><SelectValue placeholder={disabled ? "Loading..." : "Select Branch"} /></SelectTrigger>
-      <SelectContent>
-        {branches.map((b) => (
-          <SelectItem key={b.Id} value={b.Id}>{b.Description}</SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  );
-}
-
 const emptyForm = {
   BranchId: "",
   CreditCustomerAccountId: "",
-  CustomerAccountBranchId: "",
-  CustomerAccountCustomerAccountTypeTargetProductId: "",
-  CustomerAccountCustomerAccountTypeTargetProductCode: 1,
-  CustomerAccountStatus: 0,
-  CustomerAccountCustomerId: "",
-  Amount: "",
-  Remarks: "",
-  Type: 3,
-  Drawer: "Sospeter Ochieng",
-  DrawerBank: "KCB",
-  DrawerBankBranch: "Muindi Mbingu Street, Nairobi",
-  ChequeType: "3825244A-AA55-F111-9B89-C8E2651EF92D",
+  TotalValue: "",
+  Drawer: "",
+  DrawerBank: "",
+  DrawerBankBranch: "",
+  ChequeType: "",
   WriteDate: "",
+  Remarks: "",
 };
 
-function AddChequeDepositDrawer({ open, onClose, onSuccess }) {
+export default function ChequeDeposit() {
   const [form, setForm] = useState(emptyForm);
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(false);
   const [customers, setCustomers] = useState([]);
-  const [accounts, setAccounts] = useState([]);
   const [branches, setBranches] = useState([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
+  const [accounts, setAccounts] = useState([]);
   const [loadingAccounts, setLoadingAccounts] = useState(false);
+  const [receiptJournal, setReceiptJournal] = useState(null);
 
   useEffect(() => {
-    if (!open) return;
     setLoadingData(true);
     Promise.all([
-      apiFetch(`${BASE}/api/registry/customers`).then((r) => r.json()),
-      apiFetch(`${BASE}/api/administration/branches`).then((r) => r.json()),
-    ]).then(([custData, branchData]) => {
-      setCustomers(custData.success ? normalizeList(custData) : []);
-      // GET / now returns PageCollectionInfo<BranchDTO> (paged), not a
-      // bare array.
+      apiFetch(`${FIN_BASE}/api/registry/customers`).then((r) => r.json()),
+      apiFetch(`${FIN_BASE}/api/administration/branches`).then((r) => r.json()),
+    ]).then(([customerData, branchData]) => {
+      setCustomers(normalizeList(customerData));
       setBranches(normalizeList(branchData));
     }).catch(() => { }).finally(() => setLoadingData(false));
-  }, [open]);
+  }, []);
 
   const handleCustomerChange = (customerId) => {
     setSelectedCustomerId(customerId);
     setAccounts([]);
-    setForm((p) => ({
-      ...p,
-      CreditCustomerAccountId: "",
-      CustomerAccountBranchId: "",
-      CustomerAccountCustomerAccountTypeTargetProductId: "",
-      CustomerAccountCustomerAccountTypeTargetProductCode: 1,
-      CustomerAccountStatus: 0,
-      CustomerAccountCustomerId: customerId,
-    }));
+    setForm((p) => ({ ...p, CreditCustomerAccountId: "" }));
     if (!customerId) return;
     setLoadingAccounts(true);
-    apiFetch(`${BASE}/api/values/CustomerAccount/by-customer?customerId=${customerId}`)
+    apiFetch(`${FIN_BASE}/api/accounts/customer-accounts/${customerId}/accounts`)
       .then((r) => r.json())
-      .then((d) => setAccounts(Array.isArray(d) ? d : []))
+      .then((d) => setAccounts(normalizeList(d)))
       .catch(() => setAccounts([]))
       .finally(() => setLoadingAccounts(false));
-  };
-
-  const handleAccountChange = (accountId) => {
-    const acct = accounts.find((a) => a.Id === accountId);
-    if (!acct) return;
-    setForm((p) => ({
-      ...p,
-      CreditCustomerAccountId: acct.Id,
-      CustomerAccountBranchId: acct.BranchId || acct.CustomerAccountBranchId || "",
-      CustomerAccountCustomerAccountTypeTargetProductId: acct.CustomerAccountTypeTargetProductId || acct.ProductId || "",
-      CustomerAccountCustomerAccountTypeTargetProductCode: acct.CustomerAccountTypeTargetProductCode || acct.ProductCode || 1,
-      CustomerAccountStatus: acct.Status ?? acct.CustomerAccountStatus ?? 0,
-      CustomerAccountCustomerId: acct.CustomerId || selectedCustomerId,
-    }));
   };
 
   const handleChange = (field, value) => setForm((p) => ({ ...p, [field]: value }));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!form.BranchId || !form.CreditCustomerAccountId || !form.TotalValue) {
+      Swal.fire("Missing Fields", "Branch, account, and amount are required.", "warning");
+      return;
+    }
+    if (!form.Drawer || !form.DrawerBank || !form.DrawerBankBranch) {
+      Swal.fire("Missing Fields", "Drawer, drawer bank, and drawer bank branch are required.", "warning");
+      return;
+    }
     setLoading(true);
     try {
-      const payload = { ...form, TotalValue: Number(form.Amount) };
-      //const res = await apiFetch(`${BASE}api/chequedeposit`, {
-      console.log("Submitting payload:", payload);
-      const res = await apiFetch(`${BASE}/api/deposit`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+      const data = await createTransaction({
+        Type: FrontOfficeTransactionType.ChequeDeposit,
+        BranchId: form.BranchId,
+        CreditCustomerAccountId: form.CreditCustomerAccountId,
+        TotalValue: Number(form.TotalValue),
+        Remarks: form.Remarks,
+        Drawer: form.Drawer,
+        DrawerBank: form.DrawerBank,
+        DrawerBankBranch: form.DrawerBankBranch,
+        ChequeType: form.ChequeType,
+        WriteDate: form.WriteDate ? new Date(form.WriteDate).toISOString() : null,
       });
-      const data = await res.json().catch(() => ({}));
-      console.log("Create response:", data);
-      if (!res.ok) throw new Error(data.message || "Failed to create cheque deposit request");
-      data.success === false
-        ? Swal.fire("Error", data.message || "Cheque deposit request failed", "error")
-        : Swal.fire("Success", data.message || "Cheque deposit request created successfully", "success");
-      setForm(emptyForm);
-      setSelectedCustomerId("");
-      setAccounts([]);
-      onSuccess();
-      onClose();
+
+      if (data.success) {
+        setReceiptJournal(data.data);
+        setForm(emptyForm);
+        setSelectedCustomerId("");
+        setAccounts([]);
+      } else {
+        Swal.fire("Error", data.message || "Failed to create cheque deposit", "error");
+      }
     } catch (err) {
       Swal.fire("Error", err.message, "error");
     } finally {
@@ -183,214 +123,80 @@ function AddChequeDepositDrawer({ open, onClose, onSuccess }) {
   };
 
   return (
-    <AnimatePresence>
-      {open && (
-        <>
-          <motion.div className="fixed inset-0 bg-black z-40" initial={{ opacity: 0 }} animate={{ opacity: 0.4 }} exit={{ opacity: 0 }} onClick={onClose} />
-          <motion.div className="fixed top-5 right-3 w-[480px] bg-white shadow-xl z-50 flex flex-col rounded-2xl p-3 max-h-[95vh] overflow-y-auto" initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", stiffness: 300, damping: 30 }}>
-            <div className="p-4 flex justify-between items-center bg-indigo-600 rounded-2xl m-2">
-              <h2 className="font-bold text-lg text-white">New Cheque Deposit</h2>
-              <Button variant="outline" size="sm" onClick={onClose}>Close</Button>
-            </div>
-            <form onSubmit={handleSubmit} className="p-4 space-y-4">
-              <FieldGroup label="Customer">
-                <CustomerSelect customers={customers} value={selectedCustomerId} onChange={handleCustomerChange} disabled={loadingData} />
-              </FieldGroup>
-              <FieldGroup label={loadingAccounts ? "Loading accounts..." : "Customer Account"}>
-                <AccountSelect
-                  accounts={accounts}
-                  value={form.CreditCustomerAccountId}
-                  onChange={handleAccountChange}
-                  disabled={loadingAccounts || !selectedCustomerId}
-                  placeholder={loadingAccounts ? "Loading..." : !selectedCustomerId ? "Select a customer first" : "Select account"}
-                />
-              </FieldGroup>
-              <FieldGroup label="Branch">
-                <BranchSelect branches={branches} value={form.BranchId} onChange={handleChange} disabled={loadingData} />
-              </FieldGroup>
-              <FieldGroup label="Amount">
-                <Input type="number" value={form.Amount} onChange={(e) => handleChange("Amount", e.target.value)} required placeholder="1000" />
-              </FieldGroup>
-              <FieldGroup label="Drawer (Cheque Owner)">
-                <Input value={form.Drawer} onChange={(e) => handleChange("Drawer", e.target.value)} required placeholder="e.g. John Doe" />
-              </FieldGroup>
-              <FieldGroup label="Drawer Bank">
-                <Input value={form.DrawerBank} onChange={(e) => handleChange("DrawerBank", e.target.value)} required placeholder="e.g. KCB" />
-              </FieldGroup>
-              <FieldGroup label="Drawer Bank Branch">
-                <Input value={form.DrawerBankBranch} onChange={(e) => handleChange("DrawerBankBranch", e.target.value)} required placeholder="e.g. Muindi Mbingu Street, Nairobi" />
-              </FieldGroup>
-              <FieldGroup label="Cheque Type">
-                <Input value={form.ChequeType} onChange={(e) => handleChange("ChequeType", e.target.value)} required placeholder="Enter cheque type" />
-              </FieldGroup>
-              <FieldGroup label="Write Date">
-                <Input type="date" value={form.WriteDate} onChange={(e) => handleChange("WriteDate", e.target.value)} required />
-              </FieldGroup>
-              <FieldGroup label="Remarks">
-                <Input value={form.Remarks} onChange={(e) => handleChange("Remarks", e.target.value)} placeholder="Enter remarks" />
-              </FieldGroup>
-              <Button type="submit" disabled={loading} className="w-full bg-indigo-600 hover:bg-indigo-700">
-                {loading ? "Saving..." : "Submit Cheque Deposit"}
-              </Button>
-            </form>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
-  );
-}
-
-const STATUS_TABS = [
-  { id: "Pending", label: "Pending", color: "text-yellow-600" },
-  { id: "Authorized", label: "Authorized", color: "text-green-600" },
-  { id: "Posted", label: "Posted", color: "text-blue-600" },
-  { id: "Rejected", label: "Rejected", color: "text-red-600" },
-];
-
-export default function ChequeDeposit() {
-  const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [addOpen, setAddOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState("Pending");
-
-  const matchesTransactionType = (item, expectedType) => {
-    const typeValue = Number(
-      item.TransactionType ?? item.Type ?? item.TransactionTypeId ?? item.TypeId ?? item.TransactionTypeCode ?? item.TypeCode ?? 0
-    );
-
-    return typeValue === expectedType;
-  };
-
-  const fetchItems = () => {
-    setLoading(true);
-    apiFetch(`${BASE}/api/deposit`)
-      .then((r) => r.json())
-      .then((d) => {
-        const allItems = Array.isArray(d) ? d : [];
-        setItems(allItems.filter((item) => matchesTransactionType(item, 3)));
-      })
-      .catch(() => setItems([]))
-      .finally(() => setLoading(false));
-  };
-
-  useEffect(() => { fetchItems(); }, []);
-
-  const handlePost = async (id) => {
-    const confirm = await Swal.fire({ title: "Post Authorized Cheque Deposit?", icon: "question", showCancelButton: true, confirmButtonColor: "#4f46e5", confirmButtonText: "Post" });
-    if (!confirm.isConfirmed) return;
-    try {
-      const res = await apiFetch(`${BASE}/api/chequedeposit/post?chequeDepositRequestId=${id}`, { method: "POST" });
-      if (!res.ok) throw new Error("Posting failed");
-      Swal.fire("Posted!", "Cheque deposit request posted successfully.", "success");
-      setActiveTab("Posted");
-      fetchItems();
-    } catch (err) {
-      Swal.fire("Error", err.message, "error");
-    }
-  };
-
-  const filteredItems = items.filter(
-    (item) => (item.StatusDescription || "Pending") === activeTab
-  );
-
-  const countFor = (status) =>
-    items.filter((item) => (item.StatusDescription || "Pending") === status).length;
-
-  return (
-    <div className="bg-white m-8 px-8 py-8 shadow-2xl rounded-lg relative">
+    <div className="bg-white m-8 px-8 py-8 shadow-2xl rounded-lg relative max-w-2xl mx-auto">
       <div className="flex justify-between items-center mb-6 bg-indigo-800 px-6 py-3 rounded-2xl">
         <h2 className="text-xl font-bold text-white flex items-center gap-2">
-          <FaMoneyCheckAlt /> Cheque Deposits
+          <FaMoneyCheckAlt /> Cheque Deposit
         </h2>
-        <Button onClick={() => setAddOpen(true)} className="bg-indigo-600 hover:bg-indigo-700 flex items-center gap-2">
-          <FaPlus /> New Cheque Deposit
-        </Button>
       </div>
 
-      {/* Status tabs */}
-      <div className="flex gap-1 border-b border-gray-200 mb-3">
-        {STATUS_TABS.map((tab) => {
-          const count = countFor(tab.id);
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-t-lg transition-all ${activeTab === tab.id
-                ? "bg-indigo-600 text-white border-b-2 border-indigo-600"
-                : `text-gray-500 hover:${tab.color} hover:bg-indigo-50`
-                }`}
-            >
-              {tab.label}
-              <span
-                className={`text-xs px-1.5 py-0.5 rounded-full font-bold ${activeTab === tab.id
-                  ? "bg-white text-indigo-600"
-                  : "bg-gray-200 text-gray-600"
-                  }`}
-              >
-                {count}
-              </span>
-            </button>
-          );
-        })}
-      </div>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <FieldGroup label="Customer">
+          <Select value={selectedCustomerId ? String(selectedCustomerId) : ""} onValueChange={handleCustomerChange} disabled={loadingData}>
+            <SelectTrigger><SelectValue placeholder={loadingData ? "Loading..." : "Search & select customer"} /></SelectTrigger>
+            <SelectContent className="max-h-60 overflow-y-auto">
+              {customers.map((c) => {
+                const name = [c.IndividualFirstName, c.IndividualLastName].filter(Boolean).join(" ")
+                  || c.NonIndividualDescription || c.Description || `Customer ${c.Id}`;
+                return <SelectItem key={String(c.Id)} value={String(c.Id)}>{name}</SelectItem>;
+              })}
+            </SelectContent>
+          </Select>
+        </FieldGroup>
 
-      {/* Workflow hint */}
-      <div className="flex items-center gap-2 text-xs text-gray-400 mb-4 px-1">
-        <span className="font-medium text-yellow-600">Pending</span>
-        <span>→</span>
-        <span className="font-medium text-green-600">Authorized</span>
-        <span>→</span>
-        <span className="font-medium text-blue-600">Posted</span>
-        <span className="mx-1 text-gray-300">|</span>
-        <span className="font-medium text-red-500">Rejected</span>
-      </div>
+        <FieldGroup label={loadingAccounts ? "Loading accounts..." : "Customer Account"}>
+          <Select value={form.CreditCustomerAccountId ? String(form.CreditCustomerAccountId) : ""} onValueChange={(v) => handleChange("CreditCustomerAccountId", v)} disabled={loadingAccounts || !selectedCustomerId}>
+            <SelectTrigger><SelectValue placeholder={loadingAccounts ? "Loading..." : !selectedCustomerId ? "Select a customer first" : "Select account"} /></SelectTrigger>
+            <SelectContent className="max-h-60 overflow-y-auto">
+              {accounts.map((a) => (
+                <SelectItem key={String(a.Id)} value={String(a.Id)}>{a.CustomerAccountTypeTargetProductDescription || a.FullAccountNumber || a.Id}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FieldGroup>
 
-      <div className="bg-gray-200 p-4 rounded-sm">
-        <div className="grid grid-cols-9 gap-4 bg-gray-700 text-gray-100 font-semibold p-3 rounded-lg mb-4">
-          <span className="col-span-2">Amount</span>
-          <span className="col-span-3">Customer Name</span>
-          <span className="col-span-3">Date</span>
-          <span className="col-span-1 text-right">{activeTab === "Authorized" ? "Actions" : ""}</span>
+        <FieldGroup label="Branch">
+          <Select value={form.BranchId ? String(form.BranchId) : ""} onValueChange={(v) => handleChange("BranchId", v)} disabled={loadingData}>
+            <SelectTrigger><SelectValue placeholder={loadingData ? "Loading..." : "Select Branch"} /></SelectTrigger>
+            <SelectContent className="max-h-60 overflow-y-auto">
+              {branches.map((b) => <SelectItem key={String(b.Id)} value={String(b.Id)}>{b.Description}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </FieldGroup>
+
+        <div className="grid grid-cols-2 gap-4">
+          <FieldGroup label="Amount">
+            <Input type="number" value={form.TotalValue} onChange={(e) => handleChange("TotalValue", e.target.value)} required placeholder="1000" />
+          </FieldGroup>
+          <FieldGroup label="Write Date">
+            <Input type="date" value={form.WriteDate} onChange={(e) => handleChange("WriteDate", e.target.value)} />
+          </FieldGroup>
+          <FieldGroup label="Drawer (Cheque Owner)">
+            <Input value={form.Drawer} onChange={(e) => handleChange("Drawer", e.target.value)} required placeholder="e.g. John Doe" />
+          </FieldGroup>
+          <FieldGroup label="Drawer Bank">
+            <Input value={form.DrawerBank} onChange={(e) => handleChange("DrawerBank", e.target.value)} required placeholder="e.g. KCB" />
+          </FieldGroup>
+          <FieldGroup label="Drawer Bank Branch">
+            <Input value={form.DrawerBankBranch} onChange={(e) => handleChange("DrawerBankBranch", e.target.value)} required placeholder="e.g. Moi Avenue" />
+          </FieldGroup>
+          <FieldGroup label="Cheque Type Id">
+            {/* No cheque-type lookup endpoint exists anywhere in this app
+                yet — plain GUID input until one is confirmed (see TODO.md). */}
+            <Input value={form.ChequeType} onChange={(e) => handleChange("ChequeType", e.target.value)} placeholder="Cheque type GUID" />
+          </FieldGroup>
         </div>
 
-        {loading ? (
-          <div className="space-y-2 animate-pulse">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="grid grid-cols-9 gap-2 bg-gray-50 p-6 rounded">
-                {Array.from({ length: 9 }).map((_, j) => (
-                  <div key={j} className="h-4 bg-gray-200 rounded"></div>
-                ))}
-              </div>
-            ))}
-          </div>
-        ) : filteredItems.length > 0 ? (
-          <div className="space-y-2">
-            {filteredItems.map((item) => (
-              <div key={item.Id} className="bg-white rounded-lg shadow-lg border">
-                <div className="grid grid-cols-9 gap-2 items-center py-4 px-6 hover:shadow-xl transition-all">
-                  <span className="col-span-2 font-medium text-indigo-700">{item.Amount?.toLocaleString() ?? "—"}</span>
-                  <span className="col-span-3 text-sm text-gray-700">{item.CustomerName || item.CustomerFullName || "—"}</span>
-                  <span className="col-span-3 text-xs text-gray-400">{item.CreatedDate ? new Date(item.CreatedDate).toLocaleDateString() : "—"}</span>
-                  <div className="col-span-1 flex justify-end">
-                    {activeTab === "Authorized" && (
-                      <Button size="sm" onClick={() => handlePost(item.Id)} className="bg-indigo-600 hover:bg-indigo-700 flex items-center gap-1">
-                        <FaPaperPlane /> Post
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-gray-500 text-center mt-4">
-            <img src={NotFoundImage} alt="Not Found" className="mx-auto w-42" />
-            <p className="font-medium text-gray-400">No {activeTab.toLowerCase()} cheque deposit requests found.</p>
-          </div>
-        )}
-      </div>
+        <FieldGroup label="Remarks">
+          <Input value={form.Remarks} onChange={(e) => handleChange("Remarks", e.target.value)} placeholder="Optional" />
+        </FieldGroup>
 
-      <AddChequeDepositDrawer open={addOpen} onClose={() => setAddOpen(false)} onSuccess={fetchItems} />
+        <Button type="submit" disabled={loading || loadingData} className="w-full bg-indigo-600 hover:bg-indigo-700">
+          {loading ? "Submitting..." : "Submit Cheque Deposit"}
+        </Button>
+      </form>
+
+      <ReceiptModal open={!!receiptJournal} onClose={() => setReceiptJournal(null)} journal={receiptJournal} title="Cheque Deposit Receipt" />
     </div>
   );
 }

@@ -67,7 +67,6 @@ function SkeletonRow() {
 }
 
 const emptyForm = {
-  EmployeeId: "",
   Amount: "",
   TotalDebits: "",
   TotalCredits: "",
@@ -94,8 +93,10 @@ function AddCashTransferDrawer({ open, onClose, onSuccess }) {
     e.preventDefault();
     setLoading(true);
     try {
+      // EmployeeId is overwritten server-side from the caller's JWT
+      // regardless of what's sent (TransfersController.Create) — not a
+      // client-supplied field.
       const payload = {
-        EmployeeId: form.EmployeeId,
         TotalDebits: Number(form.TotalDebits),
         TotalCredits: Number(form.TotalCredits),
         Amount: Number(form.Amount),
@@ -141,14 +142,6 @@ function AddCashTransferDrawer({ open, onClose, onSuccess }) {
               <Button variant="outline" size="sm" onClick={onClose}>Close</Button>
             </div>
             <form onSubmit={handleSubmit} className="p-4 space-y-4">
-              <FieldGroup label="Employee ID">
-                <Input
-                  value={form.EmployeeId}
-                  onChange={(e) => handleChange("EmployeeId", e.target.value)}
-                  placeholder="e.g. 50BDE4A6-1F50-..."
-                  required
-                />
-              </FieldGroup>
               <FieldGroup label="Amount">
                 <Input
                   type="number"
@@ -229,7 +222,10 @@ export default function CashTransfer() {
 
   const fetchTransfers = () => {
     setLoading(true);
-    apiFetch(`${BASE}/api/transfers/cash`)
+    // Was missing the /frontoffice segment — TransfersController.GetCashTransferRequests
+    // returns the array bare (no { success, message, data } envelope, unlike
+    // most of this API), so Array.isArray(d) below is already correct.
+    apiFetch(`${BASE}/api/frontoffice/transfers/cash`)
       .then((r) => r.json())
       .then((d) => setTransfers(Array.isArray(d) ? d : []))
       .catch(() => setTransfers([]))
@@ -248,7 +244,7 @@ export default function CashTransfer() {
     });
     if (!confirm.isConfirmed) return;
     try {
-      const res = await apiFetch(`${BASE}/api/transfers/cash/acknowledge?option=2`, {
+      const res = await apiFetch(`${BASE}/api/frontoffice/transfers/cash/acknowledge?option=2`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -265,12 +261,9 @@ export default function CashTransfer() {
       if (!res.ok) throw new Error("Acknowledgement failed");
       if (data.success === false) {
         Swal.fire("Error", data.message, "error");
-        console.log("response:", data.message);
       } else {
         Swal.fire("Acknowledged!", data.message, "success");
-        console.log("response:", data.message);
       }
-      // Swal.fire("Acknowledged!", "Transfer has been acknowledged.", "success");
       fetchTransfers();
     } catch (err) {
       Swal.fire("Error", err.message, "error");
@@ -287,7 +280,7 @@ export default function CashTransfer() {
     });
     if (!confirm.isConfirmed) return;
     try {
-      const res = await apiFetch(`${BASE}/api/transfers/cash/acknowledge?option=3`, {
+      const res = await apiFetch(`${BASE}/api/frontoffice/transfers/cash/acknowledge?option=3`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -300,7 +293,6 @@ export default function CashTransfer() {
           TransactionType: item.TransactionType,
         }),
       });
-      console.log("Reject response:", res);
       if (!res.ok) throw new Error("Rejection failed");
       Swal.fire("Rejected!", "Transfer has been rejected.", "success");
       fetchTransfers();
@@ -319,7 +311,7 @@ export default function CashTransfer() {
     });
     if (!confirm.isConfirmed) return;
     try {
-      const res = await apiFetch(`${BASE}/api/transfers/cash/utilize?request=${id}`, {
+      const res = await apiFetch(`${BASE}/api/frontoffice/transfers/cash/utilize?request=${id}`, {
         method: "POST",
       });
       if (!res.ok) throw new Error("Utilization failed");

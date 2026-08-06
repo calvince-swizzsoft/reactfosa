@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import Swal from "sweetalert2";
 import NotFoundImage from "/assets/scopefinding.png";
 import { FaExchangeAlt } from "react-icons/fa";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, normalizeList } from "@/lib/api";
 
 const BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 
@@ -22,9 +22,13 @@ export default function ChequeTransfer() {
   const fetchCheques = () => {
     setLoading(true);
     setSelected([]);
-    apiFetch(`${BASE}/api/cheques`)
+    // ChequesController.Index (GET /api/frontoffice/cheques) is paged and
+    // enveloped ({ success, message, data: PageCollectionInfo }), not the
+    // bare array this used to assume — was also missing the /frontoffice
+    // segment entirely, so this call 404'd before.
+    apiFetch(`${BASE}/api/frontoffice/cheques?pageSize=1000`)
       .then((r) => r.json())
-      .then((d) => setCheques(Array.isArray(d) ? d : []))
+      .then((d) => setCheques(normalizeList(d)))
       .catch(() => setCheques([]))
       .finally(() => setLoading(false));
   };
@@ -80,14 +84,13 @@ export default function ChequeTransfer() {
           TellerDescription: c.TellerDescription,
         }));
 
-      const res = await apiFetch(`${BASE}/api/transfers/cheques`, {
+      const res = await apiFetch(`${BASE}/api/frontoffice/transfers/cheques`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
       const data = await res.json().catch(() => ({}));
 
-      console.log("Transfer response:", data);
       if (!res.ok) throw new Error(data.message || "Transfer failed");
 
       data.success === false
