@@ -7,6 +7,35 @@ payments, customer receipts, in-house cheques, automated clearing, fiscal
 counts — the 8 areas with no screen at all) is a separate, not-yet-started
 planning pass.
 
+Cash Deposit/Cash Withdrawal/Cheque Deposit/Payment Voucher were later
+unified into one screen, `SavingsReceiptsPayments.jsx`, replacing the 4
+separate pages this file originally documented — see
+`WebApplication1/Areas/FrontOffice/SAVINGS-RECEIPTS-PAYMENTS-FLOW.md` and
+`-FORM-LAYOUT.md`. `moduleRouteMap.js` code `25006` ("Savings
+Receipts/Payments", the one real nav entry for this whole cycle) now
+points at it.
+
+`CashManagement.jsx`'s destination-treasury picker was pointed at
+`api/frontoffice/treasurys`, which no longer exists — Treasury master data
+moved to `Areas/Accounts/Controllers/TreasurysController.cs`
+(`api/accounts/treasurys`, see `docs/api/treasury-api-spec.md` and
+`src/pages/Accounts/Treasuries/TODO.md`). Fixed here; the actual
+`POST /api/frontoffice/cashmanagement` cash-movement endpoint itself is
+unaffected — it's a different controller that resolves treasuries via the
+app service directly, not through this HTTP route.
+
+**`CashTransfer.jsx`/`ChequeTransfer.jsx` likely need the same unification
+treatment eventually.** Confirmed against `NavigationMenu.cs`: there is no
+separate module code for Cash Transfer vs. Cheque Transfer — the one real
+nav entry, `25009` ("Cheques/Cash Transfer", `ControllerName: Transfers`),
+covers both, exactly the situation Savings Receipts/Payments (`25006`) was
+in before it got merged into `SavingsReceiptsPayments.jsx`. For now `25009`
+is pointed at `CashTransfer.jsx` (arbitrary pick between the two, per user
+decision) — `ChequeTransfer.jsx` stays reachable only through the
+`FOSA/Transactions` launcher hub, not the real dynamic sidebar nav. Revisit
+as a merge into one screen if/when this becomes a priority, same pattern
+as the Savings Receipts/Payments precedent.
+
 Not done / known gaps:
 - **`UnpayReasons.jsx` (`/api/unpay`) — left untouched.** This endpoint
   isn't documented anywhere in `frontoffice-api-spec.md`. Could be a
@@ -19,18 +48,22 @@ Not done / known gaps:
   anywhere. No confirmed recovery use case surfaced during this pass (it
   looked like a manual-fix escape hatch for a request stuck between
   Authorized and Posted); add a client if/when one turns up.
-- **Cheque Deposit and Payment Voucher have no queue UI** — by design, not
-  an oversight. `ChequeDeposit.jsx` always posts directly server-side (no
-  pending/authorized request type exists for it). An above-limit
-  `PaymentVoucher.jsx` submission is stored as a plain `CashWithdrawalRequest`
-  server-side (`TransactionType` hardcoded back to plain `CashWithdrawal`),
-  so it surfaces in the ordinary Cash Withdrawal queue's Authorized tab —
-  there's no server-side way to filter "just the voucher-flavored" rows out
-  of that list. `PaymentVoucher.jsx` links users there directly instead of
-  faking a queue it can't actually query.
-- **`ChequeDeposit.jsx`'s `ChequeType` field is a raw GUID text input** — no
-  lookup/reference endpoint for cheque types exists in the spec. Swap for a
-  real picker once one is exposed.
+- **Cheque Deposit rows never appear in `SavingsReceiptsPayments.jsx`'s
+  queue** — by design, not an oversight. A cheque deposit always posts
+  directly server-side (no pending/authorized request type exists for it).
+  A queued Payment Voucher submission, by contrast, IS a plain
+  `CashWithdrawalRequest` server-side (`TransactionType` hardcoded back to
+  plain `CashWithdrawal`, `Category = PaymentVoucher`) — it surfaces
+  automatically in the same merged queue as an ordinary withdrawal, tagged
+  with the "Voucher" badge (`CashWithdrawalCategory.PaymentVoucher` in
+  `frontOfficeEnums.js`).
+- **The Cheque Type field in `SavingsReceiptsPayments.jsx`'s Cheque Deposit
+  section is a raw GUID text input** — no lookup/reference endpoint for
+  cheque types exists in the spec. Swap for a real picker once one is
+  exposed.
+- **The Payment Voucher section has no cheque-book → voucher picker** —
+  `PaymentVoucher.Id` stays unset on submit (form-layout doc note 5); no
+  lookup endpoint exists yet for that cheque-book/voucher relationship.
 - **Backend bug found while building `EndOfDay.jsx` — a genuinely Balanced
   day can't succeed.** `EndOfDayController.Create` only sets its internal
   `postExcessOrShortage` flag inside the `Shortage`/`Excess` switch cases;
@@ -51,3 +84,75 @@ Not done / known gaps:
   ever renamed server-side, this breaks silently (falls back to a
   zero/blank Book Balance) — grep for `"EmployeeId"` in
   `JwtTokenService.cs` if this stops working.
+
+## Teller/Treasury master data — re-verified against a later
+`frontoffice-api-spec.md` update (§6/§7) and the real controller source
+
+- **`TellerController`/`TreasurysController` responses are now enveloped**
+  (`{ success, message, data }`) — they used to return bare DTOs/arrays.
+  `Teller.jsx`'s list already worked either way (`normalizeList` handles
+  both shapes), but `EndOfDay.jsx`'s single-teller lookup
+  (`GET tellers/teller?employeeId=`) did not — it was reading `teller`
+  straight off the unenveloped response, so `BookBalance`/`Description`
+  silently came back `undefined` on every EOD close (fixed: unwrap
+  `d?.data ?? d`). **This was a real production bug**, not a hypothetical
+  one — it made every End of Day submission compute Book Balance as 0 and
+  misclassify the closing status.
+- **`GET /` on both controllers is now genuinely paged**
+  (`pageIndex`/`pageSize`, `TellerController` also takes `tellerType`/
+  `text`) — previously `TellerController.Index` took no params at all and
+  returned everything unpaged. `Teller.jsx` and `Treasuries/index.jsx` now
+  have real Prev/Next pagination instead of silently capping at the
+  server's default 20 rows. `CashManagement.jsx`'s teller/treasury
+  *picker* dropdowns request `pageSize=1000` instead — they need the full
+  list, not a paginated view.
+- **Neither controller has a `DELETE` route at all** — confirmed against
+  the real controller source (only `GET`/`GET {id}`/`POST`/`PUT` exist on
+  each). The old `Teller.jsx`/`Treasuries/index.jsx` delete buttons called
+  `DELETE /api/frontoffice/tellers/{id}` /
+  `.../treasurys/{id}`, which would always fail — removed rather than left
+  as a guess, since this was verified, not assumed.
+- **`PUT /{id}` on both controllers takes the route `id` as authoritative**
+  — it's assigned onto the body DTO server-side before validation, so a
+  stale/mismatched `Id` in the request body is silently overwritten. No
+  teller edit UI exists yet (`Treasuries/index.jsx`'s `EditTreasuryDrawer`
+  already relies on this correctly); worth remembering if a teller-edit
+  screen gets built later.
+
+## Denomination capture — backend now enforces reconciliation
+(`WebApplication1/Areas/FrontOffice/DENOMINATION-CAPTURE-FRONTEND-GUIDE.md`)
+
+`CashManagementController`, `EndOfDayController`, and `TransfersController`
+(cash transfer requests) now all **require** the 11 `Denomination*Value`
+fields to sum exactly to the transaction total, `400`ing otherwise —
+`CashTransferRequestDTO` didn't carry these fields at all when
+`EndOfDay.jsx`/`CashTransfer.jsx` were first built (confirmed by reading the
+DTO source directly at the time); a later backend change added them and
+made them mandatory.
+
+- **Each field is a monetary subtotal, not a note/coin count** — the server
+  sums the 11 fields directly against the total, it does not multiply by
+  face value. `DenominationCountFields.jsx`'s own `counts` state is still
+  piece-counts (natural teller UX: "3 of the 1000s..."); the new
+  `toDenominationSubtotals()` export converts to the pre-multiplied wire
+  shape. **Never spread `counts` directly into a request body** — that was
+  a real, shipped bug in `CashManagement.jsx` (sending raw piece counts as
+  if they were already subtotals) until this pass fixed it; it would have
+  under-counted every submission by roughly the average face value and
+  either 400'd or silently posted the wrong figures depending on exact
+  values entered.
+- **`CashManagement.jsx`/`EndOfDay.jsx` derive their total directly from
+  `sumDenominations(counts)`** (`TotalValue`/`ClosingBalance` respectively)
+  — reconciliation is guaranteed by construction, the two numbers can never
+  actually disagree.
+- **`CashTransfer.jsx`'s create drawer used to have a free-typed `Amount`
+  input with no denomination entry at all.** Replaced the input with a
+  `DenominationCountFields` block and derive `Amount` from its sum, same
+  pattern as the other two screens — deliberately not a separately-entered
+  `Amount` with a live "diff vs. count" check (the guide's more generic
+  recommendation for a case where the total is independently constrained),
+  since nothing here actually fixes `Amount` independently of the count.
+- **Standalone fiscal count screen (`POST /api/frontoffice/fiscalcounts`)
+  is also affected** but is Phase 2 scope (no screen exists yet) — apply
+  the same `toDenominationSubtotals()` pattern reconciling against
+  `TotalValue` when that screen gets built.

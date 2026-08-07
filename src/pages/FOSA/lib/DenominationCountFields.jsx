@@ -3,16 +3,23 @@ import { Label } from "@/components/ui/label";
 
 // Denomination breakdown fields, matching FiscalCountDTO
 // (Application.MainBoundedContext.DTO/FrontOfficeModule/FiscalCountDTO.cs)
-// exactly — including its "Fourty" spelling, which is the real property
-// name, not a typo to fix here. Each field is a *count* of notes/coins at
-// that denomination (WORKFLOW.md §6: "note+coin counts"), not a money
-// value — DTO field names just happen to end in "...Value".
+// and — per a later backend change — CashTransferRequestDTO too (used by
+// both End of Day close and cash transfer requests). Field names include
+// "Fourty", which is the real property name, not a typo to fix here.
 //
-// FiscalCountDTO itself carries these fields (used by Treasury cash
-// movement, §1C). CashTransferRequestDTO (End of Day, §1F) has no
-// per-denomination slots at all — EOD only wants the summed total in
-// ClosingBalance, so EndOfDay.jsx uses sumDenominations() below but
-// discards the per-field object rather than submitting it.
+// DENOMINATION-CAPTURE-FRONTEND-GUIDE.md: despite the "...Value" suffix,
+// each field is a MONETARY SUBTOTAL, not a note/coin count — the server
+// sums these 11 fields directly against the transaction total and 400s if
+// they don't reconcile; it does not multiply by face value itself. This
+// component's own `counts` state is still piece-counts (the natural way
+// for a teller to enter "3 of the 1000s...") — use `toDenominationSubtotals`
+// below to convert to the pre-multiplied shape the API actually expects
+// before submitting. Never spread `counts` directly into a request body.
+//
+// Cash movement, EOD, and standalone fiscal count endpoints now all
+// require this breakdown to reconcile exactly against their own total
+// field (TotalValue/ClosingBalance/Amount respectively — see the guide's
+// per-screen table); a mismatch is a hard 400, not a warning.
 export const DENOMINATIONS = [
   { key: "DenominationOneThousandValue", amount: 1000, label: "1000" },
   { key: "DenominationFiveHundredValue", amount: 500, label: "500" },
@@ -31,6 +38,12 @@ export const emptyDenominationCounts = Object.fromEntries(DENOMINATIONS.map((d) 
 
 export const sumDenominations = (counts) =>
   DENOMINATIONS.reduce((total, d) => total + (Number(counts[d.key]) || 0) * d.amount, 0);
+
+// Converts piece-counts (this component's UI state) into the pre-multiplied
+// monetary subtotals the API actually expects on the wire — e.g. 3 counted
+// 1000-notes becomes { DenominationOneThousandValue: 3000 }, not 3.
+export const toDenominationSubtotals = (counts) =>
+  Object.fromEntries(DENOMINATIONS.map((d) => [d.key, (Number(counts[d.key]) || 0) * d.amount]));
 
 export default function DenominationCountFields({ counts, onChange }) {
   const total = sumDenominations(counts);

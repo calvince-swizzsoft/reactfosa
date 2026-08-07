@@ -9,6 +9,7 @@ import { getEmployeeIdFromToken } from "@/lib/auth";
 import DenominationCountFields, {
   emptyDenominationCounts,
   sumDenominations,
+  toDenominationSubtotals,
 } from "../lib/DenominationCountFields";
 import { TellerCashBalanceStatus } from "../lib/frontOfficeEnums";
 import ReceiptModal from "../lib/ReceiptModal";
@@ -22,10 +23,15 @@ const BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 //   controller's RoutePrefix) — not /api/endofday.
 // - TellerId/EmployeeId in the body are always overwritten from the
 //   caller's JWT ("EmployeeId" claim) — no Employee/teller picker needed.
-// - The body is a CashTransferRequestDTO, which has NO per-denomination
-//   fields — only the summed ClosingBalance. DenominationCountFields is
-//   still used here for UX (counting notes is how a teller actually
-//   balances a till), but only its sum is submitted.
+// - The body is a CashTransferRequestDTO. It originally had no
+//   per-denomination fields (only the summed ClosingBalance was needed) —
+//   a later backend change added the same 11 Denomination*Value fields
+//   FiscalCountDTO carries, and now REQUIRES them to reconcile exactly
+//   against ClosingBalance (DENOMINATION-CAPTURE-FRONTEND-GUIDE.md), 400ing
+//   otherwise. Since ClosingBalance here is always computed as
+//   sumDenominations(counts), the two can never actually mismatch — see
+//   toDenominationSubtotals() for the piece-count → wire-subtotal
+//   conversion (each field is a monetary subtotal, not a note count).
 // - CashTransferRequestDTO.Amount has a "greater than zero" regex
 //   validator that runs (via cashTransferRequestDTO.HasErrors) BEFORE any
 //   server-side field resolution — the controller itself never reads
@@ -77,7 +83,12 @@ export default function EndOfDay() {
     }
     apiFetch(`${BASE}/api/frontoffice/tellers/teller?employeeId=${employeeId}`)
       .then((r) => r.json())
-      .then((d) => setTeller(d))
+      // TellerController now wraps every response in the standard
+      // { success, message, data } envelope (it used to return the bare
+      // TellerDTO) — without unwrapping, teller.BookBalance/.Description
+      // silently come back undefined, which made every EOD close compute
+      // BookBalance as 0 and misclassify a balanced day as "Excess".
+      .then((d) => setTeller(d?.data ?? d))
       .catch(() => setTeller(null))
       .finally(() => setLoadingTeller(false));
   }, []);
@@ -113,6 +124,10 @@ export default function EndOfDay() {
         Amount: closingBalance > 0 ? closingBalance : bookBalance > 0 ? bookBalance : 0.01,
         Reference: reference,
         Remarks: remarks,
+        // Now required to reconcile exactly against ClosingBalance
+        // (DENOMINATION-CAPTURE-FRONTEND-GUIDE.md) — guaranteed here since
+        // ClosingBalance is itself sumDenominations(counts).
+        ...toDenominationSubtotals(counts),
       };
 
       const res = await apiFetch(`${BASE}/api/frontoffice/endofday`, {

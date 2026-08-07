@@ -21,10 +21,11 @@ const MODULES = [
     label: "Teller",
     icon: FaUserTie,
     items: [
-      { id: "cashdeposit", label: "Cash Deposit", subtitle: "Customer transaction", route: "/FrontOffice/CashDeposit" },
-      { id: "cashwithdrawal", label: "Cash Withdrawal", subtitle: "Withdrawal requests", route: "/FrontOffice/CashWithdrawal" },
-      { id: "chequedeposit", label: "Cheque Deposit", subtitle: "General transaction", route: "/FrontOffice/ChequeDeposit" },
-      { id: "paymentvoucher", label: "Payment Voucher", subtitle: "General transaction", route: "/FrontOffice/PaymentVoucher" },
+      // Deposit/withdrawal/cheque deposit/payment voucher are one real nav
+      // item server-side ("Savings Receipts/Payments" — NavigationMenu.cs),
+      // not four separate ones; the 4-tile split here was a Phase-1
+      // frontend-only invention, now collapsed to match.
+      { id: "savingsreceiptspayments", label: "Savings Receipts/Payments", subtitle: "Deposits, withdrawals, cheques, vouchers", route: "/FrontOffice/SavingsReceiptsPayments" },
       { id: "endofday", label: "End-Of-Day", subtitle: "Daily closing", route: "/FrontOffice/EndOfDay" },
     ],
   },

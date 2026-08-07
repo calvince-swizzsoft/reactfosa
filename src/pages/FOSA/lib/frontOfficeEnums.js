@@ -39,3 +39,16 @@ export const TellerCashBalanceStatus = {
   Shortage: 0x5001,
   Excess: 0x5002,
 };
+
+// [Flags] on CashWithdrawalRequestDTO.Category — tells apart *why* a
+// withdrawal request was queued. PaymentVoucher is how a voucher-settled
+// withdrawal shows up in the merged Savings Receipts/Payments queue (it's
+// stored as a plain CashWithdrawalRequest, not its own request type — see
+// SAVINGS-RECEIPTS-PAYMENTS-FORM-LAYOUT.md).
+export const CashWithdrawalCategory = {
+  WithinLimits: 1,
+  AboveMaximumAllowed: 2,
+  BelowMinimumBalance: 4,
+  Overdraw: 8,
+  PaymentVoucher: 16,
+};

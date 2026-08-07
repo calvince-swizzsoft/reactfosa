@@ -9,7 +9,7 @@ import Swal from "sweetalert2";
 import { FaExchangeAlt } from "react-icons/fa";
 import { apiFetch, normalizeList } from "@/lib/api";
 import { TreasuryTransactionType } from "../lib/frontOfficeEnums";
-import DenominationCountFields, { emptyDenominationCounts, sumDenominations } from "../lib/DenominationCountFields";
+import DenominationCountFields, { emptyDenominationCounts, sumDenominations, toDenominationSubtotals } from "../lib/DenominationCountFields";
 
 const FIN_BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 const CASH_MANAGEMENT_BASE = `${FIN_BASE}/api/frontoffice/cashmanagement`;
@@ -64,8 +64,15 @@ export default function CashManagement() {
     setLoadingData(true);
     Promise.all([
       apiFetch(`${FIN_BASE}/api/administration/branches`).then((r) => r.json()),
-      apiFetch(`${FIN_BASE}/api/frontoffice/tellers`).then((r) => r.json()),
-      apiFetch(`${FIN_BASE}/api/frontoffice/treasurys`).then((r) => r.json()),
+      // TellerController/TreasurysController.Index are both genuinely
+      // paged now (default pageSize 20) — these are picker dropdowns, not
+      // paginated lists, so ask for a page big enough to not silently drop
+      // options past the 20th teller/treasury.
+      apiFetch(`${FIN_BASE}/api/frontoffice/tellers?pageSize=1000`).then((r) => r.json()),
+      // Treasury master data moved to Areas/Accounts
+      // (docs/api/treasury-api-spec.md) — api/frontoffice/treasurys no
+      // longer resolves at all, that controller was removed/merged.
+      apiFetch(`${FIN_BASE}/api/accounts/treasurys?pageSize=1000`).then((r) => r.json()),
       // Reusing the same bank+linkage picker as BankLinkages.jsx/BankCheques.jsx
       // — CashManagementController matches the selected bank against a
       // BankLinkage by BankName server-side, so this is the right source
@@ -120,7 +127,10 @@ export default function CashManagement() {
           ? bankId
           : undefined,
       DestinationBranchId: transactionType === TreasuryTransactionType.TreasuryToTreasury ? destinationTreasury?.BranchId : undefined,
-      ...counts,
+      // Server reconciles these 11 fields as a plain sum against TotalValue
+      // (DENOMINATION-CAPTURE-FRONTEND-GUIDE.md) — each must be the
+      // pre-multiplied subtotal, not the raw piece count `counts` holds.
+      ...toDenominationSubtotals(counts),
     };
 
     setLoading(true);

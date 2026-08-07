@@ -11,6 +11,10 @@ import Swal from "sweetalert2";
 import { apiFetch, normalizeList } from "@/lib/api";
 
 const BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
+// Treasury master data moved to Areas/Accounts (docs/api/treasury-api-spec.md)
+// — the old Areas/FrontOffice TreasurysController it used to hit was
+// removed/merged into this one; api/frontoffice/treasurys no longer resolves.
+const TREASURIES_BASE = `${BASE}/api/accounts/treasurys`;
 
 const emptyForm = {
   Description: "",
@@ -55,12 +59,18 @@ export default function CreateTreasury() {
     e.preventDefault();
     setLoading(true);
     try {
+      // BranchDescription isn't persisted (server populates it on read from
+      // BranchId), but the one-treasury-per-branch 409 message interpolates
+      // whatever BranchDescription the client sent, before any server-side
+      // branch lookup — send it purely so that error reads correctly.
+      const selectedBranch = branches.find((b) => b.Id === form.BranchId);
       const payload = {
         ...form,
+        BranchDescription: selectedBranch?.Description || "",
         RangeLowerLimit: Number(form.RangeLowerLimit),
         RangeUpperLimit: Number(form.RangeUpperLimit),
       };
-      const res = await apiFetch(`${BASE}/api/frontoffice/treasurys`, {
+      const res = await apiFetch(`${TREASURIES_BASE}`, {
         method: "POST",
         body: JSON.stringify(payload),
       });

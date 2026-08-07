@@ -4,9 +4,12 @@ import { apiFetch, normalizeList } from "@/lib/api";
 // (Areas/FrontOffice/Controllers/CashDepositController.cs), base
 // api/frontoffice/requests — handles all 4 FrontOfficeTransactionType
 // values (CashDeposit/CashWithdrawal/ChequeDeposit/CashWithdrawalPaymentVoucher)
-// through one unified Create action.
+// through one unified Create action. This is the "Savings Receipts/Payments"
+// screen — the app's real nav tree only ever had one menu item for this
+// whole cycle (NavigationMenu.cs, ControllerName: CashDeposit), not four.
 //
-// Read directly from the real controller (docs/api/frontoffice-api-spec.md
+// Read directly from the real controller and
+// SAVINGS-RECEIPTS-PAYMENTS-FLOW.md / -FORM-LAYOUT.md (docs/api spec
 // undersold a few load-bearing details):
 // - Create() ALWAYS reads the selected account off `creditCustomerAccountId`
 //   first, regardless of transaction type — even for a withdrawal, this is
@@ -14,14 +17,19 @@ import { apiFetch, normalizeList } from "@/lib/api";
 // - Create()'s response on the "requires authorization" path nests the
 //   dialog payload under `data` (dialog/cashTransactionRequestId/
 //   transactionCategory/...), not top-level.
-// - GET / only ever returns real rows for type=1 (CashWithdrawal) or type=2
-//   (CashDeposit) — any other type value comes back an empty page. Cheque
-//   deposits and payment vouchers don't have their own list/type here;
-//   cheque deposits never create a pending request at all (always post
-//   directly), and an above-limit payment voucher is stored as an ordinary
-//   CashWithdrawalRequest (TransactionType hardcoded back to plain
-//   CashWithdrawal server-side) — there is no reliable way to filter "just
-//   the voucher-flavored withdrawal requests" out of that list.
+// - GET / with `type` omitted now returns the deposit+withdrawal queues
+//   MERGED into one page, sorted by CreatedDate descending, paged as a
+//   combined set (fixed server-side — used to come back empty). Each row
+//   keeps its own native DTO shape (CashDepositRequestDTO or
+//   CashWithdrawalRequestDTO) — inspect TransactionType (1/2) client-side
+//   to tell them apart or filter to one type, no second call needed.
+//   `type=1`/`type=2` still scope to a single source, same as before.
+//   `type=3`/`type=4` (ChequeDeposit/PaymentVoucher) always come back
+//   empty — cheque deposits never create a pending request at all (always
+//   post directly), and an above-limit payment voucher is stored as an
+//   ordinary CashWithdrawalRequest (TransactionType hardcoded back to
+//   plain CashWithdrawal, Category = PaymentVoucher) — it already surfaces
+//   inside type=1/merged results, filter on Category instead.
 // - PostCashDepositRequest (`POST /post?id=`) only ever looks up a
 //   CashDepositRequest or a CashWithdrawalRequest by that id — never a
 //   cheque-deposit or payment-voucher-specific request row (because
@@ -46,14 +54,16 @@ async function unwrap(responsePromise) {
 }
 
 /**
- * GET / — paged request queue. `type` is required to get real rows
- * (1 = CashWithdrawal, 2 = CashDeposit only — see module note above).
- * `status` should be passed explicitly per tab (server defaults to
- * Pending if omitted, which silently hides every other tab's rows).
- * Returns PageCollectionInfo<CashDepositRequestDTO | CashWithdrawalRequestDTO>.
+ * GET / — paged request queue. `type` is optional — omit it for the merged
+ * deposit+withdrawal queue (see module note above), or pass 1/2 to scope to
+ * a single source. `status` should be passed explicitly per tab (server
+ * defaults to Pending if omitted, which silently hides every other tab's
+ * rows). Returns PageCollectionInfo<CashDepositRequestDTO |
+ * CashWithdrawalRequestDTO | object> (mixed shape when `type` is omitted).
  */
 export async function listRequests({ type, status, text = "", startDate, endDate, pageIndex = 0, pageSize = 20 }) {
-  const params = new URLSearchParams({ type: String(type), pageIndex: String(pageIndex), pageSize: String(pageSize), text });
+  const params = new URLSearchParams({ pageIndex: String(pageIndex), pageSize: String(pageSize), text });
+  if (type !== undefined && type !== null) params.set("type", String(type));
   if (status !== undefined && status !== null) params.set("status", String(status));
   if (startDate) params.set("startDate", startDate);
   if (endDate) params.set("endDate", endDate);
