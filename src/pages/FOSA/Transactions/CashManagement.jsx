@@ -73,11 +73,15 @@ export default function CashManagement() {
       // (docs/api/treasury-api-spec.md) — api/frontoffice/treasurys no
       // longer resolves at all, that controller was removed/merged.
       apiFetch(`${FIN_BASE}/api/accounts/treasurys?pageSize=1000`).then((r) => r.json()),
-      // Reusing the same bank+linkage picker as BankLinkages.jsx/BankCheques.jsx
-      // — CashManagementController matches the selected bank against a
-      // BankLinkage by BankName server-side, so this is the right source
-      // list even though the id submitted is the raw Bank's id, not the
-      // linkage's. Unconfirmed field name for that raw Bank id — see TODO.md.
+      // ValuesController.getBankWithLinkages — the right source for this
+      // picker since it's the only endpoint that enriches BankLinkageDTO
+      // rows with live balance/display fields (bank-linkage-api-spec.md
+      // §4: bankLinkageBalance/address/city/etc. aren't populated by the
+      // plain api/accounts/banklinkages CRUD controller). Confirmed
+      // directly against the controller source: each row is a
+      // BankLinkageDTO with a real, distinct `BankId` field — that's what
+      // gets submitted below, NOT the row's own `Id` (the linkage's own
+      // id) — see the picker's key/value binding.
       apiFetch(`${FIN_BASE}/api/values/getBankWithLinkages`).then((r) => r.json()),
     ]).then(([branchData, tellerData, treasuryData, bankData]) => {
       setBranches(normalizeList(branchData));
@@ -207,7 +211,11 @@ export default function CashManagement() {
               <Select value={bankId ? String(bankId) : ""} onValueChange={setBankId} disabled={loadingData}>
                 <SelectTrigger><SelectValue placeholder={loadingData ? "Loading..." : "Select Bank"} /></SelectTrigger>
                 <SelectContent className="max-h-60 overflow-y-auto">
-                  {banks.map((b) => <SelectItem key={String(b.Id)} value={String(b.Id)}>{b.Description || b.BankName}</SelectItem>)}
+                  {/* CashManagementController.Create resolves the raw Bank
+                      by fiscalCountDTO.Id, so this must submit the
+                      linkage's BankId (the real FK), not the linkage
+                      row's own Id. */}
+                  {banks.map((b) => <SelectItem key={String(b.BankId)} value={String(b.BankId)}>{b.BankName || b.Description}</SelectItem>)}
                 </SelectContent>
               </Select>
             </FieldGroup>

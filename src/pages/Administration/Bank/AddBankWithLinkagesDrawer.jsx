@@ -10,7 +10,7 @@ import Swal from "sweetalert2";
 
 export default function AddBankWithLinkagesDrawer({ open, onClose, onSuccess }) {
   const [formData, setFormData] = useState({
-    Description: "",
+    Code: "",
     BankName: "",
     Address: "",
     City: "",
@@ -35,6 +35,7 @@ export default function AddBankWithLinkagesDrawer({ open, onClose, onSuccess }) 
 
   const [linkageForm, setLinkageForm] = useState({
     BankAccountNumber: "",
+    BankBranchName: "",
     BranchId: "",
     ChartOfAccountId: "",
     Remarks: "",
@@ -53,8 +54,6 @@ export default function AddBankWithLinkagesDrawer({ open, onClose, onSuccess }) 
           `${import.meta.env.VITE_APP_FIN_URL}/api/values/GetChartOfAccount`
         );
         const data = await res.json();
-
-        console.log(data)
         if (data.Success) setChartOfAccounts(data.Data);
       } catch (err) {
         console.error("Error fetching chart of accounts:", err);
@@ -70,7 +69,6 @@ export default function AddBankWithLinkagesDrawer({ open, onClose, onSuccess }) 
           `${import.meta.env.VITE_APP_FIN_URL}/api/values/branches`
         );
         const data = await res.json();
-        console.log(data);
         if (data.Success) setBranches(data.Data);
       } catch (err) {
         console.error("Error fetching branches:", err);
@@ -117,30 +115,44 @@ export default function AddBankWithLinkagesDrawer({ open, onClose, onSuccess }) 
     setLoading(true);
 
     const createdDate = new Date().toISOString();
+    // ValuesController.AddBankWithLinkages takes { Bank, BankLinkage } now
+    // (used to be one flat overloaded object) — read directly off the real
+    // controller source (AddBankWithLinkagesRequest class), not just the
+    // spec doc. Bank.Code is NOT server-assigned (bank-api-spec.md §4.5) —
+    // must be an explicit unique number. BankLinkage.BankId is set
+    // server-side from the newly-created bank's id, not sent here.
+    const selectedBranch = branches.find((b) => b.Id === linkageForm.BranchId);
     const payload = {
-      CreatedDate: createdDate,
-      BankName: formData.BankName,
-      Description: formData.BankName,
-      Address: formData.Address,
-      City: formData.City,
-      SwiftCode: formData.SwiftCode,
-      IbanNo: formData.IbanNo,
-      BankBranchesDTO: formData.Branches.map((b, idx) => ({
-        ...b,
-        Code: 0, // auto-generated on server
-        PaddedCode: "",
-        BankCode: 0,
-        BankDescription: formData.Description,
-        CreatedDate: createdDate,
-      })),
-      BankBranchName: "Westlands Branch",
-      BankAccountNumber: linkageForm.BankAccountNumber,
-      Remarks: linkageForm.Remarks,
-      IsLocked: linkageForm.IsLocked,
-      BranchId: linkageForm.BranchId,
-      ChartOfAccountId: linkageForm.ChartOfAccountId,
-      ChartOfAccountAccountType: 1000,
-      ChartOfAccountCostCenterId: linkageForm.ChartOfAccountCostCenterId,
+      Bank: {
+        Code: Number(formData.Code) || 0,
+        Description: formData.BankName,
+        Address: formData.Address,
+        City: formData.City,
+        SwiftCode: formData.SwiftCode,
+        IbanNo: formData.IbanNo,
+        BankBranchesDTO: formData.Branches.map((b) => ({
+          ...b,
+          Code: 0, // auto-generated on server
+          PaddedCode: "",
+          BankCode: 0,
+          BankDescription: formData.BankName,
+          CreatedDate: createdDate,
+        })),
+      },
+      BankLinkage: {
+        BankAccountNumber: linkageForm.BankAccountNumber,
+        // BankLinkageDTO.bankName/bankBranchName are [Required] display
+        // copies the caller sets directly — not re-derived from the FKs.
+        BankName: formData.BankName,
+        BankBranchName: linkageForm.BankBranchName,
+        BranchId: linkageForm.BranchId,
+        BranchDescription: selectedBranch?.Description || "",
+        Remarks: linkageForm.Remarks,
+        IsLocked: linkageForm.IsLocked,
+        ChartOfAccountId: linkageForm.ChartOfAccountId,
+        ChartOfAccountAccountType: 1000,
+        ChartOfAccountCostCenterId: linkageForm.ChartOfAccountCostCenterId || null,
+      },
     };
 
     try {
@@ -152,8 +164,9 @@ export default function AddBankWithLinkagesDrawer({ open, onClose, onSuccess }) 
           body: JSON.stringify(payload),
         }
       );
+      const data = await res.json().catch(() => ({}));
 
-      if (!res.ok) throw new Error("Failed to add bank linkage");
+      if (!res.ok || data.Success === false) throw new Error(data.Message || "Failed to add bank linkage");
 
       Swal.fire({
         icon: "success",
@@ -163,7 +176,7 @@ export default function AddBankWithLinkagesDrawer({ open, onClose, onSuccess }) 
       });
 
       setFormData({
-        Description: "",
+        Code: "",
         BankName: "",
         Address: "",
         City: "",
@@ -187,6 +200,7 @@ export default function AddBankWithLinkagesDrawer({ open, onClose, onSuccess }) 
       });
       setLinkageForm({
         BankAccountNumber: "",
+        BankBranchName: "",
         BranchId: "",
         ChartOfAccountId: "",
         Remarks: "",
@@ -249,6 +263,17 @@ export default function AddBankWithLinkagesDrawer({ open, onClose, onSuccess }) 
                       value={formData.BankName}
                       onChange={(e) =>
                         setFormData({ ...formData, BankName: e.target.value })
+                      }
+                      required
+                    />
+                    {/* Not server-assigned (bank-api-spec.md §4.5) — caller
+                        must pick a unique numeric code. */}
+                    <Input
+                      type="number"
+                      placeholder="Bank Code (unique number)"
+                      value={formData.Code}
+                      onChange={(e) =>
+                        setFormData({ ...formData, Code: e.target.value })
                       }
                       required
                     />
@@ -401,6 +426,19 @@ export default function AddBankWithLinkagesDrawer({ open, onClose, onSuccess }) 
                           BankAccountNumber: e.target.value,
                         })
                       }
+                    />
+                    {/* Required (bank-linkage-api-spec.md §4) — the
+                        external bank's own branch, not one of ours. */}
+                    <Input
+                      placeholder="Bank's Branch Name"
+                      value={linkageForm.BankBranchName}
+                      onChange={(e) =>
+                        setLinkageForm({
+                          ...linkageForm,
+                          BankBranchName: e.target.value,
+                        })
+                      }
+                      required
                     />
 
                     {/* Branch Dropdown */}

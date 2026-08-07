@@ -15,8 +15,11 @@ export const moduleRouteMap = {
   // Administration > Setup > Branches (ControllerName: Branch)
   20004: "/Administration/Branches",
 
-  // Administration > Setup > Banks (ControllerName: Banks) 
-  20005: "/Administration/Banks", //w currently use BankLinkages but possibly we should implement Banks
+  // Administration > Setup > Banks (ControllerName: Banks) — now the real
+  // Administration/Banks screen (api/administration/banks,
+  // bank-api-spec.md), replacing the legacy combined BankLinkages.jsx
+  // that used to render here.
+  20005: "/Administration/Banks",
 
    // Administration > Setup > Banks (ControllerName: Banks)
   20006: "/Administration/Locations",
@@ -52,7 +55,10 @@ export const moduleRouteMap = {
   // Accounts > Setup > Tellers (ControllerName: Teller, AreaName: FrontOffice)
   23021: "/Accounts/Tellers",
   // Accounts > Setup > Bank Linkages (ControllerName: BankLinkage, matches BankLinkages.jsx)
-  23022: "/Finance/BanksSetup",
+  // Was dead-pointed at /Finance/BanksSetup (no matching route anywhere in
+  // App.jsx) — now the real Accounts/BankLinkages screen
+  // (api/accounts/banklinkages, bank-linkage-api-spec.md).
+  23022: "/Accounts/BankLinkages",
 
   // Accounts > Setup > G/L Accounts > Cost Centers (ControllerName:
   // CostCenter, AreaName: Accounts — NavigationMenu.cs:74, 0x000059D8+4)

@@ -121,7 +121,10 @@ import ApprovalRequests from "./pages/CommandHub/ApprovalRequests/index.jsx";
 import AdministrationUsers from "./pages/Administration/Users/index.jsx";
 import CreateUser from "./pages/Administration/Users/create.jsx";
 import AdministrationModules from "./pages/Administration/Modules/index.jsx";
-import BankLinkages from "./pages/Administration/Bank/BankLinkages.jsx";
+import AdministrationBanks from "./pages/Administration/Banks/index.jsx";
+import CreateBank from "./pages/Administration/Banks/create.jsx";
+import AccountsBankLinkages from "./pages/Accounts/BankLinkages/index.jsx";
+import CreateBankLinkage from "./pages/Accounts/BankLinkages/create.jsx";
 import AdministrationLocations from "./pages/Administration/Locations/index.jsx";
 import AuditLogs from "./pages/Administration/Audit Logs/index.jsx";
 
@@ -249,7 +252,8 @@ export default function App() {
           <Route path="Administration/Users" element={<AdministrationUsers />} />
           <Route path="Administration/Users/create" element={<CreateUser />} />
           <Route path="Administration/Modules" element={<AdministrationModules />} />
-  <Route path="Administration/Banks" element={<BankLinkages />} />
+          <Route path="Administration/Banks" element={<AdministrationBanks />} />
+          <Route path="Administration/Banks/create" element={<CreateBank />} />
           <Route path="Administration/Locations" element={<AdministrationLocations />} />
           <Route path="Administration/AuditLogs" element={<AuditLogs />} />
           <Route path="Administration/Workflow" element={<AdministrationWorkflows />} />
@@ -337,6 +341,8 @@ export default function App() {
           <Route path="Accounts/SavingsProducts/create" element={<CreateSavingsProduct />} />
           <Route path="Accounts/Treasuries" element={<Treasuries />} />
           <Route path="Accounts/Treasuries/create" element={<CreateTreasury />} />
+          <Route path="Accounts/BankLinkages" element={<AccountsBankLinkages />} />
+          <Route path="Accounts/BankLinkages/create" element={<CreateBankLinkage />} />
           <Route path="Accounts/CostCenters" element={<CostCenters />} />
           <Route path="Accounts/CostCenters/create" element={<CreateCostCenter />} />
           <Route path="Accounts/ChartOfAccounts" element={<AccountsChartOfAccounts />} />
