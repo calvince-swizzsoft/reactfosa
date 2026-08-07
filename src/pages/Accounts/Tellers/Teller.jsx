@@ -2,13 +2,10 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import AddTellerDrawer from "./AddTellerDrawer";
 import {
-  FaChevronDown, FaChevronUp, FaMoneyCheckAlt, FaEllipsisV, FaTrash,
+  FaChevronDown, FaChevronUp, FaMoneyCheckAlt, FaChevronLeft, FaChevronRight,
 } from "react-icons/fa";
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import Swal from "sweetalert2";
 import NotFoundImage from "/assets/scopefinding.png";
+import { apiFetch, normalizeList } from "@/lib/api";
 
 // const BASE = "https://rubani.ngrok.io";
 
@@ -19,39 +16,34 @@ export default function Tellers() {
   const [loading, setLoading] = useState(true);
   const [expandedTeller, setExpandedTeller] = useState(null);
   const [addDrawerOpen, setAddDrawerOpen] = useState(false);
+  const [pageIndex, setPageIndex] = useState(0);
+  const [pageSize] = useState(20);
+  const [itemsCount, setItemsCount] = useState(0);
 
   const fetchTellers = () => {
     setLoading(true);
-    fetch(`${BASE}/api/frontoffice/tellers`)
+    // TellerController.Index (GET /) is genuinely paged now
+    // (tellerType/text/pageIndex/pageSize), enveloped as
+    // { success, message, data: PageCollectionInfo<TellerDTO> } — confirmed
+    // against the real controller source, not assumed.
+    apiFetch(`${BASE}/api/frontoffice/tellers?pageIndex=${pageIndex}&pageSize=${pageSize}`)
       .then((res) => res.json())
-      .then((data) => setTellers(Array.isArray(data) ? data : []))
-      .catch(() => setTellers([]))
+      .then((body) => {
+        const page = body?.data ?? body;
+        setTellers(page?.pageCollection || page?.PageCollection || normalizeList(body));
+        setItemsCount(page?.itemsCount || page?.ItemsCount || 0);
+      })
+      .catch(() => { setTellers([]); setItemsCount(0); })
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { fetchTellers(); }, []);
+  useEffect(() => { fetchTellers(); }, [pageIndex]);
 
-  const handleDelete = (id) => {
-    Swal.fire({
-      title: "Delete Teller?",
-      text: "This action cannot be undone.",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#dc2626",
-      confirmButtonText: "Delete",
-    }).then(async (result) => {
-      if (result.isConfirmed) {
-        try {
-          const res = await fetch(`${BASE}/api/frontoffice/tellers/${id}`, { method: "DELETE" });
-          if (!res.ok) throw new Error("Failed to delete teller");
-          setTellers((prev) => prev.filter((t) => t.Id !== id));
-          Swal.fire("Deleted!", "Teller removed successfully.", "success");
-        } catch (err) {
-          Swal.fire("Error", err.message, "error");
-        }
-      }
-    });
-  };
+  const hasNextPage = itemsCount ? (pageIndex + 1) * pageSize < itemsCount : tellers.length === pageSize;
+
+  // No delete/remove action here — TellerController has no DELETE route at
+  // all (confirmed against the real controller source; the old code called
+  // one that always 404'd/405'd). Only GET/POST/PUT exist.
 
   return (
     <div className="bg-white m-8 px-8 py-8 shadow-2xl rounded-lg relative">
@@ -118,18 +110,6 @@ export default function Tellers() {
                     >
                       {expandedTeller === teller.Id ? <><FaChevronUp className="mr-1" /> Hide</> : <><FaChevronDown className="mr-1" /> Details</>}
                     </Button>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <FaEllipsisV className="text-gray-500" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem className="text-red-600" onClick={() => handleDelete(teller.Id)}>
-                          <FaTrash className="mr-2" /> Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
                   </div>
                 </div>
 
@@ -167,6 +147,28 @@ export default function Tellers() {
             <p className="font-medium text-gray-400">No Tellers Found.</p>
           </div>
         )}
+
+        <div className="flex justify-center items-center mt-4">
+          <Button
+            type="button"
+            size="sm"
+            disabled={pageIndex === 0}
+            onClick={() => setPageIndex((p) => Math.max(0, p - 1))}
+            className="flex items-center gap-1 m-2"
+          >
+            <FaChevronLeft /> Prev
+          </Button>
+          <span>Page {pageIndex + 1}</span>
+          <Button
+            type="button"
+            size="sm"
+            disabled={!hasNextPage}
+            onClick={() => setPageIndex((p) => p + 1)}
+            className="flex items-center gap-1 m-2"
+          >
+            Next <FaChevronRight />
+          </Button>
+        </div>
       </div>
 
       <AddTellerDrawer

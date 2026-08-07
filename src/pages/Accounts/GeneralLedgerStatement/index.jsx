@@ -92,8 +92,10 @@ export default function GeneralLedgerStatement() {
 
     call
       .then((page) => {
-        setLines(page?.pageCollection || []);
-        setItemsCount(page?.itemsCount || 0);
+        // Server returns PascalCase (PageCollection/ItemsCount) — see
+        // CustomerAccountStatement/index.jsx for the confirmed real shape.
+        setLines(page?.PageCollection || page?.pageCollection || []);
+        setItemsCount(page?.ItemsCount || page?.itemsCount || 0);
       })
       .catch((err) => {
         setLines([]);
@@ -241,7 +243,7 @@ export default function GeneralLedgerStatement() {
             ) : lines.length > 0 ? (
               <div className="bg-white rounded-lg shadow-lg border">
                 {lines.map((line) => (
-                  <StatementRow key={line.id} line={line} showGlAccount />
+                  <StatementRow key={line.Id} line={line} showGlAccount />
                 ))}
               </div>
             ) : (

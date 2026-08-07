@@ -9,13 +9,20 @@ import {
 } from "@/components/ui/select";
 import Swal from "sweetalert2";
 import NotFoundImage from "/assets/scopefinding.png";
-import { FaEllipsisV, FaTrash, FaEdit, FaPlus } from "react-icons/fa";
+import { FaEllipsisV, FaEdit, FaPlus, FaChevronLeft, FaChevronRight } from "react-icons/fa";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { apiFetch, normalizeList } from "@/lib/api";
 
 const BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
+// Treasury master data lives under Areas/Accounts now, not Areas/FrontOffice
+// — the old Areas/FrontOffice/Controllers/TreasurysController.cs was
+// removed/merged into this one (docs/api/treasury-api-spec.md §5: "the
+// reference app actually had two controllers managing this same entity...
+// this API exposes one endpoint for both"). api/frontoffice/treasurys no
+// longer resolves at all.
+const TREASURIES_BASE = `${BASE}/api/accounts/treasurys`;
 
 const emptyForm = {
   Description: "",
@@ -160,9 +167,8 @@ function EditTreasuryDrawer({ open, onClose, onSuccess, item }) {
         RangeLowerLimit: Number(form.RangeLowerLimit),
         RangeUpperLimit: Number(form.RangeUpperLimit),
       };
-      const res = await fetch(`${BASE}/api/frontoffice/treasurys/${item.Id}`, {
+      const res = await apiFetch(`${TREASURIES_BASE}/${item.Id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
       const data = await res.json().catch(() => ({}));
@@ -188,34 +194,37 @@ export default function Treasuries() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editItem, setEditItem] = useState(null);
+  const [pageIndex, setPageIndex] = useState(0);
+  const [pageSize] = useState(20);
+  const [itemsCount, setItemsCount] = useState(0);
 
   const fetchItems = () => {
     setLoading(true);
-    fetch(`${BASE}/api/frontoffice/treasurys`)
+    // TreasurysController.Index (GET /) is confirmed paged
+    // (text/pageIndex/pageSize), enveloped as
+    // { success, message, data: PageCollectionInfo<TreasuryDTO> } — read
+    // directly off the real controller source, no longer just defensive.
+    apiFetch(`${TREASURIES_BASE}?pageIndex=${pageIndex}&pageSize=${pageSize}`)
       .then((r) => r.json())
-      .then((d) => setItems(Array.isArray(d) ? d : []))
-      .catch(() => setItems([]))
+      .then((body) => {
+        const page = body?.data ?? body;
+        setItems(page?.pageCollection || page?.PageCollection || normalizeList(body));
+        setItemsCount(page?.itemsCount || page?.ItemsCount || 0);
+      })
+      .catch(() => { setItems([]); setItemsCount(0); })
       .finally(() => setLoading(false));
   };
 
   useEffect(() => {
     fetchItems();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pageIndex]);
 
-  const handleDelete = (id) => {
-    Swal.fire({ title: "Delete Treasury?", icon: "warning", showCancelButton: true, confirmButtonColor: "#dc2626", confirmButtonText: "Delete" }).then(async (r) => {
-      if (r.isConfirmed) {
-        try {
-          const res = await fetch(`${BASE}/api/frontoffice/treasurys/${id}`, { method: "DELETE" });
-          if (!res.ok) throw new Error("Failed to delete");
-          setItems((prev) => prev.filter((x) => x.Id !== id));
-          Swal.fire("Deleted!", "Treasury removed.", "success");
-        } catch (err) {
-          Swal.fire("Error", err.message, "error");
-        }
-      }
-    });
-  };
+  const hasNextPage = itemsCount ? (pageIndex + 1) * pageSize < itemsCount : items.length === pageSize;
+
+  // No delete action here — TreasurysController has no DELETE route at all
+  // (confirmed against the real controller source: only GET/GET{id}/POST/
+  // PUT exist). The old delete button always 404'd/405'd.
 
   return (
     <div>
@@ -263,9 +272,6 @@ export default function Treasuries() {
                     <DropdownMenuItem onClick={() => setEditItem(item)}>
                       <FaEdit className="mr-2 text-indigo-600" /> Edit
                     </DropdownMenuItem>
-                    <DropdownMenuItem className="text-red-600" onClick={() => handleDelete(item.Id)}>
-                      <FaTrash className="mr-2" /> Delete
-                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
@@ -278,6 +284,28 @@ export default function Treasuries() {
           <p className="text-gray-400 mt-2">No treasuries found.</p>
         </div>
       )}
+
+      <div className="flex justify-center items-center mt-4">
+        <Button
+          type="button"
+          size="sm"
+          disabled={pageIndex === 0}
+          onClick={() => setPageIndex((p) => Math.max(0, p - 1))}
+          className="flex items-center gap-1 m-2"
+        >
+          <FaChevronLeft /> Prev
+        </Button>
+        <span>Page {pageIndex + 1}</span>
+        <Button
+          type="button"
+          size="sm"
+          disabled={!hasNextPage}
+          onClick={() => setPageIndex((p) => p + 1)}
+          className="flex items-center gap-1 m-2"
+        >
+          Next <FaChevronRight />
+        </Button>
+      </div>
 
       <EditTreasuryDrawer open={!!editItem} onClose={() => setEditItem(null)} onSuccess={fetchItems} item={editItem} />
     </div>

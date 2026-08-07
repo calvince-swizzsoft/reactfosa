@@ -145,10 +145,20 @@ import SavingsProducts from "./pages/Accounts/SavingsProducts/index.jsx";
 import CreateSavingsProduct from "./pages/Accounts/SavingsProducts/create.jsx";
 import Treasuries from "./pages/Accounts/Treasuries/index.jsx";
 import CreateTreasury from "./pages/Accounts/Treasuries/create.jsx";
+import CostCenters from "./pages/Accounts/CostCenters/index.jsx";
+import CreateCostCenter from "./pages/Accounts/CostCenters/create.jsx";
+import AccountsChartOfAccounts from "./pages/Accounts/ChartOfAccounts/index.jsx";
+import CreateChartOfAccount from "./pages/Accounts/ChartOfAccounts/create.jsx";
+import ChartOfAccountMappings from "./pages/Accounts/ChartOfAccounts/Mappings.jsx";
 import CashManagement from "./pages/FOSA/Transactions/CashManagement.jsx";
-import CashDeposit from "./pages/FOSA/Transactions/CashDeposit.jsx";
-import CashWithdrawal from "./pages/FOSA/Transactions/CashWithdrawal.jsx";
-import ChequeDeposit from "./pages/FOSA/Transactions/ChequeDeposit.jsx";
+import SavingsReceiptsPayments from "./pages/FOSA/Transactions/SavingsReceiptsPayments.jsx";
+import EndOfDay from "./pages/FOSA/Transactions/EndOfDay.jsx";
+import Catalogue from "./pages/FOSA/Transactions/Catalogue.jsx";
+import BankCheques from "./pages/FOSA/Transactions/BankCheques.jsx";
+import ClearCheques from "./pages/FOSA/Transactions/ClearCheques.jsx";
+import UnpayReasons from "./pages/FOSA/Transactions/UnpayReasons.jsx";
+import ChequeTransfer from "./pages/FOSA/Transactions/ChequeTransfer.jsx";
+import CashTransfer from "./pages/FOSA/Transactions/CashTransfer.jsx";
 
 
 
@@ -327,16 +337,26 @@ export default function App() {
           <Route path="Accounts/SavingsProducts/create" element={<CreateSavingsProduct />} />
           <Route path="Accounts/Treasuries" element={<Treasuries />} />
           <Route path="Accounts/Treasuries/create" element={<CreateTreasury />} />
+          <Route path="Accounts/CostCenters" element={<CostCenters />} />
+          <Route path="Accounts/CostCenters/create" element={<CreateCostCenter />} />
+          <Route path="Accounts/ChartOfAccounts" element={<AccountsChartOfAccounts />} />
+          <Route path="Accounts/ChartOfAccounts/create" element={<CreateChartOfAccount />} />
+          <Route path="Accounts/ChartOfAccounts/Mappings" element={<ChartOfAccountMappings />} />
           <Route path="Accounts/Tellers" element={<Tellers />} />
 
           {/**Front Office */}
-           <Route path="FrontOffice/CashManagement" element={<CashManagement />} />
-              <Route path="FrontOffice/CashDeposit" element={<CashDeposit />} />
-                 <Route path="FrontOffice/CashDeposit" element={<CashWithdrawal />} />
-                    <Route path="FrontOffice/ChequeDeposit" element={<ChequeDeposit />} />
-
-                       {/* <Route path="FrontOffice/Transfers" element={<Transfers />} /> */}
-
+          {/* No moduleRouteMap.js codes exist for any of these yet — routes
+              only, add codes once they're assigned (same pattern as every
+              other module this session before its code arrived). */}
+          <Route path="FrontOffice/CashManagement" element={<CashManagement />} />
+          <Route path="FrontOffice/SavingsReceiptsPayments" element={<SavingsReceiptsPayments />} />
+          <Route path="FrontOffice/EndOfDay" element={<EndOfDay />} />
+          <Route path="FrontOffice/Catalogue" element={<Catalogue />} />
+          <Route path="FrontOffice/BankCheques" element={<BankCheques />} />
+          <Route path="FrontOffice/ClearCheques" element={<ClearCheques />} />
+          <Route path="FrontOffice/UnpayReasons" element={<UnpayReasons />} />
+          <Route path="FrontOffice/ChequeTransfer" element={<ChequeTransfer />} />
+          <Route path="FrontOffice/CashTransfer" element={<CashTransfer />} />
 
           <Route path="FrontOffice/Transactions" element={<FOSATransactions />} />
 

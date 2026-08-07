@@ -6,7 +6,7 @@ import {
 } from "@/components/ui/select";
 import Swal from "sweetalert2";
 import NotFoundImage from "/assets/scopefinding.png";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, normalizeList } from "@/lib/api";
 
 const BASE = `${import.meta.env.VITE_APP_FIN_URL}`
 
@@ -43,11 +43,15 @@ export default function ClearCheques() {
   useEffect(() => {
     setLoading(true);
     Promise.all([
-      apiFetch(`${BASE}/api/cheques`).then((r) => r.json()),
+      // Was missing /frontoffice and assumed a bare array — ChequesController's
+      // GET / is paged and enveloped ({ success, message, data: PageCollectionInfo }).
+      apiFetch(`${BASE}/api/frontoffice/cheques?pageSize=1000`).then((r) => r.json()),
+      // /api/unpay isn't documented in frontoffice-api-spec.md at all — left
+      // as-is (see TODO.md) rather than guessing a real path for it.
       apiFetch(`${BASE}/api/unpay`).then((r) => r.json()),
     ])
       .then(([chequeData, reasonData]) => {
-        setCheques(Array.isArray(chequeData) ? chequeData : []);
+        setCheques(normalizeList(chequeData));
         setUnpayReasons(Array.isArray(reasonData) ? reasonData : []);
       })
       .catch(() => {})
@@ -89,7 +93,7 @@ export default function ClearCheques() {
           ? { Id: reason.Id, Code: reason.Code, Description: reason.Description }
           : {},
       };
-      const res = await apiFetch(`${BASE}/api/cheques/clear`, {
+      const res = await apiFetch(`${BASE}/api/frontoffice/cheques/clear`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

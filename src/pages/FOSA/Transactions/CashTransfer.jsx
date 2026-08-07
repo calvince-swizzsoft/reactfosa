@@ -13,6 +13,11 @@ import { FaEllipsisV, FaCheckCircle, FaTimesCircle, FaPaperPlane } from "react-i
 import Swal from "sweetalert2";
 import NotFoundImage from "/assets/scopefinding.png";
 import { apiFetch } from "@/lib/api";
+import DenominationCountFields, {
+  emptyDenominationCounts,
+  sumDenominations,
+  toDenominationSubtotals,
+} from "../lib/DenominationCountFields";
 
 const BASE = `${import.meta.env.VITE_APP_FIN_URL}`
 
@@ -67,8 +72,6 @@ function SkeletonRow() {
 }
 
 const emptyForm = {
-  EmployeeId: "",
-  Amount: "",
   TotalDebits: "",
   TotalCredits: "",
   OpeningBalance: "0",
@@ -86,21 +89,37 @@ function FieldGroup({ label, children }) {
 
 function AddCashTransferDrawer({ open, onClose, onSuccess }) {
   const [form, setForm] = useState(emptyForm);
+  const [counts, setCounts] = useState(emptyDenominationCounts);
   const [loading, setLoading] = useState(false);
 
   const handleChange = (field, value) => setForm((p) => ({ ...p, [field]: value }));
+  const handleCountChange = (key, value) => setCounts((p) => ({ ...p, [key]: value }));
+  const amount = sumDenominations(counts);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (amount <= 0) {
+      Swal.fire("Missing Amount", "Enter a denomination count first.", "warning");
+      return;
+    }
     setLoading(true);
     try {
+      // EmployeeId is overwritten server-side from the caller's JWT
+      // regardless of what's sent (TransfersController.Create) — not a
+      // client-supplied field.
       const payload = {
-        EmployeeId: form.EmployeeId,
         TotalDebits: Number(form.TotalDebits),
         TotalCredits: Number(form.TotalCredits),
-        Amount: Number(form.Amount),
+        // Amount is derived from the counted denominations, not entered
+        // separately — the server now requires the 11 Denomination*Value
+        // fields to reconcile exactly against Amount
+        // (DENOMINATION-CAPTURE-FRONTEND-GUIDE.md), so deriving it here
+        // guarantees that by construction instead of risking a 400 from a
+        // teller-entered figure that doesn't match their count.
+        Amount: amount,
         OpeningBalance: String(form.OpeningBalance),
         TellerCashBalanceStatus: String(form.TellerCashBalanceStatus),
+        ...toDenominationSubtotals(counts),
       };
       const res = await apiFetch(`${BASE}/api/frontoffice/transfers/cash`, {
         method: "POST",
@@ -113,6 +132,7 @@ function AddCashTransferDrawer({ open, onClose, onSuccess }) {
         ? Swal.fire("Error", data.message || "Cash transfer creation failed", "error")
         : Swal.fire("Success", data.message || "Cash transfer created successfully", "success");
       setForm(emptyForm);
+      setCounts(emptyDenominationCounts);
       onSuccess();
       onClose();
     } catch (err) {
@@ -141,22 +161,8 @@ function AddCashTransferDrawer({ open, onClose, onSuccess }) {
               <Button variant="outline" size="sm" onClick={onClose}>Close</Button>
             </div>
             <form onSubmit={handleSubmit} className="p-4 space-y-4">
-              <FieldGroup label="Employee ID">
-                <Input
-                  value={form.EmployeeId}
-                  onChange={(e) => handleChange("EmployeeId", e.target.value)}
-                  placeholder="e.g. 50BDE4A6-1F50-..."
-                  required
-                />
-              </FieldGroup>
-              <FieldGroup label="Amount">
-                <Input
-                  type="number"
-                  value={form.Amount}
-                  onChange={(e) => handleChange("Amount", e.target.value)}
-                  placeholder="100"
-                  required
-                />
+              <FieldGroup label="Count the Cash Being Transferred">
+                <DenominationCountFields counts={counts} onChange={handleCountChange} />
               </FieldGroup>
               <FieldGroup label="Total Debits">
                 <Input
@@ -229,7 +235,10 @@ export default function CashTransfer() {
 
   const fetchTransfers = () => {
     setLoading(true);
-    apiFetch(`${BASE}/api/transfers/cash`)
+    // Was missing the /frontoffice segment — TransfersController.GetCashTransferRequests
+    // returns the array bare (no { success, message, data } envelope, unlike
+    // most of this API), so Array.isArray(d) below is already correct.
+    apiFetch(`${BASE}/api/frontoffice/transfers/cash`)
       .then((r) => r.json())
       .then((d) => setTransfers(Array.isArray(d) ? d : []))
       .catch(() => setTransfers([]))
@@ -248,7 +257,7 @@ export default function CashTransfer() {
     });
     if (!confirm.isConfirmed) return;
     try {
-      const res = await apiFetch(`${BASE}/api/transfers/cash/acknowledge?option=2`, {
+      const res = await apiFetch(`${BASE}/api/frontoffice/transfers/cash/acknowledge?option=2`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -265,12 +274,9 @@ export default function CashTransfer() {
       if (!res.ok) throw new Error("Acknowledgement failed");
       if (data.success === false) {
         Swal.fire("Error", data.message, "error");
-        console.log("response:", data.message);
       } else {
         Swal.fire("Acknowledged!", data.message, "success");
-        console.log("response:", data.message);
       }
-      // Swal.fire("Acknowledged!", "Transfer has been acknowledged.", "success");
       fetchTransfers();
     } catch (err) {
       Swal.fire("Error", err.message, "error");
@@ -287,7 +293,7 @@ export default function CashTransfer() {
     });
     if (!confirm.isConfirmed) return;
     try {
-      const res = await apiFetch(`${BASE}/api/transfers/cash/acknowledge?option=3`, {
+      const res = await apiFetch(`${BASE}/api/frontoffice/transfers/cash/acknowledge?option=3`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -300,7 +306,6 @@ export default function CashTransfer() {
           TransactionType: item.TransactionType,
         }),
       });
-      console.log("Reject response:", res);
       if (!res.ok) throw new Error("Rejection failed");
       Swal.fire("Rejected!", "Transfer has been rejected.", "success");
       fetchTransfers();
@@ -319,7 +324,7 @@ export default function CashTransfer() {
     });
     if (!confirm.isConfirmed) return;
     try {
-      const res = await apiFetch(`${BASE}/api/transfers/cash/utilize?request=${id}`, {
+      const res = await apiFetch(`${BASE}/api/frontoffice/transfers/cash/utilize?request=${id}`, {
         method: "POST",
       });
       if (!res.ok) throw new Error("Utilization failed");

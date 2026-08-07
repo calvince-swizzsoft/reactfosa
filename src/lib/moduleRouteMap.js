@@ -47,17 +47,30 @@ export const moduleRouteMap = {
   // Human Resource > Employees (ControllerName: Employee)
   22007: "/HumanResource/Employees",
 
+  // Accounts > Setup > Treasuries (ControllerName: Treasuries, AreaName: Accounts)
+  23020: "/Accounts/Treasuries",
   // Accounts > Setup > Tellers (ControllerName: Teller, AreaName: FrontOffice)
   23021: "/Accounts/Tellers",
   // Accounts > Setup > Bank Linkages (ControllerName: BankLinkage, matches BankLinkages.jsx)
   23022: "/Finance/BanksSetup",
 
-  // Accounts > Setup > G/L Accounts > Chart Of Accounts (ControllerName: ChartOfAccount)
-  23005: "/Finance/ChartsOfAccount",
+  // Accounts > Setup > G/L Accounts > Cost Centers (ControllerName:
+  // CostCenter, AreaName: Accounts — NavigationMenu.cs:74, 0x000059D8+4)
+  23004: "/Accounts/CostCenters",
+  // Accounts > Setup > G/L Accounts > Chart Of Accounts (ControllerName:
+  // ChartOfAccount, AreaName: Accounts — NavigationMenu.cs:76,
+  // 0x000059D8+5). Was pointed at the legacy Finance/COA/ChartsOfAccount.jsx
+  // screen, which hits an unrelated legacy endpoint
+  // (api/values/GetGeneralLedgers, no JWT) — repointed to the real
+  // Accounts-area screen built against docs/api/chartofaccount-api-spec.md.
+  23005: "/Accounts/ChartOfAccounts",
   // Accounts > Setup > G/L Accounts > G/L Account Determination
-  // (SystemGeneralLedgerAccountMapping controller — matches the
-  // SystemGeneralLedgerAccountCode fields used in AccountConfiguration.jsx)
-  23006: "/Finance/AccountConfiguration",
+  // (ControllerName: SystemGeneralLedgerAccountMapping, AreaName: Accounts
+  // — NavigationMenu.cs:78, 0x000059D8+6). Same story as 23005: was
+  // pointed at the legacy Finance/Setup/AccountConfiguration.jsx screen
+  // (api/values/getSystemMappings), repointed to the real sub-resource of
+  // ChartOfAccountController (chartofaccount-api-spec.md §3.6/3.7).
+  23006: "/Accounts/ChartOfAccounts/Mappings",
 
   // Accounts > Setup > Financial Products > Loans (ControllerName: LoanProduct)
   23018: "/Loaning/LoanProducts",
@@ -101,9 +114,32 @@ export const moduleRouteMap = {
 
   25003: "/FrontOffice/CashManagement",
 
-  25006: "/FrontOffice/CashDeposit",
+  // Front-Office > Teller > "Savings Receipts/Payments" (ControllerName:
+  // CashDeposit, NavigationMenu.cs: AreaCode 0x000061A8+5, Code
+  // 0x000061A8+6). This is the ONLY real nav entry for the whole teller
+  // transaction cycle — deposit/withdrawal/cheque deposit/payment voucher
+  // are one screen server-side (SAVINGS-RECEIPTS-PAYMENTS-FLOW.md /
+  // -FORM-LAYOUT.md), not four. Previously pointed at the old
+  // deposit-only page from the Phase-1 fidelity pass; now the unified one.
+  25006: "/FrontOffice/SavingsReceiptsPayments",
 
-  // 25009: "/FrontOffice/Transfers",
+  // Front-Office > Teller > "Cheques/Cash Transfer" (ControllerName:
+  // Transfers, NavigationMenu.cs AreaCode 0x000061A8+5, Code
+  // 0x000061A8+9). Confirmed there is no separate code for Cash Transfer
+  // vs. Cheque Transfer anywhere in NavigationMenu.cs — this ONE nav item
+  // covers both, same situation as Savings Receipts/Payments (25006)
+  // before it was unified. The app still has two separate screens for it
+  // (CashTransfer.jsx / ChequeTransfer.jsx, both against
+  // TransfersController's /cash and /cheques sub-routes) — pointed at Cash
+  // Transfer per user decision (2026-08-07). TODO: merge these into one
+  // screen the way Savings Receipts/Payments was, so this nav item has a
+  // real single destination instead of an arbitrary pick between two.
+  25009: "/FrontOffice/CashTransfer",
+
+  // Front-Office > Teller > "End-Of-Day" (ControllerName: EndOfDay,
+  // NavigationMenu.cs AreaCode 0x000061A8+5, Code 0x000061A8+10) — was
+  // unmapped entirely.
+  25010: "/FrontOffice/EndOfDay",
 
 20014: "/Administration/Workflow",
 
