@@ -133,7 +133,7 @@ import Tellers from "./pages/Accounts/Tellers/Teller.jsx";
 
 import Employees from "./pages/HumanResource/Employees/Employees.jsx"
 import FOSASetup from "./pages/FOSA/Setup/index.jsx"
-import FOSATransactions from "./pages/FOSA/Transactions/index.jsx"
+import FOSATransactions from "./pages/FOSA/TellerTransactions/index.jsx"
 
 import HRDepartments from "./pages/HumanResource/Departments/index.jsx";
 import CreateDepartment from "./pages/HumanResource/Departments/create.jsx";
@@ -153,15 +153,16 @@ import CreateCostCenter from "./pages/Accounts/CostCenters/create.jsx";
 import AccountsChartOfAccounts from "./pages/Accounts/ChartOfAccounts/index.jsx";
 import CreateChartOfAccount from "./pages/Accounts/ChartOfAccounts/create.jsx";
 import ChartOfAccountMappings from "./pages/Accounts/ChartOfAccounts/Mappings.jsx";
-import CashManagement from "./pages/FOSA/Transactions/CashManagement.jsx";
-import SavingsReceiptsPayments from "./pages/FOSA/Transactions/SavingsReceiptsPayments.jsx";
-import EndOfDay from "./pages/FOSA/Transactions/EndOfDay.jsx";
-import Catalogue from "./pages/FOSA/Transactions/Catalogue.jsx";
-import BankCheques from "./pages/FOSA/Transactions/BankCheques.jsx";
-import ClearCheques from "./pages/FOSA/Transactions/ClearCheques.jsx";
-import UnpayReasons from "./pages/FOSA/Transactions/UnpayReasons.jsx";
-import ChequeTransfer from "./pages/FOSA/Transactions/ChequeTransfer.jsx";
-import CashTransfer from "./pages/FOSA/Transactions/CashTransfer.jsx";
+import CashManagement from "./pages/FOSA/TreasuryTransactions/CashManagement.jsx";
+import FiscalCounts from "./pages/FOSA/TreasuryTransactions/FiscalCounts.jsx";
+import SavingsReceiptsPayments from "./pages/FOSA/TellerTransactions/SavingsReceiptsPayments.jsx";
+import EndOfDay from "./pages/FOSA/TellerTransactions/EndOfDay.jsx";
+import Catalogue from "./pages/FOSA/TellerTransactions/Catalogue.jsx";
+import BankCheques from "./pages/FOSA/TellerTransactions/BankCheques.jsx";
+import ClearCheques from "./pages/FOSA/TellerTransactions/ClearCheques.jsx";
+import UnpayReasons from "./pages/FOSA/TellerTransactions/UnpayReasons.jsx";
+import ChequeTransfer from "./pages/FOSA/TellerTransactions/ChequeTransfer.jsx";
+import CashTransfer from "./pages/FOSA/TellerTransactions/CashTransfer.jsx";
 
 
 
@@ -355,6 +356,7 @@ export default function App() {
               only, add codes once they're assigned (same pattern as every
               other module this session before its code arrived). */}
           <Route path="FrontOffice/CashManagement" element={<CashManagement />} />
+          <Route path="FrontOffice/FiscalCounts" element={<FiscalCounts />} />
           <Route path="FrontOffice/SavingsReceiptsPayments" element={<SavingsReceiptsPayments />} />
           <Route path="FrontOffice/EndOfDay" element={<EndOfDay />} />
           <Route path="FrontOffice/Catalogue" element={<Catalogue />} />

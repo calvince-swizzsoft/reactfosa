@@ -14,6 +14,9 @@ const MODULES = [
     icon: FaUniversity,
     items: [
       { id: "cashmanagement", label: "Cash Management", subtitle: "Cash transactions", route: "/FrontOffice/CashManagement" },
+      // NavigationMenu.cs: real nav entry alongside Cash Management and
+      // Authorizations under Treasury (AreaCode 0x000061A8+2).
+      { id: "fiscalcounts", label: "Fiscal Counts", subtitle: "Denomination count catalogue", route: "/FrontOffice/FiscalCounts" },
     ],
   },
   {

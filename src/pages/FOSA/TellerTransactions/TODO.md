@@ -1,11 +1,17 @@
-# FOSA/Transactions — remaining work (Phase 1 fidelity pass)
+# FOSA/TellerTransactions — remaining work (Phase 1 fidelity pass)
+
+Renamed from `FOSA/Transactions` on 2026-08-08 when Cash Management and
+Fiscal Counts (Treasury-area screens) were split out into their own
+`FOSA/TreasuryTransactions/` folder — see that folder's own `TODO.md` for
+their history, including the Fiscal Counts scope correction (it's a
+read-only catalogue, not a CRUD screen). Everything below covers the
+Teller-cycle screens that stayed behind.
 
 Covers the 7 pre-existing front-office areas against
 `docs/api/frontoffice-api-spec.md` / `WebApplication1/Areas/FrontOffice/WORKFLOW.md`.
 Phase 2 (account closure, fixed deposits, expense payables, sundry
-payments, customer receipts, in-house cheques, automated clearing, fiscal
-counts — the 8 areas with no screen at all) is a separate, not-yet-started
-planning pass.
+payments, customer receipts, in-house cheques, automated clearing — 7
+areas with no screen at all) is a separate, not-yet-started planning pass.
 
 Cash Deposit/Cash Withdrawal/Cheque Deposit/Payment Voucher were later
 unified into one screen, `SavingsReceiptsPayments.jsx`, replacing the 4
@@ -15,15 +21,6 @@ separate pages this file originally documented — see
 Receipts/Payments", the one real nav entry for this whole cycle) now
 points at it.
 
-`CashManagement.jsx`'s destination-treasury picker was pointed at
-`api/frontoffice/treasurys`, which no longer exists — Treasury master data
-moved to `Areas/Accounts/Controllers/TreasurysController.cs`
-(`api/accounts/treasurys`, see `docs/api/treasury-api-spec.md` and
-`src/pages/Accounts/Treasuries/TODO.md`). Fixed here; the actual
-`POST /api/frontoffice/cashmanagement` cash-movement endpoint itself is
-unaffected — it's a different controller that resolves treasuries via the
-app service directly, not through this HTTP route.
-
 **`CashTransfer.jsx`/`ChequeTransfer.jsx` likely need the same unification
 treatment eventually.** Confirmed against `NavigationMenu.cs`: there is no
 separate module code for Cash Transfer vs. Cheque Transfer — the one real
@@ -32,7 +29,7 @@ covers both, exactly the situation Savings Receipts/Payments (`25006`) was
 in before it got merged into `SavingsReceiptsPayments.jsx`. For now `25009`
 is pointed at `CashTransfer.jsx` (arbitrary pick between the two, per user
 decision) — `ChequeTransfer.jsx` stays reachable only through the
-`FOSA/Transactions` launcher hub, not the real dynamic sidebar nav. Revisit
+`FOSA/TellerTransactions` launcher hub, not the real dynamic sidebar nav. Revisit
 as a merge into one screen if/when this becomes a priority, same pattern
 as the Savings Receipts/Payments precedent.
 
@@ -136,15 +133,15 @@ made them mandatory.
   piece-counts (natural teller UX: "3 of the 1000s..."); the new
   `toDenominationSubtotals()` export converts to the pre-multiplied wire
   shape. **Never spread `counts` directly into a request body** — that was
-  a real, shipped bug in `CashManagement.jsx` (sending raw piece counts as
-  if they were already subtotals) until this pass fixed it; it would have
-  under-counted every submission by roughly the average face value and
-  either 400'd or silently posted the wrong figures depending on exact
-  values entered.
-- **`CashManagement.jsx`/`EndOfDay.jsx` derive their total directly from
-  `sumDenominations(counts)`** (`TotalValue`/`ClosingBalance` respectively)
-  — reconciliation is guaranteed by construction, the two numbers can never
-  actually disagree.
+  a real, shipped bug in `CashManagement.jsx` (now in
+  `FOSA/TreasuryTransactions/`; sending raw piece counts as if they were
+  already subtotals) until this pass fixed it; it would have under-counted
+  every submission by roughly the average face value and either 400'd or
+  silently posted the wrong figures depending on exact values entered.
+- **`EndOfDay.jsx` derives its total directly from `sumDenominations(counts)`**
+  (`ClosingBalance`) — reconciliation is guaranteed by construction, the
+  two numbers can never actually disagree. Same story for `CashManagement.jsx`
+  (`TotalValue`), see `FOSA/TreasuryTransactions/TODO.md`.
 - **`CashTransfer.jsx`'s create drawer used to have a free-typed `Amount`
   input with no denomination entry at all.** Replaced the input with a
   `DenominationCountFields` block and derive `Amount` from its sum, same
@@ -152,7 +149,3 @@ made them mandatory.
   `Amount` with a live "diff vs. count" check (the guide's more generic
   recommendation for a case where the total is independently constrained),
   since nothing here actually fixes `Amount` independently of the count.
-- **Standalone fiscal count screen (`POST /api/frontoffice/fiscalcounts`)
-  is also affected** but is Phase 2 scope (no screen exists yet) — apply
-  the same `toDenominationSubtotals()` pattern reconciling against
-  `TotalValue` when that screen gets built.

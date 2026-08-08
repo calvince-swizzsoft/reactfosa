@@ -52,3 +52,17 @@ export const CashWithdrawalCategory = {
   Overdraw: 8,
   PaymentVoucher: 16,
 };
+
+// SystemTransactionCode — the subset relevant to the Fiscal Counts
+// catalogue's `transactionCode` filter (frontoffice-api-spec.md §16.1).
+// The full server-side enum has 40+ members (every posting source in the
+// system); these six are the only ones a FiscalCount row can ever actually
+// carry, per §16's own "select a transaction type" table.
+export const FiscalCountTransactionCode = {
+  BankToTreasury: 7,
+  TreasuryToBank: 8,
+  TreasuryToTeller: 9,
+  TreasuryToTreasury: 10,
+  TellerEndOfDay: 41,
+  TellerCashTransfer: 42,
+};
