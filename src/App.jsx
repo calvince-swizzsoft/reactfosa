@@ -149,6 +149,12 @@ import CreateSavingsProduct from "./pages/Accounts/SavingsProducts/create.jsx";
 import Treasuries from "./pages/Accounts/Treasuries/index.jsx";
 import CreateTreasury from "./pages/Accounts/Treasuries/create.jsx";
 import CostCenters from "./pages/Accounts/CostCenters/index.jsx";
+import ChequeTypes from "./pages/Accounts/ChequeTypes/index.jsx";
+import CreateChequeType from "./pages/Accounts/ChequeTypes/create.jsx";
+import Commissions from "./pages/Accounts/Commissions/index.jsx";
+import CreateCommission from "./pages/Accounts/Commissions/create.jsx";
+import Levies from "./pages/Accounts/Levies/index.jsx";
+import CreateLevy from "./pages/Accounts/Levies/create.jsx";
 import CreateCostCenter from "./pages/Accounts/CostCenters/create.jsx";
 import AccountsChartOfAccounts from "./pages/Accounts/ChartOfAccounts/index.jsx";
 import CreateChartOfAccount from "./pages/Accounts/ChartOfAccounts/create.jsx";
@@ -345,6 +351,12 @@ export default function App() {
           <Route path="Accounts/BankLinkages" element={<AccountsBankLinkages />} />
           <Route path="Accounts/BankLinkages/create" element={<CreateBankLinkage />} />
           <Route path="Accounts/CostCenters" element={<CostCenters />} />
+          <Route path="Accounts/ChequeTypes" element={<ChequeTypes />} />
+          <Route path="Accounts/ChequeTypes/create" element={<CreateChequeType />} />
+          <Route path="Accounts/Commissions" element={<Commissions />} />
+          <Route path="Accounts/Commissions/create" element={<CreateCommission />} />
+          <Route path="Accounts/Levies" element={<Levies />} />
+          <Route path="Accounts/Levies/create" element={<CreateLevy />} />
           <Route path="Accounts/CostCenters/create" element={<CreateCostCenter />} />
           <Route path="Accounts/ChartOfAccounts" element={<AccountsChartOfAccounts />} />
           <Route path="Accounts/ChartOfAccounts/create" element={<CreateChartOfAccount />} />

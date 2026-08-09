@@ -82,6 +82,16 @@ export const moduleRouteMap = {
   23004: "/Accounts/CostCenters",              // Cost Centers (ControllerName: CostCenter)
   23005: "/Accounts/ChartOfAccounts",          // Chart Of Accounts (ControllerName: ChartOfAccount) — was pointed at the legacy Finance/COA screen (api/values/GetGeneralLedgers, no JWT), repointed
   23006: "/Accounts/ChartOfAccounts/Mappings", // G/L Account Determination (ControllerName: SystemGeneralLedgerAccountMapping) — was pointed at the legacy Finance/Setup/AccountConfiguration screen, repointed
+  // Setup (23001) > Levies & Charges (23007)
+  23008: "/Accounts/Levies",              // Levies (ControllerName: Levy) — real match for the new LevyController.
+  // 23009 "Charges" (ControllerName: Charges) pointed at the OLD reference
+  // app's Charges controller, a mostly-duplicate reimplementation of
+  // Commission CRUD that was deliberately NOT ported (see
+  // docs/api/commission-api-spec.md's History note) — but "Charges" is the
+  // business-facing nav slot for this function regardless of which
+  // controller implements it, and CommissionController is what actually
+  // does now. Pointed at Accounts/Commissions per user decision (2026-08-09).
+  23009: "/Accounts/Commissions",         // Charges (ControllerName: Charges, legacy) — repointed to the real, working Commission screen.
   // Setup (23001) > Financial Products (23015)
   23016: "/Accounts/SavingsProducts",     // Savings (ControllerName: SavingsProduct)
   23017: "/Accounts/InvestmentProducts",  // Investments (ControllerName: InvestmentProduct)
@@ -90,6 +100,7 @@ export const moduleRouteMap = {
   23020: "/Accounts/Treasuries",          // Treasuries (ControllerName: Treasuries)
   23021: "/Accounts/Tellers",             // Tellers (ControllerName: Teller, AreaName: FrontOffice)
   23022: "/Accounts/BankLinkages",        // Bank Linkages (ControllerName: BankLinkage) — was dead-pointed at /Finance/BanksSetup (no matching route), repointed
+  23023: "/Accounts/ChequeTypes",         // Cheque Types (ControllerName: ChequeType) — was unmapped entirely; list/create/edit all built
   // Operations (23002) > Recurring Procedures (23035)
   23039: "/Accounts/StandingOrders/Execution", // Standing Order Execution (ControllerName: SatndingOrderExecution — real backend typo, admin/ops only)
   // Operations (23002) > Customer Accounts (23043)
