@@ -27,11 +27,19 @@ export const CashWithdrawalRequestAuthStatus = {
   Paid: 8,
 };
 
+// CashManagementController.Create's own switch only handles the first four
+// values — TellerToTreasury/TellerCashTransfer are never client-selectable
+// here, they're what EndOfDayController (§9) and TransfersController (§7)
+// hardcode on their own companion FiscalCount records. Listed for
+// completeness/decoding reads (e.g. FiscalCounts.jsx's detail drawer), not
+// as options for CashManagement.jsx's movement picker.
 export const TreasuryTransactionType = {
   TreasuryToTreasury: 1,
   TreasuryToBank: 2,
   BankToTreasury: 4,
   TreasuryToTeller: 8,
+  TellerToTreasury: 16,
+  TellerCashTransfer: 32,
 };
 
 export const TellerCashBalanceStatus = {

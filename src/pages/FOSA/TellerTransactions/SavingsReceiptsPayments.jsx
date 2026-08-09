@@ -88,12 +88,15 @@ function CreateTransactionDrawer({ open, onClose, onSuccess, onDialog }) {
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
   const [accounts, setAccounts] = useState([]);
   const [loadingAccounts, setLoadingAccounts] = useState(false);
+  const [chequeTypes, setChequeTypes] = useState([]);
+  const [loadingChequeTypes, setLoadingChequeTypes] = useState(false);
 
   useEffect(() => {
     if (!open) return;
     setForm(emptyForm);
     setSelectedCustomerId("");
     setAccounts([]);
+    setChequeTypes([]);
     setLoadingData(true);
     Promise.all([
       apiFetch(`${FIN_BASE}/api/registry/customers`).then((r) => r.json()),
@@ -103,6 +106,23 @@ function CreateTransactionDrawer({ open, onClose, onSuccess, onDialog }) {
       setBranches(normalizeList(branchData));
     }).catch(() => { }).finally(() => setLoadingData(false));
   }, [open]);
+
+  const isChequeDeposit = form.Type === FrontOfficeTransactionType.ChequeDeposit;
+
+  // ChequeTypeController.GetAll (docs/api/cheque-type-api-spec.md §5.2) —
+  // every cheque type, unpaged, meant for exactly this kind of picker.
+  // Fetched lazily only once Cheque Deposit is actually selected, not
+  // upfront with customers/branches.
+  useEffect(() => {
+    if (!open || !isChequeDeposit || chequeTypes.length > 0) return;
+    setLoadingChequeTypes(true);
+    apiFetch(`${FIN_BASE}/api/accounts/chequetypes/all`)
+      .then((r) => r.json())
+      .then((d) => setChequeTypes(normalizeList(d)))
+      .catch(() => setChequeTypes([]))
+      .finally(() => setLoadingChequeTypes(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, isChequeDeposit]);
 
   const handleCustomerChange = (customerId) => {
     setSelectedCustomerId(customerId);
@@ -119,7 +139,6 @@ function CreateTransactionDrawer({ open, onClose, onSuccess, onDialog }) {
 
   const handleChange = (field, value) => setForm((p) => ({ ...p, [field]: value }));
 
-  const isChequeDeposit = form.Type === FrontOfficeTransactionType.ChequeDeposit;
   const isPaymentVoucher = form.Type === FrontOfficeTransactionType.CashWithdrawalPaymentVoucher;
 
   const handleSubmit = async (e) => {
@@ -203,12 +222,20 @@ function CreateTransactionDrawer({ open, onClose, onSuccess, onDialog }) {
       {open && (
         <>
           <motion.div className="fixed inset-0 bg-black z-40" initial={{ opacity: 0 }} animate={{ opacity: 0.4 }} exit={{ opacity: 0 }} onClick={onClose} />
-          <motion.div className="fixed top-5 right-3 w-[480px] bg-white shadow-xl z-50 flex flex-col rounded-2xl p-3 max-h-[95vh] overflow-y-auto" initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", stiffness: 300, damping: 30 }}>
-            <div className="p-4 flex justify-between items-center bg-indigo-600 rounded-2xl m-2">
+          <motion.div className="fixed top-5 right-3 w-[480px] bg-white shadow-xl z-50 flex flex-col rounded-2xl p-3 max-h-[95vh]" initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", stiffness: 300, damping: 30 }}>
+            <div className="p-4 flex justify-between items-center bg-indigo-600 rounded-2xl m-2 shrink-0">
               <h2 className="font-bold text-lg text-white">New Transaction</h2>
               <Button variant="outline" size="sm" onClick={onClose}>Close</Button>
             </div>
-            <form onSubmit={handleSubmit} className="p-4 space-y-4">
+            {/* Cheque Deposit alone adds 6 fields on top of the base 5 — tall
+                enough on shorter viewports that the submit button used to
+                scroll out of view along with everything else, inside a
+                motion.div that only animates on open/close and gives no
+                visual hint there's more below. Split into a scrolling body
+                + a footer that always stays put, same <form> either way so
+                onSubmit/Enter-to-submit still cover the whole thing. */}
+            <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+            <div className="p-4 space-y-4 overflow-y-auto flex-1 min-h-0">
               <FieldGroup label="Transaction Type">
                 <Select value={String(form.Type)} onValueChange={(v) => handleChange("Type", Number(v))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
@@ -274,11 +301,13 @@ function CreateTransactionDrawer({ open, onClose, onSuccess, onDialog }) {
                   <FieldGroup label="Drawer Bank Branch">
                     <Input value={form.DrawerBankBranch} onChange={(e) => handleChange("DrawerBankBranch", e.target.value)} required placeholder="e.g. Moi Avenue" />
                   </FieldGroup>
-                  <FieldGroup label="Cheque Type Id">
-                    {/* No cheque-type lookup endpoint exists anywhere in
-                        this app yet — plain GUID input until one is
-                        confirmed (see TODO.md). */}
-                    <Input value={form.ChequeType} onChange={(e) => handleChange("ChequeType", e.target.value)} placeholder="Cheque type GUID" />
+                  <FieldGroup label="Cheque Type">
+                    <Select value={form.ChequeType ? String(form.ChequeType) : ""} onValueChange={(v) => handleChange("ChequeType", v)} disabled={loadingChequeTypes}>
+                      <SelectTrigger><SelectValue placeholder={loadingChequeTypes ? "Loading..." : "Select cheque type"} /></SelectTrigger>
+                      <SelectContent className="max-h-60 overflow-y-auto">
+                        {chequeTypes.map((ct) => <SelectItem key={String(ct.Id)} value={String(ct.Id)}>{ct.Description}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
                   </FieldGroup>
                 </div>
               )}
@@ -300,10 +329,13 @@ function CreateTransactionDrawer({ open, onClose, onSuccess, onDialog }) {
               <FieldGroup label="Remarks">
                 <Input value={form.Remarks} onChange={(e) => handleChange("Remarks", e.target.value)} placeholder="Optional" />
               </FieldGroup>
+            </div>
 
+            <div className="p-4 pt-3 border-t shrink-0">
               <Button type="submit" disabled={loading || loadingData} className="w-full bg-indigo-600 hover:bg-indigo-700">
                 {loading ? "Submitting..." : "Submit Transaction"}
               </Button>
+            </div>
             </form>
           </motion.div>
         </>

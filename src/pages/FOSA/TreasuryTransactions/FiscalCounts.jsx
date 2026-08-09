@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { FaTable, FaSearch, FaChevronLeft, FaChevronRight } from "react-icons/fa";
+import NotFoundImage from "/assets/scopefinding.png";
+import { FaTable, FaChevronLeft, FaChevronRight } from "react-icons/fa";
 import { apiFetch } from "@/lib/api";
 import { DENOMINATIONS } from "../lib/DenominationCountFields";
 import { FiscalCountTransactionCode } from "../lib/frontOfficeEnums";
@@ -36,17 +36,25 @@ const TYPE_FILTERS = [
 // to post a movement), so it carries fields the FiscalCount entity itself
 // doesn't have. On a GET/list from this controller, TellerId/TellerDescription,
 // TreasuryId/TreasuryDescription, DestinationBranchId, the generic
-// `Description` field, SavingsProduct, Teller, and
-// TransactionType/TransactionTypeDescription always come back
-// empty/default — don't render columns for them. Use TransactionCode /
-// TransactionCodeDescription (SystemTransactionCode — what actually
-// persisted) instead of TransactionType.
+// `Description` field, SavingsProduct, and Teller always come back
+// empty/default — don't render columns for them.
+//
+// TransactionType/TransactionTypeDescription used to be in that same
+// "always empty" bucket, but the entity gained a real backing column and
+// every fiscal-count-creating flow now sets it (spec updated 2026-08-08) —
+// it's a reliable read field, just still not this endpoint's filter
+// (`transactionCode`, not `transactionType` — §16.1). Kept as a secondary
+// display field in the detail drawer below: it's mostly redundant with
+// TransactionCode (same event, same category), EXCEPT End of Day, where
+// TransactionCode reads "Teller End-of-Day" but TransactionType reads
+// "Teller to Treasury" — two different labels the backend genuinely uses
+// for the same row, not a bug to normalize away here.
 
 function DetailRow({ label, value }) {
   return (
     <div className="flex justify-between gap-4 py-1.5 text-sm">
-      <span className="text-slate-500">{label}</span>
-      <span className="text-slate-800 font-medium text-right">{value ?? "—"}</span>
+      <span className="text-gray-500">{label}</span>
+      <span className="text-gray-800 font-medium text-right">{value ?? "—"}</span>
     </div>
   );
 }
@@ -85,12 +93,12 @@ function FiscalCountDetailDrawer({ id, onClose }) {
 
             <div className="p-4">
               {loading ? (
-                <p className="text-sm text-slate-400">Loading...</p>
+                <p className="text-sm text-gray-400">Loading...</p>
               ) : !item ? (
-                <p className="text-sm text-slate-400">Fiscal count not found.</p>
+                <p className="text-sm text-gray-400">Fiscal count not found.</p>
               ) : (
                 <div className="space-y-4">
-                  <div className="rounded-lg border border-slate-200 divide-y divide-slate-100 px-3">
+                  <div className="rounded-lg border border-gray-200 divide-y divide-gray-100 px-3">
                     <DetailRow label="Branch" value={item.BranchDescription} />
                     <DetailRow label="Posting Period" value={item.PostingPeriodDescription} />
                     <DetailRow label="G/L Account" value={item.ChartOfAccountName} />
@@ -101,18 +109,19 @@ function FiscalCountDetailDrawer({ id, onClose }) {
                     <DetailRow label="Secondary Description" value={item.SecondaryDescription} />
                     <DetailRow label="Reference" value={item.Reference} />
                     <DetailRow label="Transaction Code" value={item.TransactionCodeDescription || "Unclassified"} />
+                    <DetailRow label="Transaction Type" value={item.TransactionTypeDescription || "—"} />
                     <DetailRow label="System Trace Audit Number" value={item.SystemTraceAuditNumber} />
                     <DetailRow label="Created By" value={item.CreatedBy} />
                     <DetailRow label="Created Date" value={item.CreatedDate ? new Date(item.CreatedDate).toLocaleString() : null} />
                   </div>
 
                   <div>
-                    <Label className="text-sm font-semibold text-slate-700 mb-2 block">Denomination Breakdown</Label>
+                    <Label className="text-sm font-semibold text-gray-700 mb-2 block">Denomination Breakdown</Label>
                     <div className="grid grid-cols-3 gap-2">
                       {DENOMINATIONS.map((d) => (
-                        <div key={d.key} className="rounded-lg bg-slate-50 border border-slate-200 px-3 py-2">
-                          <div className="text-xs font-semibold text-slate-500">{d.label}</div>
-                          <div className="text-sm font-medium text-slate-800">
+                        <div key={d.key} className="rounded-lg bg-gray-50 border border-gray-200 px-3 py-2">
+                          <div className="text-xs font-semibold text-gray-500">{d.label}</div>
+                          <div className="text-sm font-medium text-gray-800">
                             {(Number(item[d.key]) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </div>
                         </div>
@@ -186,112 +195,107 @@ export default function FiscalCounts() {
   const hasNextPage = itemsCount ? (pageIndex + 1) * pageSize < itemsCount : items.length === pageSize;
 
   return (
-    <div className="min-h-screen bg-slate-100 p-6 md:p-10">
-      <div className="mx-auto max-w-6xl rounded-2xl bg-white p-8 shadow-xl">
-        <div className="mb-6">
-          <h2 className="text-2xl font-semibold text-slate-800 flex items-center gap-2">
-            <FaTable className="text-indigo-600" /> Fiscal Counts
-          </h2>
-          <p className="mt-2 text-sm text-slate-500">
-            Denomination-count audit trail, written automatically by Cash Management, End of Day, and Cash Transfer postings. Pick a transaction type to filter, or click a row for the full denomination breakdown.
-          </p>
+    <div className="bg-white m-8 px-8 py-8 shadow-2xl rounded-lg relative">
+      <div className="flex justify-between items-center mb-6 bg-indigo-800 px-6 py-3 rounded-2xl">
+        <h2 className="text-xl font-bold text-white flex items-center gap-2">
+          <FaTable /> Fiscal Counts
+        </h2>
+      </div>
+
+      <div className="mb-4 flex flex-wrap gap-1.5">
+        {TYPE_FILTERS.map((f) => (
+          <button
+            key={f.id}
+            type="button"
+            onClick={() => changeType(f.id)}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${typeFilter === f.id ? "bg-indigo-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-indigo-50 hover:text-indigo-700"}`}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
+
+      <form onSubmit={runSearch} className="flex flex-wrap justify-between items-center mb-4 gap-3">
+        <input
+          type="text"
+          placeholder="Search by account name, description, reference, or created by..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="border p-2 rounded-lg flex-1 min-w-[220px]"
+        />
+        <Label className="text-xs font-semibold text-gray-500 sr-only">Start Date</Label>
+        <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="border p-2 rounded-lg" />
+        <Label className="text-xs font-semibold text-gray-500 sr-only">End Date</Label>
+        <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="border p-2 rounded-lg" />
+        <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700">Filter</Button>
+      </form>
+
+      <div className="bg-gray-200 p-4 rounded-sm">
+        <div className="grid grid-cols-12 gap-4 bg-gray-700 text-gray-100 font-semibold p-3 rounded-lg mb-4">
+          <span className="col-span-2">Branch</span>
+          <span className="col-span-2">G/L Account</span>
+          <span className="col-span-2">Description</span>
+          <span className="col-span-1">Reference</span>
+          <span className="col-span-2">Total Value</span>
+          <span className="col-span-2">Transaction Code</span>
+          <span className="col-span-1">Created</span>
         </div>
 
-        <div className="mb-3 flex flex-wrap gap-1.5">
-          {TYPE_FILTERS.map((f) => (
-            <button
-              key={f.id}
-              type="button"
-              onClick={() => changeType(f.id)}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${typeFilter === f.id ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-indigo-50 hover:text-indigo-700"}`}
-            >
-              {f.label}
-            </button>
-          ))}
-        </div>
-
-        <form onSubmit={runSearch} className="mb-4 flex flex-wrap items-end gap-3">
-          <div className="relative flex-1 min-w-[220px]">
-            <Label className="text-xs font-semibold text-slate-500 mb-1 block">Search</Label>
-            <FaSearch className="pointer-events-none absolute left-3 top-[38px] -translate-y-1/2 text-xs text-slate-400" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Account name, description, reference, or created by..."
-              className="w-full rounded-lg border border-slate-200 py-2 pl-9 pr-3 text-sm outline-none focus:border-indigo-400"
-            />
+        {loading ? (
+          <div className="space-y-2 animate-pulse">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="grid grid-cols-12 gap-2 bg-gray-50 p-6 rounded">
+                {Array.from({ length: 12 }).map((_, j) => (
+                  <div key={j} className="h-4 bg-gray-200 rounded"></div>
+                ))}
+              </div>
+            ))}
           </div>
-          <div>
-            <Label className="text-xs font-semibold text-slate-500 mb-1 block">Start Date</Label>
-            <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-40" />
+        ) : items.length > 0 ? (
+          <div className="space-y-2">
+            {items.map((item) => (
+              <button
+                key={item.Id}
+                type="button"
+                onClick={() => setSelectedId(item.Id)}
+                className="w-full text-left bg-white rounded-lg shadow-lg border"
+              >
+                <div className="grid grid-cols-12 gap-2 items-center py-4 px-6 hover:shadow-xl transition-all">
+                  <span className="col-span-2 text-sm text-gray-700">{item.BranchDescription || "—"}</span>
+                  <span className="col-span-2 text-sm text-gray-700 break-words">{item.ChartOfAccountName || "—"}</span>
+                  <span className="col-span-2 text-sm text-gray-700 break-words">
+                    {item.PrimaryDescription || "—"}
+                    {item.SecondaryDescription && <span className="block text-xs text-gray-400">{item.SecondaryDescription}</span>}
+                  </span>
+                  <span className="col-span-1 text-sm text-gray-700 break-words">{item.Reference || "—"}</span>
+                  <span className="col-span-2 font-medium text-indigo-700">
+                    {typeof item.TotalValue === "number" ? item.TotalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "—"}
+                  </span>
+                  <span className="col-span-2">
+                    <span className="px-2 py-1 rounded text-xs font-semibold bg-blue-100 text-blue-600">
+                      {item.TransactionCodeDescription || "Unclassified"}
+                    </span>
+                  </span>
+                  <span className="col-span-1 text-xs text-gray-500">{item.CreatedDate ? new Date(item.CreatedDate).toLocaleDateString() : "—"}</span>
+                </div>
+              </button>
+            ))}
           </div>
-          <div>
-            <Label className="text-xs font-semibold text-slate-500 mb-1 block">End Date</Label>
-            <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-40" />
+        ) : (
+          <div className="text-gray-500 text-center mt-4">
+            <img src={NotFoundImage} alt="Not Found" className="mx-auto w-42" />
+            <p className="font-medium text-gray-400">
+              {search || startDate || endDate || typeFilter !== "all" ? "No fiscal counts match your filters." : "No fiscal counts found."}
+            </p>
           </div>
-          <Button type="submit" variant="outline" className="mb-0.5">Filter</Button>
-        </form>
-
-        <div className="overflow-x-auto rounded-xl border border-slate-200">
-          <table className="w-full text-left">
-            <thead className="bg-slate-50">
-              <tr className="divide-x divide-slate-200">
-                <th className="px-4 py-2.5 text-sm font-semibold text-slate-700">Branch</th>
-                <th className="px-4 py-2.5 text-sm font-semibold text-slate-700">G/L Account</th>
-                <th className="px-4 py-2.5 text-sm font-semibold text-slate-700">Description</th>
-                <th className="px-4 py-2.5 text-sm font-semibold text-slate-700">Reference</th>
-                <th className="px-4 py-2.5 text-sm font-semibold text-slate-700">Total Value</th>
-                <th className="px-4 py-2.5 text-sm font-semibold text-slate-700">Transaction Code</th>
-                <th className="px-4 py-2.5 text-sm font-semibold text-slate-700">Created</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200">
-              {loading ? (
-                <tr>
-                  <td colSpan={7} className="px-4 py-3 text-sm text-slate-500">Loading fiscal counts...</td>
-                </tr>
-              ) : items.length > 0 ? (
-                items.map((item) => (
-                  <tr key={item.Id} onClick={() => setSelectedId(item.Id)} className="cursor-pointer hover:bg-indigo-50/50">
-                    <td className="px-4 py-2.5 text-sm text-slate-700">{item.BranchDescription || "—"}</td>
-                    <td className="px-4 py-2.5 text-sm text-slate-700">{item.ChartOfAccountName || "—"}</td>
-                    <td className="px-4 py-2.5 text-sm text-slate-700">
-                      <div>{item.PrimaryDescription || "—"}</div>
-                      {item.SecondaryDescription && <div className="text-xs text-slate-400">{item.SecondaryDescription}</div>}
-                    </td>
-                    <td className="px-4 py-2.5 text-sm text-slate-700">{item.Reference || "—"}</td>
-                    <td className="px-4 py-2.5 text-sm font-medium text-indigo-700">
-                      {typeof item.TotalValue === "number" ? item.TotalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "—"}
-                    </td>
-                    <td className="px-4 py-2.5 text-sm">
-                      <span className="rounded px-2 py-1 text-xs font-semibold bg-blue-100 text-blue-600">
-                        {item.TransactionCodeDescription || "Unclassified"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2.5 text-xs text-slate-500">
-                      <div>{item.CreatedBy || "—"}</div>
-                      <div>{item.CreatedDate ? new Date(item.CreatedDate).toLocaleString() : "—"}</div>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={7} className="px-4 py-3 text-sm text-slate-500">
-                    {search || startDate || endDate || typeFilter !== "all" ? "No fiscal counts match your filters." : "No fiscal counts found."}
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        )}
 
         <div className="flex justify-center items-center mt-4">
-          <Button type="button" size="sm" variant="outline" disabled={pageIndex === 0} onClick={() => setPageIndex((p) => Math.max(0, p - 1))} className="flex items-center gap-1 m-2">
+          <Button type="button" size="sm" disabled={pageIndex === 0} onClick={() => setPageIndex((p) => Math.max(0, p - 1))} className="flex items-center gap-1 m-2">
             <FaChevronLeft /> Prev
           </Button>
-          <span className="text-sm text-slate-600">Page {pageIndex + 1}</span>
-          <Button type="button" size="sm" variant="outline" disabled={!hasNextPage} onClick={() => setPageIndex((p) => p + 1)} className="flex items-center gap-1 m-2">
+          <span>Page {pageIndex + 1}</span>
+          <Button type="button" size="sm" disabled={!hasNextPage} onClick={() => setPageIndex((p) => p + 1)} className="flex items-center gap-1 m-2">
             Next <FaChevronRight />
           </Button>
         </div>

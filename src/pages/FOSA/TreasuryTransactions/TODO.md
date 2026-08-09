@@ -36,12 +36,34 @@ What changed in the rebuild:
   own type table: Bank to Treasury / Treasury to Bank / Treasury to Teller
   / Treasury to Treasury / Teller End-of-Day / Teller Cash Transfer (values
   in `FiscalCountTransactionCode`, `FOSA/lib/frontOfficeEnums.js`) — `0`
-  (omitted) means "all types". Filter by `TransactionCode`, never
-  `TransactionType` (§16.4 — the latter is always `0` on a read).
+  (omitted) means "all types". This endpoint's own filter is
+  `TransactionCode` only — there's no `transactionType` query param.
 - **Added** a detail drawer (`GET /{id}`, §16.2) — clicking a row now shows
   the full denomination breakdown (reusing the `DENOMINATIONS` label/key
   list from `DenominationCountFields.jsx`, rendered read-only rather than
-  as editable inputs) plus every populated field from §16.4.
+  as editable inputs) plus every populated field from §16.4, including
+  `TransactionTypeDescription` as a secondary field alongside
+  `TransactionCodeDescription`.
+
+**Update 2026-08-08, later same day**: §16.4 was revised again —
+`TransactionType`/`TransactionTypeDescription` used to be permanently
+`0`/empty on every read (no backing entity column). The entity
+(`FiscalCount.cs`) gained a real `TransactionType` column and every
+fiscal-count-creating flow now sets it: §5 persists whatever the client
+sent (`BankToTreasury`/`TreasuryToBank`/`TreasuryToTeller`/`TreasuryToTreasury`,
+including on the destination-side record for `TreasuryToTreasury`), §9
+(End of Day) hardcodes `TellerToTreasury`, §7 (cash transfer) hardcodes
+`TellerCashTransfer`. `TreasuryTransactionType`
+(`FOSA/lib/frontOfficeEnums.js`) gained the two new backend enum members
+(`TellerToTreasury = 16`, `TellerCashTransfer = 32`) for completeness, but
+they're **not** added to `CashManagement.jsx`'s movement picker —
+`CashManagementController.Create`'s own switch statement only handles the
+original four, those two are only ever set by EndOfDayController/
+TransfersController on their own companion records, never client-selectable
+here. Worth knowing: `TransactionCode` and `TransactionType` use genuinely
+different labels for the same End-of-Day row ("Teller End-of-Day" vs.
+"Teller to Treasury") — not a bug, both are real, don't try to reconcile
+them into one label.
 - Posting-period, chart-of-account, and cost-center pickers, and the whole
   `toDenominationSubtotals()`/reconciliation dance, are gone from this
   screen along with the drawer — they were only ever needed for the manual
