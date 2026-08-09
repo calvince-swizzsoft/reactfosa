@@ -159,8 +159,15 @@ export default function AdministrationModules() {
     const fetchAssignedModules = async () => {
       setAssignedLoading(true);
       try {
+        // Deliberately NOT `by-role` — that endpoint only ever answers "what can
+        // the CALLER see," resolved purely from their own auth, and never accepts
+        // a role name (see ModulesController.GetNavigationItemsByRole). This is a
+        // different question — "what is role X currently granted," for managing
+        // someone else's access — so it hits the dedicated admin/reporting query
+        // instead (`role-grants`), which takes a role name as plain lookup data,
+        // same trust level as add-to-role/remove-from-role already have.
         const response = await fetch(
-          `${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/modules/by-role?role=${encodeURIComponent(selectedRole)}`
+          `${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/modules/role-grants?role=${encodeURIComponent(selectedRole)}`
         );
         const data = await response.json().catch(() => ({}));
 
