@@ -97,6 +97,27 @@ export const ExpensePayableAuthOption = {
   Defer: 4,
 };
 
+// FixedDeposit* — transcribed directly from Enumerations.cs. Verify sends
+// a plain `Approve: bool` (FixedDepositController.cs), not the
+// FixedDepositAuthOption enum directly, so that one isn't exported here.
+export const FixedDepositStatus = {
+  Running: 1,
+  Paid: 2,
+  Revoked: 4,
+  New: 8,
+};
+
+export const FixedDepositCategory = {
+  TermDeposit: 0,
+  CallDeposit: 1,
+};
+
+export const FixedDepositMaturityAction = {
+  PayPrincipalAndInterestDue: 0,
+  PayInterestDueAndRollOverPrincipal: 1,
+  RollOverPrincipalAndInterestDue: 2,
+};
+
 // SystemTransactionCode — the subset relevant to the Fiscal Counts
 // catalogue's `transactionCode` filter (frontoffice-api-spec.md §16.1).
 // The full server-side enum has 40+ members (every posting source in the
