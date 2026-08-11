@@ -178,6 +178,8 @@ import ExpensePayables from "./pages/FOSA/TellerTransactions/ExpensePayables.jsx
 import CreateExpensePayable from "./pages/FOSA/TellerTransactions/ExpensePayables/create.jsx";
 import FixedDeposits from "./pages/FOSA/TellerTransactions/FixedDeposits.jsx";
 import CreateFixedDeposit from "./pages/FOSA/TellerTransactions/FixedDeposits/create.jsx";
+import AccountClosure from "./pages/FOSA/TellerTransactions/AccountClosure.jsx";
+import CreateAccountClosure from "./pages/FOSA/TellerTransactions/AccountClosure/create.jsx";
 
 
 
@@ -392,6 +394,8 @@ export default function App() {
           <Route path="FrontOffice/ExpensePayables/create" element={<CreateExpensePayable />} />
           <Route path="FrontOffice/FixedDeposits" element={<FixedDeposits />} />
           <Route path="FrontOffice/FixedDeposits/create" element={<CreateFixedDeposit />} />
+          <Route path="FrontOffice/AccountClosure" element={<AccountClosure />} />
+          <Route path="FrontOffice/AccountClosure/create" element={<CreateAccountClosure />} />
           <Route path="FrontOffice/UnpayReasons" element={<UnpayReasons />} />
           <Route path="FrontOffice/ChequeTransfer" element={<ChequeTransfer />} />
           <Route path="FrontOffice/CashTransfer" element={<CashTransfer />} />

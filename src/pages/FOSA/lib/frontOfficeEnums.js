@@ -118,6 +118,25 @@ export const FixedDepositMaturityAction = {
   RollOverPrincipalAndInterestDue: 2,
 };
 
+// AccountClosureRequestStatus — transcribed directly from Enumerations.cs.
+// Real sequence (AccountClosureController.cs, not the reference
+// controller's naming order): Create -> Registered; Approve (Registered/
+// Deferred -> Approved); Verify (Approved -> Audited); Settle (Audited ->
+// Settled). Approve/Verify/Settle all share the same request shape,
+// {Option, Remarks} with Option: 1=act (Approve/Audit/Settle), 2=Defer.
+export const AccountClosureRequestStatus = {
+  Registered: 1,
+  Approved: 2,
+  Audited: 4,
+  Settled: 8,
+  Deferred: 16,
+};
+
+export const AccountClosureActionOption = {
+  Act: 1,
+  Defer: 2,
+};
+
 // SystemTransactionCode — the subset relevant to the Fiscal Counts
 // catalogue's `transactionCode` filter (frontoffice-api-spec.md §16.1).
 // The full server-side enum has 40+ members (every posting source in the
