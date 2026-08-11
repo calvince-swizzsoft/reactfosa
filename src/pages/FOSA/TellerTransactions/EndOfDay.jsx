@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import Swal from "sweetalert2";
-import { FaSun } from "react-icons/fa";
+import { FaHourglassEnd } from "react-icons/fa";
 import { apiFetch } from "@/lib/api";
 import { getEmployeeIdFromToken } from "@/lib/auth";
 import DenominationCountFields, {
@@ -44,10 +44,13 @@ const BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 //   endpoint, so it's fetched via GET tellers/teller?employeeId=<JWT's
 //   EmployeeId claim>, the same claim the server itself resolves identity
 //   from.
-// - UntransferredChequesValue must be 0 (or the server 400s with "you need
-//   to first transfer your cheques!") — there's no lookup endpoint for
-//   "my pending cheque total" so this is a manual entry; check Cheque
-//   Transfer / Catalogue first.
+// - UntransferredChequesValue in the request body is NOT what gates "you
+//   need to transfer your cheques first" — confirmed against source, the
+//   controller independently queries FindUnTransferredExternalChequesByTellerId
+//   for the caller's own teller and never reads this field back off the
+//   DTO at all in this action (not even echoed onto the FiscalCount it
+//   writes). Sent as a harmless constant 0 rather than exposed as a UI
+//   field that would imply it does something.
 // - TellerCashBalanceStatusValue is compared against BookBalance
 //   server-side to decide which journal entries to post — computed here
 //   client-side from the same two numbers the server already has.
@@ -57,6 +60,15 @@ const BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 //   as { success: false, message: "postExcessOrShortage boolean was false." }
 //   even though the day's base journal did post. Surfaced as-is (see
 //   TODO.md) rather than special-cased client-side.
+
+function FieldGroup({ label, children }) {
+  return (
+    <div>
+      <Label className="text-sm font-semibold text-gray-700">{label}</Label>
+      {children}
+    </div>
+  );
+}
 
 function statusFor(closingBalance, bookBalance) {
   const diff = closingBalance - bookBalance;
@@ -69,7 +81,6 @@ export default function EndOfDay() {
   const [teller, setTeller] = useState(null);
   const [loadingTeller, setLoadingTeller] = useState(true);
   const [counts, setCounts] = useState(emptyDenominationCounts);
-  const [untransferredChequesValue, setUntransferredChequesValue] = useState(0);
   const [reference, setReference] = useState("");
   const [remarks, setRemarks] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -116,7 +127,7 @@ export default function EndOfDay() {
       const payload = {
         ClosingBalance: closingBalance,
         BookBalance: bookBalance,
-        UntransferredChequesValue: Number(untransferredChequesValue) || 0,
+        UntransferredChequesValue: 0,
         TellerCashBalanceStatusValue: status.value,
         // Satisfies CashTransferRequestDTO.Amount's "greater than zero"
         // validator — the controller never reads this field again after
@@ -141,7 +152,6 @@ export default function EndOfDay() {
 
       setReceiptJournal(data.data);
       setCounts(emptyDenominationCounts);
-      setUntransferredChequesValue(0);
       setReference("");
       setRemarks("");
     } catch (err) {
@@ -152,84 +162,66 @@ export default function EndOfDay() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-10">
-      <section className="space-y-6 rounded-3xl bg-white p-10 shadow-lg border border-slate-200">
-        <div className="flex items-center gap-4">
-          <div className="rounded-full bg-indigo-100 p-5 text-indigo-600">
-            <FaSun className="h-8 w-8" />
-          </div>
-          <div>
-            <p className="text-sm uppercase tracking-[0.2em] text-indigo-600 font-semibold">Daily Close</p>
-            <h1 className="text-3xl font-bold text-slate-900">End of Day Process</h1>
-          </div>
-        </div>
+    <div className="bg-white m-8 px-8 py-8 shadow-2xl rounded-lg relative">
+      <div className="flex items-center gap-3 mb-6 bg-indigo-800 px-6 py-3 rounded-2xl">
+        <FaHourglassEnd className="text-white text-xl" />
+        <h2 className="text-xl font-bold text-white">End of Day Process</h2>
+      </div>
 
+      <div className="max-w-2xl space-y-6">
         {/* Teller summary */}
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-            <p className="text-sm text-slate-500">Teller</p>
-            <p className="mt-2 font-medium text-slate-900">
+        <div className="grid grid-cols-2 gap-4">
+          <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+            <p className="text-sm text-gray-500">Teller</p>
+            <p className="mt-1 font-medium text-gray-800">
               {loadingTeller ? "Loading..." : teller?.Description || "—"}
             </p>
           </div>
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-            <p className="text-sm text-slate-500">Book Balance (expected cash)</p>
-            <p className="mt-2 font-medium text-slate-900">
+          <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+            <p className="text-sm text-gray-500">Book Balance (expected cash)</p>
+            <p className="mt-1 font-medium text-gray-800">
               {loadingTeller ? "Loading..." : bookBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </p>
           </div>
         </div>
 
         {/* Denomination count */}
-        <div>
-          <Label className="text-sm font-semibold text-slate-700 mb-2 block">Count Your Cash</Label>
+        <FieldGroup label="Count Your Cash">
           <DenominationCountFields counts={counts} onChange={handleCountChange} />
-        </div>
+        </FieldGroup>
 
         {/* Balance status */}
-        <div className="flex justify-between items-center rounded-2xl border border-slate-200 bg-white p-5">
+        <div className="flex justify-between items-center rounded-lg border border-gray-200 bg-white p-4 shadow">
           <div>
-            <p className="text-sm text-slate-500">Closing vs. Book Balance</p>
-            <p className="mt-1 text-2xl font-semibold text-slate-900">
+            <p className="text-sm text-gray-500">Closing vs. Book Balance</p>
+            <p className="mt-1 text-2xl font-semibold text-gray-800">
               {(closingBalance - bookBalance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </p>
           </div>
           <span className={`px-3 py-1 rounded text-sm font-semibold ${status.cls}`}>{status.label}</span>
         </div>
 
-        {/* Untransferred cheques, reference, remarks */}
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <Label>Untransferred Cheques Value</Label>
-            <Input
-              type="number"
-              min="0"
-              value={untransferredChequesValue}
-              onChange={(e) => setUntransferredChequesValue(e.target.value)}
-              placeholder="0 if none pending"
-            />
-            <p className="text-xs text-slate-400 mt-1">
-              Must be 0 — transfer any pending cheques first (Cheque Transfer / Catalogue).
-            </p>
-          </div>
-          <div>
-            <Label>Reference</Label>
+        <div className="grid grid-cols-2 gap-4">
+          <FieldGroup label="Reference">
             <Input value={reference} onChange={(e) => setReference(e.target.value)} placeholder="Optional" />
-          </div>
+          </FieldGroup>
+          <FieldGroup label="Remarks">
+            <Input value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Optional" />
+          </FieldGroup>
         </div>
-        <div>
-          <Label>Remarks</Label>
-          <Input value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Optional" />
-        </div>
+
+        <p className="text-xs text-gray-400">
+          Any untransferred cheques must be transferred first (Cheque Transfer / Catalogue) — the server checks this independently and rejects the close if any remain.
+        </p>
 
         <Button
           onClick={handleSubmit}
           disabled={submitting || loadingTeller}
-          className="w-full bg-indigo-600 hover:bg-indigo-700 py-4 text-base font-semibold"
+          className="w-full bg-indigo-600 hover:bg-indigo-700"
         >
           {submitting ? "Processing..." : "Run End of Day Process"}
         </Button>
-      </section>
+      </div>
 
       <ReceiptModal
         open={!!receiptJournal}
