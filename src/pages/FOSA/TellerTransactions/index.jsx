@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  FaExchangeAlt, FaUniversity, FaUserTie, FaFileAlt, FaPiggyBank,
+  FaExchangeAlt, FaUniversity, FaUserTie, FaFileAlt, FaPiggyBank, FaTasks,
 } from "react-icons/fa";
 
 // Pure launcher — every item below now has its own real <Route> in
@@ -29,6 +29,10 @@ const MODULES = [
       // not four separate ones; the 4-tile split here was a Phase-1
       // frontend-only invention, now collapsed to match.
       { id: "savingsreceiptspayments", label: "Savings Receipts/Payments", subtitle: "Deposits, withdrawals, cheques, vouchers", route: "/FrontOffice/SavingsReceiptsPayments" },
+      // NavigationMenu.cs: 25007/25008, same Teller tier as Savings
+      // Receipts/Payments and End-Of-Day — Phase 2.
+      { id: "sundrypayments", label: "Sundry Receipts/Payments", subtitle: "General G/L voucher", route: "/FrontOffice/SundryPayments" },
+      { id: "customerreceipts", label: "Customer Receipts", subtitle: "Free-form till receipt", route: "/FrontOffice/CustomerReceipts" },
       { id: "endofday", label: "End-Of-Day", subtitle: "Daily closing", route: "/FrontOffice/EndOfDay" },
     ],
   },
@@ -50,6 +54,22 @@ const MODULES = [
     items: [
       { id: "chequetransfer", label: "Cheque Transfer", subtitle: "Transfer", route: "/FrontOffice/ChequeTransfer" },
       { id: "cashtransfer", label: "Cash Transfer", subtitle: "Transfer", route: "/FrontOffice/CashTransfer" },
+    ],
+  },
+  {
+    // NavigationMenu.cs: 25012-25017, "Operations (25001), direct leaves" —
+    // same tier as the Cheques catalogue (25011), but distinct enough
+    // functionally to warrant their own module here rather than folding
+    // into Cheques/Transfers. Phase 2, all 5 shipped together.
+    id: "operations",
+    label: "Operations",
+    icon: FaTasks,
+    items: [
+      { id: "fixeddeposits", label: "Fixed Deposits", subtitle: "Origination, verify, terminate, liquidate", route: "/FrontOffice/FixedDeposits" },
+      { id: "expensepayables", label: "Expense Payables", subtitle: "GL voucher lines, verify", route: "/FrontOffice/ExpensePayables" },
+      { id: "accountclosure", label: "Account Closure", subtitle: "Approve, verify, settle", route: "/FrontOffice/AccountClosure" },
+      { id: "inhousecheques", label: "In-House Cheques", subtitle: "Batch build, print", route: "/FrontOffice/InHouseCheques" },
+      { id: "automatedclearing", label: "Automated Clearing", subtitle: "Image-based cheque clearing", route: "/FrontOffice/AutomatedClearing" },
     ],
   },
 ];

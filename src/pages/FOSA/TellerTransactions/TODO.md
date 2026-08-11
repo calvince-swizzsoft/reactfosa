@@ -9,9 +9,38 @@ Teller-cycle screens that stayed behind.
 
 Covers the 7 pre-existing front-office areas against
 `docs/api/frontoffice-api-spec.md` / `WebApplication1/Areas/FrontOffice/WORKFLOW.md`.
-Phase 2 (account closure, fixed deposits, expense payables, sundry
-payments, customer receipts, in-house cheques, automated clearing — 7
-areas with no screen at all) is a separate, not-yet-started planning pass.
+
+**Phase 2 shipped 2026-08-11** — all 7 areas that had no screen at all
+(account closure, fixed deposits, expense payables, sundry payments,
+customer receipts, in-house cheques, automated clearing) are now built:
+`SundryPayments.jsx`, `CustomerReceipts.jsx`, `ExpensePayables.jsx` (+
+`ExpensePayables/create.jsx`), `FixedDeposits.jsx` (+
+`FixedDeposits/create.jsx`), `AccountClosure.jsx` (+
+`AccountClosure/create.jsx`), `InHouseCheques.jsx` (+
+`InHouseCheques/create.jsx`), `AutomatedClearing.jsx`. Every controller/DTO
+was read directly from the real backend source in the sibling
+`SwiftFinancialz` repo before writing each screen, not guessed from the
+spec doc's prose — several real field-casing/shape details only surfaced
+that way (e.g. `AccountClosureController`'s real Approve->Verify->Settle
+precondition order, which contradicts the reference controller's naming).
+moduleRouteMap codes `25007`/`25008`/`25012`-`25014`/`25016`/`25017` are
+all mapped now. Known deliberate simplifications, not oversights:
+- **`FixedDepositTypeId`** (Fixed Deposits create) and **cheque number/
+  bank name/bank account free-text fields** (In-House Cheques batch rows)
+  are left out of their forms — optional fields with no lookup endpoint or
+  clear validated semantics, same "don't guess a picker/field that isn't
+  grounded" call as the pre-existing `ChequeType` gap above.
+- **`FixedDepositPayableDTO`** (`GET`/`PUT /{id}/payables`) is shown
+  read-only in the Fixed Deposits detail drawer — its fields
+  (`BookBalance`/`PrincipalBalance`/`InterestBalance`) read as a
+  denormalized balance snapshot, not obviously user-editable business
+  data, so no edit form was built for the `PUT` side.
+- **Expense Payables' entry-line totals** are computed client-side by
+  summing the fetched entries — the real `GET /{id}/entries` response has
+  no server-computed total (unlike what an earlier, less-verified pass of
+  the planning doc assumed).
+
+Original Phase 1 scope below.
 
 Cash Deposit/Cash Withdrawal/Cheque Deposit/Payment Voucher were later
 unified into one screen, `SavingsReceiptsPayments.jsx`, replacing the 4
