@@ -76,6 +76,27 @@ export const GeneralTransactionType = {
   CashPaymentAccountClosure: 32,
 };
 
+// ExpensePayable* — transcribed directly from Enumerations.cs.
+export const ExpensePayableType = {
+  DebitGLAccount: 1,
+  CreditGLAccount: 2,
+};
+
+export const ExpensePayableStatus = {
+  Pending: 1,
+  Posted: 2,
+  Rejected: 4,
+  Audited: 8,
+};
+
+// ExpensePayableController.Verify's request body — Post enqueues the
+// generic maker-checker Workflow, Reject/Defer just update Status.
+export const ExpensePayableAuthOption = {
+  Post: 1,
+  Reject: 2,
+  Defer: 4,
+};
+
 // SystemTransactionCode — the subset relevant to the Fiscal Counts
 // catalogue's `transactionCode` filter (frontoffice-api-spec.md §16.1).
 // The full server-side enum has 40+ members (every posting source in the

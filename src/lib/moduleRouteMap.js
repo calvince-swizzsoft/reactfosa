@@ -121,9 +121,10 @@ export const moduleRouteMap = {
   25010: "/FrontOffice/EndOfDay",         // End-Of-Day (ControllerName: EndOfDay)
   // Operations (25001), direct leaves
   25011: "/FrontOffice/Catalogue",        // Cheques (ControllerName: Cheques) — the cheques catalogue/browse screen
-  // 25012 Fixed Deposits, 25013 Expense Payables, 25014 Account Closure,
-  // 25016 In-House Cheques, 25017 Automated Clearing — Phase 2 scope, no
-  // screens built yet, not mapped (see FOSA/TellerTransactions/TODO.md)
+  25013: "/FrontOffice/ExpensePayables", // Expense Payables (ControllerName: ExpensePayable) — Phase 2
+  // 25012 Fixed Deposits, 25014 Account Closure, 25016 In-House Cheques,
+  // 25017 Automated Clearing — Phase 2 scope, no screens built yet, not
+  // mapped (see FOSA/TellerTransactions/TODO.md)
 
   // ── Command Hub (0x00006590 = 26000) ─────────────────────────────
   // Operations (26002) > Messaging (26007)
