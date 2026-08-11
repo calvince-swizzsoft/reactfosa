@@ -180,6 +180,8 @@ import FixedDeposits from "./pages/FOSA/TellerTransactions/FixedDeposits.jsx";
 import CreateFixedDeposit from "./pages/FOSA/TellerTransactions/FixedDeposits/create.jsx";
 import AccountClosure from "./pages/FOSA/TellerTransactions/AccountClosure.jsx";
 import CreateAccountClosure from "./pages/FOSA/TellerTransactions/AccountClosure/create.jsx";
+import InHouseCheques from "./pages/FOSA/TellerTransactions/InHouseCheques.jsx";
+import CreateInHouseCheques from "./pages/FOSA/TellerTransactions/InHouseCheques/create.jsx";
 
 
 
@@ -396,6 +398,8 @@ export default function App() {
           <Route path="FrontOffice/FixedDeposits/create" element={<CreateFixedDeposit />} />
           <Route path="FrontOffice/AccountClosure" element={<AccountClosure />} />
           <Route path="FrontOffice/AccountClosure/create" element={<CreateAccountClosure />} />
+          <Route path="FrontOffice/InHouseCheques" element={<InHouseCheques />} />
+          <Route path="FrontOffice/InHouseCheques/create" element={<CreateInHouseCheques />} />
           <Route path="FrontOffice/UnpayReasons" element={<UnpayReasons />} />
           <Route path="FrontOffice/ChequeTransfer" element={<ChequeTransfer />} />
           <Route path="FrontOffice/CashTransfer" element={<CashTransfer />} />

@@ -124,8 +124,9 @@ export const moduleRouteMap = {
   25012: "/FrontOffice/FixedDeposits",   // Fixed Deposits (ControllerName: FixedDeposit) — Phase 2
   25013: "/FrontOffice/ExpensePayables", // Expense Payables (ControllerName: ExpensePayable) — Phase 2
   25014: "/FrontOffice/AccountClosure",  // Account Closure (ControllerName: AccountClosure) — Phase 2
-  // 25016 In-House Cheques, 25017 Automated Clearing — Phase 2 scope, no
-  // screens built yet, not mapped (see FOSA/TellerTransactions/TODO.md)
+  25016: "/FrontOffice/InHouseCheques",  // In-House Cheques (ControllerName: InHouse) — Phase 2
+  // 25017 Automated Clearing — Phase 2 scope, no screen built yet, not
+  // mapped (see FOSA/TellerTransactions/TODO.md)
 
   // ── Command Hub (0x00006590 = 26000) ─────────────────────────────
   // Operations (26002) > Messaging (26007)

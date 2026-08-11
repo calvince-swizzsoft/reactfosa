@@ -137,6 +137,24 @@ export const AccountClosureActionOption = {
   Defer: 2,
 };
 
+// InHouseChequeFunding — transcribed directly from Enumerations.cs.
+export const InHouseChequeFunding = {
+  DebitCustomerAccount: 1,
+  DebitGeneralLedgerAccount: 2,
+};
+
+// ElectronicJournalStatus / TruncatedChequeStatus — transcribed directly
+// from Enumerations.cs.
+export const ElectronicJournalStatus = {
+  Open: 1,
+  Closed: 2,
+};
+
+export const TruncatedChequeStatus = {
+  New: 1,
+  Processed: 2,
+};
+
 // SystemTransactionCode — the subset relevant to the Fiscal Counts
 // catalogue's `transactionCode` filter (frontoffice-api-spec.md §16.1).
 // The full server-side enum has 40+ members (every posting source in the
