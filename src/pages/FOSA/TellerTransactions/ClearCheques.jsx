@@ -58,10 +58,20 @@ export default function ClearCheques() {
       .finally(() => setLoading(false));
   }, []);
 
-  const allSelected = cheques.length > 0 && selected.length === cheques.length;
-  const toggleAll = () => setSelected(allSelected ? [] : cheques.map((c) => c.Id));
-  const toggleOne = (id) =>
+  // Clearing (either Pay or UnPay) now requires IsTransferred && IsBanked —
+  // the candidate list this screen's own GET isn't filtered on IsBanked
+  // server-side, so ineligible cheques would otherwise select fine and only
+  // fail on submit with "Failed to clear cheque" (frontoffice-api-spec.md
+  // §8). Gate selection here instead of letting the user hit that error.
+  const clearableCheques = cheques.filter((c) => c.IsTransferred && c.IsBanked);
+  const clearableIds = new Set(clearableCheques.map((c) => c.Id));
+
+  const allSelected = clearableCheques.length > 0 && selected.length === clearableCheques.length;
+  const toggleAll = () => setSelected(allSelected ? [] : clearableCheques.map((c) => c.Id));
+  const toggleOne = (id) => {
+    if (!clearableIds.has(id)) return;
     setSelected((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
+  };
 
   const handleOptionChange = (val) => {
     setClearingOption(val);
@@ -85,10 +95,15 @@ export default function ClearCheques() {
     setSubmitting(true);
     try {
       const reason = unpayReasons.find((r) => r.Id === selectedReasonId);
+      // clearingOption and actionType must agree — the server doesn't
+      // derive one from the other, a mismatched pair silently takes
+      // whichever branch clearingOption selects (frontoffice-api-spec.md
+      // §8, CHEQUE-PROCESSING-ANALYSIS.md Finding #5). Pay=1 with "clear",
+      // UnPay=2 with "unpay".
       const payload = {
         selectedChequeIds: selected,
         clearingOption,
-        actionType: "clear",
+        actionType: clearingOption === 1 ? "clear" : "unpay",
         unPayReasonDTO: clearingOption === 2 && reason
           ? { Id: reason.Id, Code: reason.Code, Description: reason.Description }
           : {},
@@ -185,6 +200,7 @@ export default function ClearCheques() {
         <div className="space-y-2">
           {cheques.map((c) => {
             const isSelected = selected.includes(c.Id);
+            const isClearable = clearableIds.has(c.Id);
             const statusLabel = c.IsCleared ? "Cleared" : c.IsBanked ? "Banked" : c.IsTransferred ? "Transferred" : "Pending";
             const statusCls = {
               Cleared: "bg-green-100 text-green-700",
@@ -196,17 +212,19 @@ export default function ClearCheques() {
               <div
                 key={c.Id}
                 onClick={() => toggleOne(c.Id)}
-                className={`grid grid-cols-12 gap-2 items-center px-4 py-3 rounded-lg shadow border text-sm cursor-pointer transition-all ${
-                  isSelected ? "bg-indigo-50 border-indigo-300" : "bg-white hover:bg-gray-50"
+                title={isClearable ? undefined : "Must be transferred and banked before it can be cleared or unpaid"}
+                className={`grid grid-cols-12 gap-2 items-center px-4 py-3 rounded-lg shadow border text-sm transition-all ${
+                  !isClearable ? "bg-gray-50 opacity-60 cursor-not-allowed" : isSelected ? "bg-indigo-50 border-indigo-300 cursor-pointer" : "bg-white hover:bg-gray-50 cursor-pointer"
                 }`}
               >
                 <span className="col-span-1">
                   <input
                     type="checkbox"
                     checked={isSelected}
+                    disabled={!isClearable}
                     onChange={() => toggleOne(c.Id)}
                     onClick={(e) => e.stopPropagation()}
-                    className="rounded cursor-pointer"
+                    className="rounded cursor-pointer disabled:cursor-not-allowed"
                   />
                 </span>
                 <span className="col-span-2 font-mono text-xs text-gray-700">{c.PaddedNumber || c.Number || "—"}</span>

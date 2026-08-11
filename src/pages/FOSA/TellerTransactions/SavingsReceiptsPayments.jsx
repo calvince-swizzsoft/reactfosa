@@ -181,7 +181,12 @@ function CreateTransactionDrawer({ open, onClose, onSuccess, onDialog }) {
           Drawer: form.Drawer,
           DrawerBank: form.DrawerBank,
           DrawerBankBranch: form.DrawerBankBranch,
-          ChequeType: form.ChequeType,
+          // ChequeType is optional (Guid?) — a cheque with no type just
+          // matures the same day it's deposited (frontoffice-api-spec.md
+          // §4.2). Send null, not "", when none is selected — [ValidGuid]
+          // was recently fixed to treat null as valid, but an empty-string
+          // body wouldn't exercise that fix the same way.
+          ChequeType: form.ChequeType || null,
           WriteDate: form.WriteDate ? new Date(form.WriteDate).toISOString() : null,
         });
       } else if (isPaymentVoucher) {
@@ -202,7 +207,7 @@ function CreateTransactionDrawer({ open, onClose, onSuccess, onDialog }) {
       const data = await createTransaction(payload);
 
       if (data.success) {
-        onSuccess(data.data);
+        onSuccess(data.data, isChequeDeposit);
         onClose();
       } else if (data.data?.dialog) {
         onDialog(data.message, data.data);
@@ -364,6 +369,7 @@ export default function SavingsReceiptsPayments() {
   const [itemsCount, setItemsCount] = useState(0);
   const [postingIds, setPostingIds] = useState(new Set());
   const [receiptJournal, setReceiptJournal] = useState(null);
+  const [receiptIsChequeDeposit, setReceiptIsChequeDeposit] = useState(false);
 
   const fetchItems = () => {
     setLoading(true);
@@ -522,11 +528,19 @@ export default function SavingsReceiptsPayments() {
       <CreateTransactionDrawer
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
-        onSuccess={(journal) => { setReceiptJournal(journal); fetchItems(); }}
+        onSuccess={(journal, wasChequeDeposit) => { setReceiptJournal(journal); setReceiptIsChequeDeposit(wasChequeDeposit); fetchItems(); }}
         onDialog={handleDialog}
       />
 
-      <ReceiptModal open={!!receiptJournal} onClose={() => setReceiptJournal(null)} journal={receiptJournal} title="Transaction Receipt" />
+      <ReceiptModal
+        open={!!receiptJournal}
+        onClose={() => setReceiptJournal(null)}
+        journal={receiptJournal}
+        title="Transaction Receipt"
+        notice={receiptIsChequeDeposit
+          ? "Cheque deposited — pending clearance. Funds are not available until the cheque is transferred, banked, and cleared."
+          : undefined}
+      />
     </div>
   );
 }

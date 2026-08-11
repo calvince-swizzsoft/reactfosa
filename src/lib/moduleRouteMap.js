@@ -105,6 +105,7 @@ export const moduleRouteMap = {
   23039: "/Accounts/StandingOrders/Execution", // Standing Order Execution (ControllerName: SatndingOrderExecution — real backend typo, admin/ops only)
   // Operations (23002) > Customer Accounts (23043)
   23044: "/Accounts/CustomerAccounts",    // Register (ControllerName: CustomerAccounts)
+  23047: "/Accounts/ChequeBooks",         // Cheque Books (ControllerName: CoA_ChequeBooks) — new ChequeBookController, docs/api/chequebook-api-spec.md; was unmapped entirely (only reachable via the legacy ChequeBookService.svc.cs WCF passthrough before this pass)
   23048: "/Accounts/StandingOrders",      // Standing Orders (ControllerName: CustomerAccountStandingOrder)
 
   // ── Front-Office (0x000061A8 = 25000) ────────────────────────────
