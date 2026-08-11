@@ -172,6 +172,8 @@ import ClearCheques from "./pages/FOSA/TellerTransactions/ClearCheques.jsx";
 import UnpayReasons from "./pages/FOSA/TellerTransactions/UnpayReasons.jsx";
 import ChequeTransfer from "./pages/FOSA/TellerTransactions/ChequeTransfer.jsx";
 import CashTransfer from "./pages/FOSA/TellerTransactions/CashTransfer.jsx";
+import SundryPayments from "./pages/FOSA/TellerTransactions/SundryPayments.jsx";
+import CustomerReceipts from "./pages/FOSA/TellerTransactions/CustomerReceipts.jsx";
 
 
 
@@ -380,6 +382,8 @@ export default function App() {
           <Route path="FrontOffice/Catalogue" element={<Catalogue />} />
           <Route path="FrontOffice/BankCheques" element={<BankCheques />} />
           <Route path="FrontOffice/ClearCheques" element={<ClearCheques />} />
+          <Route path="FrontOffice/SundryPayments" element={<SundryPayments />} />
+          <Route path="FrontOffice/CustomerReceipts" element={<CustomerReceipts />} />
           <Route path="FrontOffice/UnpayReasons" element={<UnpayReasons />} />
           <Route path="FrontOffice/ChequeTransfer" element={<ChequeTransfer />} />
           <Route path="FrontOffice/CashTransfer" element={<CashTransfer />} />

@@ -115,7 +115,8 @@ export const moduleRouteMap = {
   25015: "/FrontOffice/FiscalCounts",     // Fiscal Counts (ControllerName: FiscalCount) — read-only catalogue, docs/api/frontoffice-api-spec.md §16; lives in FOSA/TreasuryTransactions/
   // Operations (25001) > Teller (25005)
   25006: "/FrontOffice/SavingsReceiptsPayments", // Savings Receipts/Payments (ControllerName: CashDeposit) — the ONLY real nav entry for the whole teller transaction cycle (deposit/withdrawal/cheque deposit/payment voucher are one screen server-side)
-  // 25007 "Sundry Receipts/Payments" and 25008 "Customer Receipts" have no screens yet — not mapped
+  25007: "/FrontOffice/SundryPayments",   // Sundry Receipts/Payments (ControllerName: SundryPayments) — Phase 2, receipt-only form (no list endpoint exists)
+  25008: "/FrontOffice/CustomerReceipts", // Customer Receipts (ControllerName: CustomerReceipts) — Phase 2, receipt-only form (no list endpoint exists)
   25009: "/FrontOffice/CashTransfer",     // Cheques/Cash Transfer (ControllerName: Transfers) — no separate Code exists for Cash vs. Cheque Transfer; app has two screens (CashTransfer.jsx/ChequeTransfer.jsx), pointed at Cash Transfer per user decision (2026-08-07)
   25010: "/FrontOffice/EndOfDay",         // End-Of-Day (ControllerName: EndOfDay)
   // Operations (25001), direct leaves

@@ -61,6 +61,21 @@ export const CashWithdrawalCategory = {
   PaymentVoucher: 16,
 };
 
+// GeneralTransactionType — SundryPaymentsController.Create's own switch
+// only handles the first five of these (SundryPayment=16 has no case and
+// falls through to "Unsupported transaction type", so it's listed here for
+// completeness/decoding but not offered as a picker option).
+// CashPaymentAccountClosure=32 is only ever sent from the Account Closure
+// settle flow, not chosen free-form by a teller.
+export const GeneralTransactionType = {
+  CashReceipt: 1,
+  ChequeReceipt: 2,
+  CashPayment: 4,
+  CashPickup: 8,
+  SundryPayment: 16,
+  CashPaymentAccountClosure: 32,
+};
+
 // SystemTransactionCode — the subset relevant to the Fiscal Counts
 // catalogue's `transactionCode` filter (frontoffice-api-spec.md §16.1).
 // The full server-side enum has 40+ members (every posting source in the
