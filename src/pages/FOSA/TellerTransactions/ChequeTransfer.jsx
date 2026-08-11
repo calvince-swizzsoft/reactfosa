@@ -108,7 +108,13 @@ export default function ChequeTransfer() {
   const selectedInTab = selected.filter((id) => filtered.some((c) => c.Id === id));
 
   return (
-    <div>
+    <div className="bg-white m-8 px-8 py-8 shadow-2xl rounded-lg relative">
+      <div className="flex justify-between items-center mb-6 bg-indigo-800 px-6 py-3 rounded-2xl">
+        <h2 className="text-xl font-bold text-white flex items-center gap-2">
+          <FaExchangeAlt /> Cheque Transfer
+        </h2>
+      </div>
+
       {/* Tabs + Transfer button */}
       <div className="flex justify-between items-center mb-4">
         <div className="flex gap-1 border-b border-gray-200">
@@ -147,84 +153,90 @@ export default function ChequeTransfer() {
         )}
       </div>
 
-      {/* Table header */}
-      <div className="grid grid-cols-12 gap-2 bg-gray-700 text-gray-100 font-semibold p-3 rounded-lg mb-3 text-sm">
-        {activeTab === "pending" && (
-          <div className="col-span-1 flex items-center">
-            <input
-              type="checkbox"
-              checked={allSelected}
-              onChange={toggleAll}
-              className="accent-indigo-500 w-4 h-4 cursor-pointer"
-            />
+      <div className="bg-gray-200 p-4 rounded-sm">
+        <div className="grid grid-cols-12 gap-4 bg-gray-700 text-gray-100 font-semibold p-3 rounded-lg mb-4 text-sm">
+          {activeTab === "pending" && (
+            <div className="col-span-1 flex items-center">
+              <input
+                type="checkbox"
+                checked={allSelected}
+                onChange={toggleAll}
+                className="accent-indigo-500 w-4 h-4 cursor-pointer"
+              />
+            </div>
+          )}
+          <span className={activeTab === "pending" ? "col-span-2" : "col-span-3"}>Cheque No.</span>
+          <span className="col-span-2">Amount</span>
+          <span className="col-span-2">Drawer</span>
+          <span className="col-span-2">Bank</span>
+          <span className="col-span-2">Write Date</span>
+          <span className="col-span-1 text-right">Status</span>
+        </div>
+
+        {loading ? (
+          <div className="space-y-2 animate-pulse">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="grid grid-cols-12 gap-2 bg-gray-50 p-6 rounded">
+                {Array.from({ length: 12 }).map((_, j) => <div key={j} className="h-4 bg-gray-200 rounded"></div>)}
+              </div>
+            ))}
+          </div>
+        ) : filtered.length > 0 ? (
+          <div className="space-y-2">
+            {filtered.map((c) => {
+              const isChecked = selected.includes(c.Id);
+              return (
+                <div
+                  key={c.Id}
+                  className={`rounded-lg shadow-lg border transition-all ${isChecked ? "bg-indigo-50 border-indigo-300" : "bg-white hover:shadow-xl"
+                    }`}
+                >
+                  <div className="grid grid-cols-12 gap-2 items-center py-4 px-6 text-sm">
+                    {activeTab === "pending" && (
+                      <div className="col-span-1">
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => toggleOne(c.Id)}
+                          className="accent-indigo-500 w-4 h-4 cursor-pointer"
+                        />
+                      </div>
+                    )}
+                    <span className={`font-mono font-semibold text-indigo-700 ${activeTab === "pending" ? "col-span-2" : "col-span-3"}`}>
+                      {c.PaddedNumber || c.Number || "—"}
+                    </span>
+                    <span className="col-span-2 font-medium text-gray-800">
+                      {c.Amount != null ? c.Amount.toLocaleString() : "—"}
+                    </span>
+                    <span className="col-span-2 text-gray-700 truncate">{c.Drawer || "—"}</span>
+                    <span className="col-span-2 text-gray-500 truncate">{c.DrawerBank || "—"}</span>
+                    <span className="col-span-2 text-xs text-gray-400">
+                      {c.WriteDate ? new Date(c.WriteDate).toLocaleDateString() : "—"}
+                    </span>
+                    <div className="col-span-1 flex justify-end">
+                      <span
+                        className={`text-xs px-2 py-0.5 rounded-full font-semibold ${c.IsTransferred
+                          ? "bg-blue-100 text-blue-700"
+                          : "bg-yellow-100 text-yellow-700"
+                          }`}
+                      >
+                        {c.IsTransferred ? "Transferred" : "Pending"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="text-gray-500 text-center mt-4">
+            <img src={NotFoundImage} alt="Not Found" className="mx-auto w-42" />
+            <p className="font-medium text-gray-400">
+              No <span className="font-medium">{activeTab === "transferred" ? "transferred" : "pending"}</span> cheques found.
+            </p>
           </div>
         )}
-        <span className={activeTab === "pending" ? "col-span-2" : "col-span-3"}>Cheque No.</span>
-        <span className="col-span-2">Amount</span>
-        <span className="col-span-2">Drawer</span>
-        <span className="col-span-2">Bank</span>
-        <span className="col-span-2">Write Date</span>
-        <span className="col-span-1 text-right">Status</span>
       </div>
-
-      {/* Rows */}
-      {loading ? (
-        <div className="space-y-2 animate-pulse">
-          {[1, 2, 3].map((i) => <div key={i} className="h-12 bg-gray-100 rounded-lg" />)}
-        </div>
-      ) : filtered.length > 0 ? (
-        <div className="space-y-2">
-          {filtered.map((c) => {
-            const isChecked = selected.includes(c.Id);
-            return (
-              <div
-                key={c.Id}
-                className={`grid grid-cols-12 gap-2 items-center px-4 py-3 rounded-lg shadow border text-sm transition-colors ${isChecked ? "bg-indigo-50 border-indigo-300" : "bg-white"
-                  }`}
-              >
-                {activeTab === "pending" && (
-                  <div className="col-span-1">
-                    <input
-                      type="checkbox"
-                      checked={isChecked}
-                      onChange={() => toggleOne(c.Id)}
-                      className="accent-indigo-500 w-4 h-4 cursor-pointer"
-                    />
-                  </div>
-                )}
-                <span className={`font-mono font-semibold text-indigo-700 ${activeTab === "pending" ? "col-span-2" : "col-span-3"}`}>
-                  {c.PaddedNumber || c.Number || "—"}
-                </span>
-                <span className="col-span-2 font-medium text-gray-800">
-                  {c.Amount != null ? c.Amount.toLocaleString() : "—"}
-                </span>
-                <span className="col-span-2 text-gray-700 truncate">{c.Drawer || "—"}</span>
-                <span className="col-span-2 text-gray-500 truncate">{c.DrawerBank || "—"}</span>
-                <span className="col-span-2 text-xs text-gray-400">
-                  {c.WriteDate ? new Date(c.WriteDate).toLocaleDateString() : "—"}
-                </span>
-                <div className="col-span-1 flex justify-end">
-                  <span
-                    className={`text-xs px-2 py-0.5 rounded-full font-semibold ${c.IsTransferred
-                      ? "bg-blue-100 text-blue-700"
-                      : "bg-yellow-100 text-yellow-700"
-                      }`}
-                  >
-                    {c.IsTransferred ? "Transferred" : "Pending"}
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      ) : (
-        <div className="text-center mt-6">
-          <img src={NotFoundImage} alt="Not Found" className="mx-auto w-32 h-auto" />
-          <p className="text-gray-400 mt-2">
-            No <span className="font-medium">{activeTab === "transferred" ? "transferred" : "pending"}</span> cheques found.
-          </p>
-        </div>
-      )}
     </div>
   );
 }

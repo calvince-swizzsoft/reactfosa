@@ -6,6 +6,7 @@ import {
 } from "@/components/ui/select";
 import Swal from "sweetalert2";
 import NotFoundImage from "/assets/scopefinding.png";
+import { FaCheckDouble } from "react-icons/fa";
 import { apiFetch, normalizeList } from "@/lib/api";
 
 const BASE = `${import.meta.env.VITE_APP_FIN_URL}`
@@ -126,7 +127,13 @@ export default function ClearCheques() {
   };
 
   return (
-    <div>
+    <div className="bg-white m-8 px-8 py-8 shadow-2xl rounded-lg relative">
+      <div className="flex justify-between items-center mb-6 bg-indigo-800 px-6 py-3 rounded-2xl">
+        <h2 className="text-xl font-bold text-white flex items-center gap-2">
+          <FaCheckDouble /> Clear Cheques
+        </h2>
+      </div>
+
       {/* Action panel — appears when cheques are selected */}
       {selected.length > 0 && (
         <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 mb-4 flex flex-wrap items-end gap-4">
@@ -180,79 +187,82 @@ export default function ClearCheques() {
         </div>
       )}
 
-      {/* Table header */}
-      <div className="grid grid-cols-12 gap-2 bg-gray-700 text-gray-100 font-semibold p-3 rounded-lg mb-3 text-sm">
-        <span className="col-span-1">
-          <input type="checkbox" checked={allSelected} onChange={toggleAll} className="rounded cursor-pointer" />
-        </span>
-        <span className="col-span-2">Cheque #</span>
-        <span className="col-span-2">Account</span>
-        <span className="col-span-3">Customer</span>
-        <span className="col-span-2">Amount</span>
-        <span className="col-span-2">Status</span>
-      </div>
+      <div className="bg-gray-200 p-4 rounded-sm">
+        <div className="grid grid-cols-12 gap-4 bg-gray-700 text-gray-100 font-semibold p-3 rounded-lg mb-4 text-sm">
+          <span className="col-span-1">
+            <input type="checkbox" checked={allSelected} onChange={toggleAll} className="rounded cursor-pointer" />
+          </span>
+          <span className="col-span-2">Cheque #</span>
+          <span className="col-span-2">Account</span>
+          <span className="col-span-3">Customer</span>
+          <span className="col-span-2">Amount</span>
+          <span className="col-span-2">Status</span>
+        </div>
 
-      {loading ? (
-        <div className="space-y-2">
-          {[1, 2, 3, 4, 5].map((i) => <SkeletonRow key={i} />)}
-        </div>
-      ) : cheques.length > 0 ? (
-        <div className="space-y-2">
-          {cheques.map((c) => {
-            const isSelected = selected.includes(c.Id);
-            const isClearable = clearableIds.has(c.Id);
-            const statusLabel = c.IsCleared ? "Cleared" : c.IsBanked ? "Banked" : c.IsTransferred ? "Transferred" : "Pending";
-            const statusCls = {
-              Cleared: "bg-green-100 text-green-700",
-              Banked: "bg-blue-100 text-blue-700",
-              Transferred: "bg-purple-100 text-purple-700",
-              Pending: "bg-yellow-100 text-yellow-700",
-            }[statusLabel];
-            return (
-              <div
-                key={c.Id}
-                onClick={() => toggleOne(c.Id)}
-                title={isClearable ? undefined : "Must be transferred and banked before it can be cleared or unpaid"}
-                className={`grid grid-cols-12 gap-2 items-center px-4 py-3 rounded-lg shadow border text-sm transition-all ${
-                  !isClearable ? "bg-gray-50 opacity-60 cursor-not-allowed" : isSelected ? "bg-indigo-50 border-indigo-300 cursor-pointer" : "bg-white hover:bg-gray-50 cursor-pointer"
-                }`}
-              >
-                <span className="col-span-1">
-                  <input
-                    type="checkbox"
-                    checked={isSelected}
-                    disabled={!isClearable}
-                    onChange={() => toggleOne(c.Id)}
-                    onClick={(e) => e.stopPropagation()}
-                    className="rounded cursor-pointer disabled:cursor-not-allowed"
-                  />
-                </span>
-                <span className="col-span-2 font-mono text-xs text-gray-700">{c.PaddedNumber || c.Number || "—"}</span>
-                <span className="col-span-2 text-xs text-gray-500 truncate" title={c.CustomerAccountFullAccountNumber}>
-                  {c.CustomerAccountFullAccountNumber || "—"}
-                </span>
-                <div className="col-span-3">
-                  <p className="font-medium text-gray-800 truncate">
-                    {[c.CustomerAccountCustomerIndividualFirstName, c.CustomerAccountCustomerIndividualLastName]
-                      .filter(Boolean).join(" ") || c.Drawer || "—"}
-                  </p>
+        {loading ? (
+          <div className="space-y-2">
+            {[1, 2, 3, 4, 5].map((i) => <SkeletonRow key={i} />)}
+          </div>
+        ) : cheques.length > 0 ? (
+          <div className="space-y-2">
+            {cheques.map((c) => {
+              const isSelected = selected.includes(c.Id);
+              const isClearable = clearableIds.has(c.Id);
+              const statusLabel = c.IsCleared ? "Cleared" : c.IsBanked ? "Banked" : c.IsTransferred ? "Transferred" : "Pending";
+              const statusCls = {
+                Cleared: "bg-green-100 text-green-700",
+                Banked: "bg-blue-100 text-blue-700",
+                Transferred: "bg-purple-100 text-purple-700",
+                Pending: "bg-yellow-100 text-yellow-700",
+              }[statusLabel];
+              return (
+                <div
+                  key={c.Id}
+                  onClick={() => toggleOne(c.Id)}
+                  title={isClearable ? undefined : "Must be transferred and banked before it can be cleared or unpaid"}
+                  className={`rounded-lg shadow-lg border transition-all ${
+                    !isClearable ? "bg-gray-50 opacity-60 cursor-not-allowed" : isSelected ? "bg-indigo-50 border-indigo-300 cursor-pointer" : "bg-white hover:shadow-xl cursor-pointer"
+                  }`}
+                >
+                  <div className="grid grid-cols-12 gap-2 items-center py-4 px-6 text-sm">
+                    <span className="col-span-1">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        disabled={!isClearable}
+                        onChange={() => toggleOne(c.Id)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="rounded cursor-pointer disabled:cursor-not-allowed"
+                      />
+                    </span>
+                    <span className="col-span-2 font-mono text-xs text-gray-700">{c.PaddedNumber || c.Number || "—"}</span>
+                    <span className="col-span-2 text-xs text-gray-500 truncate" title={c.CustomerAccountFullAccountNumber}>
+                      {c.CustomerAccountFullAccountNumber || "—"}
+                    </span>
+                    <div className="col-span-3">
+                      <p className="font-medium text-gray-800 truncate">
+                        {[c.CustomerAccountCustomerIndividualFirstName, c.CustomerAccountCustomerIndividualLastName]
+                          .filter(Boolean).join(" ") || c.Drawer || "—"}
+                      </p>
+                    </div>
+                    <span className="col-span-2 font-semibold text-indigo-700">
+                      {c.Amount != null ? c.Amount.toLocaleString() : "—"}
+                    </span>
+                    <span className="col-span-2">
+                      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${statusCls}`}>{statusLabel}</span>
+                    </span>
+                  </div>
                 </div>
-                <span className="col-span-2 font-semibold text-indigo-700">
-                  {c.Amount != null ? c.Amount.toLocaleString() : "—"}
-                </span>
-                <span className="col-span-2">
-                  <span className={`px-2 py-1 rounded-full text-xs font-semibold ${statusCls}`}>{statusLabel}</span>
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      ) : (
-        <div className="text-center mt-10">
-          <img src={NotFoundImage} alt="Not Found" className="mx-auto w-32 h-auto" />
-          <p className="text-gray-400 mt-2">No cheques available.</p>
-        </div>
-      )}
+              );
+            })}
+          </div>
+        ) : (
+          <div className="text-gray-500 text-center mt-4">
+            <img src={NotFoundImage} alt="Not Found" className="mx-auto w-42" />
+            <p className="font-medium text-gray-400">No cheques available.</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

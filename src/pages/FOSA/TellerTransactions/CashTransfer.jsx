@@ -9,7 +9,7 @@ import {
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { FaEllipsisV, FaCheckCircle, FaTimesCircle, FaPaperPlane } from "react-icons/fa";
+import { FaEllipsisV, FaCheckCircle, FaTimesCircle, FaPaperPlane, FaExchangeAlt } from "react-icons/fa";
 import Swal from "sweetalert2";
 import NotFoundImage from "/assets/scopefinding.png";
 import { apiFetch } from "@/lib/api";
@@ -40,12 +40,6 @@ const BALANCE_STATUS_COLORS = {
   Balanced: "bg-green-100 text-green-700",
   Shortage: "bg-red-100 text-red-700",
   Excess: "bg-blue-100 text-blue-700",
-};
-
-const TRANSACTION_TYPE_LABELS = {
-  0: "Cash Transfer",
-  1: "Internal",
-  2: "External",
 };
 
 function BalanceBadge({ statusValue }) {
@@ -118,7 +112,12 @@ function AddCashTransferDrawer({ open, onClose, onSuccess }) {
         // teller-entered figure that doesn't match their count.
         Amount: amount,
         OpeningBalance: String(form.OpeningBalance),
-        TellerCashBalanceStatus: String(form.TellerCashBalanceStatus),
+        // TellerCashBalanceStatus (no suffix) is a read-only computed
+        // description string on the real CashTransferRequestDTO — it has
+        // no setter, so sending it here was silently discarded on every
+        // create. TellerCashBalanceStatusValue (int) is the actual
+        // settable field, confirmed against the real DTO source.
+        TellerCashBalanceStatusValue: Number(form.TellerCashBalanceStatus),
         ...toDenominationSubtotals(counts),
       };
       const res = await apiFetch(`${BASE}/api/frontoffice/transfers/cash`, {
@@ -267,7 +266,6 @@ export default function CashTransfer() {
           Amount: item.Amount,
           OpeningBalance: item.OpeningBalance ?? 0,
           TellerCashBalanceStatusValue: item.TellerCashBalanceStatusValue,
-          TransactionType: item.TransactionType,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -303,7 +301,6 @@ export default function CashTransfer() {
           Amount: item.Amount,
           OpeningBalance: item.OpeningBalance ?? 0,
           TellerCashBalanceStatusValue: item.TellerCashBalanceStatusValue,
-          TransactionType: item.TransactionType,
         }),
       });
       if (!res.ok) throw new Error("Rejection failed");
@@ -339,8 +336,17 @@ export default function CashTransfer() {
   const countFor = (status) => transfers.filter((t) => getTransferStatus(t) === status).length;
 
   return (
-    <div>
-      {/* Tabs + button row */}
+    <div className="bg-white m-8 px-8 py-8 shadow-2xl rounded-lg relative">
+      <div className="flex justify-between items-center mb-6 bg-indigo-800 px-6 py-3 rounded-2xl">
+        <h2 className="text-xl font-bold text-white flex items-center gap-2">
+          <FaExchangeAlt /> Cash Transfer
+        </h2>
+        <Button onClick={() => setAddOpen(true)} className="bg-indigo-600 hover:bg-indigo-700">
+          + New Cash Transfer
+        </Button>
+      </div>
+
+      {/* Tabs row */}
       <div className="flex justify-between items-center mb-4">
         <div className="flex gap-1 border-b border-gray-200">
           {STATUS_TABS.map((tab) => {
@@ -365,97 +371,97 @@ export default function CashTransfer() {
             );
           })}
         </div>
-        <Button onClick={() => setAddOpen(true)} className="bg-indigo-600 hover:bg-indigo-700">
-          + New Cash Transfer
-        </Button>
-      </div>
 
-      {/* Workflow hint */}
-      <div className="flex items-center gap-2 text-xs text-gray-400 mb-3 px-1">
-        <span className="font-medium text-yellow-600">Pending</span>
-        <span>→</span>
-        <span className="font-medium text-green-600">Acknowledged</span>
-        <span>→</span>
-        <span className="font-medium text-blue-600">Utilized</span>
-        <span className="mx-1 text-gray-300">|</span>
-        <span className="font-medium text-red-500">Rejected</span>
-      </div>
-
-      {/* Table header */}
-      <div className="grid grid-cols-10 gap-2 bg-gray-700 text-gray-100 font-semibold p-3 rounded-lg mb-3 text-sm">
-        <span className="col-span-3">Transfer ID</span>
-        <span className="col-span-2">Amount</span>
-        <span className="col-span-2">Acknowledged By</span>
-        <span className="col-span-2">Acknowledged Date</span>
-        <span className="col-span-1 text-right">
-          {activeTab === "Pending" || activeTab === "Acknowledged" ? "Actions" : ""}
-        </span>
-      </div>
-
-      {loading ? (
-        <div className="space-y-2">
-          {[1, 2, 3, 4, 5].map((i) => <SkeletonRow key={i} />)}
+        {/* Workflow hint */}
+        <div className="flex items-center gap-2 text-xs text-gray-400 px-1">
+          <span className="font-medium text-yellow-600">Pending</span>
+          <span>→</span>
+          <span className="font-medium text-green-600">Acknowledged</span>
+          <span>→</span>
+          <span className="font-medium text-blue-600">Utilized</span>
+          <span className="mx-1 text-gray-300">|</span>
+          <span className="font-medium text-red-500">Rejected</span>
         </div>
-      ) : filteredTransfers.length > 0 ? (
-        <div className="space-y-2">
-          {filteredTransfers.map((t) => (
-            <div key={t.Id} className="grid grid-cols-10 gap-2 items-center bg-white px-4 py-3 rounded-lg shadow border text-sm">
-              <span className="col-span-3 font-mono text-xs text-gray-500 truncate" title={t.Id}>
-                {t.Id}
-              </span>
-              <span className="col-span-2 font-semibold text-indigo-700">
-                {t.Amount != null ? t.Amount.toLocaleString(undefined, { minimumFractionDigits: 2 }) : "—"}
-              </span>
-              <div className="col-span-2">
-                <p className="text-gray-700 text-xs font-medium">{t.AcknowledgedBy || "—"}</p>
+      </div>
+
+      <div className="bg-gray-200 p-4 rounded-sm">
+        <div className="grid grid-cols-10 gap-4 bg-gray-700 text-gray-100 font-semibold p-3 rounded-lg mb-4 text-sm">
+          <span className="col-span-3">Transfer ID</span>
+          <span className="col-span-2">Amount</span>
+          <span className="col-span-2">Acknowledged By</span>
+          <span className="col-span-2">Acknowledged Date</span>
+          <span className="col-span-1 text-right">
+            {activeTab === "Pending" || activeTab === "Acknowledged" ? "Actions" : ""}
+          </span>
+        </div>
+
+        {loading ? (
+          <div className="space-y-2">
+            {[1, 2, 3, 4, 5].map((i) => <SkeletonRow key={i} />)}
+          </div>
+        ) : filteredTransfers.length > 0 ? (
+          <div className="space-y-2">
+            {filteredTransfers.map((t) => (
+              <div key={t.Id} className="bg-white rounded-lg shadow-lg border">
+                <div className="grid grid-cols-10 gap-2 items-center py-4 px-6 hover:shadow-xl transition-all text-sm">
+                  <span className="col-span-3 font-mono text-xs text-gray-500 truncate" title={t.Id}>
+                    {t.Id}
+                  </span>
+                  <span className="col-span-2 font-semibold text-indigo-700">
+                    {t.Amount != null ? t.Amount.toLocaleString(undefined, { minimumFractionDigits: 2 }) : "—"}
+                  </span>
+                  <div className="col-span-2">
+                    <p className="text-gray-700 text-xs font-medium">{t.AcknowledgedBy || "—"}</p>
+                  </div>
+                  <span className="col-span-2 text-xs text-gray-400">
+                    {t.AcknowledgedDate ? new Date(t.AcknowledgedDate).toLocaleString() : "—"}
+                  </span>
+                  <div className="col-span-1 flex justify-end">
+                    {activeTab === "Pending" && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <FaEllipsisV className="text-gray-500" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleAcknowledge(t)}>
+                            <FaCheckCircle className="mr-2 text-green-600" /> Acknowledge
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleReject(t)}>
+                            <FaTimesCircle className="mr-2 text-red-600" /> Reject
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
+                    {activeTab === "Acknowledged" && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <FaEllipsisV className="text-gray-500" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleUtilize(t.Id)}>
+                            <FaPaperPlane className="mr-2 text-blue-600" /> Utilize
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
+                  </div>
+                </div>
               </div>
-              <span className="col-span-2 text-xs text-gray-400">
-                {t.AcknowledgedDate ? new Date(t.AcknowledgedDate).toLocaleString() : "—"}
-              </span>
-              <div className="col-span-1 flex justify-end">
-                {activeTab === "Pending" && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <FaEllipsisV className="text-gray-500" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => handleAcknowledge(t)}>
-                        <FaCheckCircle className="mr-2 text-green-600" /> Acknowledge
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleReject(t)}>
-                        <FaTimesCircle className="mr-2 text-red-600" /> Reject
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
-                {activeTab === "Acknowledged" && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <FaEllipsisV className="text-gray-500" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => handleUtilize(t.Id)}>
-                        <FaPaperPlane className="mr-2 text-blue-600" /> Utilize
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="text-center mt-6">
-          <img src={NotFoundImage} alt="Not Found" className="mx-auto w-32 h-auto" />
-          <p className="text-gray-400 mt-2">
-            No <span className="font-medium">{activeTab.toLowerCase()}</span> cash transfer records found.
-          </p>
-        </div>
-      )}
+            ))}
+          </div>
+        ) : (
+          <div className="text-gray-500 text-center mt-4">
+            <img src={NotFoundImage} alt="Not Found" className="mx-auto w-42" />
+            <p className="font-medium text-gray-400">
+              No <span className="font-medium">{activeTab.toLowerCase()}</span> cash transfer records found.
+            </p>
+          </div>
+        )}
+      </div>
 
       <AddCashTransferDrawer open={addOpen} onClose={() => setAddOpen(false)} onSuccess={fetchTransfers} />
     </div>

@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { FaSearch, FaChevronDown, FaTimes, FaSpinner } from "react-icons/fa";
+import { FaSearch, FaChevronDown, FaTimes, FaSpinner, FaUniversity } from "react-icons/fa";
 import Swal from "sweetalert2";
 import NotFoundImage from "/assets/scopefinding.png";
 import { apiFetch, normalizeList } from "@/lib/api";
@@ -257,7 +257,13 @@ export default function BankCheques() {
   };
 
   return (
-    <div>
+    <div className="bg-white m-8 px-8 py-8 shadow-2xl rounded-lg relative">
+      <div className="flex justify-between items-center mb-6 bg-indigo-800 px-6 py-3 rounded-2xl">
+        <h2 className="text-xl font-bold text-white flex items-center gap-2">
+          <FaUniversity /> Bank Cheques
+        </h2>
+      </div>
+
       {/* Bank linkage panel — visible when cheques are selected */}
       {selected.length > 0 && (
         <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 mb-4 space-y-3">
@@ -321,76 +327,79 @@ export default function BankCheques() {
         </div>
       )}
 
-      {/* Table header */}
-      <div className="grid grid-cols-12 gap-2 bg-gray-700 text-gray-100 font-semibold p-3 rounded-lg mb-3 text-sm">
-        <span className="col-span-1">
-          <input type="checkbox" checked={allSelected} onChange={toggleAll} className="rounded cursor-pointer" />
-        </span>
-        <span className="col-span-2">Cheque #</span>
-        <span className="col-span-2">Account</span>
-        <span className="col-span-2">Customer</span>
-        <span className="col-span-1">Amount</span>
-        <span className="col-span-4">Status</span>
-      </div>
+      <div className="bg-gray-200 p-4 rounded-sm">
+        <div className="grid grid-cols-12 gap-4 bg-gray-700 text-gray-100 font-semibold p-3 rounded-lg mb-4 text-sm">
+          <span className="col-span-1">
+            <input type="checkbox" checked={allSelected} onChange={toggleAll} className="rounded cursor-pointer" />
+          </span>
+          <span className="col-span-2">Cheque #</span>
+          <span className="col-span-2">Account</span>
+          <span className="col-span-2">Customer</span>
+          <span className="col-span-1">Amount</span>
+          <span className="col-span-4">Status</span>
+        </div>
 
-      {loading ? (
-        <div className="space-y-2">
-          {[1, 2, 3, 4, 5].map((i) => <SkeletonRow key={i} />)}
-        </div>
-      ) : transferredCheques.length > 0 ? (
-        <div className="space-y-2">
-          {transferredCheques.map((c) => {
-            const isSelected = selected.includes(c.Id);
-            return (
-              <div
-                key={c.Id}
-                onClick={() => toggleOne(c.Id)}
-                className={`grid grid-cols-12 gap-2 items-center px-4 py-3 rounded-lg shadow border text-sm cursor-pointer transition-all ${isSelected ? "bg-indigo-50 border-indigo-300" : "bg-white hover:bg-gray-50"
-                  }`}
-              >
-                <span className="col-span-1">
-                  <input
-                    type="checkbox"
-                    checked={isSelected}
-                    onChange={() => toggleOne(c.Id)}
-                    onClick={(e) => e.stopPropagation()}
-                    className="rounded cursor-pointer"
-                  />
-                </span>
-                <span className="col-span-2 font-mono text-xs text-gray-700">{c.PaddedNumber || c.Number || "—"}</span>
-                <span className="col-span-2 text-xs text-gray-500 truncate" title={c.CustomerAccountFullAccountNumber}>
-                  {c.CustomerAccountFullAccountNumber || "—"}
-                </span>
-                <div className="col-span-2">
-                  <p className="font-medium text-gray-800 truncate text-xs">
-                    {[c.CustomerAccountCustomerIndividualFirstName, c.CustomerAccountCustomerIndividualLastName]
-                      .filter(Boolean).join(" ") || c.Drawer || "—"}
-                  </p>
+        {loading ? (
+          <div className="space-y-2">
+            {[1, 2, 3, 4, 5].map((i) => <SkeletonRow key={i} />)}
+          </div>
+        ) : transferredCheques.length > 0 ? (
+          <div className="space-y-2">
+            {transferredCheques.map((c) => {
+              const isSelected = selected.includes(c.Id);
+              return (
+                <div
+                  key={c.Id}
+                  onClick={() => toggleOne(c.Id)}
+                  className={`rounded-lg shadow-lg border cursor-pointer transition-all ${isSelected ? "bg-indigo-50 border-indigo-300" : "bg-white hover:shadow-xl"
+                    }`}
+                >
+                  <div className="grid grid-cols-12 gap-2 items-center py-4 px-6 text-sm">
+                    <span className="col-span-1">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleOne(c.Id)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="rounded cursor-pointer"
+                      />
+                    </span>
+                    <span className="col-span-2 font-mono text-xs text-gray-700">{c.PaddedNumber || c.Number || "—"}</span>
+                    <span className="col-span-2 text-xs text-gray-500 truncate" title={c.CustomerAccountFullAccountNumber}>
+                      {c.CustomerAccountFullAccountNumber || "—"}
+                    </span>
+                    <div className="col-span-2">
+                      <p className="font-medium text-gray-800 truncate text-xs">
+                        {[c.CustomerAccountCustomerIndividualFirstName, c.CustomerAccountCustomerIndividualLastName]
+                          .filter(Boolean).join(" ") || c.Drawer || "—"}
+                      </p>
+                    </div>
+                    <span className="col-span-1 font-semibold text-indigo-700 text-xs">
+                      {c.Amount != null ? c.Amount.toLocaleString() : "—"}
+                    </span>
+                    <div className="col-span-4 flex items-center gap-1 flex-wrap">
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${c.IsCleared ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-400"}`}>
+                        {c.IsCleared ? "Cleared" : "Not Cleared"}
+                      </span>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${c.IsBanked ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-400"}`}>
+                        {c.IsBanked ? "Banked" : "Not Banked"}
+                      </span>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${c.IsTransferred ? "bg-purple-100 text-purple-700" : "bg-gray-100 text-gray-400"}`}>
+                        {c.IsTransferred ? "Transferred" : "Not Transferred"}
+                      </span>
+                    </div>
+                  </div>
                 </div>
-                <span className="col-span-1 font-semibold text-indigo-700 text-xs">
-                  {c.Amount != null ? c.Amount.toLocaleString() : "—"}
-                </span>
-                <div className="col-span-4 flex items-center gap-1 flex-wrap">
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${c.IsCleared ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-400"}`}>
-                    {c.IsCleared ? "Cleared" : "Not Cleared"}
-                  </span>
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${c.IsBanked ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-400"}`}>
-                    {c.IsBanked ? "Banked" : "Not Banked"}
-                  </span>
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${c.IsTransferred ? "bg-purple-100 text-purple-700" : "bg-gray-100 text-gray-400"}`}>
-                    {c.IsTransferred ? "Transferred" : "Not Transferred"}
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      ) : (
-        <div className="text-center mt-10">
-          <img src={NotFoundImage} alt="Not Found" className="mx-auto w-32 h-auto" />
-          <p className="text-gray-400 mt-2">No transferred cheques available for banking.</p>
-        </div>
-      )}
+              );
+            })}
+          </div>
+        ) : (
+          <div className="text-gray-500 text-center mt-4">
+            <img src={NotFoundImage} alt="Not Found" className="mx-auto w-42" />
+            <p className="font-medium text-gray-400">No transferred cheques available for banking.</p>
+          </div>
+        )}
+      </div>
 
       {/* Bank linkage search modal */}
       {openModal === "bankLinkage" && (
