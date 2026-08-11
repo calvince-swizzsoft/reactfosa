@@ -12,14 +12,32 @@ import {
 import { FaEllipsisV, FaCheckCircle, FaTimesCircle, FaPaperPlane, FaExchangeAlt } from "react-icons/fa";
 import Swal from "sweetalert2";
 import NotFoundImage from "/assets/scopefinding.png";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, normalizeList } from "@/lib/api";
 import DenominationCountFields, {
   emptyDenominationCounts,
   sumDenominations,
   toDenominationSubtotals,
 } from "../lib/DenominationCountFields";
 
-const BASE = `${import.meta.env.VITE_APP_FIN_URL}`
+// api/frontoffice/transfers — docs/api/frontoffice-api-spec.md §7.
+// NavigationMenu.cs has exactly one real nav slot for this whole area
+// (0x000061A8+9, Description "Cheques/Cash Transfer", ControllerName
+// "Transfers") — no separate code exists for Cash vs. Cheque Transfer,
+// even though POST /cash (CashTransferRequestDTO — amount + denomination
+// breakdown + balance status) and POST /cheques (bare
+// List<ExternalChequeDTO>, just {Id, TellerId, TellerDescription} per
+// cheque) are genuinely different request shapes against the same
+// controller. Unified into one screen behind a top-level tab, same
+// precedent as SavingsReceiptsPayments.jsx absorbing 4 separate
+// Phase-1 screens for the same reason (single real nav item, multiple
+// underlying operations). Previously two separate, unrelated top-level
+// routes (CashTransfer.jsx/ChequeTransfer.jsx) — ChequeTransfer.jsx was
+// never reachable from the real dynamic sidebar nav as a result, only
+// from this app's own launcher hub.
+
+const BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
+
+/* ══════════════════════════ Cash Transfer ══════════════════════════ */
 
 // TellerCashBalanceStatus enum: Balanced=0x5000(20480), Shortage=20481, Excess=20482
 const BALANCE_STATUS_OPTIONS = [
@@ -27,28 +45,6 @@ const BALANCE_STATUS_OPTIONS = [
   { value: 20481, label: "Shortage" },
   { value: 20482, label: "Excess" },
 ];
-
-const BALANCE_STATUS_LABELS = {
-  0: "Pending",
-  20480: "Balanced",
-  20481: "Shortage",
-  20482: "Excess",
-};
-
-const BALANCE_STATUS_COLORS = {
-  Pending: "bg-yellow-100 text-yellow-700",
-  Balanced: "bg-green-100 text-green-700",
-  Shortage: "bg-red-100 text-red-700",
-  Excess: "bg-blue-100 text-blue-700",
-};
-
-function BalanceBadge({ statusValue }) {
-  const label = BALANCE_STATUS_LABELS[statusValue] ?? "Unknown";
-  const cls = BALANCE_STATUS_COLORS[label] ?? "bg-gray-100 text-gray-600";
-  return (
-    <span className={`px-2 py-1 rounded-full text-xs font-semibold ${cls}`}>{label}</span>
-  );
-}
 
 function SkeletonRow() {
   return (
@@ -65,7 +61,7 @@ function SkeletonRow() {
   );
 }
 
-const emptyForm = {
+const emptyCashForm = {
   TotalDebits: "",
   TotalCredits: "",
   OpeningBalance: "0",
@@ -82,7 +78,7 @@ function FieldGroup({ label, children }) {
 }
 
 function AddCashTransferDrawer({ open, onClose, onSuccess }) {
-  const [form, setForm] = useState(emptyForm);
+  const [form, setForm] = useState(emptyCashForm);
   const [counts, setCounts] = useState(emptyDenominationCounts);
   const [loading, setLoading] = useState(false);
 
@@ -114,9 +110,9 @@ function AddCashTransferDrawer({ open, onClose, onSuccess }) {
         OpeningBalance: String(form.OpeningBalance),
         // TellerCashBalanceStatus (no suffix) is a read-only computed
         // description string on the real CashTransferRequestDTO — it has
-        // no setter, so sending it here was silently discarded on every
-        // create. TellerCashBalanceStatusValue (int) is the actual
-        // settable field, confirmed against the real DTO source.
+        // no setter, so sending it here is silently discarded.
+        // TellerCashBalanceStatusValue (int) is the actual settable field,
+        // confirmed against the real DTO source.
         TellerCashBalanceStatusValue: Number(form.TellerCashBalanceStatus),
         ...toDenominationSubtotals(counts),
       };
@@ -130,7 +126,7 @@ function AddCashTransferDrawer({ open, onClose, onSuccess }) {
       data.success === false
         ? Swal.fire("Error", data.message || "Cash transfer creation failed", "error")
         : Swal.fire("Success", data.message || "Cash transfer created successfully", "success");
-      setForm(emptyForm);
+      setForm(emptyCashForm);
       setCounts(emptyDenominationCounts);
       onSuccess();
       onClose();
@@ -213,7 +209,7 @@ function AddCashTransferDrawer({ open, onClose, onSuccess }) {
   );
 }
 
-const STATUS_TABS = [
+const CASH_STATUS_TABS = [
   { id: "Pending", label: "Pending", color: "text-yellow-600" },
   { id: "Acknowledged", label: "Acknowledged", color: "text-green-600" },
   { id: "Utilized", label: "Utilized", color: "text-blue-600" },
@@ -221,12 +217,12 @@ const STATUS_TABS = [
 ];
 
 // Status enum: Pending=1, Acknowledged=2, Rejected=3, Utilized=4
-const STATUS_MAP = { 1: "Pending", 2: "Acknowledged", 3: "Rejected", 4: "Utilized" };
-function getTransferStatus(t) {
-  return STATUS_MAP[t.Status] ?? "Pending";
+const CASH_STATUS_MAP = { 1: "Pending", 2: "Acknowledged", 3: "Rejected", 4: "Utilized" };
+function getCashTransferStatus(t) {
+  return CASH_STATUS_MAP[t.Status] ?? "Pending";
 }
 
-export default function CashTransfer() {
+function CashTransferPanel() {
   const [transfers, setTransfers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [addOpen, setAddOpen] = useState(false);
@@ -234,9 +230,8 @@ export default function CashTransfer() {
 
   const fetchTransfers = () => {
     setLoading(true);
-    // Was missing the /frontoffice segment — TransfersController.GetCashTransferRequests
-    // returns the array bare (no { success, message, data } envelope, unlike
-    // most of this API), so Array.isArray(d) below is already correct.
+    // TransfersController.GetCashTransferRequests returns the array bare
+    // (no { success, message, data } envelope, unlike most of this API).
     apiFetch(`${BASE}/api/frontoffice/transfers/cash`)
       .then((r) => r.json())
       .then((d) => setTransfers(Array.isArray(d) ? d : []))
@@ -332,24 +327,14 @@ export default function CashTransfer() {
     }
   };
 
-  const filteredTransfers = transfers.filter((t) => getTransferStatus(t) === activeTab);
-  const countFor = (status) => transfers.filter((t) => getTransferStatus(t) === status).length;
+  const filteredTransfers = transfers.filter((t) => getCashTransferStatus(t) === activeTab);
+  const countFor = (status) => transfers.filter((t) => getCashTransferStatus(t) === status).length;
 
   return (
-    <div className="bg-white m-8 px-8 py-8 shadow-2xl rounded-lg relative">
-      <div className="flex justify-between items-center mb-6 bg-indigo-800 px-6 py-3 rounded-2xl">
-        <h2 className="text-xl font-bold text-white flex items-center gap-2">
-          <FaExchangeAlt /> Cash Transfer
-        </h2>
-        <Button onClick={() => setAddOpen(true)} className="bg-indigo-600 hover:bg-indigo-700">
-          + New Cash Transfer
-        </Button>
-      </div>
-
-      {/* Tabs row */}
+    <>
       <div className="flex justify-between items-center mb-4">
         <div className="flex gap-1 border-b border-gray-200">
-          {STATUS_TABS.map((tab) => {
+          {CASH_STATUS_TABS.map((tab) => {
             const count = countFor(tab.id);
             return (
               <button
@@ -371,17 +356,19 @@ export default function CashTransfer() {
             );
           })}
         </div>
+        <Button onClick={() => setAddOpen(true)} className="bg-indigo-600 hover:bg-indigo-700">
+          + New Cash Transfer
+        </Button>
+      </div>
 
-        {/* Workflow hint */}
-        <div className="flex items-center gap-2 text-xs text-gray-400 px-1">
-          <span className="font-medium text-yellow-600">Pending</span>
-          <span>→</span>
-          <span className="font-medium text-green-600">Acknowledged</span>
-          <span>→</span>
-          <span className="font-medium text-blue-600">Utilized</span>
-          <span className="mx-1 text-gray-300">|</span>
-          <span className="font-medium text-red-500">Rejected</span>
-        </div>
+      <div className="flex items-center gap-2 text-xs text-gray-400 mb-3 px-1">
+        <span className="font-medium text-yellow-600">Pending</span>
+        <span>→</span>
+        <span className="font-medium text-green-600">Acknowledged</span>
+        <span>→</span>
+        <span className="font-medium text-blue-600">Utilized</span>
+        <span className="mx-1 text-gray-300">|</span>
+        <span className="font-medium text-red-500">Rejected</span>
       </div>
 
       <div className="bg-gray-200 p-4 rounded-sm">
@@ -464,6 +451,272 @@ export default function CashTransfer() {
       </div>
 
       <AddCashTransferDrawer open={addOpen} onClose={() => setAddOpen(false)} onSuccess={fetchTransfers} />
+    </>
+  );
+}
+
+/* ══════════════════════════ Cheque Transfer ══════════════════════════ */
+
+const CHEQUE_STATUS_TABS = [
+  { id: "pending", label: "Pending Transfer" },
+  { id: "transferred", label: "Transferred" },
+];
+
+function ChequeTransferPanel() {
+  const [cheques, setCheques] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState([]);
+  const [transferring, setTransferring] = useState(false);
+  const [activeTab, setActiveTab] = useState("pending");
+
+  const fetchCheques = () => {
+    setLoading(true);
+    setSelected([]);
+    // ChequesController.Index (GET /api/frontoffice/cheques) is paged and
+    // enveloped ({ success, message, data: PageCollectionInfo }).
+    apiFetch(`${BASE}/api/frontoffice/cheques?pageSize=1000`)
+      .then((r) => r.json())
+      .then((d) => setCheques(normalizeList(d)))
+      .catch(() => setCheques([]))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => { fetchCheques(); }, []);
+
+  const filtered = cheques.filter((c) =>
+    activeTab === "transferred" ? c.IsTransferred : !c.IsTransferred
+  );
+
+  const countFor = (tab) =>
+    cheques.filter((c) => tab === "transferred" ? c.IsTransferred : !c.IsTransferred).length;
+
+  const allSelected = filtered.length > 0 && filtered.every((c) => selected.includes(c.Id));
+
+  const toggleAll = () => {
+    if (allSelected) {
+      setSelected((prev) => prev.filter((id) => !filtered.some((c) => c.Id === id)));
+    } else {
+      setSelected((prev) => [...new Set([...prev, ...filtered.map((c) => c.Id)])]);
+    }
+  };
+
+  const toggleOne = (id) => {
+    setSelected((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const handleTransfer = async () => {
+    if (selected.length === 0) {
+      Swal.fire("No Selection", "Please select at least one cheque to transfer.", "warning");
+      return;
+    }
+
+    const confirm = await Swal.fire({
+      title: `Transfer ${selected.length} cheque${selected.length > 1 ? "s" : ""}?`,
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonColor: "#4f46e5",
+      confirmButtonText: "Transfer",
+    });
+    if (!confirm.isConfirmed) return;
+
+    setTransferring(true);
+    try {
+      // Bare array body — TransfersController.TransferSelectedChequesAsync
+      // binds List<ExternalChequeDTO> directly, no wrapper object. Only
+      // Id/TellerId/TellerDescription are real settable fields the app
+      // service reads, confirmed against ExternalChequeDTO source.
+      const payload = selected
+        .map((id) => cheques.find((c) => c.Id === id))
+        .filter(Boolean)
+        .map((c) => ({
+          Id: c.Id,
+          TellerId: c.TellerId,
+          TellerDescription: c.TellerDescription,
+        }));
+
+      const res = await apiFetch(`${BASE}/api/frontoffice/transfers/cheques`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) throw new Error(data.message || "Transfer failed");
+
+      data.success === false
+        ? Swal.fire("Error", data.message || "Transfer failed", "error")
+        : Swal.fire("Success", data.message || "Cheques transferred successfully", "success");
+
+      fetchCheques();
+    } catch (err) {
+      Swal.fire("Error", err.message, "error");
+    } finally {
+      setTransferring(false);
+    }
+  };
+
+  const selectedInTab = selected.filter((id) => filtered.some((c) => c.Id === id));
+
+  return (
+    <>
+      <div className="flex justify-between items-center mb-4">
+        <div className="flex gap-1 border-b border-gray-200">
+          {CHEQUE_STATUS_TABS.map((tab) => {
+            const count = countFor(tab.id);
+            return (
+              <button
+                key={tab.id}
+                onClick={() => { setActiveTab(tab.id); setSelected([]); }}
+                className={`flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-t-lg transition-all ${activeTab === tab.id
+                  ? "bg-indigo-600 text-white border-b-2 border-indigo-600"
+                  : "text-gray-500 hover:bg-indigo-50"
+                  }`}
+              >
+                {tab.label}
+                <span
+                  className={`text-xs px-1.5 py-0.5 rounded-full font-bold ${activeTab === tab.id ? "bg-white text-indigo-600" : "bg-gray-200 text-gray-600"
+                    }`}
+                >
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {activeTab === "pending" && (
+          <Button
+            onClick={handleTransfer}
+            disabled={transferring || selectedInTab.length === 0}
+            className="bg-indigo-600 hover:bg-indigo-700 flex items-center gap-2"
+          >
+            <FaExchangeAlt />
+            {transferring ? "Transferring..." : `Transfer${selectedInTab.length > 0 ? ` (${selectedInTab.length})` : ""}`}
+          </Button>
+        )}
+      </div>
+
+      <div className="bg-gray-200 p-4 rounded-sm">
+        <div className="grid grid-cols-12 gap-4 bg-gray-700 text-gray-100 font-semibold p-3 rounded-lg mb-4 text-sm">
+          {activeTab === "pending" && (
+            <div className="col-span-1 flex items-center">
+              <input
+                type="checkbox"
+                checked={allSelected}
+                onChange={toggleAll}
+                className="accent-indigo-500 w-4 h-4 cursor-pointer"
+              />
+            </div>
+          )}
+          <span className={activeTab === "pending" ? "col-span-2" : "col-span-3"}>Cheque No.</span>
+          <span className="col-span-2">Amount</span>
+          <span className="col-span-2">Drawer</span>
+          <span className="col-span-2">Bank</span>
+          <span className="col-span-2">Write Date</span>
+          <span className="col-span-1 text-right">Status</span>
+        </div>
+
+        {loading ? (
+          <div className="space-y-2 animate-pulse">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="grid grid-cols-12 gap-2 bg-gray-50 p-6 rounded">
+                {Array.from({ length: 12 }).map((_, j) => <div key={j} className="h-4 bg-gray-200 rounded"></div>)}
+              </div>
+            ))}
+          </div>
+        ) : filtered.length > 0 ? (
+          <div className="space-y-2">
+            {filtered.map((c) => {
+              const isChecked = selected.includes(c.Id);
+              return (
+                <div
+                  key={c.Id}
+                  className={`rounded-lg shadow-lg border transition-all ${isChecked ? "bg-indigo-50 border-indigo-300" : "bg-white hover:shadow-xl"
+                    }`}
+                >
+                  <div className="grid grid-cols-12 gap-2 items-center py-4 px-6 text-sm">
+                    {activeTab === "pending" && (
+                      <div className="col-span-1">
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => toggleOne(c.Id)}
+                          className="accent-indigo-500 w-4 h-4 cursor-pointer"
+                        />
+                      </div>
+                    )}
+                    <span className={`font-mono font-semibold text-indigo-700 ${activeTab === "pending" ? "col-span-2" : "col-span-3"}`}>
+                      {c.PaddedNumber || c.Number || "—"}
+                    </span>
+                    <span className="col-span-2 font-medium text-gray-800">
+                      {c.Amount != null ? c.Amount.toLocaleString() : "—"}
+                    </span>
+                    <span className="col-span-2 text-gray-700 truncate">{c.Drawer || "—"}</span>
+                    <span className="col-span-2 text-gray-500 truncate">{c.DrawerBank || "—"}</span>
+                    <span className="col-span-2 text-xs text-gray-400">
+                      {c.WriteDate ? new Date(c.WriteDate).toLocaleDateString() : "—"}
+                    </span>
+                    <div className="col-span-1 flex justify-end">
+                      <span
+                        className={`text-xs px-2 py-0.5 rounded-full font-semibold ${c.IsTransferred
+                          ? "bg-blue-100 text-blue-700"
+                          : "bg-yellow-100 text-yellow-700"
+                          }`}
+                      >
+                        {c.IsTransferred ? "Transferred" : "Pending"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="text-gray-500 text-center mt-4">
+            <img src={NotFoundImage} alt="Not Found" className="mx-auto w-42" />
+            <p className="font-medium text-gray-400">
+              No <span className="font-medium">{activeTab === "transferred" ? "transferred" : "pending"}</span> cheques found.
+            </p>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+/* ══════════════════════════ Unified screen ══════════════════════════ */
+
+const MODE_TABS = [
+  { id: "cash", label: "Cash Transfer" },
+  { id: "cheque", label: "Cheque Transfer" },
+];
+
+export default function Transfers() {
+  const [mode, setMode] = useState("cash");
+
+  return (
+    <div className="bg-white m-8 px-8 py-8 shadow-2xl rounded-lg relative">
+      <div className="flex justify-between items-center mb-6 bg-indigo-800 px-6 py-3 rounded-2xl">
+        <h2 className="text-xl font-bold text-white flex items-center gap-2">
+          <FaExchangeAlt /> Cheques/Cash Transfer
+        </h2>
+      </div>
+
+      <div className="flex gap-1 mb-4 bg-gray-100 rounded-lg p-1 w-fit">
+        {MODE_TABS.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setMode(tab.id)}
+            className={`px-4 py-1.5 text-sm font-semibold rounded-md transition-all ${mode === tab.id ? "bg-white shadow text-indigo-700" : "text-gray-500 hover:text-indigo-600"}`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {mode === "cash" ? <CashTransferPanel /> : <ChequeTransferPanel />}
     </div>
   );
 }

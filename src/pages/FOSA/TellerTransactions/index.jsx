@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  FaExchangeAlt, FaUniversity, FaUserTie, FaFileAlt, FaPiggyBank, FaTasks,
+  FaExchangeAlt, FaUniversity, FaUserTie, FaFileAlt, FaTasks,
 } from "react-icons/fa";
 
 // Pure launcher — every item below now has its own real <Route> in
@@ -33,6 +33,14 @@ const MODULES = [
       // Receipts/Payments and End-Of-Day — Phase 2.
       { id: "sundrypayments", label: "Sundry Receipts/Payments", subtitle: "General G/L voucher", route: "/FrontOffice/SundryPayments" },
       { id: "customerreceipts", label: "Customer Receipts", subtitle: "Free-form till receipt", route: "/FrontOffice/CustomerReceipts" },
+      // NavigationMenu.cs: 25009, same Teller tier as the items above —
+      // one real nav Code covering two genuinely different request shapes
+      // (POST /cash vs POST /cheques), unified into one screen with
+      // Cash/Cheque tabs 2026-08-11. Previously its own "Transfers" hub
+      // module with two separate tiles (CashTransfer.jsx/ChequeTransfer.jsx)
+      // that didn't match the real nav tree at all — collapsed here to match,
+      // same precedent as the Savings Receipts/Payments merge above.
+      { id: "transfers", label: "Cheques/Cash Transfer", subtitle: "Cash & cheque transfer requests", route: "/FrontOffice/Transfers" },
       { id: "endofday", label: "End-Of-Day", subtitle: "Daily closing", route: "/FrontOffice/EndOfDay" },
     ],
   },
@@ -45,15 +53,6 @@ const MODULES = [
       { id: "bankcheques", label: "Bank", subtitle: "Bank cheques", route: "/FrontOffice/BankCheques" },
       { id: "clearcheques", label: "Clear", subtitle: "Pay / UnPay cheques", route: "/FrontOffice/ClearCheques" },
       { id: "unpayreasons", label: "Unpay Reasons", subtitle: "Manage unpay reasons", route: "/FrontOffice/UnpayReasons" },
-    ],
-  },
-  {
-    id: "transfers",
-    label: "Transfers",
-    icon: FaPiggyBank,
-    items: [
-      { id: "chequetransfer", label: "Cheque Transfer", subtitle: "Transfer", route: "/FrontOffice/ChequeTransfer" },
-      { id: "cashtransfer", label: "Cash Transfer", subtitle: "Transfer", route: "/FrontOffice/CashTransfer" },
     ],
   },
   {

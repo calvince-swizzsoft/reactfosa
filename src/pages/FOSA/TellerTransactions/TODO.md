@@ -50,17 +50,22 @@ separate pages this file originally documented — see
 Receipts/Payments", the one real nav entry for this whole cycle) now
 points at it.
 
-**`CashTransfer.jsx`/`ChequeTransfer.jsx` likely need the same unification
-treatment eventually.** Confirmed against `NavigationMenu.cs`: there is no
-separate module code for Cash Transfer vs. Cheque Transfer — the one real
-nav entry, `25009` ("Cheques/Cash Transfer", `ControllerName: Transfers`),
-covers both, exactly the situation Savings Receipts/Payments (`25006`) was
-in before it got merged into `SavingsReceiptsPayments.jsx`. For now `25009`
-is pointed at `CashTransfer.jsx` (arbitrary pick between the two, per user
-decision) — `ChequeTransfer.jsx` stays reachable only through the
-`FOSA/TellerTransactions` launcher hub, not the real dynamic sidebar nav. Revisit
-as a merge into one screen if/when this becomes a priority, same pattern
-as the Savings Receipts/Payments precedent.
+**`CashTransfer.jsx`/`ChequeTransfer.jsx` merged into `Transfers.jsx`,
+2026-08-11** — the predicted follow-up above actually happened. Confirmed
+against `NavigationMenu.cs`: there is no separate module code for Cash
+Transfer vs. Cheque Transfer — the one real nav entry, `25009` ("Cheques/Cash
+Transfer", `ControllerName: Transfers`), covers both, exactly the situation
+Savings Receipts/Payments (`25006`) was in before its own merge. `25009` had
+been pointed at `CashTransfer.jsx` only (arbitrary pick), leaving
+`ChequeTransfer.jsx` reachable solely through the launcher hub, never the
+real dynamic sidebar nav. `Transfers.jsx` now covers both under Cash
+Transfer/Cheque Transfer top-level tabs (each keeping its own existing
+status sub-tabs) at a single route, `/FrontOffice/Transfers` — `25009`
+points there now. The two request shapes genuinely differ (confirmed
+against `TransfersController.cs`): `POST /cash` takes a full
+`CashTransferRequestDTO` (denomination breakdown, balance status), `POST
+/cheques` takes a bare `List<ExternalChequeDTO>` with only
+`Id`/`TellerId`/`TellerDescription` read.
 
 Not done / known gaps:
 - **`UnpayReasons.jsx` (`/api/unpay`) — left untouched.** This endpoint

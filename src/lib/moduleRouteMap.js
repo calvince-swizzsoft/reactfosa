@@ -117,7 +117,7 @@ export const moduleRouteMap = {
   25006: "/FrontOffice/SavingsReceiptsPayments", // Savings Receipts/Payments (ControllerName: CashDeposit) — the ONLY real nav entry for the whole teller transaction cycle (deposit/withdrawal/cheque deposit/payment voucher are one screen server-side)
   25007: "/FrontOffice/SundryPayments",   // Sundry Receipts/Payments (ControllerName: SundryPayments) — Phase 2, receipt-only form (no list endpoint exists)
   25008: "/FrontOffice/CustomerReceipts", // Customer Receipts (ControllerName: CustomerReceipts) — Phase 2, receipt-only form (no list endpoint exists)
-  25009: "/FrontOffice/CashTransfer",     // Cheques/Cash Transfer (ControllerName: Transfers) — no separate Code exists for Cash vs. Cheque Transfer; app has two screens (CashTransfer.jsx/ChequeTransfer.jsx), pointed at Cash Transfer per user decision (2026-08-07)
+  25009: "/FrontOffice/Transfers",        // Cheques/Cash Transfer (ControllerName: Transfers) — one real nav Code covering two genuinely different request shapes (POST /cash vs POST /cheques); unified into one screen with Cash/Cheque tabs 2026-08-11, replacing the earlier CashTransfer.jsx/ChequeTransfer.jsx split where the cheque half wasn't reachable from this nav Code at all
   25010: "/FrontOffice/EndOfDay",         // End-Of-Day (ControllerName: EndOfDay)
   // Operations (25001), direct leaves
   25011: "/FrontOffice/Catalogue",        // Cheques (ControllerName: Cheques) — the cheques catalogue/browse screen
