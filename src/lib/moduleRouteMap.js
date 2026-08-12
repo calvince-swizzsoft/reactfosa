@@ -11,11 +11,13 @@
 // Counts" at `0x000061A8 + 15` is `25015`. Only entries confirmed against
 // that source go here, and only where the ControllerName/Description
 // leaves little doubt about the match. Most of the backend's module tree
-// (all of the Loan-Origination/"Back Office" module, all of
-// Control/Procurement, all of Micro-Credit, and most Accounts
-// batch-procedure/reconciliation/budget/HR roster-attendance-salary detail
-// screens) has no frontend page built yet — those are deliberately left
-// out rather than guessed, and fall back to the generic placeholder route
+// (the Loan-Origination/"Back Office" module beyond the 4 core pipeline
+// stages now built — guarantor sub-flows, restructuring, cancellation,
+// payroll/check-off data capture — all of Control/Procurement, all of
+// Micro-Credit, and most Accounts reconciliation/budget/HR
+// roster-attendance-salary detail screens) has no frontend page built yet
+// — those are deliberately left out rather than guessed, and fall back to
+// the generic placeholder route
 // (`/modules/:code`). Extend this map incrementally as more pages are
 // built, always against the real NavigationMenu.cs source, not by pattern
 // -matching a Description string — Code values are NOT sequential/nested
@@ -129,6 +131,18 @@ export const moduleRouteMap = {
   23069: "/batch/origination",   // Batch Origination
   23079: "/batch/verification",  // Batch Verification
   23089: "/batch/authorization", // Batch Authorization
+
+  // ── Back Office / Loan Origination (0x00011170 = 70000) ───────────
+  // Real api/backoffice/loancases pipeline (WebApplication1/Areas/BackOffice/
+  // WORKFLOW.md §15) — each of the 4 stages below is its own NavigationMenu
+  // leaf code, unlike Batch Procedures' stage-only gating. Coexists with the
+  // legacy /Loaning/LoanApplication screen (different, older backend
+  // surface, VITE_APP_LOANING_URL) — deliberately not touched/replaced, per
+  // user decision 2026-08-13.
+  70007: "/Loaning/LoanCases/registration", // Registration (ControllerName: LoanRegistration)
+  70008: "/Loaning/LoanCases/appraisal",    // Appraisal (ControllerName: AppraiseLoan)
+  70009: "/Loaning/LoanCases/approval",     // Approval (ControllerName: ApproveLoan)
+  70010: "/Loaning/LoanCases/audit",        // Verification (ControllerName: LoanVerification) — "Audit" internally, "Verify" in the UI
 
   // ── Front-Office (0x000061A8 = 25000) ────────────────────────────
   // Operations (25001) > Treasury (25002)

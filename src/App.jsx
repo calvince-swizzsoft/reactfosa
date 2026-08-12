@@ -96,6 +96,10 @@ import Products from "./pages/Membership/Products/index.jsx";
 import Loaning from "./pages/Loaning/index.jsx";
 import LoanProducts from "./pages/Loaning/LoanProducts/index.jsx";
 import LoanApplication from "./pages/Loaning/LoanApplication/index.jsx";
+import LoanCaseRegistration from "./pages/Loaning/LoanCases/RegistrationScreen.jsx";
+import LoanCaseAppraisal from "./pages/Loaning/LoanCases/AppraisalScreen.jsx";
+import LoanCaseApproval from "./pages/Loaning/LoanCases/ApprovalScreen.jsx";
+import LoanCaseAudit from "./pages/Loaning/LoanCases/AuditScreen.jsx";
 import MemberReceipting from "./pages/Finance/MemberReceipting/index.jsx";
 import LoanSector from "./pages/Loaning/LoanSector/index.jsx";
 import LoanSubSector from "./pages/Loaning/LoanSubSector/index.jsx";
@@ -320,6 +324,10 @@ export default function App() {
           <Route path="Loaning" element={<Loaning />} />
           <Route path="Loaning/LoanProducts" element={<LoanProducts />} />
           <Route path="Loaning/LoanApplication" element={<LoanApplication />} />
+          <Route path="Loaning/LoanCases/registration" element={<LoanCaseRegistration />} />
+          <Route path="Loaning/LoanCases/appraisal" element={<LoanCaseAppraisal />} />
+          <Route path="Loaning/LoanCases/approval" element={<LoanCaseApproval />} />
+          <Route path="Loaning/LoanCases/audit" element={<LoanCaseAudit />} />
           <Route path="Loaning/LoanSector" element={<LoanSector />} />
           <Route path="Loaning/LoanSubSector" element={<LoanSubSector />} />
           <Route path="Loaning/LoanCalculator" element={<LoanCalculator />} />

@@ -271,7 +271,7 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
               <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Add Entry</p>
               <FieldGroup label="Loan Case Id">
                 <Input value={entryForm.LoanCaseId} onChange={(e) => setEntryForm((p) => ({ ...p, LoanCaseId: e.target.value }))} placeholder="Paste an Audited, not-yet-batched LoanCase GUID" required />
-                <p className="text-xs text-gray-400 mt-1">No loan-case browse endpoint exists in this app yet (the whole Loan Origination/Back Office module has no frontend page built) — paste the Id, the server refuses if it's already batched.</p>
+                <p className="text-xs text-gray-400 mt-1">No picker for this yet — the Loan Origination screens (Loaning/LoanCases) list cases by stage, not a cross-stage "Audited and not yet batched" search. Paste the Id from there for now; the server refuses if it's already batched.</p>
               </FieldGroup>
               <FieldGroup label="Reference">
                 <Input value={entryForm.Reference} onChange={(e) => setEntryForm((p) => ({ ...p, Reference: e.target.value }))} />
