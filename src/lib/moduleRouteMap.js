@@ -39,9 +39,17 @@
 //   Employee) is `22008`. Fixed.
 // - `23051` was pointed at Accounts/CustomerAccountStatement, but Code
 //   23051 is actually "E-Statements" (ControllerName: eStatements), a
-//   different, unbuilt feature. There is no "Customer Account Statement"
-//   Code anywhere in NavigationMenu.cs at all. Removed; that page is
-//   ungated (legacy).
+//   different feature — confirmed unbuilt on the backend too (2026-08-12:
+//   the only matching artifact, SwiftFinancials.eStatementInvoker, is an
+//   empty stub project, no controller exists anywhere). There is no
+//   "Customer Account Statement" Code of its own anywhere in
+//   NavigationMenu.cs. Originally removed here (leaving the page ungated)
+//   since the match was wrong — **re-pointed at CustomerAccountStatement.jsx
+//   per explicit user decision (2026-08-12)**: reuse this Code as a
+//   deliberate stopgap so the page has a real nav slot, same as the
+//   "Charges" → Commissions repoint precedent below. Revisit if a real
+//   E-Statements feature ever gets built server-side — this Code would
+//   need to move back to that at that point, not stay dual-purposed.
 // - `26012` was pointed at Accounts/GeneralLedgerStatement, but Code
 //   26012 belongs to the *Command Hub* module, not Accounts — it's
 //   "Financial Position" (ControllerName: FinancialPosition), an unbuilt
@@ -108,6 +116,12 @@ export const moduleRouteMap = {
   23044: "/Accounts/CustomerAccounts",    // Register (ControllerName: CustomerAccounts)
   23047: "/Accounts/ChequeBooks",         // Cheque Books (ControllerName: CoA_ChequeBooks) — new ChequeBookController, docs/api/chequebook-api-spec.md; was unmapped entirely (only reachable via the legacy ChequeBookService.svc.cs WCF passthrough before this pass)
   23048: "/Accounts/StandingOrders",      // Standing Orders (ControllerName: CustomerAccountStandingOrder)
+  // 23051 real Description is "E-Statements" (ControllerName: eStatements,
+  // confirmed unbuilt server-side) — deliberately reused for
+  // CustomerAccountStatement.jsx as a stopgap nav slot instead, per
+  // explicit user decision; see the top-of-file audit note for the
+  // reasoning and the caveat about revisiting if E-Statements ever ships.
+  23051: "/Accounts/CustomerAccountStatement", // Nominally "E-Statements" — stopgap-mapped to the real, working Customer Account Statement screen (mini/full statement + PDF)
 
   // ── Front-Office (0x000061A8 = 25000) ────────────────────────────
   // Operations (25001) > Treasury (25002)
