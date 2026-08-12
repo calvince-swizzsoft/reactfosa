@@ -155,6 +155,27 @@ export const TruncatedChequeStatus = {
   Processed: 2,
 };
 
+// CreditBatchType / BatchEntryStatus — transcribed directly from
+// Enumerations.cs. Used by the Sundry Payments "Cash Pickup" pick-list
+// (GET api/accounts/creditbatches/entries/type/{creditBatchType}).
+// IMPORTANT: CreditBatchType.CashPickup (56028) is NOT the same value as
+// GeneralTransactionType.CashPickup (8) above, despite the matching name —
+// confirmed against source. The credit-batch entries endpoint's
+// {creditBatchType} route segment needs THIS enum's value; the sundry
+// payment POST body's `TransactionType` field needs GeneralTransactionType's.
+export const CreditBatchType = {
+  Payout: 0xDADA,
+  CheckOff: 0xDADA + 1,
+  CashPickup: 0xDADA + 2,
+  SundryPayments: 0xDADA + 3,
+};
+
+export const BatchEntryStatus = {
+  Pending: 1,
+  Posted: 2,
+  Rejected: 4,
+};
+
 // SystemTransactionCode — the subset relevant to the Fiscal Counts
 // catalogue's `transactionCode` filter (frontoffice-api-spec.md §16.1).
 // The full server-side enum has 40+ members (every posting source in the
