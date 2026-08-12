@@ -1,4 +1,5 @@
 import CreditBatchPanel from "./CreditBatchPanel";
+import DebitBatchPanel from "./DebitBatchPanel";
 
 // One entry per Batch Procedures type. `Panel` is null for types not yet
 // built — BatchStageScreen renders those tabs disabled rather than hiding
@@ -6,7 +7,7 @@ import CreditBatchPanel from "./CreditBatchPanel";
 // tab (transactionType: 16, no backend case).
 export const BATCH_TYPES = [
   { id: "credit", label: "Credit", Panel: CreditBatchPanel },
-  { id: "debit", label: "Debit", Panel: null },
+  { id: "debit", label: "Debit", Panel: DebitBatchPanel },
   { id: "wireTransfer", label: "Wire Transfer", Panel: null },
   { id: "refund", label: "Refund", Panel: null },
   { id: "reversal", label: "Reversal", Panel: null },
