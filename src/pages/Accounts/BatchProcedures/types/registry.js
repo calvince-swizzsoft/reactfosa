@@ -6,6 +6,7 @@ import ReversalBatchPanel from "./ReversalBatchPanel";
 import DisbursementBatchPanel from "./DisbursementBatchPanel";
 import VoucherBatchPanel from "./VoucherBatchPanel";
 import GeneralLedgerPanel from "./GeneralLedgerPanel";
+import InterAccountTransferPanel from "./InterAccountTransferPanel";
 
 // One entry per Batch Procedures type. `Panel` is null for types not yet
 // built — BatchStageScreen renders those tabs disabled rather than hiding
@@ -20,5 +21,5 @@ export const BATCH_TYPES = [
   { id: "disbursement", label: "Disbursement", Panel: DisbursementBatchPanel },
   { id: "voucher", label: "Voucher", Panel: VoucherBatchPanel },
   { id: "generalLedger", label: "General Ledger", Panel: GeneralLedgerPanel },
-  { id: "interAccountTransfer", label: "Inter Account Transfer", Panel: null },
+  { id: "interAccountTransfer", label: "Inter Account Transfer", Panel: InterAccountTransferPanel },
 ];

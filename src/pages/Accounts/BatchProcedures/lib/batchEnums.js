@@ -29,3 +29,11 @@ export const CreditBatchType = {
   CashPickup: 0xDADA + 2,
   SundryPayments: 0xDADA + 3,
 };
+
+// Inter Account Transfer entries: which of ChartOfAccountId/CustomerAccountId
+// applies — genuinely consulted server-side (AddNewInterAccountTransferBatchEntry
+// nulls out whichever doesn't apply), not decorative.
+export const ApportionTo = {
+  CustomerAccount: 1,
+  GeneralLedgerAccount: 2,
+};
