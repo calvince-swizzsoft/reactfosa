@@ -524,17 +524,18 @@ function ChequeTransferPanel() {
     setTransferring(true);
     try {
       // Bare array body — TransfersController.TransferSelectedChequesAsync
-      // binds List<ExternalChequeDTO> directly, no wrapper object. Only
-      // Id/TellerId/TellerDescription are real settable fields the app
-      // service reads, confirmed against ExternalChequeDTO source.
+      // binds List<ExternalChequeDTO> directly, no wrapper object.
+      // ExternalChequeAppService.TransferExternalCheques re-fetches each
+      // cheque by Id and posts the transfer journal using the PERSISTED
+      // record's own Amount/Number (not whatever the client sends for
+      // those fields), and only transfers cheques that actually belong to
+      // the requesting teller — confirmed against the current app service
+      // source. Id is the only field this endpoint actually needs from the
+      // client; everything else about the cheque is resolved server-side.
       const payload = selected
         .map((id) => cheques.find((c) => c.Id === id))
         .filter(Boolean)
-        .map((c) => ({
-          Id: c.Id,
-          TellerId: c.TellerId,
-          TellerDescription: c.TellerDescription,
-        }));
+        .map((c) => ({ Id: c.Id }));
 
       const res = await apiFetch(`${BASE}/api/frontoffice/transfers/cheques`, {
         method: "POST",
