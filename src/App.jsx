@@ -181,8 +181,7 @@ import CreateAccountClosure from "./pages/FOSA/TellerTransactions/AccountClosure
 import InHouseCheques from "./pages/FOSA/TellerTransactions/InHouseCheques.jsx";
 import CreateInHouseCheques from "./pages/FOSA/TellerTransactions/InHouseCheques/create.jsx";
 import AutomatedClearing from "./pages/FOSA/TellerTransactions/AutomatedClearing.jsx";
-
-
+import BatchStageScreen from "./pages/Accounts/BatchProcedures/BatchStageScreen.jsx";
 
 
 export default function App() {
@@ -399,6 +398,9 @@ export default function App() {
           <Route path="FrontOffice/InHouseCheques/create" element={<CreateInHouseCheques />} />
           <Route path="FrontOffice/AutomatedClearing" element={<AutomatedClearing />} />
           <Route path="FrontOffice/Transfers" element={<Transfers />} />
+          <Route path="batch/origination" element={<BatchStageScreen stage="origination" />} />
+          <Route path="batch/verification" element={<BatchStageScreen stage="verification" />} />
+          <Route path="batch/authorization" element={<BatchStageScreen stage="authorization" />} />
           <Route path="Accounts/UnpayReasons" element={<UnpayReasons />} />
           <Route path="Accounts/UnpayReasons/create" element={<CreateUnpayReason />} />
 

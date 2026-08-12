@@ -122,6 +122,13 @@ export const moduleRouteMap = {
   // explicit user decision; see the top-of-file audit note for the
   // reasoning and the caveat about revisiting if E-Statements ever ships.
   23051: "/Accounts/CustomerAccountStatement", // Nominally "E-Statements" — stopgap-mapped to the real, working Customer Account Statement screen (mini/full statement + PDF)
+  // Batch Procedures (23068) — stage-level gating only, the 27 per-type
+  // child codes (70-78/80-88/90-98) are commented out in NavigationMenu.cs,
+  // see Areas/Accounts/BATCH-PROCEDURES-CONCEPTS.md §1.1. One shared shell
+  // (BatchStageScreen.jsx) renders all 9 type-tabs under each stage code.
+  23069: "/batch/origination",   // Batch Origination
+  23079: "/batch/verification",  // Batch Verification
+  23089: "/batch/authorization", // Batch Authorization
 
   // ── Front-Office (0x000061A8 = 25000) ────────────────────────────
   // Operations (25001) > Treasury (25002)
