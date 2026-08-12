@@ -166,10 +166,9 @@ import CashManagement from "./pages/FOSA/TreasuryTransactions/CashManagement.jsx
 import FiscalCounts from "./pages/FOSA/TreasuryTransactions/FiscalCounts.jsx";
 import SavingsReceiptsPayments from "./pages/FOSA/TellerTransactions/SavingsReceiptsPayments.jsx";
 import EndOfDay from "./pages/FOSA/TellerTransactions/EndOfDay.jsx";
-import Catalogue from "./pages/FOSA/TellerTransactions/Catalogue.jsx";
-import BankCheques from "./pages/FOSA/TellerTransactions/BankCheques.jsx";
-import ClearCheques from "./pages/FOSA/TellerTransactions/ClearCheques.jsx";
-import UnpayReasons from "./pages/FOSA/TellerTransactions/UnpayReasons.jsx";
+import Cheques from "./pages/FOSA/TellerTransactions/Cheques.jsx";
+import UnpayReasons from "./pages/Accounts/UnpayReasons/index.jsx";
+import CreateUnpayReason from "./pages/Accounts/UnpayReasons/create.jsx";
 import Transfers from "./pages/FOSA/TellerTransactions/Transfers.jsx";
 import SundryPayments from "./pages/FOSA/TellerTransactions/SundryPayments.jsx";
 import CustomerReceipts from "./pages/FOSA/TellerTransactions/CustomerReceipts.jsx";
@@ -387,9 +386,7 @@ export default function App() {
           <Route path="FrontOffice/FiscalCounts" element={<FiscalCounts />} />
           <Route path="FrontOffice/SavingsReceiptsPayments" element={<SavingsReceiptsPayments />} />
           <Route path="FrontOffice/EndOfDay" element={<EndOfDay />} />
-          <Route path="FrontOffice/Catalogue" element={<Catalogue />} />
-          <Route path="FrontOffice/BankCheques" element={<BankCheques />} />
-          <Route path="FrontOffice/ClearCheques" element={<ClearCheques />} />
+          <Route path="FrontOffice/Cheques" element={<Cheques />} />
           <Route path="FrontOffice/SundryPayments" element={<SundryPayments />} />
           <Route path="FrontOffice/CustomerReceipts" element={<CustomerReceipts />} />
           <Route path="FrontOffice/ExpensePayables" element={<ExpensePayables />} />
@@ -401,8 +398,9 @@ export default function App() {
           <Route path="FrontOffice/InHouseCheques" element={<InHouseCheques />} />
           <Route path="FrontOffice/InHouseCheques/create" element={<CreateInHouseCheques />} />
           <Route path="FrontOffice/AutomatedClearing" element={<AutomatedClearing />} />
-          <Route path="FrontOffice/UnpayReasons" element={<UnpayReasons />} />
           <Route path="FrontOffice/Transfers" element={<Transfers />} />
+          <Route path="Accounts/UnpayReasons" element={<UnpayReasons />} />
+          <Route path="Accounts/UnpayReasons/create" element={<CreateUnpayReason />} />
 
           <Route path="FrontOffice/Transactions" element={<FOSATransactions />} />
 

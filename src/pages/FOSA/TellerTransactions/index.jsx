@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  FaExchangeAlt, FaUniversity, FaUserTie, FaFileAlt, FaTasks,
+  FaExchangeAlt, FaUniversity, FaUserTie, FaTasks,
 } from "react-icons/fa";
 
 // Pure launcher — every item below now has its own real <Route> in
@@ -45,25 +45,18 @@ const MODULES = [
     ],
   },
   {
-    id: "cheques",
-    label: "Cheques",
-    icon: FaFileAlt,
-    items: [
-      { id: "catalogue", label: "Catalogue", subtitle: "View all cheques", route: "/FrontOffice/Catalogue" },
-      { id: "bankcheques", label: "Bank", subtitle: "Bank cheques", route: "/FrontOffice/BankCheques" },
-      { id: "clearcheques", label: "Clear", subtitle: "Pay / UnPay cheques", route: "/FrontOffice/ClearCheques" },
-      { id: "unpayreasons", label: "Unpay Reasons", subtitle: "Manage unpay reasons", route: "/FrontOffice/UnpayReasons" },
-    ],
-  },
-  {
-    // NavigationMenu.cs: 25012-25017, "Operations (25001), direct leaves" —
-    // same tier as the Cheques catalogue (25011), but distinct enough
-    // functionally to warrant their own module here rather than folding
-    // into Cheques/Transfers. Phase 2, all 5 shipped together.
+    // NavigationMenu.cs: 25011-25017, "Operations (25001), direct leaves" —
+    // one tier. Cheques (25011) covers Catalogue/Bank/Clear as tabs in one
+    // screen (Cheques.jsx, merged 2026-08-11 — Bank/Clear weren't
+    // reachable from this nav Code at all before, same issue Transfers had).
+    // Unpay Reasons moved out of this hub entirely — NavigationMenu.cs has
+    // it under Accounts (Code 23028, ControllerName UnpayReason), not
+    // FrontOffice, despite being consumed from this front-office screen.
     id: "operations",
     label: "Operations",
     icon: FaTasks,
     items: [
+      { id: "cheques", label: "Cheques", subtitle: "Catalogue, bank, clear", route: "/FrontOffice/Cheques" },
       { id: "fixeddeposits", label: "Fixed Deposits", subtitle: "Origination, verify, terminate, liquidate", route: "/FrontOffice/FixedDeposits" },
       { id: "expensepayables", label: "Expense Payables", subtitle: "GL voucher lines, verify", route: "/FrontOffice/ExpensePayables" },
       { id: "accountclosure", label: "Account Closure", subtitle: "Approve, verify, settle", route: "/FrontOffice/AccountClosure" },

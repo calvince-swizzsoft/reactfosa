@@ -67,14 +67,30 @@ against `TransfersController.cs`): `POST /cash` takes a full
 /cheques` takes a bare `List<ExternalChequeDTO>` with only
 `Id`/`TellerId`/`TellerDescription` read.
 
+**`UnpayReasons.jsx`/`/api/unpay` resolved, 2026-08-11.** The mystery
+endpoint turned out to have a real, documented, entirely separate
+replacement: `UnPayReasonController.cs` (`api/accounts/unpayreasons`,
+`docs/api/unpayreason-api-spec.md`) — full CRUD plus an attached-
+commissions sub-resource. `NavigationMenu.cs` confirms it belongs under
+Accounts (Code `23028`, `ControllerName: UnpayReason`), not FrontOffice,
+despite being consumed from this front-office area — moved to
+`Accounts/UnpayReasons/` (list/create/edit) to match. `Cheques.jsx`'s
+Clear tab now sources its unpay-reason dropdown from the real endpoint
+too.
+
+**Catalogue/BankCheques/ClearCheques merged into `Cheques.jsx`,
+2026-08-11.** Same shape as the Transfers merge above:
+`NavigationMenu.cs` has exactly one real nav Code for this whole area
+(`25011`, "Cheques", `ControllerName: Cheques`) — Bank (`POST /bank`) and
+Clear (`POST /clear`) are sub-actions of the same controller, not
+separate nav items, so they were never reachable outside the launcher
+hub. Unified into one screen with Catalogue/Bank/Clear tabs at
+`/FrontOffice/Cheques`; Catalogue also gained a status filter
+(All/Pending/Transferred/Banked/Cleared) — `GET /` has no server-side
+status param, so this fetches the full list once (`pageSize=1000`, same
+precedent Bank/Clear already used) and filters/paginates client-side.
+
 Not done / known gaps:
-- **`UnpayReasons.jsx` (`/api/unpay`) — left untouched.** This endpoint
-  isn't documented anywhere in `frontoffice-api-spec.md`. Could be a
-  separate undocumented reference-data resource, or the reason codes might
-  actually be meant to come from a fixed enum rather than a CRUD table —
-  not guessed either way. Needs a real answer from the backend before this
-  file is touched; `ClearCheques.jsx`'s unpay-reason dropdown still calls
-  the same unverified endpoint for the same reason.
 - **`POST /markposted?id=`** (`CashDepositController`) — not wired up
   anywhere. No confirmed recovery use case surfaced during this pass (it
   looked like a manual-fix escape hatch for a request stuck between
@@ -88,10 +104,10 @@ Not done / known gaps:
   automatically in the same merged queue as an ordinary withdrawal, tagged
   with the "Voucher" badge (`CashWithdrawalCategory.PaymentVoucher` in
   `frontOfficeEnums.js`).
-- **The Cheque Type field in `SavingsReceiptsPayments.jsx`'s Cheque Deposit
-  section is a raw GUID text input** — no lookup/reference endpoint for
-  cheque types exists in the spec. Swap for a real picker once one is
-  exposed.
+- ~~The Cheque Type field in `SavingsReceiptsPayments.jsx`'s Cheque Deposit
+  section is a raw GUID text input~~ — **resolved**, this note was stale;
+  it's a real `Select` sourced from `GET /api/accounts/chequetypes/all`
+  (`ChequeTypeController`, built the same day `Accounts/ChequeTypes` shipped).
 - **The Payment Voucher section has no cheque-book → voucher picker** —
   `PaymentVoucher.Id` stays unset on submit (form-layout doc note 5); no
   lookup endpoint exists yet for that cheque-book/voucher relationship.

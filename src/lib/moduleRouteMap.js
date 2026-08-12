@@ -101,6 +101,7 @@ export const moduleRouteMap = {
   23021: "/Accounts/Tellers",             // Tellers (ControllerName: Teller, AreaName: FrontOffice)
   23022: "/Accounts/BankLinkages",        // Bank Linkages (ControllerName: BankLinkage) — was dead-pointed at /Finance/BanksSetup (no matching route), repointed
   23023: "/Accounts/ChequeTypes",         // Cheque Types (ControllerName: ChequeType) — was unmapped entirely; list/create/edit all built
+  23028: "/Accounts/UnpayReasons",        // Unpay Reasons (ControllerName: UnpayReason) — real, documented controller (docs/api/unpayreason-api-spec.md); was previously unmapped, with FOSA/TellerTransactions/UnpayReasons.jsx calling an undocumented /api/unpay endpoint instead of this one
   // Operations (23002) > Recurring Procedures (23035)
   23039: "/Accounts/StandingOrders/Execution", // Standing Order Execution (ControllerName: SatndingOrderExecution — real backend typo, admin/ops only)
   // Operations (23002) > Customer Accounts (23043)
@@ -120,7 +121,7 @@ export const moduleRouteMap = {
   25009: "/FrontOffice/Transfers",        // Cheques/Cash Transfer (ControllerName: Transfers) — one real nav Code covering two genuinely different request shapes (POST /cash vs POST /cheques); unified into one screen with Cash/Cheque tabs 2026-08-11, replacing the earlier CashTransfer.jsx/ChequeTransfer.jsx split where the cheque half wasn't reachable from this nav Code at all
   25010: "/FrontOffice/EndOfDay",         // End-Of-Day (ControllerName: EndOfDay)
   // Operations (25001), direct leaves
-  25011: "/FrontOffice/Catalogue",        // Cheques (ControllerName: Cheques) — the cheques catalogue/browse screen
+  25011: "/FrontOffice/Cheques",          // Cheques (ControllerName: Cheques) — one real nav Code covering Catalogue/Bank/Clear (GET /, POST /bank, POST /clear all on the same controller); unified into one screen with tabs 2026-08-11, replacing the earlier Catalogue.jsx/BankCheques.jsx/ClearCheques.jsx split where Bank/Clear weren't reachable from this nav Code at all
   25012: "/FrontOffice/FixedDeposits",   // Fixed Deposits (ControllerName: FixedDeposit) — Phase 2
   25013: "/FrontOffice/ExpensePayables", // Expense Payables (ControllerName: ExpensePayable) — Phase 2
   25014: "/FrontOffice/AccountClosure",  // Account Closure (ControllerName: AccountClosure) — Phase 2
