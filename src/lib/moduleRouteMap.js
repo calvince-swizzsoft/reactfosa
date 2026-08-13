@@ -105,7 +105,13 @@ export const moduleRouteMap = {
   // Setup (23001) > Financial Products (23015)
   23016: "/Accounts/SavingsProducts",     // Savings (ControllerName: SavingsProduct)
   23017: "/Accounts/InvestmentProducts",  // Investments (ControllerName: InvestmentProduct)
-  23018: "/Loaning/LoanProducts",         // Loans (ControllerName: LoanProduct)
+  // Was mapped to the legacy /Loaning/LoanProducts.jsx screen — but this
+  // code's NavigationMenu AreaName is "Accounts" (matching sibling codes
+  // 23016/23017 above, both /Accounts/...), not "Loaning". The real
+  // Accounts-module LoanProductController (docs/api/loan-product-api-spec.md)
+  // is a different LoanProduct concept from the legacy screen's backend —
+  // repointed 2026-08-12 to the new screen actually built against it.
+  23018: "/Accounts/LoanProducts",        // Loans (ControllerName: LoanProduct)
   // Setup (23001), direct leaves
   23020: "/Accounts/Treasuries",          // Treasuries (ControllerName: Treasuries)
   23021: "/Accounts/Tellers",             // Tellers (ControllerName: Teller, AreaName: FrontOffice)

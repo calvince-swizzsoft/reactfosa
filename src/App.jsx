@@ -150,6 +150,8 @@ import InvestmentProducts from "./pages/Accounts/InvestmentProducts/index.jsx";
 import CreateInvestmentProduct from "./pages/Accounts/InvestmentProducts/create.jsx";
 import SavingsProducts from "./pages/Accounts/SavingsProducts/index.jsx";
 import CreateSavingsProduct from "./pages/Accounts/SavingsProducts/create.jsx";
+import AccountsLoanProducts from "./pages/Accounts/LoanProducts/index.jsx";
+import CreateLoanProduct from "./pages/Accounts/LoanProducts/create.jsx";
 import Treasuries from "./pages/Accounts/Treasuries/index.jsx";
 import CreateTreasury from "./pages/Accounts/Treasuries/create.jsx";
 import CostCenters from "./pages/Accounts/CostCenters/index.jsx";
@@ -365,6 +367,8 @@ export default function App() {
           <Route path="Accounts/InvestmentProducts/create" element={<CreateInvestmentProduct />} />
           <Route path="Accounts/SavingsProducts" element={<SavingsProducts />} />
           <Route path="Accounts/SavingsProducts/create" element={<CreateSavingsProduct />} />
+          <Route path="Accounts/LoanProducts" element={<AccountsLoanProducts />} />
+          <Route path="Accounts/LoanProducts/create" element={<CreateLoanProduct />} />
           <Route path="Accounts/Treasuries" element={<Treasuries />} />
           <Route path="Accounts/Treasuries/create" element={<CreateTreasury />} />
           <Route path="Accounts/BankLinkages" element={<AccountsBankLinkages />} />
