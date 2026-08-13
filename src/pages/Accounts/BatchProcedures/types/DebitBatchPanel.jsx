@@ -298,7 +298,7 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
           title="Select Customer Account"
           fetchUrl={`${FIN_BASE}/api/accounts/customer-accounts?pageSize=1000`}
           getLabel={(i) => i.CustomerFullName || i.FullAccountNumber}
-          getSublabel={(i) => i.FullAccountNumber}
+          getSublabel={(i) => [i.FullAccountNumber, i.CustomerAccountTypeTargetProductDescription].filter(Boolean).join(" — ")}
           onSelect={(i) => setEntryForm((p) => ({ ...p, CustomerAccountId: i.Id, CustomerLabel: `${i.CustomerFullName || ""} — ${i.FullAccountNumber || ""}` }))}
           onClose={() => setPicker(false)}
         />
