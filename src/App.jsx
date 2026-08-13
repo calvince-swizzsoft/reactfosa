@@ -152,6 +152,9 @@ import SavingsProducts from "./pages/Accounts/SavingsProducts/index.jsx";
 import CreateSavingsProduct from "./pages/Accounts/SavingsProducts/create.jsx";
 import AccountsLoanProducts from "./pages/Accounts/LoanProducts/index.jsx";
 import CreateLoanProduct from "./pages/Accounts/LoanProducts/create.jsx";
+import RegisterAlternateChannel from "./pages/Accounts/AlternateChannels/Register.jsx";
+import AlternateChannelManagement from "./pages/Accounts/AlternateChannels/Management.jsx";
+import AlternateChannelFees from "./pages/Accounts/AlternateChannels/Fees.jsx";
 import Treasuries from "./pages/Accounts/Treasuries/index.jsx";
 import CreateTreasury from "./pages/Accounts/Treasuries/create.jsx";
 import CostCenters from "./pages/Accounts/CostCenters/index.jsx";
@@ -369,6 +372,9 @@ export default function App() {
           <Route path="Accounts/SavingsProducts/create" element={<CreateSavingsProduct />} />
           <Route path="Accounts/LoanProducts" element={<AccountsLoanProducts />} />
           <Route path="Accounts/LoanProducts/create" element={<CreateLoanProduct />} />
+          <Route path="Accounts/AlternateChannels/Register" element={<RegisterAlternateChannel />} />
+          <Route path="Accounts/AlternateChannels/Management" element={<AlternateChannelManagement />} />
+          <Route path="Accounts/AlternateChannels/Fees" element={<AlternateChannelFees />} />
           <Route path="Accounts/Treasuries" element={<Treasuries />} />
           <Route path="Accounts/Treasuries/create" element={<CreateTreasury />} />
           <Route path="Accounts/BankLinkages" element={<AccountsBankLinkages />} />

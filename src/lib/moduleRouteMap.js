@@ -94,6 +94,8 @@ export const moduleRouteMap = {
   23006: "/Accounts/ChartOfAccounts/Mappings", // G/L Account Determination (ControllerName: SystemGeneralLedgerAccountMapping) — was pointed at the legacy Finance/Setup/AccountConfiguration screen, repointed
   // Setup (23001) > Levies & Charges (23007)
   23008: "/Accounts/Levies",              // Levies (ControllerName: Levy) — real match for the new LevyController.
+  // Setup (23001) > Charge Determination (23010)
+  23014: "/Accounts/AlternateChannels/Fees", // Alternate Channels (ControllerName: AlternateChannels) — per-channel-type fee config, docs/api/alternate-channel-api-spec.md §4
   // 23009 "Charges" (ControllerName: Charges) pointed at the OLD reference
   // app's Charges controller, a mostly-duplicate reimplementation of
   // Commission CRUD that was deliberately NOT ported (see
@@ -130,6 +132,13 @@ export const moduleRouteMap = {
   // explicit user decision; see the top-of-file audit note for the
   // reasoning and the caveat about revisiting if E-Statements ever ships.
   23051: "/Accounts/CustomerAccountStatement", // Nominally "E-Statements" — stopgap-mapped to the real, working Customer Account Statement screen (mini/full statement + PDF)
+  // Operations (23002) > Alternate Channels (23052 folder) — linking/
+  // lifecycle, docs/api/alternate-channel-api-spec.md §1-3. Reconciliation
+  // (23055-23059, ControllerName: AlternatePeriods) has no backing
+  // controller anywhere in this backend yet — deliberately left unmapped,
+  // not an oversight.
+  23053: "/Accounts/AlternateChannels/Register",   // Register (ControllerName: Register)
+  23054: "/Accounts/AlternateChannels/Management", // Management (ControllerName: AlternatechannelManagement)
   // Batch Procedures (23068) — stage-level gating only, the 27 per-type
   // child codes (70-78/80-88/90-98) are commented out in NavigationMenu.cs,
   // see Areas/Accounts/BATCH-PROCEDURES-CONCEPTS.md §1.1. One shared shell
