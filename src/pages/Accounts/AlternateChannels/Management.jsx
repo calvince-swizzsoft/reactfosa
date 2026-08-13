@@ -1,16 +1,19 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Swal from "sweetalert2";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaMobileAlt, FaPlus, FaSearch } from "react-icons/fa";
+import { FaMobileAlt, FaPlus, FaSearch, FaChevronDown } from "react-icons/fa";
 import NotFoundImage from "/assets/scopefinding.png";
 import {
-  listAlternateChannelsPaged, replaceAlternateChannel, renewAlternateChannel,
-  stopAlternateChannel, delinkAlternateChannel, approveAlternateChannel, rejectAlternateChannel,
+  listAlternateChannelsPaged, linkAlternateChannel, replaceAlternateChannel, renewAlternateChannel,
+  stopAlternateChannel, delinkAlternateChannel,
 } from "./api";
+import { ALTERNATE_CHANNEL_TYPE_OPTIONS, BROKEN_CARD_NUMBER_TYPES, AlternateChannelType } from "./lib/alternateChannelEnums";
+import EntryPickerModal from "../BatchProcedures/lib/EntryPickerModal";
+
+const FIN_BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 
 function StatusBadge({ status }) {
   const meta = {
@@ -31,6 +34,22 @@ function FieldGroup({ label, children }) {
   );
 }
 
+function PickerField({ label, value, placeholder, onClick }) {
+  return (
+    <div>
+      <Label className="text-sm font-semibold text-gray-700 mb-1 block">{label}</Label>
+      <button
+        type="button"
+        onClick={onClick}
+        className="w-full flex items-center justify-between px-3 py-2 border border-gray-300 rounded-md bg-white text-sm hover:border-indigo-400 transition-colors text-left"
+      >
+        <span className={value ? "text-gray-800 truncate" : "text-gray-400"}>{value || placeholder}</span>
+        <FaChevronDown className="text-gray-400 text-xs flex-shrink-0 ml-2" />
+      </button>
+    </div>
+  );
+}
+
 async function promptRemarks(title) {
   const { value, isConfirmed } = await Swal.fire({
     title,
@@ -41,6 +60,111 @@ async function promptRemarks(title) {
   });
   if (!isConfirmed) return null;
   return value || "";
+}
+
+const emptyLinkForm = {
+  CustomerAccountId: "", CustomerLabel: "",
+  Type: AlternateChannelType.SaccoLink,
+  CardNumber: "", Remarks: "", DailyLimit: 0,
+};
+
+function LinkChannelDrawer({ open, onClose, onSuccess }) {
+  const [form, setForm] = useState(emptyLinkForm);
+  const [loading, setLoading] = useState(false);
+  const [picker, setPicker] = useState(false);
+
+  useEffect(() => { if (open) setForm(emptyLinkForm); }, [open]);
+
+  const isBrokenType = BROKEN_CARD_NUMBER_TYPES.has(Number(form.Type));
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!form.CustomerAccountId || !form.CardNumber) {
+      Swal.fire("Missing Fields", "Customer account and primary account number are required.", "warning");
+      return;
+    }
+    setLoading(true);
+    try {
+      await linkAlternateChannel({
+        CustomerAccountId: form.CustomerAccountId,
+        Type: Number(form.Type),
+        CardNumber: form.CardNumber,
+        Remarks: form.Remarks,
+        DailyLimit: Number(form.DailyLimit) || 0,
+      });
+      Swal.fire("Success", "Alternate channel linked.", "success");
+      onSuccess();
+      onClose();
+    } catch (err) {
+      Swal.fire("Error", err.message, "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <AnimatePresence>
+      {open && (
+        <>
+          <motion.div className="fixed inset-0 bg-black z-40" initial={{ opacity: 0 }} animate={{ opacity: 0.4 }} exit={{ opacity: 0 }} onClick={onClose} />
+          <motion.div className="fixed top-0 right-0 h-full w-[480px] bg-white shadow-2xl z-50 flex flex-col" initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", stiffness: 300, damping: 30 }}>
+            <div className="m-2 flex justify-between items-center bg-indigo-600 rounded-2xl px-4 py-3">
+              <h2 className="font-bold text-white">Link Alternate Channel</h2>
+              <Button variant="outline" size="sm" onClick={onClose}>Close</Button>
+            </div>
+            <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+              <PickerField label="Customer Account" value={form.CustomerLabel} placeholder="Search & select customer account..." onClick={() => setPicker(true)} />
+
+              <FieldGroup label="Channel Type">
+                <select
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm mt-1"
+                  value={form.Type}
+                  onChange={(e) => setForm((p) => ({ ...p, Type: Number(e.target.value) }))}
+                >
+                  {ALTERNATE_CHANNEL_TYPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </FieldGroup>
+
+              {isBrokenType && (
+                <p className="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                  Agency Banking and Citius links can't be created today — the server always rejects the primary account
+                  number for these two types (a known, unfixed backend gap, not a form validation issue). Submitting will 400.
+                </p>
+              )}
+
+              <FieldGroup label="Primary Account Number">
+                <Input value={form.CardNumber} onChange={(e) => setForm((p) => ({ ...p, CardNumber: e.target.value }))} required disabled={isBrokenType} />
+              </FieldGroup>
+
+              <FieldGroup label="Daily Limit">
+                <Input type="number" min="0" value={form.DailyLimit} onChange={(e) => setForm((p) => ({ ...p, DailyLimit: e.target.value }))} />
+              </FieldGroup>
+
+              <FieldGroup label="Remarks">
+                <Input value={form.Remarks} onChange={(e) => setForm((p) => ({ ...p, Remarks: e.target.value }))} />
+              </FieldGroup>
+            </form>
+            <div className="shrink-0 px-4 py-3 border-t">
+              <Button onClick={handleSubmit} disabled={loading || isBrokenType} className="w-full bg-indigo-600 hover:bg-indigo-700">
+                {loading ? "Linking..." : "Link Channel"}
+              </Button>
+            </div>
+          </motion.div>
+        </>
+      )}
+
+      {picker && (
+        <EntryPickerModal
+          title="Select Customer Account"
+          fetchUrl={`${FIN_BASE}/api/accounts/customer-accounts?pageSize=1000`}
+          getLabel={(i) => i.CustomerFullName || i.FullAccountNumber}
+          getSublabel={(i) => i.FullAccountNumber}
+          onSelect={(i) => setForm((p) => ({ ...p, CustomerAccountId: i.Id, CustomerLabel: `${i.CustomerFullName || ""} — ${i.FullAccountNumber || ""}` }))}
+          onClose={() => setPicker(false)}
+        />
+      )}
+    </AnimatePresence>
+  );
 }
 
 function DetailDrawer({ channel, onClose, onChanged }) {
@@ -57,32 +181,6 @@ function DetailDrawer({ channel, onClose, onChanged }) {
   }, [channel?.Id]);
 
   if (!channel) return null;
-
-  const handleApprove = async () => {
-    const remarks = await promptRemarks("Approve Channel");
-    if (remarks === null) return;
-    try {
-      await approveAlternateChannel(channel.Id, remarks);
-      Swal.fire("Success", "Channel approved.", "success");
-      onChanged();
-      onClose();
-    } catch (err) {
-      Swal.fire("Error", err.message, "error");
-    }
-  };
-
-  const handleReject = async () => {
-    const remarks = await promptRemarks("Reject Channel");
-    if (remarks === null) return;
-    try {
-      await rejectAlternateChannel(channel.Id, remarks);
-      Swal.fire("Success", "Channel rejected.", "success");
-      onChanged();
-      onClose();
-    } catch (err) {
-      Swal.fire("Error", err.message, "error");
-    }
-  };
 
   const handleStop = async () => {
     const remarks = await promptRemarks("Stop Channel (suspend transacting)");
@@ -151,9 +249,10 @@ function DetailDrawer({ channel, onClose, onChanged }) {
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
           <div className="grid grid-cols-2 gap-3 text-sm">
             <div><span className="text-gray-400">Customer</span><p className="font-semibold text-gray-800">{channel.CustomerFullName}</p></div>
-            <div><span className="text-gray-400">Status</span><p><StatusBadge status={channel.RecordStatus} /></p></div>
+            <div><span className="text-gray-400">Product</span><p className="font-semibold text-gray-800">{channel.ProductDescription}</p></div>
             <div><span className="text-gray-400">Account Number</span><p className="font-semibold text-gray-800">{channel.FullAccountNumber}</p></div>
             <div><span className="text-gray-400">Primary Account Number</span><p className="font-semibold text-gray-800">{channel.MaskedCardNumber}</p></div>
+            <div><span className="text-gray-400">Status</span><p><StatusBadge status={channel.RecordStatus} /></p></div>
             <div><span className="text-gray-400">Daily Limit</span><p className="font-semibold text-gray-800">{channel.DailyLimit?.toLocaleString()}</p></div>
             <div><span className="text-gray-400">Locked?</span><p className="font-semibold text-gray-800">{channel.IsLocked ? "Yes" : "No"}</p></div>
           </div>
@@ -164,13 +263,7 @@ function DetailDrawer({ channel, onClose, onChanged }) {
             </div>
           )}
 
-          <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-            No real maker-checker gate exists for this record — Approve/Reject don't check who created or last edited it.
-          </p>
-
           <div className="grid grid-cols-2 gap-2 pt-2">
-            <Button size="sm" onClick={handleApprove} className="bg-green-600 hover:bg-green-700">Approve</Button>
-            <Button size="sm" onClick={handleReject} variant="outline" className="border-red-300 text-red-600 hover:bg-red-50">Reject</Button>
             <Button size="sm" onClick={() => { setReplaceMode("replace"); setReplaceOpen(true); }} variant="outline">Replace</Button>
             <Button size="sm" onClick={() => { setReplaceMode("renew"); setReplaceOpen(true); }} variant="outline">Renew</Button>
             <Button size="sm" onClick={handleStop} variant="outline" className="border-amber-300 text-amber-700 hover:bg-amber-50">Stop</Button>
@@ -200,15 +293,17 @@ function DetailDrawer({ channel, onClose, onChanged }) {
 }
 
 // api/accounts/alternatechannels — docs/api/alternate-channel-api-spec.md.
-// NavigationMenu code 23054 ("Management").
+// NavigationMenu code 23054 ("Management"). The lifecycle action hub:
+// Linking (create), De-linking, Renewal, Replacement (+ Stop). Approve/
+// Reject live separately on Register (23053) as a checker queue instead.
 export default function AlternateChannelManagement() {
-  const navigate = useNavigate();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [pageIndex, setPageIndex] = useState(0);
   const [itemsCount, setItemsCount] = useState(0);
   const [selected, setSelected] = useState(null);
+  const [linkOpen, setLinkOpen] = useState(false);
   const pageSize = 20;
 
   const fetchList = () => {
@@ -236,8 +331,8 @@ export default function AlternateChannelManagement() {
         <h2 className="text-xl font-bold text-white flex items-center gap-2">
           <FaMobileAlt /> Alternate Channels
         </h2>
-        <Button onClick={() => navigate("/Accounts/AlternateChannels/Register")} className="bg-indigo-600 hover:bg-indigo-700 flex items-center gap-2">
-          <FaPlus /> New Link
+        <Button onClick={() => setLinkOpen(true)} className="bg-indigo-600 hover:bg-indigo-700 flex items-center gap-2">
+          <FaPlus /> Link Channel
         </Button>
       </div>
 
@@ -251,10 +346,11 @@ export default function AlternateChannelManagement() {
 
       <div className="bg-gray-200 p-4 rounded-sm">
         <div className="grid grid-cols-12 gap-4 bg-gray-700 text-gray-100 font-semibold p-3 rounded-lg mb-4 text-sm">
-          <span className="col-span-4">Customer</span>
-          <span className="col-span-2">Type</span>
-          <span className="col-span-3">Primary Account Number</span>
-          <span className="col-span-2">Status</span>
+          <span className="col-span-3">Customer</span>
+          <span className="col-span-3">Product</span>
+          <span className="col-span-2">Channel Type</span>
+          <span className="col-span-2">Primary Account Number</span>
+          <span className="col-span-1">Status</span>
           <span className="col-span-1">Locked</span>
         </div>
 
@@ -272,10 +368,11 @@ export default function AlternateChannelManagement() {
                 className="w-full text-left bg-white rounded-lg shadow-lg border hover:shadow-xl transition-all"
               >
                 <div className="grid grid-cols-12 gap-2 items-center py-3 px-6 text-sm">
-                  <span className="col-span-4 font-medium text-indigo-700 truncate">{channel.CustomerFullName}</span>
+                  <span className="col-span-3 font-medium text-indigo-700 truncate">{channel.CustomerFullName}</span>
+                  <span className="col-span-3 text-gray-700 truncate">{channel.ProductDescription}</span>
                   <span className="col-span-2 text-gray-700">{channel.TypeDescription}</span>
-                  <span className="col-span-3 text-gray-700 font-mono text-xs">{channel.MaskedCardNumber}</span>
-                  <span className="col-span-2"><StatusBadge status={channel.RecordStatus} /></span>
+                  <span className="col-span-2 text-gray-700 font-mono text-xs">{channel.MaskedCardNumber}</span>
+                  <span className="col-span-1"><StatusBadge status={channel.RecordStatus} /></span>
                   <span className="col-span-1 text-xs text-gray-500">{channel.IsLocked ? "Yes" : "No"}</span>
                 </div>
               </button>
@@ -297,6 +394,7 @@ export default function AlternateChannelManagement() {
         </div>
       )}
 
+      <LinkChannelDrawer open={linkOpen} onClose={() => setLinkOpen(false)} onSuccess={fetchList} />
       <DetailDrawer channel={selected} onClose={() => setSelected(null)} onChanged={fetchList} />
     </div>
   );
