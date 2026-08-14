@@ -3,6 +3,44 @@ import { Input } from "@/components/ui/input";
 import { FaSearch, FaTimes, FaSpinner } from "react-icons/fa";
 import { apiFetch, normalizeList } from "@/lib/api";
 
+// A single `pageSize=1000`-style request only ever returns one page — most
+// of these paged endpoints cap pageSize server-side (or the real row count
+// just exceeds whatever fixed size the caller guessed), silently dropping
+// everything past page 0. Loop pageIndex, accumulating pageCollection
+// across requests, until the server reports no more rows (itemsCount
+// reached or an empty page comes back) rather than trusting one page-size
+// guess to have fetched everything. Endpoints that return a bare array
+// (e.g. the unpaged ".../all" ones) have nothing to loop — one request is
+// already everything.
+async function fetchAllPages(fetchUrl) {
+  const collected = [];
+  let pageIndex = 0;
+  const MAX_PAGES = 200; // safety cap against a misbehaving/never-empty endpoint
+
+  while (pageIndex < MAX_PAGES) {
+    const url = new URL(fetchUrl);
+    url.searchParams.set("pageIndex", String(pageIndex));
+    const res = await apiFetch(url.toString());
+    const body = await res.json();
+    const payload = body?.data ?? body?.Data ?? body;
+
+    if (Array.isArray(payload)) {
+      // Unpaged endpoint — this one request is the whole list.
+      return payload;
+    }
+
+    const pageCollection = payload?.pageCollection || payload?.PageCollection || [];
+    collected.push(...pageCollection);
+
+    const itemsCount = payload?.itemsCount ?? payload?.ItemsCount ?? 0;
+    if (pageCollection.length === 0 || collected.length >= itemsCount) break;
+
+    pageIndex += 1;
+  }
+
+  return collected;
+}
+
 // Generic list-and-select picker, adapted from Cheques.jsx's SearchSelectModal
 // (that one is scoped to a single hardcoded "bankLinkage" case). Reused
 // across batch types for: customer-account pickers (Credit, Refund, Inter
@@ -14,12 +52,13 @@ export default function EntryPickerModal({ title, fetchUrl, getLabel, getSublabe
   const [query, setQuery] = useState("");
 
   useEffect(() => {
+    let cancelled = false;
     setLoading(true);
-    apiFetch(fetchUrl)
-      .then((r) => r.json())
-      .then((d) => setItems(normalizeList(d)))
-      .catch(() => setItems([]))
-      .finally(() => setLoading(false));
+    fetchAllPages(fetchUrl)
+      .then((all) => { if (!cancelled) setItems(normalizeList(all)); })
+      .catch(() => { if (!cancelled) setItems([]); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, [fetchUrl]);
 
   const filtered = useMemo(() => {
