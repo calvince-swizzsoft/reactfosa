@@ -290,7 +290,7 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
         <EntryPickerModal
           title={picker === "debit" ? "Select Debit Customer Account" : "Select Credit Customer Account"}
           fetchUrl={`${FIN_BASE}/api/accounts/customer-accounts?pageSize=1000`}
-          getLabel={(i) => i.CustomerFullName || i.FullAccountNumber}
+          getLabel={(i) => i.CustomerFullName || [i.CustomerIndividualFirstName, i.CustomerIndividualLastName].filter(Boolean).join(" ") || i.FullAccountNumber}
           getSublabel={(i) => [i.FullAccountNumber, i.CustomerAccountTypeTargetProductDescription].filter(Boolean).join(" — ")}
           onSelect={(i) => {
             if (picker === "debit") setEntryForm((p) => ({ ...p, DebitCustomerAccountId: i.Id, DebitLabel: `${i.CustomerFullName || ""} — ${i.FullAccountNumber || ""}` }));
