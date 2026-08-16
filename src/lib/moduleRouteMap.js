@@ -162,6 +162,9 @@ export const moduleRouteMap = {
   70011: "/Loaning/LoanCases/cancellation", // Cancellation (ControllerName: LoanCancellation) — api/backoffice/loancases/{id}/cancel, docs/api/loan-case-api-spec.md §13. Only cases already Audited (awaiting disbursement) — a different queue from Verification's own.
   // 70012 is the "Loaning" area/folder node (IsArea: true, no ControllerName) — nothing to route directly, same pattern as the 22007 gotcha documented above.
   70013: "/Loaning/Restructuring",         // Restructuring (ControllerName: LoanRestructuring) — api/backoffice/loanrestructuring, keyed by CustomerAccountId not LoanCaseId
+  70014: "/Loaning/GuarantorAttachment",   // Guarantor Attachment — api/backoffice/loanguarantorattachments, same unified 3-tab screen as 70015/70016
+  70015: "/Loaning/GuarantorAttachment",   // Guarantor Substitution — same controller/screen as 70014, Substitute tab
+  70016: "/Loaning/GuarantorAttachment",   // Guarantor Relieving — same controller/screen as 70014, History/Relieve tab
   70017: "/Loaning/Guarantors",            // Guarantor Management (ControllerName: GuarantorManagement) — api/backoffice/loanguarantors, adds one more guarantor to an already-registered case
 
   // ── Front-Office (0x000061A8 = 25000) ────────────────────────────
