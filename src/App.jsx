@@ -105,6 +105,8 @@ import LoanRestructuring from "./pages/Loaning/Restructuring/index.jsx";
 import Guarantors from "./pages/Loaning/Guarantors/index.jsx";
 import CreateLoanGuarantor from "./pages/Loaning/Guarantors/create.jsx";
 import GuarantorAttachment from "./pages/Loaning/GuarantorAttachment/index.jsx";
+import LoanRequests from "./pages/Loaning/LoanRequests/index.jsx";
+import CreateLoanRequest from "./pages/Loaning/LoanRequests/create.jsx";
 import MemberReceipting from "./pages/Finance/MemberReceipting/index.jsx";
 import LoanSector from "./pages/Loaning/LoanSector/index.jsx";
 import LoanSubSector from "./pages/Loaning/LoanSubSector/index.jsx";
@@ -345,6 +347,8 @@ export default function App() {
           <Route path="Loaning/Guarantors" element={<Guarantors />} />
           <Route path="Loaning/Guarantors/create" element={<CreateLoanGuarantor />} />
           <Route path="Loaning/GuarantorAttachment" element={<GuarantorAttachment />} />
+          <Route path="Loaning/LoanRequests" element={<LoanRequests />} />
+          <Route path="Loaning/LoanRequests/create" element={<CreateLoanRequest />} />
           <Route path="Loaning/LoanSector" element={<LoanSector />} />
           <Route path="Loaning/LoanSubSector" element={<LoanSubSector />} />
           <Route path="Loaning/LoanCalculator" element={<LoanCalculator />} />

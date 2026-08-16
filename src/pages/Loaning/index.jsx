@@ -218,6 +218,17 @@ export default function Loaning() {
                         <p className="text-xs mt-4 opacity-70">Link</p>
                     </CardContent>
                 </Card>
+
+                {/* Loan Requests — pre-case intake, no NavigationMenu code exists for it yet */}
+                <Card
+                    className="rounded-2xl shadow-md bg-gradient-to-br from-sky-500 to-sky-600 text-white cursor-pointer"
+                    onClick={() => navigate("/Loaning/LoanRequests")}
+                >
+                    <CardContent className="p-6">
+                        <h2 className="text-3xl font-bold mt-2">Loan Requests</h2>
+                        <p className="text-xs mt-4 opacity-70">Link</p>
+                    </CardContent>
+                </Card>
             </div>
 
         </div>
