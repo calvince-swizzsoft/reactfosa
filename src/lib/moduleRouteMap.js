@@ -160,6 +160,8 @@ export const moduleRouteMap = {
   70009: "/Loaning/LoanCases/approval",     // Approval (ControllerName: ApproveLoan)
   70010: "/Loaning/LoanCases/audit",        // Verification (ControllerName: LoanVerification) — "Audit" internally, "Verify" in the UI
   70011: "/Loaning/LoanCases/cancellation", // Cancellation (ControllerName: LoanCancellation) — api/backoffice/loancases/{id}/cancel, docs/api/loan-case-api-spec.md §13. Only cases already Audited (awaiting disbursement) — a different queue from Verification's own.
+  // 70012 is the "Loaning" area/folder node (IsArea: true, no ControllerName) — nothing to route directly, same pattern as the 22007 gotcha documented above.
+  70013: "/Loaning/Restructuring",         // Restructuring (ControllerName: LoanRestructuring) — api/backoffice/loanrestructuring, keyed by CustomerAccountId not LoanCaseId
 
   // ── Front-Office (0x000061A8 = 25000) ────────────────────────────
   // Operations (25001) > Treasury (25002)

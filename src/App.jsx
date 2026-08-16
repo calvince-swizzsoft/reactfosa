@@ -101,6 +101,7 @@ import LoanCaseAppraisal from "./pages/Loaning/LoanCases/AppraisalScreen.jsx";
 import LoanCaseApproval from "./pages/Loaning/LoanCases/ApprovalScreen.jsx";
 import LoanCaseAudit from "./pages/Loaning/LoanCases/AuditScreen.jsx";
 import LoanCaseCancellation from "./pages/Loaning/LoanCases/CancellationScreen.jsx";
+import LoanRestructuring from "./pages/Loaning/Restructuring/index.jsx";
 import MemberReceipting from "./pages/Finance/MemberReceipting/index.jsx";
 import LoanSector from "./pages/Loaning/LoanSector/index.jsx";
 import LoanSubSector from "./pages/Loaning/LoanSubSector/index.jsx";
@@ -337,6 +338,7 @@ export default function App() {
           <Route path="Loaning/LoanCases/approval" element={<LoanCaseApproval />} />
           <Route path="Loaning/LoanCases/audit" element={<LoanCaseAudit />} />
           <Route path="Loaning/LoanCases/cancellation" element={<LoanCaseCancellation />} />
+          <Route path="Loaning/Restructuring" element={<LoanRestructuring />} />
           <Route path="Loaning/LoanSector" element={<LoanSector />} />
           <Route path="Loaning/LoanSubSector" element={<LoanSubSector />} />
           <Route path="Loaning/LoanCalculator" element={<LoanCalculator />} />
