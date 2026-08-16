@@ -51,6 +51,14 @@ export default function CustomerAccountDrawer({ open, onClose, onSuccess }) {
     setBranchId("");
     setProductId("");
     setLoadingData(true);
+    // Deliberately Savings/Investment only — no api/accounts/loanproducts
+    // fetch here. The backend's AddNewCustomerAccount *will* create a Loan-
+    // product customer account through this same generic endpoint (and
+    // auto-approves it immediately, same as Investment), but doing that
+    // bypasses the whole Loan Origination pipeline (Registration/Appraisal/
+    // Approval/Audit) that's supposed to govern approved amount/guarantors/
+    // etc. Confirmed with product owner 2026-08-16: loan accounts should
+    // only ever come from that pipeline (disbursement), not this drawer.
     Promise.all([
       apiFetch(`${FIN_BASE}/api/registry/customers`).then((r) => r.json()),
       apiFetch(`${FIN_BASE}/api/administration/branches`).then((r) => r.json()),
