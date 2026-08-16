@@ -5,6 +5,20 @@ import { apiFetch, normalizeList } from "@/lib/api";
 
 const FIN_BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 
+// CustomerDTO.FullName is a server-computed getter that can come back
+// blank — IndividualSalutationDescription (and several sibling
+// *Description getters on this same DTO) call EnumHelper.GetDescription
+// without the Enum.IsDefined guard every other Description getter in this
+// backend uses, which falls through to a literal null on an undefined
+// enum value (same root cause already chased down and worked around for
+// CustomerAccountDTO.CustomerFullName in the Accounts pickers — see that
+// fix's commit message for the full story). Fall back to the raw
+// first/last name, then the non-individual description, before ever
+// showing a blank row.
+function displayName(c) {
+  return c.FullName || [c.IndividualFirstName, c.IndividualLastName].filter(Boolean).join(" ") || c.NonIndividualDescription || `Customer #${c.PaddedSerialNumber || c.SerialNumber || ""}`;
+}
+
 // Customer picker for loanee/guarantor selection — api/registry/customer
 // (singular) is a real, paged, server-side search endpoint
 // (LoanCaseController's guarantor lookup and Create both key off this same
@@ -59,10 +73,10 @@ export default function CustomerPickerModal({ title = "Select Customer", onSelec
               <button
                 key={c.Id}
                 type="button"
-                onClick={() => { onSelect(c); onClose(); }}
+                onClick={() => { onSelect({ ...c, FullName: displayName(c) }); onClose(); }}
                 className="w-full text-left px-4 py-2.5 rounded-xl hover:bg-indigo-50 transition-colors"
               >
-                <p className="text-sm font-semibold text-gray-800">{c.FullName}</p>
+                <p className="text-sm font-semibold text-gray-800">{displayName(c)}</p>
                 <p className="text-xs text-gray-500">#{c.PaddedSerialNumber} · {c.RecordStatusDescription}</p>
               </button>
             ))

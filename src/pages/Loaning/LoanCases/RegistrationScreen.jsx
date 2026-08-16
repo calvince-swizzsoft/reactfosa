@@ -12,6 +12,8 @@ import LoanCaseStatusBadge from "./lib/LoanCaseStatusBadge";
 import LoanCaseSummary from "./lib/LoanCaseSummary";
 import CustomerPickerModal from "./lib/CustomerPickerModal";
 import EntryPickerModal from "../../Accounts/BatchProcedures/lib/EntryPickerModal";
+import QuickCreateModal from "../lib/QuickCreateModal";
+import { createLoanPurpose, createLoaningRemark } from "../lib/loanMastersApi";
 import { apiFetch } from "@/lib/api";
 
 const FIN_BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
@@ -38,6 +40,27 @@ function PickerField({ label, value, placeholder, onClick, disabled }) {
         <span className={value ? "text-gray-800 truncate" : "text-gray-400"}>{value || placeholder}</span>
         <FaChevronDown className="text-gray-400 text-xs flex-shrink-0 ml-2" />
       </button>
+    </div>
+  );
+}
+
+function PickerFieldWithCreate({ label, value, placeholder, onClick, onCreateNew }) {
+  return (
+    <div>
+      <Label className="text-sm font-semibold text-gray-700 mb-1 block">{label}</Label>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={onClick}
+          className="flex-1 flex items-center justify-between px-3 py-2 border border-gray-300 rounded-md bg-white text-sm hover:border-indigo-400 transition-colors text-left"
+        >
+          <span className={value ? "text-gray-800 truncate" : "text-gray-400"}>{value || placeholder}</span>
+          <FaChevronDown className="text-gray-400 text-xs flex-shrink-0 ml-2" />
+        </button>
+        <Button type="button" variant="outline" size="icon" onClick={onCreateNew} title={`New ${label}`}>
+          <FaPlus className="text-xs" />
+        </Button>
+      </div>
     </div>
   );
 }
@@ -99,6 +122,7 @@ function CreateLoanCaseDrawer({ open, onClose, onSuccess }) {
   const [guarantors, setGuarantors] = useState([]);
   const [collaterals, setCollaterals] = useState([]);
   const [picker, setPicker] = useState(null);
+  const [creating, setCreating] = useState(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -188,8 +212,8 @@ function CreateLoanCaseDrawer({ open, onClose, onSuccess }) {
               <PickerField label="Loanee" value={form.CustomerLabel} placeholder="Search & select customer..." onClick={() => setPicker("customer")} />
               <PickerField label="Loan Product" value={form.LoanProductLabel} placeholder="Select loan product..." onClick={() => setPicker("loanProduct")} />
               <PickerField label="Savings Product" value={form.SavingsProductLabel} placeholder="Select savings product..." onClick={() => setPicker("savingsProduct")} />
-              <PickerField label="Loan Purpose" value={form.LoanPurposeLabel} placeholder="Select loan purpose..." onClick={() => setPicker("loanPurpose")} />
-              <PickerField label="Registration Remark" value={form.RegistrationRemarkLabel} placeholder="Select remark..." onClick={() => setPicker("registrationRemark")} />
+              <PickerFieldWithCreate label="Loan Purpose" value={form.LoanPurposeLabel} placeholder="Select loan purpose..." onClick={() => setPicker("loanPurpose")} onCreateNew={() => setCreating("loanPurpose")} />
+              <PickerFieldWithCreate label="Registration Remark" value={form.RegistrationRemarkLabel} placeholder="Select remark..." onClick={() => setPicker("registrationRemark")} onCreateNew={() => setCreating("registrationRemark")} />
               <PickerField label="Branch" value={form.BranchLabel} placeholder="Select branch..." onClick={() => setPicker("branch")} />
 
               <div className="grid grid-cols-2 gap-3">
@@ -309,6 +333,23 @@ function CreateLoanCaseDrawer({ open, onClose, onSuccess }) {
           getSublabel={(i) => i.CollateralValue?.toLocaleString()}
           onSelect={addCollateral}
           onClose={() => setPicker(null)}
+        />
+      )}
+
+      {creating === "loanPurpose" && (
+        <QuickCreateModal
+          title="New Loan Purpose"
+          onCreate={createLoanPurpose}
+          onCreated={(created) => setForm((p) => ({ ...p, LoanPurposeId: created.Id, LoanPurposeLabel: created.Description }))}
+          onClose={() => setCreating(null)}
+        />
+      )}
+      {creating === "registrationRemark" && (
+        <QuickCreateModal
+          title="New Registration Remark"
+          onCreate={createLoaningRemark}
+          onCreated={(created) => setForm((p) => ({ ...p, RegistrationRemarkId: created.Id, RegistrationRemarkLabel: created.Description }))}
+          onClose={() => setCreating(null)}
         />
       )}
     </AnimatePresence>
