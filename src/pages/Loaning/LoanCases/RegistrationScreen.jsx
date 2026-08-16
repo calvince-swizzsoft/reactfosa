@@ -319,7 +319,7 @@ function LoanCaseDetailDrawer({ loanCaseId, onClose }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const fetchDetail = () => {
     if (!loanCaseId) return;
     setLoading(true);
     apiFetch(`${FIN_BASE}/api/backoffice/loancases/${loanCaseId}`)
@@ -327,7 +327,9 @@ function LoanCaseDetailDrawer({ loanCaseId, onClose }) {
       .then((body) => setData(body?.data ?? body))
       .catch(() => setData(null))
       .finally(() => setLoading(false));
-  }, [loanCaseId]);
+  };
+
+  useEffect(() => { fetchDetail(); }, [loanCaseId]);
 
   if (!loanCaseId) return null;
 
@@ -343,7 +345,7 @@ function LoanCaseDetailDrawer({ loanCaseId, onClose }) {
           {loading ? (
             <div className="space-y-2 animate-pulse">{[1, 2, 3].map((i) => <div key={i} className="h-10 bg-gray-100 rounded-lg" />)}</div>
           ) : data ? (
-            <LoanCaseSummary loanCase={data.loanCase} guarantors={data.guarantors} collaterals={data.collaterals} />
+            <LoanCaseSummary loanCase={data.loanCase} guarantors={data.guarantors} collaterals={data.collaterals} editableCollaterals onCollateralsSaved={fetchDetail} />
           ) : (
             <p className="text-sm text-gray-400 text-center py-8">Not found.</p>
           )}

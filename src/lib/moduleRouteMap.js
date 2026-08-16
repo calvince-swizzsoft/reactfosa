@@ -159,6 +159,7 @@ export const moduleRouteMap = {
   70008: "/Loaning/LoanCases/appraisal",    // Appraisal (ControllerName: AppraiseLoan)
   70009: "/Loaning/LoanCases/approval",     // Approval (ControllerName: ApproveLoan)
   70010: "/Loaning/LoanCases/audit",        // Verification (ControllerName: LoanVerification) — "Audit" internally, "Verify" in the UI
+  70011: "/Loaning/LoanCases/cancellation", // Cancellation (ControllerName: LoanCancellation) — api/backoffice/loancases/{id}/cancel, docs/api/loan-case-api-spec.md §13. Only cases already Audited (awaiting disbursement) — a different queue from Verification's own.
 
   // ── Front-Office (0x000061A8 = 25000) ────────────────────────────
   // Operations (25001) > Treasury (25002)

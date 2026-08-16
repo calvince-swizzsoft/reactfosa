@@ -113,4 +113,22 @@ export function auditLoanCase(id, request) {
   return unwrap(apiFetch(`${BASE}/${id}/audit`, { method: "POST", body: JSON.stringify(request) }));
 }
 
+// PUT {id}/collaterals — TRUE full-replace, including empty. Sending
+// []/null clears every collateral already on the case; this isn't a
+// "save the delta", it's "this is now the complete set". Callers must
+// confirm before submitting a possibly-emptied list. 400 if any document
+// id doesn't exist (not silently dropped, unlike Create's collateral
+// handling), 409 if the update otherwise fails.
+export function updateLoanCaseCollaterals(id, documentIds) {
+  return unwrap(apiFetch(`${BASE}/${id}/collaterals`, { method: "PUT", body: JSON.stringify(documentIds) }));
+}
+
+// request: { Option } — LoanCancellationOption: 1=Defer, 2=Reject. Only
+// accepts a case already in Audited status (awaiting disbursement) — 409
+// otherwise, same wording pattern as every other transition guard on this
+// controller. On Reject, the case's guarantors are released server-side.
+export function cancelLoanCase(id, option) {
+  return unwrap(apiFetch(`${BASE}/${id}/cancel`, { method: "POST", body: JSON.stringify({ Option: option }) }));
+}
+
 export { normalizeList };

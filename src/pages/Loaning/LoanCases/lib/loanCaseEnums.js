@@ -29,6 +29,14 @@ export const LoanAuditOption = {
   Defer: 4,
 };
 
+// POST /{id}/cancel — only accepts a case already in Audited status
+// (awaiting disbursement), 409 otherwise. [Flags] on the C# side but only
+// ever sent as a single value.
+export const LoanCancellationOption = {
+  Defer: 1,
+  Reject: 2,
+};
+
 // RecordStatus.Approved — a loanee/guarantor customer must be at this
 // status or LoanCaseController.Create rejects with 400.
 export const RecordStatus = {
