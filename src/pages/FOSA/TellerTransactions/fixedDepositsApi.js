@@ -54,11 +54,11 @@ export function listFixedDepositPayables(id) {
   return unwrap(apiFetch(`${FIXED_DEPOSITS_BASE}/${id}/payables`));
 }
 
-// FixedDepositTypeId is optional (Guid?) and there's no lookup endpoint
-// for fixed deposit types anywhere in this API (confirmed — no
-// FixedDepositType controller exists), same gap as ChequeType's raw-GUID
-// precedent noted in TellerTransactions/TODO.md — omitted from the create
-// form entirely rather than guessed at.
+// FixedDepositTypeId is optional (Guid?) — a real lookup endpoint now
+// exists (Accounts/FixedDepositTypes, FixedDepositTypeController, added
+// 2026-08-16) and is wired into create.jsx's picker. Previously omitted
+// entirely per the ChequeType raw-GUID precedent noted in
+// TellerTransactions/TODO.md; that gap is now closed.
 export function createFixedDeposit(fixedDepositDTO) {
   return unwrap(apiFetch(FIXED_DEPOSITS_BASE, { method: "POST", body: JSON.stringify(fixedDepositDTO) }));
 }

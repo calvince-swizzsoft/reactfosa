@@ -25,11 +25,25 @@ that way (e.g. `AccountClosureController`'s real Approve->Verify->Settle
 precondition order, which contradicts the reference controller's naming).
 moduleRouteMap codes `25007`/`25008`/`25012`-`25014`/`25016`/`25017` are
 all mapped now. Known deliberate simplifications, not oversights:
-- **`FixedDepositTypeId`** (Fixed Deposits create) and **cheque number/
-  bank name/bank account free-text fields** (In-House Cheques batch rows)
-  are left out of their forms — optional fields with no lookup endpoint or
-  clear validated semantics, same "don't guess a picker/field that isn't
-  grounded" call as the pre-existing `ChequeType` gap above.
+- ~~**`FixedDepositTypeId`** (Fixed Deposits create)~~ — **resolved
+  2026-08-16.** `FixedDepositTypeController` (`api/accounts/
+  fixeddeposittypes`, `NavigationMenu.cs` Code `23029`) was built as part
+  of an end-to-end fidelity check of the whole Fixed Deposit lifecycle
+  (origination -> verify/post -> terminate, all confirmed working for real
+  against a live dev DB — see `SwiftFinancialz` repo's WCF-removal-branch
+  session notes) — `swiftFin_FixedDepositTypes` had zero rows and no
+  create screen existed anywhere, so the lifecycle was untestable end to
+  end until this shipped. New screen: `Accounts/FixedDepositTypes/`
+  (list + create + edit, full CRUD plus levies/attached-loan-products/
+  graduated-scales sub-resources — the latter had no UI anywhere in the
+  reference app despite `IFixedDepositTypeAppService` already supporting
+  it). `FixedDeposits/create.jsx` now sources a real `FixedDepositTypeId`
+  picker from it instead of omitting the field.
+- **cheque number/bank name/bank account free-text fields** (In-House
+  Cheques batch rows) are still left out of their forms — optional fields
+  with no lookup endpoint or clear validated semantics, same "don't guess
+  a picker/field that isn't grounded" call as the pre-existing `ChequeType`
+  gap above.
 - **`FixedDepositPayableDTO`** (`GET`/`PUT /{id}/payables`) is shown
   read-only in the Fixed Deposits detail drawer — its fields
   (`BookBalance`/`PrincipalBalance`/`InterestBalance`) read as a

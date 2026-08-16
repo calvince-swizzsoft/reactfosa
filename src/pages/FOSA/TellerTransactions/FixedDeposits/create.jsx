@@ -10,12 +10,14 @@ import { FaPiggyBank } from "react-icons/fa";
 import Swal from "sweetalert2";
 import { apiFetch, normalizeList } from "@/lib/api";
 import { createFixedDeposit } from "../fixedDepositsApi";
+import { listAllFixedDepositTypes } from "../../../Accounts/FixedDepositTypes/api";
 import { FixedDepositCategory, FixedDepositMaturityAction } from "../../lib/frontOfficeEnums";
 
 // Origination — opened at the counter against an existing customer
 // account, matching the customer -> account picker pattern used by
-// SavingsReceiptsPayments.jsx. FixedDepositTypeId is deliberately omitted
-// (optional, no lookup endpoint exists — see fixedDepositsApi.js).
+// SavingsReceiptsPayments.jsx. FixedDepositTypeId is optional (Guid?) —
+// sourced from Accounts/FixedDepositTypes/api.js now that a real lookup
+// endpoint exists (previously omitted entirely, see fixedDepositsApi.js).
 const FIN_BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 const MODULE_NAVIGATION_ITEM_CODE = 25012;
 
@@ -40,7 +42,7 @@ function FieldGroup({ label, children }) {
 }
 
 const emptyForm = {
-  BranchId: "", CustomerAccountId: "", Category: FixedDepositCategory.TermDeposit,
+  FixedDepositTypeId: "", BranchId: "", CustomerAccountId: "", Category: FixedDepositCategory.TermDeposit,
   MaturityAction: FixedDepositMaturityAction.PayPrincipalAndInterestDue,
   Value: "", Term: "", Rate: "", Remarks: "",
 };
@@ -50,6 +52,7 @@ export default function CreateFixedDeposit() {
   const [form, setForm] = useState(emptyForm);
   const [branches, setBranches] = useState([]);
   const [customers, setCustomers] = useState([]);
+  const [fixedDepositTypes, setFixedDepositTypes] = useState([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
   const [accounts, setAccounts] = useState([]);
   const [loadingAccounts, setLoadingAccounts] = useState(false);
@@ -61,9 +64,11 @@ export default function CreateFixedDeposit() {
     Promise.all([
       apiFetch(`${FIN_BASE}/api/administration/branches`).then((r) => r.json()),
       apiFetch(`${FIN_BASE}/api/registry/customers`).then((r) => r.json()),
-    ]).then(([branchData, customerData]) => {
+      listAllFixedDepositTypes(),
+    ]).then(([branchData, customerData, fixedDepositTypeData]) => {
       setBranches(normalizeList(branchData));
       setCustomers(normalizeList(customerData));
+      setFixedDepositTypes(normalizeList(fixedDepositTypeData));
     }).catch(() => { }).finally(() => setLoadingData(false));
   }, []);
 
@@ -92,6 +97,7 @@ export default function CreateFixedDeposit() {
     setLoading(true);
     try {
       await createFixedDeposit({
+        FixedDepositTypeId: form.FixedDepositTypeId || null,
         BranchId: form.BranchId,
         CustomerAccountId: form.CustomerAccountId,
         Category: form.Category,
@@ -152,6 +158,16 @@ export default function CreateFixedDeposit() {
               <SelectTrigger><SelectValue placeholder="Select branch" /></SelectTrigger>
               <SelectContent className="max-h-60 overflow-y-auto">
                 {branches.map((b) => <SelectItem key={String(b.Id)} value={String(b.Id)}>{b.Description}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </FieldGroup>
+          <FieldGroup label="Fixed Deposit Type (Optional)">
+            <Select value={form.FixedDepositTypeId} onValueChange={(v) => handleChange("FixedDepositTypeId", v)} disabled={loadingData}>
+              <SelectTrigger><SelectValue placeholder={loadingData ? "Loading..." : "Select type"} /></SelectTrigger>
+              <SelectContent className="max-h-60 overflow-y-auto">
+                {fixedDepositTypes.map((t) => (
+                  <SelectItem key={String(t.Id)} value={String(t.Id)}>{t.Description} ({t.Months} mo)</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </FieldGroup>

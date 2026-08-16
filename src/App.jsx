@@ -178,6 +178,8 @@ import EndOfDay from "./pages/FOSA/TellerTransactions/EndOfDay.jsx";
 import Cheques from "./pages/FOSA/TellerTransactions/Cheques.jsx";
 import UnpayReasons from "./pages/Accounts/UnpayReasons/index.jsx";
 import CreateUnpayReason from "./pages/Accounts/UnpayReasons/create.jsx";
+import FixedDepositTypes from "./pages/Accounts/FixedDepositTypes/index.jsx";
+import CreateFixedDepositType from "./pages/Accounts/FixedDepositTypes/create.jsx";
 import Transfers from "./pages/FOSA/TellerTransactions/Transfers.jsx";
 import SundryPayments from "./pages/FOSA/TellerTransactions/SundryPayments.jsx";
 import CustomerReceipts from "./pages/FOSA/TellerTransactions/CustomerReceipts.jsx";
@@ -421,6 +423,8 @@ export default function App() {
           <Route path="batch/authorization" element={<BatchStageScreen stage="authorization" />} />
           <Route path="Accounts/UnpayReasons" element={<UnpayReasons />} />
           <Route path="Accounts/UnpayReasons/create" element={<CreateUnpayReason />} />
+          <Route path="Accounts/FixedDepositTypes" element={<FixedDepositTypes />} />
+          <Route path="Accounts/FixedDepositTypes/create" element={<CreateFixedDepositType />} />
 
           <Route path="FrontOffice/Transactions" element={<FOSATransactions />} />
 
