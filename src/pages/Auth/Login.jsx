@@ -5,15 +5,41 @@ import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
 import { useAuth } from "@/context/AuthContext";
 
+async function readResponseBody(response) {
+  const text = await response.text();
+  if (!text.trim()) return {};
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { message: text };
+  }
+}
+
+function responseErrorMessage(response, data, fallback) {
+  const serverMessage = data?.message ?? data?.Message;
+  if (typeof serverMessage === "string" && serverMessage.trim()) return serverMessage;
+  if (typeof data === "string" && data.trim()) return data;
+  if (response.status === 401) return "Invalid username or password.";
+  return fallback;
+}
+
 
 export default function Login() {
   const navigate = useNavigate();
   const { login } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [requiresPasswordChange, setRequiresPasswordChange] = useState(false);
 
   const [form, setForm] = useState({
     UserName: "",
     Password: "",
+  });
+  const [passwordForm, setPasswordForm] = useState({
+    UserName: "",
+    CurrentPassword: "",
+    NewPassword: "",
+    ConfirmPassword: "",
   });
 
   const update = (field, value) => {
@@ -49,14 +75,25 @@ export default function Login() {
 
        );
 
-      const data = await response.json();
+      const data = await readResponseBody(response);
 
       if (!response.ok) {
-        throw new Error(data.message || "Login failed");
+        throw new Error(responseErrorMessage(response, data, "Login failed"));
+      }
+
+      const userName = data.userName || data.UserName || form.UserName;
+      if (data.requiresPasswordChange || data.RequiresPasswordChange) {
+        setPasswordForm({
+          UserName: userName,
+          CurrentPassword: form.Password,
+          NewPassword: "",
+          ConfirmPassword: "",
+        });
+        setRequiresPasswordChange(true);
+        return;
       }
 
       const roles = Array.isArray(data.roles) ? data.roles : Array.isArray(data.Roles) ? data.Roles : [];
-      const userName = data.userName || data.UserName || form.UserName;
       login(data.token || data.Token, userName, roles);
 
       Swal.fire("Success!", "Login successful", "success");
@@ -64,6 +101,45 @@ export default function Login() {
       navigate("/home");
     } catch (error) {
       Swal.fire("Error", error.message, "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleInitialPasswordChange = async (e) => {
+    e.preventDefault();
+
+    if (!passwordForm.CurrentPassword || !passwordForm.NewPassword || !passwordForm.ConfirmPassword) {
+      Swal.fire("Missing Fields", "Complete all password fields.", "warning");
+      return;
+    }
+    if (passwordForm.NewPassword !== passwordForm.ConfirmPassword) {
+      Swal.fire("Passwords Do Not Match", "Confirm the same new password in both fields.", "warning");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_APP_ADMIN_URL}/api/auth/change-initial-password`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(passwordForm),
+        },
+      );
+      const data = await readResponseBody(response);
+      if (!response.ok) {
+        throw new Error(responseErrorMessage(response, data, "Password change failed"));
+      }
+
+      const roles = Array.isArray(data.roles) ? data.roles : Array.isArray(data.Roles) ? data.Roles : [];
+      const userName = data.userName || data.UserName || passwordForm.UserName;
+      login(data.token || data.Token, userName, roles);
+      await Swal.fire("Password Changed", "Your new password is active and you are now signed in.", "success");
+      navigate("/home");
+    } catch (error) {
+      Swal.fire("Unable to Change Password", error.message, "error");
     } finally {
       setLoading(false);
     }
@@ -186,11 +262,38 @@ export default function Login() {
       {/* Right Section (Sign up form) */}
       <div className="w-1/2 bg-white flex justify-center items-center">
         <div className="w-full max-w-md px-3">
-          <h2 className="text-2xl font-semibold text-gray-900 mb-8">
-            Create your account
+          <h2 className="text-2xl font-semibold text-gray-900 mb-3">
+            {requiresPasswordChange ? "Secure your account" : "Sign in to your account"}
           </h2>
 
-          <form className="space-y-5" onSubmit={handleLogin}>
+          {requiresPasswordChange && (
+            <p className="text-sm text-gray-600 mb-8">
+              This is your first sign-in. Confirm the temporary password sent to your email, then choose a new password.
+            </p>
+          )}
+
+          <form className="space-y-5" onSubmit={requiresPasswordChange ? handleInitialPasswordChange : handleLogin}>
+            {requiresPasswordChange ? (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                  <input type="text" value={passwordForm.UserName} disabled className="w-full border rounded-md px-3 py-2 bg-gray-100 text-gray-600" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Current temporary password</label>
+                  <input type="password" value={passwordForm.CurrentPassword} onChange={(e) => setPasswordForm({ ...passwordForm, CurrentPassword: e.target.value })} className="w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#6B4EFF]" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">New password</label>
+                  <input type="password" value={passwordForm.NewPassword} onChange={(e) => setPasswordForm({ ...passwordForm, NewPassword: e.target.value })} className="w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#6B4EFF]" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Confirm new password</label>
+                  <input type="password" value={passwordForm.ConfirmPassword} onChange={(e) => setPasswordForm({ ...passwordForm, ConfirmPassword: e.target.value })} className="w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#6B4EFF]" />
+                </div>
+              </>
+            ) : (
+              <>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Email or Username
@@ -216,13 +319,15 @@ export default function Login() {
                 className="w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#6B4EFF]"
               />
             </div>
+              </>
+            )}
 
             <button
               type="submit"
               disabled={loading}
               className="w-full bg-[#6B4EFF] hover:bg-[#5b3cd8] text-white py-2 rounded-md font-medium"
             >
-              {loading ? "Logging in..." : "Login"}
+              {loading ? "Please wait..." : requiresPasswordChange ? "Change password and continue" : "Login"}
             </button>
           </form>
 

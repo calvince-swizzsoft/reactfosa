@@ -31,47 +31,32 @@ function normalizeRoleModuleItem(item) {
   };
 }
 
-// Union of every navigation item granted to any of the given roles. A role
-// with no grants, or a request that fails, just contributes nothing rather
-// than failing the whole nav load.
-async function fetchModulesForRoles(roles) {
-  const results = await Promise.allSettled(
-    roles.map(async (role) => {
-      const url = `${MODULES_BY_ROLE_ENDPOINT}?role=${encodeURIComponent(role)}`;
-      const response = await fetch(url, {
-        headers: { Authorization: `Bearer ${getToken()}` },
-      });
-      const data = await response.json().catch(() => null);
-
-      if (!response.ok) {
-        throw new Error(`by-role fetch for "${role}" failed: ${response.status} ${response.statusText}`);
-      }
-
-      return { role, data };
-    })
-  );
-
-  const byId = new Map();
-  results.forEach((result, index) => {
-    if (result.status !== "fulfilled") {
-      console.error(`[ModuleTreeContext] Failed to load modules for role "${roles[index]}":`, result.reason);
-      return;
-    }
-
-    const { role, data } = result.value;
-    const itemList = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
-
-    if (itemList.length === 0) {
-      console.warn(`[ModuleTreeContext] Role "${role}" has no navigation items granted. Raw response:`, data);
-    }
-
-    itemList.forEach((item) => {
-      const normalized = normalizeRoleModuleItem(item);
-      if (normalized) byId.set(String(normalized.Id), normalized);
-    });
+// Every navigation item granted to the caller, across all of their roles at
+// once. `by-role` takes no role parameter at all — who it resolves for is
+// determined purely from the caller's own auth (ModulesController.
+// GetNavigationItemsByRole), never from client input, so this is one request
+// regardless of how many roles the caller holds, not one per role. (This
+// used to loop and pass `?role=<name>` per role — that querystring param was
+// always silently ignored server-side, so the loop only ever produced N
+// copies of the same identical response; removed along with the now-deleted
+// param.)
+async function fetchModulesForCurrentUser() {
+  const response = await fetch(MODULES_BY_ROLE_ENDPOINT, {
+    headers: { Authorization: `Bearer ${getToken()}` },
   });
+  const data = await response.json().catch(() => null);
 
-  return Array.from(byId.values());
+  if (!response.ok) {
+    throw new Error(`by-role fetch failed: ${response.status} ${response.statusText}`);
+  }
+
+  const itemList = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
+
+  if (itemList.length === 0) {
+    console.warn("[ModuleTreeContext] No navigation items granted for the current user. Raw response:", data);
+  }
+
+  return itemList.map(normalizeRoleModuleItem).filter(Boolean);
 }
 
 export function ModuleTreeProvider({ children }) {
@@ -103,7 +88,7 @@ export function ModuleTreeProvider({ children }) {
       setError(null);
 
       try {
-        const moduleList = await fetchModulesForRoles(roles);
+        const moduleList = await fetchModulesForCurrentUser();
 
         if (!cancelled) {
           setTree(buildModuleTree(moduleList));

@@ -76,6 +76,7 @@ import Customers from "./pages/Registry/Customers/index.jsx";
 import RegistryZones from "./pages/Registry/Zone/index.jsx";
 import RegistryDivisions from "./pages/Registry/Division/index.jsx";
 import RegistryEmployers from "./pages/Registry/Employer/index.jsx";
+import FileTracking from "./pages/Registry/FileTracking/index.jsx";
 import CustomerAccounts from "./pages/Accounts/CustomerAccounts/index.jsx";
 import StandingOrders from "./pages/Accounts/StandingOrders/index.jsx";
 import StandingOrderExecution from "./pages/Accounts/StandingOrders/Execution.jsx";
@@ -88,6 +89,7 @@ import CustomersAccounts from "./pages/Membership/CustomerAccounts/index.jsx";
 import Companies from "./pages/Administration/Company/index.jsx";
 import Branches from "./pages/Administration/Branches/index.jsx";
 import TextAlerts from "./pages/Messaging/TextAlerts/index.jsx";
+import EmailAlerts from "./pages/Messaging/EmailAlerts/index.jsx";
 import Division from "./pages/Membership/Division/index.jsx";
 import Zones from "./pages/Membership/Zones/index.jsx";
 import Stations from "./pages/Membership/Stations/index.jsx";
@@ -96,6 +98,18 @@ import Products from "./pages/Membership/Products/index.jsx";
 import Loaning from "./pages/Loaning/index.jsx";
 import LoanProducts from "./pages/Loaning/LoanProducts/index.jsx";
 import LoanApplication from "./pages/Loaning/LoanApplication/index.jsx";
+import LoanCaseRegistration from "./pages/Loaning/LoanCases/RegistrationScreen.jsx";
+import LoanCaseAppraisal from "./pages/Loaning/LoanCases/AppraisalScreen.jsx";
+import LoanCaseApproval from "./pages/Loaning/LoanCases/ApprovalScreen.jsx";
+import LoanCaseAudit from "./pages/Loaning/LoanCases/AuditScreen.jsx";
+import LoanCaseCancellation from "./pages/Loaning/LoanCases/CancellationScreen.jsx";
+import LoanRestructuring from "./pages/Loaning/Restructuring/index.jsx";
+import Guarantors from "./pages/Loaning/Guarantors/index.jsx";
+import CreateLoanGuarantor from "./pages/Loaning/Guarantors/create.jsx";
+import GuarantorAttachment from "./pages/Loaning/GuarantorAttachment/index.jsx";
+import LoanRequests from "./pages/Loaning/LoanRequests/index.jsx";
+import CreateLoanRequest from "./pages/Loaning/LoanRequests/create.jsx";
+import { LoanPurposes, LoaningRemarks, IncomeAdjustments } from "./pages/Loaning/LoanMasters/index.jsx";
 import MemberReceipting from "./pages/Finance/MemberReceipting/index.jsx";
 import LoanSector from "./pages/Loaning/LoanSector/index.jsx";
 import LoanSubSector from "./pages/Loaning/LoanSubSector/index.jsx";
@@ -121,7 +135,10 @@ import ApprovalRequests from "./pages/CommandHub/ApprovalRequests/index.jsx";
 import AdministrationUsers from "./pages/Administration/Users/index.jsx";
 import CreateUser from "./pages/Administration/Users/create.jsx";
 import AdministrationModules from "./pages/Administration/Modules/index.jsx";
-import BankLinkages from "./pages/Administration/Bank/BankLinkages.jsx";
+import AdministrationBanks from "./pages/Administration/Banks/index.jsx";
+import CreateBank from "./pages/Administration/Banks/create.jsx";
+import AccountsBankLinkages from "./pages/Accounts/BankLinkages/index.jsx";
+import CreateBankLinkage from "./pages/Accounts/BankLinkages/create.jsx";
 import AdministrationLocations from "./pages/Administration/Locations/index.jsx";
 import AuditLogs from "./pages/Administration/Audit Logs/index.jsx";
 
@@ -129,8 +146,9 @@ import Tellers from "./pages/Accounts/Tellers/Teller.jsx";
 //import Treasuries from './pages/FOSA/'
 
 import Employees from "./pages/HumanResource/Employees/Employees.jsx"
+import EditEmployee from "./pages/HumanResource/Employees/EditEmployee.jsx"
 import FOSASetup from "./pages/FOSA/Setup/index.jsx"
-import FOSATransactions from "./pages/FOSA/Transactions/index.jsx"
+import FOSATransactions from "./pages/FOSA/TellerTransactions/index.jsx"
 
 import HRDepartments from "./pages/HumanResource/Departments/index.jsx";
 import CreateDepartment from "./pages/HumanResource/Departments/create.jsx";
@@ -143,24 +161,49 @@ import InvestmentProducts from "./pages/Accounts/InvestmentProducts/index.jsx";
 import CreateInvestmentProduct from "./pages/Accounts/InvestmentProducts/create.jsx";
 import SavingsProducts from "./pages/Accounts/SavingsProducts/index.jsx";
 import CreateSavingsProduct from "./pages/Accounts/SavingsProducts/create.jsx";
+import AccountsLoanProducts from "./pages/Accounts/LoanProducts/index.jsx";
+import CreateLoanProduct from "./pages/Accounts/LoanProducts/create.jsx";
+import RegisterAlternateChannel from "./pages/Accounts/AlternateChannels/Register.jsx";
+import AlternateChannelManagement from "./pages/Accounts/AlternateChannels/Management.jsx";
+import AlternateChannelFees from "./pages/Accounts/AlternateChannels/Fees.jsx";
 import Treasuries from "./pages/Accounts/Treasuries/index.jsx";
 import CreateTreasury from "./pages/Accounts/Treasuries/create.jsx";
 import CostCenters from "./pages/Accounts/CostCenters/index.jsx";
+import ChequeTypes from "./pages/Accounts/ChequeTypes/index.jsx";
+import CreateChequeType from "./pages/Accounts/ChequeTypes/create.jsx";
+import Commissions from "./pages/Accounts/Commissions/index.jsx";
+import CreateCommission from "./pages/Accounts/Commissions/create.jsx";
+import Levies from "./pages/Accounts/Levies/index.jsx";
+import CreateLevy from "./pages/Accounts/Levies/create.jsx";
+import ChequeBooks from "./pages/Accounts/ChequeBooks/index.jsx";
+import CreateChequeBook from "./pages/Accounts/ChequeBooks/create.jsx";
+import ChequeBookVouchers from "./pages/Accounts/ChequeBooks/Vouchers.jsx";
 import CreateCostCenter from "./pages/Accounts/CostCenters/create.jsx";
 import AccountsChartOfAccounts from "./pages/Accounts/ChartOfAccounts/index.jsx";
 import CreateChartOfAccount from "./pages/Accounts/ChartOfAccounts/create.jsx";
 import ChartOfAccountMappings from "./pages/Accounts/ChartOfAccounts/Mappings.jsx";
-import CashManagement from "./pages/FOSA/Transactions/CashManagement.jsx";
-import SavingsReceiptsPayments from "./pages/FOSA/Transactions/SavingsReceiptsPayments.jsx";
-import EndOfDay from "./pages/FOSA/Transactions/EndOfDay.jsx";
-import Catalogue from "./pages/FOSA/Transactions/Catalogue.jsx";
-import BankCheques from "./pages/FOSA/Transactions/BankCheques.jsx";
-import ClearCheques from "./pages/FOSA/Transactions/ClearCheques.jsx";
-import UnpayReasons from "./pages/FOSA/Transactions/UnpayReasons.jsx";
-import ChequeTransfer from "./pages/FOSA/Transactions/ChequeTransfer.jsx";
-import CashTransfer from "./pages/FOSA/Transactions/CashTransfer.jsx";
-
-
+import CashManagement from "./pages/FOSA/TreasuryTransactions/CashManagement.jsx";
+import FiscalCounts from "./pages/FOSA/TreasuryTransactions/FiscalCounts.jsx";
+import SavingsReceiptsPayments from "./pages/FOSA/TellerTransactions/SavingsReceiptsPayments.jsx";
+import EndOfDay from "./pages/FOSA/TellerTransactions/EndOfDay.jsx";
+import Cheques from "./pages/FOSA/TellerTransactions/Cheques.jsx";
+import UnpayReasons from "./pages/Accounts/UnpayReasons/index.jsx";
+import CreateUnpayReason from "./pages/Accounts/UnpayReasons/create.jsx";
+import FixedDepositTypes from "./pages/Accounts/FixedDepositTypes/index.jsx";
+import CreateFixedDepositType from "./pages/Accounts/FixedDepositTypes/create.jsx";
+import Transfers from "./pages/FOSA/TellerTransactions/Transfers.jsx";
+import SundryPayments from "./pages/FOSA/TellerTransactions/SundryPayments.jsx";
+import CustomerReceipts from "./pages/FOSA/TellerTransactions/CustomerReceipts.jsx";
+import ExpensePayables from "./pages/FOSA/TellerTransactions/ExpensePayables.jsx";
+import CreateExpensePayable from "./pages/FOSA/TellerTransactions/ExpensePayables/create.jsx";
+import FixedDeposits from "./pages/FOSA/TellerTransactions/FixedDeposits.jsx";
+import CreateFixedDeposit from "./pages/FOSA/TellerTransactions/FixedDeposits/create.jsx";
+import AccountClosure from "./pages/FOSA/TellerTransactions/AccountClosure.jsx";
+import CreateAccountClosure from "./pages/FOSA/TellerTransactions/AccountClosure/create.jsx";
+import InHouseCheques from "./pages/FOSA/TellerTransactions/InHouseCheques.jsx";
+import CreateInHouseCheques from "./pages/FOSA/TellerTransactions/InHouseCheques/create.jsx";
+import AutomatedClearing from "./pages/FOSA/TellerTransactions/AutomatedClearing.jsx";
+import BatchStageScreen from "./pages/Accounts/BatchProcedures/BatchStageScreen.jsx";
 
 
 export default function App() {
@@ -249,7 +292,8 @@ export default function App() {
           <Route path="Administration/Users" element={<AdministrationUsers />} />
           <Route path="Administration/Users/create" element={<CreateUser />} />
           <Route path="Administration/Modules" element={<AdministrationModules />} />
-  <Route path="Administration/Banks" element={<BankLinkages />} />
+          <Route path="Administration/Banks" element={<AdministrationBanks />} />
+          <Route path="Administration/Banks/create" element={<CreateBank />} />
           <Route path="Administration/Locations" element={<AdministrationLocations />} />
           <Route path="Administration/AuditLogs" element={<AuditLogs />} />
           <Route path="Administration/Workflow" element={<AdministrationWorkflows />} />
@@ -275,6 +319,7 @@ export default function App() {
           <Route path="Registry/Zone" element={<RegistryZones />} />
           <Route path="Registry/Division" element={<RegistryDivisions />} />
           <Route path="Registry/Employer" element={<RegistryEmployers />} />
+          <Route path="Registry/FileTracking" element={<FileTracking />} />
           <Route path="Accounts/CustomerAccounts" element={<CustomerAccounts />} />
           <Route path="Accounts/StandingOrders" element={<StandingOrders />} />
           <Route path="Accounts/StandingOrders/Execution" element={<StandingOrderExecution />} />
@@ -283,6 +328,7 @@ export default function App() {
           <Route path="Administration/Company" element={<Companies />} />
           <Route path="Administration/Branches" element={<Branches />} />
           <Route path="Messaging/TextAlerts" element={<TextAlerts />} />
+          <Route path="Messaging/EmailAlerts" element={<EmailAlerts />} />
           <Route path="Membership/Division" element={<Division />} />
           <Route path="Membership/Zones" element={<Zones />} />
           <Route path="Membership/Stations" element={<Stations />} />
@@ -298,6 +344,20 @@ export default function App() {
           <Route path="Loaning" element={<Loaning />} />
           <Route path="Loaning/LoanProducts" element={<LoanProducts />} />
           <Route path="Loaning/LoanApplication" element={<LoanApplication />} />
+          <Route path="Loaning/LoanPurposes" element={<LoanPurposes />} />
+          <Route path="Loaning/LoaningRemarks" element={<LoaningRemarks />} />
+          <Route path="Loaning/IncomeAdjustments" element={<IncomeAdjustments />} />
+          <Route path="Loaning/LoanCases/registration" element={<LoanCaseRegistration />} />
+          <Route path="Loaning/LoanCases/appraisal" element={<LoanCaseAppraisal />} />
+          <Route path="Loaning/LoanCases/approval" element={<LoanCaseApproval />} />
+          <Route path="Loaning/LoanCases/audit" element={<LoanCaseAudit />} />
+          <Route path="Loaning/LoanCases/cancellation" element={<LoanCaseCancellation />} />
+          <Route path="Loaning/Restructuring" element={<LoanRestructuring />} />
+          <Route path="Loaning/Guarantors" element={<Guarantors />} />
+          <Route path="Loaning/Guarantors/create" element={<CreateLoanGuarantor />} />
+          <Route path="Loaning/GuarantorAttachment" element={<GuarantorAttachment />} />
+          <Route path="Loaning/LoanRequests" element={<LoanRequests />} />
+          <Route path="Loaning/LoanRequests/create" element={<CreateLoanRequest />} />
           <Route path="Loaning/LoanSector" element={<LoanSector />} />
           <Route path="Loaning/LoanSubSector" element={<LoanSubSector />} />
           <Route path="Loaning/LoanCalculator" element={<LoanCalculator />} />
@@ -323,6 +383,7 @@ export default function App() {
 
           {/**Human Resource */}
           <Route path="HumanResource/Employees" element={<Employees />} />
+          <Route path="HumanResource/Employees/:id/edit" element={<EditEmployee />} />
           <Route path="HumanResource/Departments" element={<HRDepartments />} />
           <Route path="HumanResource/Departments/create" element={<CreateDepartment />} />
           <Route path="HumanResource/Designations" element={<Designations />} />
@@ -335,9 +396,25 @@ export default function App() {
           <Route path="Accounts/InvestmentProducts/create" element={<CreateInvestmentProduct />} />
           <Route path="Accounts/SavingsProducts" element={<SavingsProducts />} />
           <Route path="Accounts/SavingsProducts/create" element={<CreateSavingsProduct />} />
+          <Route path="Accounts/LoanProducts" element={<AccountsLoanProducts />} />
+          <Route path="Accounts/LoanProducts/create" element={<CreateLoanProduct />} />
+          <Route path="Accounts/AlternateChannels/Register" element={<RegisterAlternateChannel />} />
+          <Route path="Accounts/AlternateChannels/Management" element={<AlternateChannelManagement />} />
+          <Route path="Accounts/AlternateChannels/Fees" element={<AlternateChannelFees />} />
           <Route path="Accounts/Treasuries" element={<Treasuries />} />
           <Route path="Accounts/Treasuries/create" element={<CreateTreasury />} />
+          <Route path="Accounts/BankLinkages" element={<AccountsBankLinkages />} />
+          <Route path="Accounts/BankLinkages/create" element={<CreateBankLinkage />} />
           <Route path="Accounts/CostCenters" element={<CostCenters />} />
+          <Route path="Accounts/ChequeTypes" element={<ChequeTypes />} />
+          <Route path="Accounts/ChequeTypes/create" element={<CreateChequeType />} />
+          <Route path="Accounts/Commissions" element={<Commissions />} />
+          <Route path="Accounts/Commissions/create" element={<CreateCommission />} />
+          <Route path="Accounts/Levies" element={<Levies />} />
+          <Route path="Accounts/Levies/create" element={<CreateLevy />} />
+          <Route path="Accounts/ChequeBooks" element={<ChequeBooks />} />
+          <Route path="Accounts/ChequeBooks/create" element={<CreateChequeBook />} />
+          <Route path="Accounts/ChequeBooks/:id/vouchers" element={<ChequeBookVouchers />} />
           <Route path="Accounts/CostCenters/create" element={<CreateCostCenter />} />
           <Route path="Accounts/ChartOfAccounts" element={<AccountsChartOfAccounts />} />
           <Route path="Accounts/ChartOfAccounts/create" element={<CreateChartOfAccount />} />
@@ -349,14 +426,29 @@ export default function App() {
               only, add codes once they're assigned (same pattern as every
               other module this session before its code arrived). */}
           <Route path="FrontOffice/CashManagement" element={<CashManagement />} />
+          <Route path="FrontOffice/FiscalCounts" element={<FiscalCounts />} />
           <Route path="FrontOffice/SavingsReceiptsPayments" element={<SavingsReceiptsPayments />} />
           <Route path="FrontOffice/EndOfDay" element={<EndOfDay />} />
-          <Route path="FrontOffice/Catalogue" element={<Catalogue />} />
-          <Route path="FrontOffice/BankCheques" element={<BankCheques />} />
-          <Route path="FrontOffice/ClearCheques" element={<ClearCheques />} />
-          <Route path="FrontOffice/UnpayReasons" element={<UnpayReasons />} />
-          <Route path="FrontOffice/ChequeTransfer" element={<ChequeTransfer />} />
-          <Route path="FrontOffice/CashTransfer" element={<CashTransfer />} />
+          <Route path="FrontOffice/Cheques" element={<Cheques />} />
+          <Route path="FrontOffice/SundryPayments" element={<SundryPayments />} />
+          <Route path="FrontOffice/CustomerReceipts" element={<CustomerReceipts />} />
+          <Route path="FrontOffice/ExpensePayables" element={<ExpensePayables />} />
+          <Route path="FrontOffice/ExpensePayables/create" element={<CreateExpensePayable />} />
+          <Route path="FrontOffice/FixedDeposits" element={<FixedDeposits />} />
+          <Route path="FrontOffice/FixedDeposits/create" element={<CreateFixedDeposit />} />
+          <Route path="FrontOffice/AccountClosure" element={<AccountClosure />} />
+          <Route path="FrontOffice/AccountClosure/create" element={<CreateAccountClosure />} />
+          <Route path="FrontOffice/InHouseCheques" element={<InHouseCheques />} />
+          <Route path="FrontOffice/InHouseCheques/create" element={<CreateInHouseCheques />} />
+          <Route path="FrontOffice/AutomatedClearing" element={<AutomatedClearing />} />
+          <Route path="FrontOffice/Transfers" element={<Transfers />} />
+          <Route path="batch/origination" element={<BatchStageScreen stage="origination" />} />
+          <Route path="batch/verification" element={<BatchStageScreen stage="verification" />} />
+          <Route path="batch/authorization" element={<BatchStageScreen stage="authorization" />} />
+          <Route path="Accounts/UnpayReasons" element={<UnpayReasons />} />
+          <Route path="Accounts/UnpayReasons/create" element={<CreateUnpayReason />} />
+          <Route path="Accounts/FixedDepositTypes" element={<FixedDepositTypes />} />
+          <Route path="Accounts/FixedDepositTypes/create" element={<CreateFixedDepositType />} />
 
           <Route path="FrontOffice/Transactions" element={<FOSATransactions />} />
 

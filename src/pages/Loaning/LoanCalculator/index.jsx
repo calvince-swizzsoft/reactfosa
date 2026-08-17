@@ -524,11 +524,23 @@ export default function LoanCalculator() {
                             {/* List */}
                             <div className="max-h-[300px] overflow-y-auto divide-y">
                                 {customers
-                                    .filter(c =>
-                                        `${c.IndividualFirstName} ${c.IndividualLastName} ${c.IdentificationNumber} ${c.IndividualPayrollNumbers}`
-                                            .toLowerCase()
-                                            .includes(customerQuery.toLowerCase())
-                                    )
+                                    .filter(c => {
+                                        const terms = customerQuery.trim().toLowerCase().split(/\s+/).filter(Boolean);
+                                        if (terms.length === 0) return true;
+                                        const searchable = [
+                                            c.IndividualFirstName,
+                                            c.IndividualLastName,
+                                            c.PaddedSerialNumber,
+                                            c.SerialNumber,
+                                            c.IdentificationNumber,
+                                            c.IndividualIdentityCardNumber,
+                                            c.IndividualPayrollNumbers,
+                                            c.PayrollNumber,
+                                            c.AddressEmail,
+                                            c.AddressMobileLine,
+                                        ].filter(Boolean).join(" ").toLowerCase();
+                                        return terms.every((term) => searchable.includes(term));
+                                    })
                                     .map(c => (
                                         <button
                                             key={c.Id}
@@ -565,4 +577,3 @@ export default function LoanCalculator() {
         </div>
     );
 }
-

@@ -1,0 +1,151 @@
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  FaExchangeAlt, FaUniversity, FaUserTie, FaTasks,
+} from "react-icons/fa";
+
+// Pure launcher — every item below now has its own real <Route> in
+// App.jsx, so this just navigates instead of switching an inline
+// component, matching FOSA/Setup/index.jsx's existing pattern.
+const MODULES = [
+  {
+    id: "treasury",
+    label: "Treasury",
+    icon: FaUniversity,
+    items: [
+      { id: "cashmanagement", label: "Cash Management", subtitle: "Cash transactions", route: "/FrontOffice/CashManagement" },
+      // NavigationMenu.cs: real nav entry alongside Cash Management and
+      // Authorizations under Treasury (AreaCode 0x000061A8+2).
+      { id: "fiscalcounts", label: "Fiscal Counts", subtitle: "Denomination count catalogue", route: "/FrontOffice/FiscalCounts" },
+    ],
+  },
+  {
+    id: "teller",
+    label: "Teller",
+    icon: FaUserTie,
+    items: [
+      // Deposit/withdrawal/cheque deposit/payment voucher are one real nav
+      // item server-side ("Savings Receipts/Payments" — NavigationMenu.cs),
+      // not four separate ones; the 4-tile split here was a Phase-1
+      // frontend-only invention, now collapsed to match.
+      { id: "savingsreceiptspayments", label: "Savings Receipts/Payments", subtitle: "Deposits, withdrawals, cheques, vouchers", route: "/FrontOffice/SavingsReceiptsPayments" },
+      // NavigationMenu.cs: 25007/25008, same Teller tier as Savings
+      // Receipts/Payments and End-Of-Day — Phase 2.
+      { id: "sundrypayments", label: "Sundry Receipts/Payments", subtitle: "General G/L voucher", route: "/FrontOffice/SundryPayments" },
+      { id: "customerreceipts", label: "Customer Receipts", subtitle: "Free-form till receipt", route: "/FrontOffice/CustomerReceipts" },
+      // NavigationMenu.cs: 25009, same Teller tier as the items above —
+      // one real nav Code covering two genuinely different request shapes
+      // (POST /cash vs POST /cheques), unified into one screen with
+      // Cash/Cheque tabs 2026-08-11. Previously its own "Transfers" hub
+      // module with two separate tiles (CashTransfer.jsx/ChequeTransfer.jsx)
+      // that didn't match the real nav tree at all — collapsed here to match,
+      // same precedent as the Savings Receipts/Payments merge above.
+      { id: "transfers", label: "Cheques/Cash Transfer", subtitle: "Cash & cheque transfer requests", route: "/FrontOffice/Transfers" },
+      { id: "endofday", label: "End-Of-Day", subtitle: "Daily closing", route: "/FrontOffice/EndOfDay" },
+    ],
+  },
+  {
+    // NavigationMenu.cs: 25011-25017, "Operations (25001), direct leaves" —
+    // one tier. Cheques (25011) covers Catalogue/Bank/Clear as tabs in one
+    // screen (Cheques.jsx, merged 2026-08-11 — Bank/Clear weren't
+    // reachable from this nav Code at all before, same issue Transfers had).
+    // Unpay Reasons moved out of this hub entirely — NavigationMenu.cs has
+    // it under Accounts (Code 23028, ControllerName UnpayReason), not
+    // FrontOffice, despite being consumed from this front-office screen.
+    id: "operations",
+    label: "Operations",
+    icon: FaTasks,
+    items: [
+      { id: "cheques", label: "Cheques", subtitle: "Catalogue, bank, clear", route: "/FrontOffice/Cheques" },
+      { id: "fixeddeposits", label: "Fixed Deposits", subtitle: "Origination, verify, terminate, liquidate", route: "/FrontOffice/FixedDeposits" },
+      { id: "expensepayables", label: "Expense Payables", subtitle: "GL voucher lines, verify", route: "/FrontOffice/ExpensePayables" },
+      { id: "accountclosure", label: "Account Closure", subtitle: "Approve, verify, settle", route: "/FrontOffice/AccountClosure" },
+      { id: "inhousecheques", label: "In-House Cheques", subtitle: "Batch build, print", route: "/FrontOffice/InHouseCheques" },
+      { id: "automatedclearing", label: "Automated Clearing", subtitle: "Image-based cheque clearing", route: "/FrontOffice/AutomatedClearing" },
+    ],
+  },
+];
+
+export default function FOSATransactions() {
+  const navigate = useNavigate();
+  const [activeModuleId, setActiveModuleId] = useState(MODULES[0].id);
+
+  const activeModule = MODULES.find((m) => m.id === activeModuleId);
+
+  return (
+    <div className="flex bg-[#f4f6fb] h-full">
+
+      {/* ══ PRIMARY SIDEBAR — modules only ═══════════════════════ */}
+      <aside className="w-20 bg-white border-r border-gray-100 flex flex-col items-center py-4 gap-1 flex-shrink-0 shadow-sm">
+
+        {/* Brand icon */}
+        <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center mb-4">
+          <FaExchangeAlt className="text-white text-sm" />
+        </div>
+
+        {MODULES.map((mod) => {
+          const Icon = mod.icon;
+          const active = activeModuleId === mod.id;
+          return (
+            <button
+              key={mod.id}
+              onClick={() => setActiveModuleId(mod.id)}
+              title={mod.label}
+              className={`w-14 flex flex-col items-center gap-1 py-3 rounded-xl transition-all ${active
+                ? "bg-indigo-600 text-white shadow-md shadow-indigo-200"
+                : "text-gray-400 hover:bg-gray-50 hover:text-indigo-600"
+                }`}
+            >
+              <Icon className="text-lg" />
+              <span className="text-[9px] font-bold leading-tight text-center px-1 whitespace-pre-wrap">
+                {mod.label}
+              </span>
+            </button>
+          );
+        })}
+      </aside>
+
+      {/* ══ SECONDARY SIDEBAR — sub-items of active module ═══════ */}
+      <aside className="w-64 bg-white border-r border-gray-100 flex flex-col flex-shrink-0 shadow-sm">
+
+        <div className="px-4 py-4 border-b border-gray-100">
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+            {activeModule?.label}
+          </p>
+          <p className="text-sm font-bold text-gray-800 mt-0.5">Operations</p>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-3 py-3 space-y-1 bg-gray-200 mx-1.5 rounded-lg">
+          {activeModule?.items.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => navigate(item.route)}
+              className="w-full text-left px-3 py-2.5 mb-2 rounded-xl bg-white hover:bg-indigo-50 transition-all"
+            >
+              <p className="text-sm font-semibold leading-tight text-gray-700">
+                {item.label}
+              </p>
+              <p className="text-xs mt-0.5 text-gray-400">
+                {item.subtitle}
+              </p>
+            </button>
+          ))}
+        </div>
+      </aside>
+
+      {/* ══ MAIN CONTENT ════════════════════════════════════════ */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="bg-white border-b border-gray-100 px-8 py-4 flex-shrink-0 shadow-sm">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+            {activeModule?.label}
+          </p>
+          <h2 className="text-lg font-bold text-gray-800 mt-0.5">Select an operation</h2>
+        </div>
+
+        <div className="flex-1 flex items-center justify-center text-gray-300">
+          <p className="text-sm">Choose an item from the left to open it.</p>
+        </div>
+      </div>
+    </div>
+  );
+}

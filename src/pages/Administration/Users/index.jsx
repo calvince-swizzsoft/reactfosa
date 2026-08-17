@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { FaUserShield, FaPlus, FaEllipsisV } from "react-icons/fa";
+import { FaUserShield, FaPlus, FaEllipsisV, FaKey } from "react-icons/fa";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,6 +13,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import Swal from "sweetalert2";
 import NotFoundImage from "/assets/scopefinding.png";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { apiFetch } from "@/lib/api";
 
 export default function AdministrationUsers() {
   const [users, setUsers] = useState([]);
@@ -26,6 +28,9 @@ export default function AdministrationUsers() {
   const [userRolesLoading, setUserRolesLoading] = useState(false);
   const [rolesToAdd, setRolesToAdd] = useState([]);
   const [rolesToRemove, setRolesToRemove] = useState([]);
+  const [branches, setBranches] = useState([]);
+  const [branchesLoading, setBranchesLoading] = useState(false);
+  const [resettingUserNames, setResettingUserNames] = useState(new Set());
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -66,8 +71,24 @@ export default function AdministrationUsers() {
       }
     };
 
+    const fetchBranches = async () => {
+      setBranchesLoading(true);
+      try {
+        const response = await fetch(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/branches`);
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data?.message || "Failed to load branches");
+        const payload = data?.data ?? data?.Data ?? data;
+        setBranches(Array.isArray(payload) ? payload : Array.isArray(payload?.PageCollection) ? payload.PageCollection : Array.isArray(payload?.pageCollection) ? payload.pageCollection : []);
+      } catch (error) {
+        Swal.fire("Error", error.message || "Unable to load branches.", "error");
+      } finally {
+        setBranchesLoading(false);
+      }
+    };
+
     fetchUsers();
     fetchRoles();
+    fetchBranches();
   }, []);
 
   const getValue = (user, keys) => {
@@ -112,6 +133,7 @@ export default function AdministrationUsers() {
       userName: getValue(user, ["userName", "UserName", "name", "Name"]) || "",
       phoneNumber: getValue(user, ["phoneNumber", "PhoneNumber", "phone", "Phone"]) || "",
       branchDescription: getValue(user, ["branchDescription", "BranchDescription", "branchName", "BranchName"]) || "",
+      BranchId: user?.BranchId || user?.branchId || "",
       twoFactorEnabled: Boolean(user?.twoFactorEnabled ?? user?.TwoFactorEnabled),
       lockoutEnabled: Boolean(user?.lockoutEnabled ?? user?.LockoutEnabled),
       emailConfirmed: Boolean(user?.emailConfirmed ?? user?.EmailConfirmed),
@@ -152,6 +174,7 @@ export default function AdministrationUsers() {
         body: JSON.stringify({
           ...selectedUser,
           ...editForm,
+          BranchId: editForm.BranchId || null,
         }),
       });
 
@@ -240,6 +263,60 @@ export default function AdministrationUsers() {
     }
   };
 
+  const handleResetPassword = async (user) => {
+    const userName = getValue(user, ["userName", "UserName", "name", "Name"]);
+    const email = getValue(user, ["email", "Email", "emailAddress", "EmailAddress"]);
+
+    if (!userName || userName === "—") return;
+
+    const confirmation = await Swal.fire({
+      title: "Reset this user's password?",
+      html: `
+        <div style="text-align:left">
+          <p><strong>User:</strong> ${String(userName).replace(/[&<>'"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[character])}</p>
+          <p><strong>Email:</strong> ${String(email).replace(/[&<>'"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[character])}</p>
+          <p style="margin-top:12px">Their current password will stop working. A temporary password will be emailed to them and must be changed at the next sign-in.</p>
+        </div>
+      `,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Reset Password",
+      confirmButtonColor: "#dc2626",
+    });
+
+    if (!confirmation.isConfirmed) return;
+
+    setResettingUserNames((previous) => new Set(previous).add(userName));
+    try {
+      const response = await apiFetch(
+        `${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/users/${encodeURIComponent(userName)}/reset-password`,
+        { method: "POST" },
+      );
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        if (response.status === 403) {
+          throw new Error('Your role does not have the "User Password Reset" permission.');
+        }
+        throw new Error(data?.message || data?.Message || "Failed to reset the password");
+      }
+
+      await Swal.fire(
+        "Password Reset",
+        data?.message || data?.Message || "A temporary password has been queued to the user's email address.",
+        "success",
+      );
+    } catch (error) {
+      Swal.fire("Unable to Reset Password", error.message || "The password could not be reset.", "error");
+    } finally {
+      setResettingUserNames((previous) => {
+        const next = new Set(previous);
+        next.delete(userName);
+        return next;
+      });
+    }
+  };
+
   const availableRoles = roles
     .map(normalizeRoleName)
     .filter((roleName) => !userRoles.includes(roleName));
@@ -300,7 +377,11 @@ export default function AdministrationUsers() {
                   </span>
 
                   <span className="col-span-3 text-sm text-gray-600">
-                    {getValue(user, ["branchDescription", "BranchDescription", "branchName", "BranchName"])}
+                    {getValue(user, ["branchDescription", "BranchDescription", "branchName", "BranchName"]) !== "—"
+                      ? getValue(user, ["branchDescription", "BranchDescription", "branchName", "BranchName"])
+                      : branches.find((branch) => (branch.Id || branch.id) === (user.BranchId || user.branchId))?.Description
+                        || branches.find((branch) => (branch.Id || branch.id) === (user.BranchId || user.branchId))?.description
+                        || "—"}
                   </span>
 
                   <div className="col-span-1 flex justify-end">
@@ -310,9 +391,19 @@ export default function AdministrationUsers() {
                           <FaEllipsisV className="h-4 w-4 text-gray-600" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-32">
+                      <DropdownMenuContent align="end" className="w-48">
                         <DropdownMenuItem onClick={() => openEditDrawer(user)}>
                           Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => handleResetPassword(user)}
+                          disabled={resettingUserNames.has(getValue(user, ["userName", "UserName", "name", "Name"]))}
+                          className="text-red-600 focus:text-red-700"
+                        >
+                          <FaKey className="mr-2 h-3.5 w-3.5" />
+                          {resettingUserNames.has(getValue(user, ["userName", "UserName", "name", "Name"]))
+                            ? "Resetting..."
+                            : "Reset Password"}
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -371,12 +462,24 @@ export default function AdministrationUsers() {
                       <Input value={editForm.phoneNumber || ""} onChange={(e) => handleDrawerChange("phoneNumber", e.target.value)} />
                     </div>
                     <div className="space-y-2">
-                      <Label>Branch Name</Label>
-                      <Input value={editForm.branchDescription || ""} onChange={(e) => handleDrawerChange("branchDescription", e.target.value)} />
+                      <Label>Branch</Label>
+                      <Select value={editForm.BranchId || ""} onValueChange={(value) => {
+                        const selectedBranch = branches.find((branch) => (branch.Id || branch.id) === value);
+                        handleDrawerChange("BranchId", value);
+                        handleDrawerChange("branchDescription", selectedBranch?.Description || selectedBranch?.description || "");
+                      }} disabled={branchesLoading}>
+                        <SelectTrigger><SelectValue placeholder={branchesLoading ? "Loading branches..." : "Select branch"} /></SelectTrigger>
+                        <SelectContent className="max-h-72">
+                          {branches.map((branch) => {
+                            const id = branch.Id || branch.id;
+                            return <SelectItem key={id} value={id}>{branch.Description || branch.description || id}</SelectItem>;
+                          })}
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div className="space-y-2">
                       <Label>Created Date</Label>
-                      <Input value={editForm.createdDate || ""} onChange={(e) => handleDrawerChange("createdDate", e.target.value)} />
+                      <Input value={editForm.createdDate || ""} readOnly className="bg-slate-100" />
                     </div>
                   </div>
 

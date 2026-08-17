@@ -6,7 +6,12 @@ import { normalizeJournal, formatMoney, formatReceiptDate } from "./receipt";
 // left now that server-side printing is gone (WORKFLOW.md §11). `title`
 // distinguishes what kind of posting this is (e.g. "Cash Deposit Receipt",
 // "End of Day Receipt") since the journal itself doesn't carry that label.
-export default function ReceiptModal({ open, onClose, journal, title = "Receipt" }) {
+// `notice` is an optional banner above the amount — used by
+// SavingsReceiptsPayments.jsx to flag that a cheque deposit's amount is
+// pending clearance, not available yet (frontoffice-api-spec.md §4.2:
+// ChequeDeposit posts to a suspense account, not the customer's real
+// balance, until the cheque is transferred/banked/Pay-cleared).
+export default function ReceiptModal({ open, onClose, journal, title = "Receipt", notice }) {
   if (!open || !journal) return null;
   const j = normalizeJournal(journal);
 
@@ -38,6 +43,12 @@ export default function ReceiptModal({ open, onClose, journal, title = "Receipt"
             <p className="text-sm text-slate-700">{j.primaryDescription || "—"}</p>
             {j.secondaryDescription && <p className="text-xs text-slate-500">{j.secondaryDescription}</p>}
           </div>
+
+          {notice && (
+            <p className="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              {notice}
+            </p>
+          )}
 
           <div className="flex justify-between items-center">
             <span className="text-sm font-semibold text-slate-600">Amount</span>

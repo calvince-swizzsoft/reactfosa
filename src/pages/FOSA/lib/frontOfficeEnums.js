@@ -27,11 +27,19 @@ export const CashWithdrawalRequestAuthStatus = {
   Paid: 8,
 };
 
+// CashManagementController.Create's own switch only handles the first four
+// values — TellerToTreasury/TellerCashTransfer are never client-selectable
+// here, they're what EndOfDayController (§9) and TransfersController (§7)
+// hardcode on their own companion FiscalCount records. Listed for
+// completeness/decoding reads (e.g. FiscalCounts.jsx's detail drawer), not
+// as options for CashManagement.jsx's movement picker.
 export const TreasuryTransactionType = {
   TreasuryToTreasury: 1,
   TreasuryToBank: 2,
   BankToTreasury: 4,
   TreasuryToTeller: 8,
+  TellerToTreasury: 16,
+  TellerCashTransfer: 32,
 };
 
 export const TellerCashBalanceStatus = {
@@ -51,4 +59,133 @@ export const CashWithdrawalCategory = {
   BelowMinimumBalance: 4,
   Overdraw: 8,
   PaymentVoucher: 16,
+};
+
+// GeneralTransactionType — SundryPaymentsController.Create's own switch
+// only handles the first five of these (SundryPayment=16 has no case and
+// falls through to "Unsupported transaction type", so it's listed here for
+// completeness/decoding but not offered as a picker option).
+// CashPaymentAccountClosure=32 is only ever sent from the Account Closure
+// settle flow, not chosen free-form by a teller.
+export const GeneralTransactionType = {
+  CashReceipt: 1,
+  ChequeReceipt: 2,
+  CashPayment: 4,
+  CashPickup: 8,
+  SundryPayment: 16,
+  CashPaymentAccountClosure: 32,
+};
+
+// ExpensePayable* — transcribed directly from Enumerations.cs.
+export const ExpensePayableType = {
+  DebitGLAccount: 1,
+  CreditGLAccount: 2,
+};
+
+export const ExpensePayableStatus = {
+  Pending: 1,
+  Posted: 2,
+  Rejected: 4,
+  Audited: 8,
+};
+
+// ExpensePayableController.Verify's request body — Post enqueues the
+// generic maker-checker Workflow, Reject/Defer just update Status.
+export const ExpensePayableAuthOption = {
+  Post: 1,
+  Reject: 2,
+  Defer: 4,
+};
+
+// FixedDeposit* — transcribed directly from Enumerations.cs. Verify sends
+// a plain `Approve: bool` (FixedDepositController.cs), not the
+// FixedDepositAuthOption enum directly, so that one isn't exported here.
+export const FixedDepositStatus = {
+  Running: 1,
+  Paid: 2,
+  Revoked: 4,
+  New: 8,
+};
+
+export const FixedDepositCategory = {
+  TermDeposit: 0,
+  CallDeposit: 1,
+};
+
+export const FixedDepositMaturityAction = {
+  PayPrincipalAndInterestDue: 0,
+  PayInterestDueAndRollOverPrincipal: 1,
+  RollOverPrincipalAndInterestDue: 2,
+};
+
+// AccountClosureRequestStatus — transcribed directly from Enumerations.cs.
+// Real sequence (AccountClosureController.cs, not the reference
+// controller's naming order): Create -> Registered; Approve (Registered/
+// Deferred -> Approved); Verify (Approved -> Audited); Settle (Audited ->
+// Settled). Approve/Verify/Settle all share the same request shape,
+// {Option, Remarks} with Option: 1=act (Approve/Audit/Settle), 2=Defer.
+export const AccountClosureRequestStatus = {
+  Registered: 1,
+  Approved: 2,
+  Audited: 4,
+  Settled: 8,
+  Deferred: 16,
+};
+
+export const AccountClosureActionOption = {
+  Act: 1,
+  Defer: 2,
+};
+
+// InHouseChequeFunding — transcribed directly from Enumerations.cs.
+export const InHouseChequeFunding = {
+  DebitCustomerAccount: 1,
+  DebitGeneralLedgerAccount: 2,
+};
+
+// ElectronicJournalStatus / TruncatedChequeStatus — transcribed directly
+// from Enumerations.cs.
+export const ElectronicJournalStatus = {
+  Open: 1,
+  Closed: 2,
+};
+
+export const TruncatedChequeStatus = {
+  New: 1,
+  Processed: 2,
+};
+
+// CreditBatchType / BatchEntryStatus — transcribed directly from
+// Enumerations.cs. Used by the Sundry Payments "Cash Pickup" pick-list
+// (GET api/accounts/creditbatches/entries/type/{creditBatchType}).
+// IMPORTANT: CreditBatchType.CashPickup (56028) is NOT the same value as
+// GeneralTransactionType.CashPickup (8) above, despite the matching name —
+// confirmed against source. The credit-batch entries endpoint's
+// {creditBatchType} route segment needs THIS enum's value; the sundry
+// payment POST body's `TransactionType` field needs GeneralTransactionType's.
+export const CreditBatchType = {
+  Payout: 0xDADA,
+  CheckOff: 0xDADA + 1,
+  CashPickup: 0xDADA + 2,
+  SundryPayments: 0xDADA + 3,
+};
+
+export const BatchEntryStatus = {
+  Pending: 1,
+  Posted: 2,
+  Rejected: 4,
+};
+
+// SystemTransactionCode — the subset relevant to the Fiscal Counts
+// catalogue's `transactionCode` filter (frontoffice-api-spec.md §16.1).
+// The full server-side enum has 40+ members (every posting source in the
+// system); these six are the only ones a FiscalCount row can ever actually
+// carry, per §16's own "select a transaction type" table.
+export const FiscalCountTransactionCode = {
+  BankToTreasury: 7,
+  TreasuryToBank: 8,
+  TreasuryToTeller: 9,
+  TreasuryToTreasury: 10,
+  TellerEndOfDay: 41,
+  TellerCashTransfer: 42,
 };

@@ -2,6 +2,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useMemo, useState } from "react";
+import { searchableCustomerText } from "../../LoanCases/lib/CustomerPickerModal";
 
 export default function CustomerSelectModal({
     open,
@@ -12,10 +13,11 @@ export default function CustomerSelectModal({
     const [search, setSearch] = useState("");
 
     const filtered = useMemo(() => {
+        const terms = search.trim().toLowerCase().split(/\s+/).filter(Boolean);
+        if (terms.length === 0) return customers;
         return customers.filter(m => {
-            const c = m.Customer;
-            const text = `${c.IndividualFirstName} ${c.IndividualLastName} ${c.IndividualIdentityCardNumber} ${c.Reference3}`.toLowerCase();
-            return text.includes(search.toLowerCase());
+            const text = searchableCustomerText(m);
+            return terms.every((term) => text.includes(term));
         });
     }, [customers, search]);
 
@@ -45,7 +47,7 @@ export default function CustomerSelectModal({
                         </h3>
 
                         <Input
-                            placeholder="Search by name, ID or payroll"
+                            placeholder="Search name, customer no., ID, payroll, email or phone..."
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                             className="mb-3"
