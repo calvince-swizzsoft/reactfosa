@@ -1,12 +1,11 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import AddEmployeeDrawer from "./AddEmployeeDrawer"; // import the drawer
 import {
-  FaChevronDown,
-  FaChevronUp,
   FaMoneyCheckAlt,
   FaEllipsisV,
-  FaTrash,
+  FaEdit,
 } from "react-icons/fa";
 import {
   DropdownMenu,
@@ -14,13 +13,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import Swal from "sweetalert2";
 import NotFoundImage from "/assets/scopefinding.png";
 
 export default function Employees() {
+  const navigate = useNavigate();
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [expandedEmployee, setExpandedEmployee] = useState(null);
   const [addDrawerOpen, setAddDrawerOpen] = useState(false);
 
   const fetchEmployees = () => {
@@ -61,7 +59,8 @@ export default function Employees() {
           <span className="col-span-2">Payroll No.</span>
           <span className="col-span-2">Designation</span>
           <span className="col-span-2">Department</span>
-          <span className="col-span-2">Is Locked</span>
+          <span className="col-span-1">Is Locked</span>
+          <span className="col-span-1 text-right">Actions</span>
         </div>
 
 
@@ -103,11 +102,24 @@ export default function Employees() {
                   <span className="col-span-2 text-indigo-600 font-semibold">
                     {employee.DepartmentDescription || "—"}
                   </span>
-                  <span className="col-span-2">
+                  <span className="col-span-1">
                     <span className={`px-2 py-1 rounded text-xs font-semibold ${employee.IsLocked ? "bg-red-100 text-red-600" : "bg-green-100 text-green-600"}`}>
                       {employee.IsLocked ? "Locked" : "Active"}
                     </span>
                   </span>
+
+                  <div className="col-span-1 flex justify-end">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8"><FaEllipsisV className="text-gray-500" /></Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => navigate(`/HumanResource/Employees/${employee.Id}/edit`, { state: { employee } })}>
+                          <FaEdit className="mr-2 text-indigo-600" /> Edit
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
 
                 </div>
               </div>

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,6 +25,14 @@ function FieldGroup({ label, children }) {
   );
 }
 
+function Metric({ label, value }) {
+  return <div className="rounded-lg border bg-gray-50 p-3"><p className="text-xs uppercase tracking-wider text-gray-400">{label}</p><p className="mt-1 font-bold text-gray-800">{Number(value || 0).toLocaleString()}</p></div>;
+}
+
+function ContextList({ title, items = [], render, empty }) {
+  return <div><p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">{title}</p><div className="space-y-2">{items.length ? items.map((item, index) => <div key={item.Id || index} className="rounded-lg border bg-gray-50 p-3 text-sm text-gray-700">{render(item)}</div>) : <p className="text-sm text-gray-400">{empty}</p>}</div></div>;
+}
+
 function PickerField({ label, value, placeholder, onClick }) {
   return (
     <div>
@@ -47,17 +56,21 @@ const emptyDecisionForm = {
   MonthlyPaybackAmount: "", TotalPaybackAmount: "", TotalLoansBalance: "",
 };
 
-function AppraisalDrawer({ loanCaseId, onClose, onChanged }) {
+function AppraisalDrawer({ loanCaseId, workflowItemId, onClose, onChanged }) {
   const [worksheet, setWorksheet] = useState(null);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState(emptyDecisionForm);
   const [incomeAdjustments, setIncomeAdjustments] = useState([]);
   const [picker, setPicker] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [usedBiometrics, setUsedBiometrics] = useState(false);
+  const [activeTab, setActiveTab] = useState("overview");
+  const [attachedLoanIds, setAttachedLoanIds] = useState([]);
 
   useEffect(() => {
     if (!loanCaseId) return;
     setLoading(true);
+    setUsedBiometrics(false);
     getAppraisalWorksheet(loanCaseId)
       .then((data) => {
         setWorksheet(data);
@@ -75,6 +88,8 @@ function AppraisalDrawer({ loanCaseId, onClose, onChanged }) {
           TotalLoansBalance: data.outstandingLoansBalance ?? "",
         });
         setIncomeAdjustments([]);
+        setAttachedLoanIds((data.attachedLoans || []).map((item) => item.CustomerAccountId));
+        setActiveTab("overview");
       })
       .catch((err) => Swal.fire("Error", err.message, "error"))
       .finally(() => setLoading(false));
@@ -97,6 +112,8 @@ function AppraisalDrawer({ loanCaseId, onClose, onChanged }) {
     setSubmitting(true);
     try {
       const result = await appraiseLoanCase(loanCaseId, {
+        WorkflowItemId: workflowItemId || undefined,
+        UsedBiometrics: usedBiometrics,
         Option: option,
         ModuleNavigationItemCode: MODULE_NAVIGATION_ITEM_CODE,
         LoanProductLatestIncome: Number(form.LoanProductLatestIncome) || 0,
@@ -113,6 +130,7 @@ function AppraisalDrawer({ loanCaseId, onClose, onChanged }) {
         IncomeAdjustments: option === LoanAppraisalOption.Appraise
           ? incomeAdjustments.map((r) => ({ IncomeAdjustmentId: r.IncomeAdjustmentId, CustomerAccountId: r.CustomerAccountId || null, Amount: Number(r.Amount) || 0, IsEnabled: r.IsEnabled }))
           : [],
+        AttachedLoanAccountIds: option === LoanAppraisalOption.Appraise ? attachedLoanIds : [],
       });
       Swal.fire("Success", option === LoanAppraisalOption.Appraise ? "Loan case appraised." : "Loan case rejected.", "success");
       onChanged();
@@ -128,7 +146,7 @@ function AppraisalDrawer({ loanCaseId, onClose, onChanged }) {
   return (
     <AnimatePresence>
       <motion.div className="fixed inset-0 bg-black z-40" initial={{ opacity: 0 }} animate={{ opacity: 0.4 }} exit={{ opacity: 0 }} onClick={onClose} />
-      <motion.div className="fixed top-0 right-0 h-full w-[600px] bg-white shadow-2xl z-50 flex flex-col" initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", stiffness: 300, damping: 30 }}>
+      <motion.div className="fixed top-0 right-0 h-full w-[94vw] max-w-[1280px] bg-white shadow-2xl z-50 flex flex-col" initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", stiffness: 300, damping: 30 }}>
         <div className="m-2 flex justify-between items-center bg-indigo-600 rounded-2xl px-4 py-3">
           <h2 className="font-bold text-white">Appraise Loan Case</h2>
           <Button variant="outline" size="sm" onClick={onClose}>Close</Button>
@@ -139,10 +157,58 @@ function AppraisalDrawer({ loanCaseId, onClose, onChanged }) {
             <div className="space-y-2 animate-pulse">{[1, 2, 3].map((i) => <div key={i} className="h-10 bg-gray-100 rounded-lg" />)}</div>
           ) : worksheet ? (
             <>
-              <LoanCaseSummary loanCase={worksheet.loanCase} guarantors={worksheet.guarantors} collaterals={worksheet.collaterals} />
+              <div className="flex gap-1 overflow-x-auto border-b border-gray-200 pb-2">
+                {[
+                  ["overview", "Overview"], ["history", "Financial History"], ["loans", "Existing Loans"],
+                  ["security", "Security"], ["qualification", "Qualification"], ["decision", "Decision"],
+                ].map(([key, label]) => (
+                  <button key={key} type="button" onClick={() => setActiveTab(key)} className={`whitespace-nowrap rounded-md px-3 py-2 text-sm font-semibold ${activeTab === key ? "bg-indigo-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              {activeTab === "overview" && <>
+                <LoanCaseSummary loanCase={worksheet.loanCase} guarantors={worksheet.guarantors} collaterals={worksheet.collaterals} />
+                <div className={`rounded-lg border p-3 text-sm ${worksheet.fileRegister?.FileRegister?.StatusDescription === "Received" ? "border-green-200 bg-green-50 text-green-700" : "border-amber-200 bg-amber-50 text-amber-700"}`}>
+                  <p className="font-semibold">Physical file: {worksheet.fileRegister?.FileRegister?.StatusDescription || "Not registered"}</p>
+                  <p className="text-xs mt-1">Current department: {worksheet.fileRegister?.LastDepartment?.Description || "Not available"}</p>
+                </div>
+              </>}
+
+              {activeTab === "history" && <ContextList title="Standing Orders" items={worksheet.standingOrders} render={(item) => `${item.Description || "Standing order"} · ${Number(item.Amount || 0).toLocaleString()}`} empty="No standing orders found." />}
+
+              {activeTab === "loans" && <div className="space-y-4">
+                <ContextList title="Loan applications in process" items={worksheet.loanApplications} render={(item) => `${item.PaddedCaseNumber || "Loan case"} · ${item.LoanProductDescription || ""} · ${Number(item.AmountApplied || 0).toLocaleString()}`} empty="No other applications in process." />
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">Loan accounts to clear from proceeds</p>
+                  <div className="space-y-2">
+                    {(worksheet.loanAccounts || []).map((account) => <label key={account.Id} className="flex items-center gap-3 rounded-lg border bg-gray-50 p-3 text-sm">
+                      <input type="checkbox" className="w-4 h-4 accent-indigo-600" checked={attachedLoanIds.includes(account.Id)} onChange={(e) => setAttachedLoanIds((old) => e.target.checked ? [...old, account.Id] : old.filter((id) => id !== account.Id))} />
+                      <span className="flex-1"><span className="font-semibold text-gray-700">{account.FullAccountNumber}</span><span className="block text-xs text-gray-500">{account.CustomerAccountTypeTargetProductDescription}</span></span>
+                      <span className="font-semibold text-gray-800">{Number((account.BookBalance || 0) + (account.CarryForwardsBalance || 0)).toLocaleString()}</span>
+                    </label>)}
+                    {!(worksheet.loanAccounts || []).length && <p className="text-sm text-gray-400">No loan accounts found.</p>}
+                  </div>
+                </div>
+              </div>}
+
+              {activeTab === "security" && <LoanCaseSummary loanCase={worksheet.loanCase} guarantors={worksheet.guarantors} collaterals={worksheet.collaterals} />}
+
+              {activeTab === "qualification" && <>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <Metric label="Total shares" value={worksheet.totalShares} />
+                  <Metric label="Maximum loan" value={worksheet.maximumLoan} />
+                  <Metric label="Existing balance" value={worksheet.outstandingLoansBalance} />
+                  <Metric label="Maximum entitled" value={worksheet.maximumEntitled} />
+                </div>
+                <p className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-xs text-amber-800">The entitlement is calculated from the active investment multiplier rule. The legacy take-home formulas are not active business logic and have not been silently enabled.</p>
+              </>}
+
+              {activeTab === "decision" && <>
 
               <div className="bg-gray-50 rounded-lg p-3 text-xs text-gray-600 space-y-1">
-                <p className="font-semibold text-gray-700 uppercase tracking-wider text-[11px] mb-1">System-computed (starting point — every field below is still editable)</p>
+                <p className="font-semibold text-gray-700 uppercase tracking-wider text-[11px] mb-1">System recommendation (calculated again by the server on submit)</p>
                 <p>Total shares: {worksheet.totalShares?.toLocaleString()} · Max loan: {worksheet.maximumLoan?.toLocaleString()} · Max entitled: {worksheet.maximumEntitled?.toLocaleString()}</p>
                 <p>Outstanding balance: {worksheet.outstandingLoansBalance?.toLocaleString()} · Loan+interest estimate: {worksheet.loanPlusInterest?.toLocaleString()} · Payment/period: {worksheet.paymentPerPeriod?.toLocaleString()}</p>
               </div>
@@ -158,7 +224,7 @@ function AppraisalDrawer({ loanCaseId, onClose, onChanged }) {
                   <Input type="number" value={form.AppraisedAbility} onChange={(e) => setForm((p) => ({ ...p, AppraisedAbility: e.target.value }))} />
                 </FieldGroup>
                 <FieldGroup label="System Appraised Amount">
-                  <Input type="number" value={form.SystemAppraisedAmount} onChange={(e) => setForm((p) => ({ ...p, SystemAppraisedAmount: e.target.value }))} />
+                  <Input type="number" value={form.SystemAppraisedAmount} disabled />
                 </FieldGroup>
                 <FieldGroup label="Appraised Amount">
                   <Input type="number" value={form.AppraisedAmount} onChange={(e) => setForm((p) => ({ ...p, AppraisedAmount: e.target.value }))} />
@@ -175,7 +241,7 @@ function AppraisalDrawer({ loanCaseId, onClose, onChanged }) {
               </div>
 
               <FieldGroup label="System Appraisal Remarks">
-                <Input value={form.SystemAppraisalRemarks} onChange={(e) => setForm((p) => ({ ...p, SystemAppraisalRemarks: e.target.value }))} />
+                <Input value={form.SystemAppraisalRemarks} disabled placeholder="Generated by the server when submitted" />
               </FieldGroup>
               <FieldGroup label="Appraised Amount Remarks">
                 <Input value={form.AppraisedAmountRemarks} onChange={(e) => setForm((p) => ({ ...p, AppraisedAmountRemarks: e.target.value }))} />
@@ -183,6 +249,13 @@ function AppraisalDrawer({ loanCaseId, onClose, onChanged }) {
               <FieldGroup label="Appraisal Remarks">
                 <Input value={form.AppraisalRemarks} onChange={(e) => setForm((p) => ({ ...p, AppraisalRemarks: e.target.value }))} required />
               </FieldGroup>
+
+              {workflowItemId && (
+                <label className="flex items-center gap-2 text-sm text-gray-700">
+                  <input type="checkbox" className="w-4 h-4 accent-indigo-600" checked={usedBiometrics} onChange={(e) => setUsedBiometrics(e.target.checked)} />
+                  Verified with biometrics
+                </label>
+              )}
 
               <div className="border-t pt-4">
                 <div className="flex items-center justify-between mb-2">
@@ -203,6 +276,7 @@ function AppraisalDrawer({ loanCaseId, onClose, onChanged }) {
                   ))}
                 </div>
               </div>
+              </>}
             </>
           ) : (
             <p className="text-sm text-gray-400 text-center py-8">Not found.</p>
@@ -210,7 +284,7 @@ function AppraisalDrawer({ loanCaseId, onClose, onChanged }) {
         </div>
 
         <div className="shrink-0 px-4 py-3 border-t flex gap-2">
-          <Button disabled={submitting} onClick={() => submit(LoanAppraisalOption.Appraise)} className="flex-1 bg-indigo-600 hover:bg-indigo-700">
+          <Button disabled={submitting || !worksheet?.fileReadyForAppraisal} onClick={() => submit(LoanAppraisalOption.Appraise)} className="flex-1 bg-indigo-600 hover:bg-indigo-700">
             {submitting ? "Working..." : "Appraise"}
           </Button>
           <Button disabled={submitting} onClick={() => submit(LoanAppraisalOption.Reject)} variant="outline" className="flex-1 border-red-300 text-red-600 hover:bg-red-50">
@@ -233,9 +307,12 @@ function AppraisalDrawer({ loanCaseId, onClose, onChanged }) {
 }
 
 export default function AppraisalScreen() {
+  const [searchParams] = useSearchParams();
+  const routedLoanCaseId = searchParams.get("loanCaseId");
+  const routedWorkflowItemId = searchParams.get("workflowItemId");
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedId, setSelectedId] = useState(null);
+  const [selectedId, setSelectedId] = useState(routedLoanCaseId);
 
   const fetchList = () => {
     setLoading(true);
@@ -295,7 +372,12 @@ export default function AppraisalScreen() {
         )}
       </div>
 
-      <AppraisalDrawer loanCaseId={selectedId} onClose={() => setSelectedId(null)} onChanged={fetchList} />
+      <AppraisalDrawer
+        loanCaseId={selectedId}
+        workflowItemId={selectedId === routedLoanCaseId ? routedWorkflowItemId : null}
+        onClose={() => setSelectedId(null)}
+        onChanged={fetchList}
+      />
     </div>
   );
 }

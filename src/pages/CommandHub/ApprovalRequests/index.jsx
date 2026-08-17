@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { FaSearch } from "react-icons/fa";
 import Swal from "sweetalert2";
 import { useAuth } from "@/context/AuthContext";
@@ -11,6 +12,14 @@ import {
 } from "@/lib/workflowFormat";
 
 const ADMIN_URL = import.meta.env.VITE_APP_ADMIN_URL;
+const FINAL_LOAN_STAGE_ROUTES = {
+  45008: "/Loaning/LoanCases/appraisal",
+  45009: "/Loaning/LoanCases/approval",
+  45007: "/Loaning/LoanCases/audit",
+  45012: "/Loaning/LoanCases/appraisal",
+  45013: "/Loaning/LoanCases/approval",
+  45011: "/Loaning/LoanCases/audit",
+};
 
 // /items/mine resolves scope purely from the caller's roles (JWT) server
 // side and returns pending/other-status items across every permission type
@@ -62,6 +71,7 @@ async function promptDecision(item, decision) {
 }
 
 export default function ApprovalRequests() {
+  const navigate = useNavigate();
   const { roles } = useAuth();
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -114,6 +124,7 @@ export default function ApprovalRequests() {
       const myTasks = allItems.filter(
         (item) =>
           item.status === WorkflowRecordStatus.Pending &&
+          !item.isLocked &&
           myRoleSet.has((item.roleName || "").toLowerCase())
       );
 
@@ -176,6 +187,17 @@ export default function ApprovalRequests() {
     }
   };
 
+  const openDetailedLoanStage = (item) => {
+    const route = FINAL_LOAN_STAGE_ROUTES[Number(item.workflowSystemPermissionType)];
+    if (!route) return;
+
+    const params = new URLSearchParams({
+      loanCaseId: item.workflowRecordId,
+      workflowItemId: item.id,
+    });
+    navigate(`${route}?${params.toString()}`);
+  };
+
   const query = search.trim().toLowerCase();
   const visibleTasks = useMemo(() => {
     if (!query) return tasks;
@@ -232,6 +254,10 @@ export default function ApprovalRequests() {
               ) : visibleTasks.length > 0 ? (
                 visibleTasks.map((item) => {
                   const isActing = actingIds.has(item.id);
+                  const isFinalLoanStage = Boolean(
+                    item.isLastItemInOverallApprovalChain &&
+                    FINAL_LOAN_STAGE_ROUTES[Number(item.workflowSystemPermissionType)]
+                  );
                   return (
                     <tr key={item.id}>
                       <td className="px-4 py-2.5 text-sm font-medium text-slate-800">{paddedReferenceNumber(item)}</td>
@@ -245,14 +271,25 @@ export default function ApprovalRequests() {
                       <td className="px-4 py-2.5 text-sm text-slate-700">{item.remarks || "—"}</td>
                       <td className="px-4 py-2.5 text-right">
                         <div className="flex justify-end gap-2">
-                          <button
-                            type="button"
-                            disabled={isActing}
-                            onClick={() => handleDecision(item, "approve")}
-                            className="rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
-                          >
-                            Approve
-                          </button>
+                          {isFinalLoanStage ? (
+                            <button
+                              type="button"
+                              disabled={isActing}
+                              onClick={() => openDetailedLoanStage(item)}
+                              className="rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+                            >
+                              Open loan
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled={isActing}
+                              onClick={() => handleDecision(item, "approve")}
+                              className="rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+                            >
+                              Approve
+                            </button>
+                          )}
                           <button
                             type="button"
                             disabled={isActing}

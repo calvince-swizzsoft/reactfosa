@@ -21,12 +21,25 @@ export default function CustomerSelectModal({ open, onClose, onSelect }) {
   }, [open]);
 
   const filtered = useMemo(() => {
-    const term = search.toLowerCase();
-    return customers.filter((m) =>
-      `${m.IndividualFirstName} ${m.IndividualLastName}`.toLowerCase().includes(term) ||
-      (m.Reference2 || "").toLowerCase().includes(term) ||
-      (m.IndividualIdentityCardNumber || "").includes(term)
-    );
+    const terms = search.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    if (terms.length === 0) return customers;
+    return customers.filter((customer) => {
+      const searchable = [
+        customer.IndividualFirstName,
+        customer.IndividualLastName,
+        customer.Reference2,
+        customer.Reference3,
+        customer.PaddedSerialNumber,
+        customer.SerialNumber,
+        customer.IndividualIdentityCardNumber,
+        customer.IdentificationNumber,
+        customer.IndividualPayrollNumbers,
+        customer.PayrollNumber,
+        customer.AddressEmail,
+        customer.AddressMobileLine,
+      ].filter(Boolean).join(" ").toLowerCase();
+      return terms.every((term) => searchable.includes(term));
+    });
   }, [customers, search]);
 
   return (
@@ -65,7 +78,7 @@ export default function CustomerSelectModal({ open, onClose, onSelect }) {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
                   className="pl-9"
-                  placeholder="Search by name, member no. or ID number..."
+                  placeholder="Search name, member no., ID, payroll, email or phone..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   autoFocus

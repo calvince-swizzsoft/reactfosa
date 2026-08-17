@@ -58,6 +58,12 @@ export function checkInProcess(customerId) {
   return unwrap(apiFetch(`${BASE}/customers/${customerId}/in-process`));
 }
 
+export function getRegistrationContext(customerId, loanProductId) {
+  const params = new URLSearchParams();
+  if (loanProductId) params.set("loanProductId", loanProductId);
+  return unwrap(apiFetch(`${BASE}/customers/${customerId}/registration-context?${params.toString()}`));
+}
+
 // { guarantorId, SerialNumber, fullName, employerDescription,
 // stationDescription, identificationNumber, payrollNumber, totalShares,
 // committedShares, appraisalFactor, availableToGuarantee } — note
@@ -79,7 +85,26 @@ export function getAppraisalWorksheet(id) {
   return unwrap(apiFetch(`${BASE}/${id}/appraisal-worksheet`));
 }
 
-// request: { Option, ModuleNavigationItemCode, LoanProductLatestIncome,
+export function getApprovalWorksheet(id) {
+  return unwrap(apiFetch(`${BASE}/${id}/approval-worksheet`));
+}
+
+export function getVerificationWorksheet(id) {
+  return unwrap(apiFetch(`${BASE}/${id}/verification-worksheet`));
+}
+
+export function getCancellationWorksheet(id) {
+  return unwrap(apiFetch(`${BASE}/${id}/cancellation-worksheet`));
+}
+
+export function listCancellationQueue({ loanProductSection = 0, startDate = "", endDate = "", text = "", loanCaseFilter = 0, pageIndex = 0, pageSize = 20 }) {
+  const params = new URLSearchParams({ loanProductSection: String(loanProductSection), text, loanCaseFilter: String(loanCaseFilter), pageIndex: String(pageIndex), pageSize: String(pageSize) });
+  if (startDate) params.set("startDate", startDate);
+  if (endDate) params.set("endDate", endDate);
+  return unwrap(apiFetch(`${BASE}/cancellation-queue?${params.toString()}`));
+}
+
+// request: { WorkflowItemId?, UsedBiometrics, Option, ModuleNavigationItemCode, LoanProductLatestIncome,
 // AppraisedNetIncome, AppraisedAbility, SystemAppraisedAmount,
 // SystemAppraisalRemarks, AppraisedAmount, AppraisedAmountRemarks,
 // AppraisalRemarks, MonthlyPaybackAmount, TotalPaybackAmount,
@@ -90,7 +115,7 @@ export function appraiseLoanCase(id, request) {
   return unwrap(apiFetch(`${BASE}/${id}/appraise`, { method: "POST", body: JSON.stringify(request) }));
 }
 
-// request: { Option, ApprovedAmount, ApprovedAmountRemarks,
+// request: { WorkflowItemId?, UsedBiometrics, Option, ApprovedAmount, ApprovedAmountRemarks,
 // ApprovedPrincipalPayment, ApprovedInterestPayment, MonthlyPaybackAmount,
 // TotalPaybackAmount, ApprovalRemarks } — LoanApprovalOption: 1=Approve,
 // 2=Reject, 4=Defer (non-sequential). No ModuleNavigationItemCode field on
@@ -104,7 +129,7 @@ export function approveLoanCase(id, request) {
   return unwrap(apiFetch(`${BASE}/${id}/approve`, { method: "POST", body: JSON.stringify(request) }));
 }
 
-// request: { Option, AuditRemarks } — LoanAuditOption: 1=Audit ("Verify" in
+// request: { WorkflowItemId?, UsedBiometrics, Option, Reference, AuditRemarks } — LoanAuditOption: 1=Audit ("Verify" in
 // the UI), 2=Reject, 4=Defer. No ModuleNavigationItemCode field here
 // either. AuditRemarks always required. On a successful Audit, treat the
 // server's work (loan/savings account + repayment StandingOrder creation)

@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { FaTrash } from "react-icons/fa";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { FaChevronDown, FaSearch, FaTimes, FaTrash } from "react-icons/fa";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,10 +28,30 @@ const normalizeAssignedRole = (row) => ({
 
 const emptyAddForm = { roleName: "", branchId: "", requiredApprovers: "", approvalPriority: "" };
 
+const searchablePermissionName = (permissionType) => {
+  const value = String(permissionType);
+  const aliases = value.startsWith("FrontOffice")
+    ? " fosa front office"
+    : value.startsWith("BackOffice") ? " bosa back office" : "";
+  return value
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(/[_-]+/g, " ")
+    .toLowerCase() + aliases;
+};
+
+const permissionGroup = (permissionType) => {
+  if (String(permissionType).startsWith("FrontOffice")) return "FOSA / Front Office";
+  if (String(permissionType).startsWith("BackOffice")) return "BOSA / Back Office";
+  return "Other Permissions";
+};
+
 export default function AdministrationPermissionTypes() {
   const [permissionTypes, setPermissionTypes] = useState([]);
   const [permissionTypesLoading, setPermissionTypesLoading] = useState(false);
   const [selectedPermissionType, setSelectedPermissionType] = useState("");
+  const [permissionSearch, setPermissionSearch] = useState("");
+  const [permissionPickerOpen, setPermissionPickerOpen] = useState(false);
+  const permissionPickerRef = useRef(null);
 
   const [roles, setRoles] = useState([]);
   const [rolesLoading, setRolesLoading] = useState(false);
@@ -114,6 +134,14 @@ export default function AdministrationPermissionTypes() {
   }, []);
 
   useEffect(() => {
+    const closePicker = (event) => {
+      if (!permissionPickerRef.current?.contains(event.target)) setPermissionPickerOpen(false);
+    };
+    document.addEventListener("mousedown", closePicker);
+    return () => document.removeEventListener("mousedown", closePicker);
+  }, []);
+
+  useEffect(() => {
     setAddForm(emptyAddForm);
 
     if (!selectedPermissionType) {
@@ -161,6 +189,29 @@ export default function AdministrationPermissionTypes() {
     () => roles.filter((roleName) => !assignedRoleNames.has(roleName)),
     [roles, assignedRoleNames]
   );
+
+  const groupedPermissionTypes = useMemo(() => {
+    const terms = searchablePermissionName(permissionSearch).split(/\s+/).filter(Boolean);
+    const matches = permissionTypes.filter((permissionType) => {
+      const searchable = searchablePermissionName(permissionType);
+      return terms.every((term) => searchable.includes(term));
+    });
+
+    return ["FOSA / Front Office", "BOSA / Back Office", "Other Permissions"]
+      .map((label) => ({ label, items: matches.filter((item) => permissionGroup(item) === label) }))
+      .filter((group) => group.items.length > 0);
+  }, [permissionSearch, permissionTypes]);
+
+  const matchingPermissionCount = useMemo(
+    () => groupedPermissionTypes.reduce((count, group) => count + group.items.length, 0),
+    [groupedPermissionTypes]
+  );
+
+  const choosePermissionType = (permissionType) => {
+    setSelectedPermissionType(permissionType);
+    setPermissionSearch(permissionType);
+    setPermissionPickerOpen(false);
+  };
 
   const updateAddForm = (key, value) => setAddForm((prev) => ({ ...prev, [key]: value }));
 
@@ -272,17 +323,93 @@ export default function AdministrationPermissionTypes() {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="permissionType">Permission Type</Label>
-          <Select value={selectedPermissionType} onValueChange={setSelectedPermissionType}>
-            <SelectTrigger id="permissionType">
-              <SelectValue placeholder={permissionTypesLoading ? "Loading permission types..." : "Select a permission type"} />
-            </SelectTrigger>
-            <SelectContent className="max-h-60 overflow-y-auto">
-              {permissionTypes.map((permissionType) => (
-                <SelectItem key={permissionType} value={permissionType}>{permissionType}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Label htmlFor="permissionTypeSearch">Permission Type</Label>
+          <div ref={permissionPickerRef} className="relative">
+            <div className="relative">
+              <FaSearch className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400" />
+              <input
+                id="permissionTypeSearch"
+                type="text"
+                role="combobox"
+                aria-expanded={permissionPickerOpen}
+                aria-controls="permissionTypeOptions"
+                autoComplete="off"
+                disabled={permissionTypesLoading}
+                value={permissionSearch}
+                onFocus={() => setPermissionPickerOpen(true)}
+                onChange={(event) => {
+                  setPermissionSearch(event.target.value);
+                  if (event.target.value !== selectedPermissionType) setSelectedPermissionType("");
+                  setPermissionPickerOpen(true);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") setPermissionPickerOpen(false);
+                  if (event.key === "Enter" && permissionPickerOpen && matchingPermissionCount === 1) {
+                    event.preventDefault();
+                    choosePermissionType(groupedPermissionTypes[0].items[0]);
+                  }
+                }}
+                placeholder={permissionTypesLoading ? "Loading permission types..." : "Search permissions, e.g. FOSA loan approval"}
+                className="h-10 w-full rounded-md border border-slate-200 bg-white pl-9 pr-16 text-sm text-slate-800 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 disabled:cursor-not-allowed disabled:opacity-50"
+              />
+              <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1">
+                {permissionSearch && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPermissionSearch("");
+                      setSelectedPermissionType("");
+                      setPermissionPickerOpen(true);
+                    }}
+                    className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                    aria-label="Clear permission type"
+                  >
+                    <FaTimes className="text-xs" />
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setPermissionPickerOpen((open) => !open)}
+                  className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                  aria-label="Toggle permission options"
+                >
+                  <FaChevronDown className={`text-xs transition-transform ${permissionPickerOpen ? "rotate-180" : ""}`} />
+                </button>
+              </div>
+            </div>
+
+            {permissionPickerOpen && !permissionTypesLoading && (
+              <div id="permissionTypeOptions" role="listbox" className="absolute z-30 mt-1 max-h-80 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white p-2 shadow-lg">
+                <div className="px-2 pb-2 text-xs text-slate-400">
+                  {matchingPermissionCount} {matchingPermissionCount === 1 ? "permission" : "permissions"} found
+                </div>
+                {groupedPermissionTypes.length > 0 ? groupedPermissionTypes.map((group) => (
+                  <div key={group.label} className="mb-2 last:mb-0">
+                    <p className="px-2 py-1 text-xs font-semibold uppercase tracking-wider text-slate-400">{group.label}</p>
+                    {group.items.map((permissionType) => (
+                      <button
+                        key={permissionType}
+                        type="button"
+                        role="option"
+                        aria-selected={selectedPermissionType === permissionType}
+                        onClick={() => choosePermissionType(permissionType)}
+                        className={`block w-full rounded-lg px-3 py-2 text-left text-sm transition-colors ${
+                          selectedPermissionType === permissionType
+                            ? "bg-indigo-50 font-medium text-indigo-700"
+                            : "text-slate-700 hover:bg-slate-50"
+                        }`}
+                      >
+                        {permissionType}
+                      </button>
+                    ))}
+                  </div>
+                )) : (
+                  <p className="px-3 py-6 text-center text-sm text-slate-500">No permission types match your search.</p>
+                )}
+              </div>
+            )}
+          </div>
+          <p className="text-xs text-slate-500">Search by workflow area, action, FOSA, or BOSA.</p>
         </div>
 
         {selectedPermissionType && (

@@ -76,6 +76,7 @@ import Customers from "./pages/Registry/Customers/index.jsx";
 import RegistryZones from "./pages/Registry/Zone/index.jsx";
 import RegistryDivisions from "./pages/Registry/Division/index.jsx";
 import RegistryEmployers from "./pages/Registry/Employer/index.jsx";
+import FileTracking from "./pages/Registry/FileTracking/index.jsx";
 import CustomerAccounts from "./pages/Accounts/CustomerAccounts/index.jsx";
 import StandingOrders from "./pages/Accounts/StandingOrders/index.jsx";
 import StandingOrderExecution from "./pages/Accounts/StandingOrders/Execution.jsx";
@@ -88,6 +89,7 @@ import CustomersAccounts from "./pages/Membership/CustomerAccounts/index.jsx";
 import Companies from "./pages/Administration/Company/index.jsx";
 import Branches from "./pages/Administration/Branches/index.jsx";
 import TextAlerts from "./pages/Messaging/TextAlerts/index.jsx";
+import EmailAlerts from "./pages/Messaging/EmailAlerts/index.jsx";
 import Division from "./pages/Membership/Division/index.jsx";
 import Zones from "./pages/Membership/Zones/index.jsx";
 import Stations from "./pages/Membership/Stations/index.jsx";
@@ -107,6 +109,7 @@ import CreateLoanGuarantor from "./pages/Loaning/Guarantors/create.jsx";
 import GuarantorAttachment from "./pages/Loaning/GuarantorAttachment/index.jsx";
 import LoanRequests from "./pages/Loaning/LoanRequests/index.jsx";
 import CreateLoanRequest from "./pages/Loaning/LoanRequests/create.jsx";
+import { LoanPurposes, LoaningRemarks, IncomeAdjustments } from "./pages/Loaning/LoanMasters/index.jsx";
 import MemberReceipting from "./pages/Finance/MemberReceipting/index.jsx";
 import LoanSector from "./pages/Loaning/LoanSector/index.jsx";
 import LoanSubSector from "./pages/Loaning/LoanSubSector/index.jsx";
@@ -143,6 +146,7 @@ import Tellers from "./pages/Accounts/Tellers/Teller.jsx";
 //import Treasuries from './pages/FOSA/'
 
 import Employees from "./pages/HumanResource/Employees/Employees.jsx"
+import EditEmployee from "./pages/HumanResource/Employees/EditEmployee.jsx"
 import FOSASetup from "./pages/FOSA/Setup/index.jsx"
 import FOSATransactions from "./pages/FOSA/TellerTransactions/index.jsx"
 
@@ -315,6 +319,7 @@ export default function App() {
           <Route path="Registry/Zone" element={<RegistryZones />} />
           <Route path="Registry/Division" element={<RegistryDivisions />} />
           <Route path="Registry/Employer" element={<RegistryEmployers />} />
+          <Route path="Registry/FileTracking" element={<FileTracking />} />
           <Route path="Accounts/CustomerAccounts" element={<CustomerAccounts />} />
           <Route path="Accounts/StandingOrders" element={<StandingOrders />} />
           <Route path="Accounts/StandingOrders/Execution" element={<StandingOrderExecution />} />
@@ -323,6 +328,7 @@ export default function App() {
           <Route path="Administration/Company" element={<Companies />} />
           <Route path="Administration/Branches" element={<Branches />} />
           <Route path="Messaging/TextAlerts" element={<TextAlerts />} />
+          <Route path="Messaging/EmailAlerts" element={<EmailAlerts />} />
           <Route path="Membership/Division" element={<Division />} />
           <Route path="Membership/Zones" element={<Zones />} />
           <Route path="Membership/Stations" element={<Stations />} />
@@ -338,6 +344,9 @@ export default function App() {
           <Route path="Loaning" element={<Loaning />} />
           <Route path="Loaning/LoanProducts" element={<LoanProducts />} />
           <Route path="Loaning/LoanApplication" element={<LoanApplication />} />
+          <Route path="Loaning/LoanPurposes" element={<LoanPurposes />} />
+          <Route path="Loaning/LoaningRemarks" element={<LoaningRemarks />} />
+          <Route path="Loaning/IncomeAdjustments" element={<IncomeAdjustments />} />
           <Route path="Loaning/LoanCases/registration" element={<LoanCaseRegistration />} />
           <Route path="Loaning/LoanCases/appraisal" element={<LoanCaseAppraisal />} />
           <Route path="Loaning/LoanCases/approval" element={<LoanCaseApproval />} />
@@ -374,6 +383,7 @@ export default function App() {
 
           {/**Human Resource */}
           <Route path="HumanResource/Employees" element={<Employees />} />
+          <Route path="HumanResource/Employees/:id/edit" element={<EditEmployee />} />
           <Route path="HumanResource/Departments" element={<HRDepartments />} />
           <Route path="HumanResource/Departments/create" element={<CreateDepartment />} />
           <Route path="HumanResource/Designations" element={<Designations />} />

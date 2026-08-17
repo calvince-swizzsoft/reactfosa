@@ -22,8 +22,6 @@ export default function CreateUser() {
     confirmPassword: "",
     twoFactorEnabled: false,
     lockoutEnabled: false,
-    emailConfirmed: false,
-    createdDate: "",
   });
 
   useEffect(() => {
@@ -117,8 +115,6 @@ export default function CreateUser() {
         confirmPassword: "",
         twoFactorEnabled: false,
         lockoutEnabled: false,
-        emailConfirmed: false,
-        createdDate: "",
       });
     } catch (error) {
       Swal.fire("Error", error.message || "Unable to create user.", "error");
@@ -148,8 +144,22 @@ export default function CreateUser() {
                 handleChange("CustomerId", selectedEmployee.CustomerId || selectedEmployee.CustomerDTO?.Id || "");
                 handleChange("firstName", selectedEmployee.CustomerIndividualFirstName || selectedEmployee.FirstName || "");
                 handleChange("otherNames", selectedEmployee.CustomerIndividualLastName || selectedEmployee.OtherNames || "");
-                handleChange("email", selectedEmployee.CustomerIndividualEmail || selectedEmployee.Email || "");
-                handleChange("phoneNumber", selectedEmployee.CustomerIndividualMobile || selectedEmployee.PhoneNumber || "");
+                handleChange(
+                  "email",
+                  selectedEmployee.CustomerAddressEmail ||
+                    selectedEmployee.customerAddressEmail ||
+                    selectedEmployee.CustomerIndividualEmail ||
+                    selectedEmployee.Email ||
+                    "",
+                );
+                handleChange(
+                  "phoneNumber",
+                  selectedEmployee.CustomerAddressMobileLine ||
+                    selectedEmployee.customerAddressMobileLine ||
+                    selectedEmployee.CustomerIndividualMobile ||
+                    selectedEmployee.PhoneNumber ||
+                    "",
+                );
                 handleChange("branchDescription", selectedEmployee.BranchDescription || "");
                 handleChange("BranchId", selectedEmployee.BranchId || "");
               }}
@@ -207,11 +217,6 @@ export default function CreateUser() {
             <Input type="password" value={form.confirmPassword || ""} onChange={(e) => handleChange("confirmPassword", e.target.value)} placeholder="Confirm password" />
           </div>
 
-          <div className="space-y-2">
-            <Label>Created Date</Label>
-            <Input value={form.createdDate} onChange={(e) => handleChange("createdDate", e.target.value)} placeholder="YYYY-MM-DD" />
-          </div>
-
           <div className="flex items-center gap-2 rounded-lg border border-slate-200 p-3">
             <input id="twoFactor" type="checkbox" checked={form.twoFactorEnabled} onChange={(e) => handleChange("twoFactorEnabled", e.target.checked)} />
             <Label htmlFor="twoFactor">2FA Enabled</Label>
@@ -220,11 +225,6 @@ export default function CreateUser() {
           <div className="flex items-center gap-2 rounded-lg border border-slate-200 p-3">
             <input id="lockout" type="checkbox" checked={form.lockoutEnabled} onChange={(e) => handleChange("lockoutEnabled", e.target.checked)} />
             <Label htmlFor="lockout">Lock User?</Label>
-          </div>
-
-          <div className="flex items-center gap-2 rounded-lg border border-slate-200 p-3">
-            <input id="emailConfirmed" type="checkbox" checked={form.emailConfirmed} onChange={(e) => handleChange("emailConfirmed", e.target.checked)} />
-            <Label htmlFor="emailConfirmed">Email Confirmed</Label>
           </div>
 
           <div className="md:col-span-2 flex justify-end">

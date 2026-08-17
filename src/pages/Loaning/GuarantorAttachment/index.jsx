@@ -19,6 +19,24 @@ const MODULE_NAVIGATION_ITEM_CODE = { attach: 70014, substitute: 70015, relieve:
 
 const HISTORY_STATUS = { Attached: 0, Relieved: 1 };
 
+function customerAccountName(account = {}) {
+  return account.CustomerFullName
+    || [account.CustomerIndividualFirstName, account.CustomerIndividualLastName].filter(Boolean).join(" ").trim()
+    || account.CustomerNonIndividualDescription
+    || "Unnamed customer";
+}
+
+function customerAccountProduct(account = {}) {
+  return account.CustomerAccountTypeTargetProductDescription
+    || account.TargetProductDescription
+    || account.TypeDescription
+    || "Unknown product";
+}
+
+function customerAccountLabel(account) {
+  return `${customerAccountName(account)} — ${customerAccountProduct(account)}`;
+}
+
 function FieldGroup({ label, children }) {
   return (
     <div>
@@ -130,9 +148,9 @@ function AttachPanel() {
         <EntryPickerModal
           title="Select Source Customer Account"
           fetchUrl={`${FIN_BASE}/api/accounts/customer-accounts?pageSize=1000`}
-          getLabel={(i) => i.CustomerFullName || i.FullAccountNumber}
-          getSublabel={(i) => [i.FullAccountNumber, i.CustomerAccountTypeTargetProductDescription].filter(Boolean).join(" — ")}
-          onSelect={(i) => { setSourceCustomerAccountId(i.Id); setSourceLabel(`${i.CustomerFullName || ""} — ${i.FullAccountNumber || ""}`); }}
+          getLabel={customerAccountLabel}
+          getSublabel={(i) => i.FullAccountNumber || "Account number unavailable"}
+          onSelect={(i) => { setSourceCustomerAccountId(i.Id); setSourceLabel(`${customerAccountLabel(i)} · ${i.FullAccountNumber || "Account number unavailable"}`); }}
           onClose={() => setPicker(null)}
         />
       )}

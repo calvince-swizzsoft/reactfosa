@@ -6,7 +6,7 @@ import Swal from "sweetalert2";
 import { motion, AnimatePresence } from "framer-motion";
 import { FaPlus, FaChevronDown, FaTrash, FaMoneyBillWave } from "react-icons/fa";
 import NotFoundImage from "/assets/scopefinding.png";
-import { listLoanCases, createLoanCase, checkInProcess, lookupGuarantorEligibility, normalizeList } from "./lib/loanCaseApi";
+import { listLoanCases, createLoanCase, checkInProcess, getRegistrationContext, lookupGuarantorEligibility, normalizeList } from "./lib/loanCaseApi";
 import { LoanCaseStatus, RecordStatus } from "./lib/loanCaseEnums";
 import LoanCaseStatusBadge from "./lib/LoanCaseStatusBadge";
 import LoanCaseSummary from "./lib/LoanCaseSummary";
@@ -25,6 +25,10 @@ function FieldGroup({ label, children }) {
       {children}
     </div>
   );
+}
+
+function RegistrationRows({ items = [], empty, render }) {
+  return <div className="space-y-2">{items.length ? items.map((item, index) => <div key={item.Id || index} className="rounded-lg border bg-gray-50 p-3 text-sm text-gray-700">{render(item)}</div>) : <p className="text-sm text-gray-400">{empty}</p>}</div>;
 }
 
 function PickerField({ label, value, placeholder, onClick, disabled }) {
@@ -57,8 +61,8 @@ function PickerFieldWithCreate({ label, value, placeholder, onClick, onCreateNew
           <span className={value ? "text-gray-800 truncate" : "text-gray-400"}>{value || placeholder}</span>
           <FaChevronDown className="text-gray-400 text-xs flex-shrink-0 ml-2" />
         </button>
-        <Button type="button" variant="outline" size="icon" onClick={onCreateNew} title={`New ${label}`}>
-          <FaPlus className="text-xs" />
+        <Button type="button" variant="outline" onClick={onCreateNew} title={`New ${label}`} className="shrink-0 gap-1.5">
+          <FaPlus className="text-xs" /> New
         </Button>
       </div>
     </div>
@@ -124,16 +128,24 @@ function CreateLoanCaseDrawer({ open, onClose, onSuccess }) {
   const [picker, setPicker] = useState(null);
   const [creating, setCreating] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [context, setContext] = useState(null);
+  const [activeTab, setActiveTab] = useState("standingOrders");
 
   useEffect(() => {
     if (open) {
       setForm(emptyForm);
       setGuarantors([]);
       setCollaterals([]);
+      setContext(null);
     }
   }, [open]);
 
   const needsGuarantors = form.loanProduct && !form.loanProduct.LoanRegistrationMicrocredit && form.loanProduct.LoanRegistrationSecurityRequired;
+
+  useEffect(() => {
+    if (!form.CustomerId) return;
+    getRegistrationContext(form.CustomerId, form.LoanProductId || undefined).then(setContext).catch(() => setContext(null));
+  }, [form.CustomerId, form.LoanProductId]);
 
   const handlePickCustomer = async (customer) => {
     setForm((p) => ({ ...p, CustomerId: customer.Id, CustomerLabel: customer.FullName, CustomerRecordStatus: customer.RecordStatus }));
@@ -202,7 +214,7 @@ function CreateLoanCaseDrawer({ open, onClose, onSuccess }) {
       {open && (
         <>
           <motion.div className="fixed inset-0 bg-black z-40" initial={{ opacity: 0 }} animate={{ opacity: 0.4 }} exit={{ opacity: 0 }} onClick={onClose} />
-          <motion.div className="fixed top-0 right-0 h-full w-[560px] bg-white shadow-2xl z-50 flex flex-col" initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", stiffness: 300, damping: 30 }}>
+          <motion.div className="fixed top-0 right-0 h-full w-[92vw] max-w-[960px] bg-white shadow-2xl z-50 flex flex-col" initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", stiffness: 300, damping: 30 }}>
             <div className="m-2 flex justify-between items-center bg-indigo-600 rounded-2xl px-4 py-3">
               <h2 className="font-bold text-white">Register Loan Case</h2>
               <Button variant="outline" size="sm" onClick={onClose}>Close</Button>
@@ -213,7 +225,7 @@ function CreateLoanCaseDrawer({ open, onClose, onSuccess }) {
               <PickerField label="Loan Product" value={form.LoanProductLabel} placeholder="Select loan product..." onClick={() => setPicker("loanProduct")} />
               <PickerField label="Savings Product" value={form.SavingsProductLabel} placeholder="Select savings product..." onClick={() => setPicker("savingsProduct")} />
               <PickerFieldWithCreate label="Loan Purpose" value={form.LoanPurposeLabel} placeholder="Select loan purpose..." onClick={() => setPicker("loanPurpose")} onCreateNew={() => setCreating("loanPurpose")} />
-              <PickerFieldWithCreate label="Registration Remark" value={form.RegistrationRemarkLabel} placeholder="Select remark..." onClick={() => setPicker("registrationRemark")} onCreateNew={() => setCreating("registrationRemark")} />
+              <PickerFieldWithCreate label="Loan Remark" value={form.RegistrationRemarkLabel} placeholder="Select loan remark..." onClick={() => setPicker("registrationRemark")} onCreateNew={() => setCreating("registrationRemark")} />
               <PickerField label="Branch" value={form.BranchLabel} placeholder="Select branch..." onClick={() => setPicker("branch")} />
 
               <div className="grid grid-cols-2 gap-3">
@@ -224,6 +236,23 @@ function CreateLoanCaseDrawer({ open, onClose, onSuccess }) {
                   <Input type="date" value={form.ReceivedDate} onChange={(e) => setForm((p) => ({ ...p, ReceivedDate: e.target.value }))} required />
                 </FieldGroup>
               </div>
+
+              {form.loanProduct && <div className="grid grid-cols-3 gap-2 rounded-lg border bg-gray-50 p-3 text-sm">
+                <div><span className="block text-xs text-gray-400">Section</span><strong>{form.loanProduct.LoanRegistrationLoanProductSectionDescription || form.loanProduct.ProductSectionDescription || "—"}</strong></div>
+                <div><span className="block text-xs text-gray-400">Term</span><strong>{form.loanProduct.LoanRegistrationTermInMonths || 0} months</strong></div>
+                <div><span className="block text-xs text-gray-400">Interest</span><strong>{form.loanProduct.LoanInterestAnnualPercentageRate || form.loanProduct.InterestAnnualPercentageRate || 0}%</strong></div>
+                <div><span className="block text-xs text-gray-400">Same-product balance</span><strong>{Number(context?.selectedProductLoanBalance || 0).toLocaleString()}</strong></div>
+                <div><span className="block text-xs text-gray-400">Investment balance</span><strong>{Number(context?.investmentBalance || 0).toLocaleString()}</strong></div>
+              </div>}
+
+              {form.CustomerId && <div className="border-t pt-4">
+                <div className="flex gap-1 overflow-x-auto mb-3">{[["standingOrders", "Standing Orders"], ["income", "Income History"], ["applications", "Loan Applications"], ["collaterals", "Collaterals"], ["guarantors", "Guarantors"]].map(([key, label]) => <button key={key} type="button" onClick={() => setActiveTab(key)} className={`whitespace-nowrap rounded-md px-3 py-2 text-xs font-semibold ${activeTab === key ? "bg-indigo-600 text-white" : "bg-gray-100 text-gray-600"}`}>{label}</button>)}</div>
+                {activeTab === "standingOrders" && <RegistrationRows items={context?.standingOrders} empty="No standing orders found." render={(item) => `${item.Description || "Standing order"} · ${Number(item.Amount || 0).toLocaleString()}`} />}
+                {activeTab === "income" && <RegistrationRows items={context?.payouts} empty="No payout income history found. The legacy salary-by-customer query was not implemented." render={(item) => `${item.Reference || item.Description || "Payout"} · ${Number(item.Amount || item.TotalValue || 0).toLocaleString()}`} />}
+                {activeTab === "applications" && <RegistrationRows items={context?.applications} empty="No loan applications in process." render={(item) => `${item.PaddedCaseNumber || "Loan case"} · ${item.LoanProductDescription || ""} · ${Number(item.AmountApplied || 0).toLocaleString()}`} />}
+                {activeTab === "collaterals" && <RegistrationRows items={context?.collaterals} empty="No collateral documents found." render={(item) => `${item.FileTitle || "Collateral"} · ${Number(item.CollateralValue || 0).toLocaleString()}`} />}
+                {activeTab === "guarantors" && <p className="text-sm text-gray-500">Add and review proposed guarantors in the guarantor section below.</p>}
+              </div>}
 
               {form.loanProduct && (
                 <div className="border-t pt-4">
@@ -309,7 +338,7 @@ function CreateLoanCaseDrawer({ open, onClose, onSuccess }) {
       )}
       {picker === "registrationRemark" && (
         <EntryPickerModal
-          title="Select Registration Remark"
+          title="Select Loan Remark"
           fetchUrl={`${FIN_BASE}/api/backoffice/loaningremarks`}
           getLabel={(i) => i.Description}
           onSelect={(i) => setForm((p) => ({ ...p, RegistrationRemarkId: i.Id, RegistrationRemarkLabel: i.Description }))}
@@ -346,7 +375,7 @@ function CreateLoanCaseDrawer({ open, onClose, onSuccess }) {
       )}
       {creating === "registrationRemark" && (
         <QuickCreateModal
-          title="New Registration Remark"
+          title="New Loan Remark"
           onCreate={createLoaningRemark}
           onCreated={(created) => setForm((p) => ({ ...p, RegistrationRemarkId: created.Id, RegistrationRemarkLabel: created.Description }))}
           onClose={() => setCreating(null)}

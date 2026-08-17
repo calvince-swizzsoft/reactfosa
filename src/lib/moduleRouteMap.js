@@ -86,6 +86,11 @@ export const moduleRouteMap = {
   21003: "/Registry/Employer",            // Setup > Employers (ControllerName: Employer)
   21004: "/Registry/Zone",                // Setup > Zones (ControllerName: Zone)
   21007: "/Registry/Customers",           // Operations > Customers > Register (ControllerName: Customer) — replaces the old Members flow
+  21018: "/Registry/FileTracking",        // File Tracking > Dispatch > Multi-Destination
+  21019: "/Registry/FileTracking",        // File Tracking > Dispatch > Single-Destination
+  21020: "/Registry/FileTracking",        // File Tracking > Receive
+  21021: "/Registry/FileTracking",        // File Tracking > Recall
+  21022: "/Registry/FileTracking",        // File Tracking > Catalogue
 
   // ── Accounts (0x000059D8 = 23000) ────────────────────────────────
   // Setup (23001) > G/L Accounts (23003)
@@ -155,6 +160,9 @@ export const moduleRouteMap = {
   // legacy /Loaning/LoanApplication screen (different, older backend
   // surface, VITE_APP_LOANING_URL) — deliberately not touched/replaced, per
   // user decision 2026-08-13.
+  70003: "/Loaning/LoanPurposes",        // Loan Purpose (ControllerName: LoanPurpose)
+  70004: "/Loaning/LoaningRemarks",      // Loaning Remarks (ControllerName: LoaningRemark)
+  70005: "/Loaning/IncomeAdjustments",   // Income Adjustments (ControllerName: IncomeAdjustments)
   70007: "/Loaning/LoanCases/registration", // Registration (ControllerName: LoanRegistration)
   70008: "/Loaning/LoanCases/appraisal",    // Appraisal (ControllerName: AppraiseLoan)
   70009: "/Loaning/LoanCases/approval",     // Approval (ControllerName: ApproveLoan)
@@ -189,6 +197,7 @@ export const moduleRouteMap = {
   // ── Command Hub (0x00006590 = 26000) ─────────────────────────────
   // Operations (26002) > Messaging (26007)
   26008: "/Messaging/TextAlerts",         // Text Alerts (ControllerName: TextAlerts) — textalert-api-spec.md §5: this is a different, read-only reference controller than the create-capable Areas/Messaging one this route actually serves; no seeded nav entry exists for the latter yet
+  26009: "/Messaging/EmailAlerts",        // E-mail Alerts (ControllerName: EmailAlerts, AreaName: Dashboard) — consolidated history/detail/compose screen over api/messaging/emailalerts
   // Operations (26002) > Utilities (26011), direct leaves
   26015: "/CommandHub/ApprovalRequests",  // Approval Requests (ControllerName: Workflow, AreaName: Workflows)
 };

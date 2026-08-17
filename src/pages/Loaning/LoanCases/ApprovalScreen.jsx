@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -6,7 +7,7 @@ import Swal from "sweetalert2";
 import { motion, AnimatePresence } from "framer-motion";
 import { FaCheckCircle } from "react-icons/fa";
 import NotFoundImage from "/assets/scopefinding.png";
-import { listLoanCases, getLoanCase, approveLoanCase } from "./lib/loanCaseApi";
+import { listLoanCases, getApprovalWorksheet, approveLoanCase } from "./lib/loanCaseApi";
 import { LoanCaseStatus, LoanApprovalOption } from "./lib/loanCaseEnums";
 import LoanCaseStatusBadge from "./lib/LoanCaseStatusBadge";
 import LoanCaseSummary from "./lib/LoanCaseSummary";
@@ -20,23 +21,44 @@ function FieldGroup({ label, children }) {
   );
 }
 
+function ReviewMetric({ label, value }) {
+  return <div className="rounded-lg border bg-gray-50 p-3"><p className="text-xs uppercase tracking-wider text-gray-400">{label}</p><p className="mt-1 font-bold text-gray-800">{Number(value || 0).toLocaleString()}</p></div>;
+}
+
+function ReviewText({ label, value }) {
+  return <div className="col-span-2 rounded-lg border bg-gray-50 p-3"><p className="text-xs uppercase tracking-wider text-gray-400">{label}</p><p className="mt-1 text-sm text-gray-700">{value || "—"}</p></div>;
+}
+
 const emptyForm = {
   ApprovedAmount: "", ApprovedAmountRemarks: "", ApprovedPrincipalPayment: "",
   ApprovedInterestPayment: "", MonthlyPaybackAmount: "", TotalPaybackAmount: "", ApprovalRemarks: "",
 };
 
-function ApprovalDrawer({ loanCaseId, onClose, onChanged }) {
+function ApprovalDrawer({ loanCaseId, workflowItemId, onClose, onChanged }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState(emptyForm);
   const [submitting, setSubmitting] = useState(false);
+  const [usedBiometrics, setUsedBiometrics] = useState(false);
+  const [activeTab, setActiveTab] = useState("overview");
 
   useEffect(() => {
     if (!loanCaseId) return;
     setLoading(true);
+    setUsedBiometrics(false);
     setForm(emptyForm);
-    getLoanCase(loanCaseId)
-      .then((d) => setData(d))
+    getApprovalWorksheet(loanCaseId)
+      .then((d) => {
+        setData(d);
+        const schedule = d.repaymentSchedule || [];
+        setForm({
+          ...emptyForm,
+          ApprovedAmount: d.loanCase?.AppraisedAmount || d.loanCase?.AmountApplied || "",
+          MonthlyPaybackAmount: schedule[0]?.Payment || "",
+          TotalPaybackAmount: schedule.reduce((sum, item) => sum + Number(item.Payment || 0), 0),
+        });
+        setActiveTab("overview");
+      })
       .catch((err) => Swal.fire("Error", err.message, "error"))
       .finally(() => setLoading(false));
   }, [loanCaseId]);
@@ -52,9 +74,15 @@ function ApprovalDrawer({ loanCaseId, onClose, onChanged }) {
       Swal.fire("Missing Fields", "Approved amount must be greater than zero to approve.", "warning");
       return;
     }
+    if (option === LoanApprovalOption.Approve && Number(form.ApprovedAmount) !== Number(data?.loanCase?.AppraisedAmount || 0) && !form.ApprovedAmountRemarks.trim()) {
+      Swal.fire("Override reason required", "Explain why the approved amount differs from the appraised amount.", "warning");
+      return;
+    }
     setSubmitting(true);
     try {
       const refreshed = await approveLoanCase(loanCaseId, {
+        WorkflowItemId: workflowItemId || undefined,
+        UsedBiometrics: usedBiometrics,
         Option: option,
         ApprovedAmount: Number(form.ApprovedAmount) || 0,
         ApprovedAmountRemarks: form.ApprovedAmountRemarks,
@@ -87,7 +115,7 @@ function ApprovalDrawer({ loanCaseId, onClose, onChanged }) {
   return (
     <AnimatePresence>
       <motion.div className="fixed inset-0 bg-black z-40" initial={{ opacity: 0 }} animate={{ opacity: 0.4 }} exit={{ opacity: 0 }} onClick={onClose} />
-      <motion.div className="fixed top-0 right-0 h-full w-[560px] bg-white shadow-2xl z-50 flex flex-col" initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", stiffness: 300, damping: 30 }}>
+      <motion.div className="fixed top-0 right-0 h-full w-[94vw] max-w-[1280px] bg-white shadow-2xl z-50 flex flex-col" initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", stiffness: 300, damping: 30 }}>
         <div className="m-2 flex justify-between items-center bg-indigo-600 rounded-2xl px-4 py-3">
           <h2 className="font-bold text-white">Approve Loan Case</h2>
           <Button variant="outline" size="sm" onClick={onClose}>Close</Button>
@@ -98,7 +126,30 @@ function ApprovalDrawer({ loanCaseId, onClose, onChanged }) {
             <div className="space-y-2 animate-pulse">{[1, 2, 3].map((i) => <div key={i} className="h-10 bg-gray-100 rounded-lg" />)}</div>
           ) : data ? (
             <>
-              <LoanCaseSummary loanCase={data.loanCase} guarantors={data.guarantors} collaterals={data.collaterals} />
+              <div className="flex gap-1 overflow-x-auto border-b border-gray-200 pb-2">
+                {[["overview", "Application"], ["assessment", "Appraisal Review"], ["attached", "Attached Loans"], ["schedule", "Repayment Schedule"], ["decision", "Decision"]].map(([key, label]) => <button key={key} type="button" onClick={() => setActiveTab(key)} className={`whitespace-nowrap rounded-md px-3 py-2 text-sm font-semibold ${activeTab === key ? "bg-indigo-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>{label}</button>)}
+              </div>
+
+              {activeTab === "overview" && <LoanCaseSummary loanCase={data.loanCase} guarantors={data.guarantors} collaterals={data.collaterals} />}
+
+              {activeTab === "assessment" && <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <ReviewMetric label="Amount applied" value={data.loanCase?.AmountApplied} />
+                <ReviewMetric label="System recommendation" value={data.loanCase?.SystemAppraisedAmount} />
+                <ReviewMetric label="Amount appraised" value={data.loanCase?.AppraisedAmount} />
+                <ReviewMetric label="Loan + interest" value={data.loanCase?.TotalPaybackAmount} />
+                <ReviewText label="System remarks" value={data.loanCase?.SystemAppraisalRemarks} />
+                <ReviewText label="Appraised amount remarks" value={data.loanCase?.AppraisedAmountRemarks} />
+                <ReviewText label="Appraiser remarks" value={data.loanCase?.AppraisalRemarks} />
+              </div>}
+
+              {activeTab === "attached" && <div className="space-y-2">
+                {(data.attachedLoans || []).map((loan) => <div key={loan.Id} className="grid grid-cols-12 gap-3 rounded-lg border bg-gray-50 p-3 text-sm"><span className="col-span-4 font-semibold text-indigo-700">{loan.FullAccountNumber}</span><span className="col-span-4 text-gray-600">{loan.CustomerAccountTypeTargetProductDescription}</span><span className="col-span-2 text-right">Principal {Number(loan.PrincipalBalance || 0).toLocaleString()}</span><span className="col-span-2 text-right">Interest {Number(loan.InterestBalance || 0).toLocaleString()}</span></div>)}
+                {!(data.attachedLoans || []).length && <p className="text-sm text-gray-400">No loans are attached for clearance.</p>}
+              </div>}
+
+              {activeTab === "schedule" && <div className="overflow-x-auto rounded-lg border"><div className="grid min-w-[900px] grid-cols-7 gap-2 bg-gray-700 p-3 text-xs font-semibold text-gray-100"><span>Period</span><span>Due Date</span><span>Starting</span><span>Payment</span><span>Interest</span><span>Principal</span><span>Ending</span></div>{(data.repaymentSchedule || []).map((row) => <div key={row.Period} className="grid min-w-[900px] grid-cols-7 gap-2 border-t p-3 text-xs text-gray-700"><span>{row.Period}</span><span>{new Date(row.DueDate).toLocaleDateString()}</span><span>{Number(row.StartingBalance).toLocaleString()}</span><span>{Number(row.Payment).toLocaleString()}</span><span>{Number(row.InterestPayment).toLocaleString()}</span><span>{Number(row.PrincipalPayment).toLocaleString()}</span><span>{Number(row.EndingBalance).toLocaleString()}</span></div>)}</div>}
+
+              {activeTab === "decision" && <>
 
               <div className="grid grid-cols-2 gap-3 border-t pt-4">
                 <FieldGroup label="Approved Amount (required to approve)">
@@ -111,10 +162,10 @@ function ApprovalDrawer({ loanCaseId, onClose, onChanged }) {
                   <Input type="number" min="0" value={form.ApprovedInterestPayment} onChange={(e) => setForm((p) => ({ ...p, ApprovedInterestPayment: e.target.value }))} />
                 </FieldGroup>
                 <FieldGroup label="Monthly Payback Amount">
-                  <Input type="number" min="0" value={form.MonthlyPaybackAmount} onChange={(e) => setForm((p) => ({ ...p, MonthlyPaybackAmount: e.target.value }))} />
+                  <Input type="number" min="0" value={form.MonthlyPaybackAmount} disabled />
                 </FieldGroup>
                 <FieldGroup label="Total Payback Amount">
-                  <Input type="number" min="0" value={form.TotalPaybackAmount} onChange={(e) => setForm((p) => ({ ...p, TotalPaybackAmount: e.target.value }))} />
+                  <Input type="number" min="0" value={form.TotalPaybackAmount} disabled />
                 </FieldGroup>
               </div>
 
@@ -124,6 +175,13 @@ function ApprovalDrawer({ loanCaseId, onClose, onChanged }) {
               <FieldGroup label="Approval Remarks">
                 <Input value={form.ApprovalRemarks} onChange={(e) => setForm((p) => ({ ...p, ApprovalRemarks: e.target.value }))} required />
               </FieldGroup>
+              </>}
+              {workflowItemId && (
+                <label className="flex items-center gap-2 text-sm text-gray-700">
+                  <input type="checkbox" className="w-4 h-4 accent-indigo-600" checked={usedBiometrics} onChange={(e) => setUsedBiometrics(e.target.checked)} />
+                  Verified with biometrics
+                </label>
+              )}
             </>
           ) : (
             <p className="text-sm text-gray-400 text-center py-8">Not found.</p>
@@ -147,9 +205,12 @@ function ApprovalDrawer({ loanCaseId, onClose, onChanged }) {
 }
 
 export default function ApprovalScreen() {
+  const [searchParams] = useSearchParams();
+  const routedLoanCaseId = searchParams.get("loanCaseId");
+  const routedWorkflowItemId = searchParams.get("workflowItemId");
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedId, setSelectedId] = useState(null);
+  const [selectedId, setSelectedId] = useState(routedLoanCaseId);
 
   const fetchList = () => {
     setLoading(true);
@@ -209,7 +270,12 @@ export default function ApprovalScreen() {
         )}
       </div>
 
-      <ApprovalDrawer loanCaseId={selectedId} onClose={() => setSelectedId(null)} onChanged={fetchList} />
+      <ApprovalDrawer
+        loanCaseId={selectedId}
+        workflowItemId={selectedId === routedLoanCaseId ? routedWorkflowItemId : null}
+        onClose={() => setSelectedId(null)}
+        onChanged={fetchList}
+      />
     </div>
   );
 }

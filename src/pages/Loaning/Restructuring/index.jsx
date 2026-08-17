@@ -125,7 +125,7 @@ export default function Restructuring() {
       {picker === "customerAccount" && (
         <EntryPickerModal
           title="Select Loan Account"
-          fetchUrl={`${FIN_BASE}/api/accounts/customer-accounts?pageSize=1000`}
+          fetchUrl={`${FIN_BASE}/api/backoffice/loanrestructuring/accounts?pageSize=1000`}
           getLabel={(i) => i.CustomerFullName || [i.CustomerIndividualFirstName, i.CustomerIndividualLastName].filter(Boolean).join(" ") || i.FullAccountNumber}
           getSublabel={(i) => [i.FullAccountNumber, i.CustomerAccountTypeTargetProductDescription].filter(Boolean).join(" — ")}
           onSelect={(i) => setForm((p) => ({ ...p, CustomerAccountId: i.Id, CustomerAccountLabel: `${i.CustomerFullName || i.FullAccountNumber} — ${i.CustomerAccountTypeTargetProductDescription || ""}` }))}

@@ -7,7 +7,9 @@
     "dev": "node node_modules/vite/bin/vite.js",
     "build": "node node_modules/vite/bin/vite.js build",
     "lint": "eslint .",
-    "preview": "node node_modules/vite/bin/vite.js preview"
+    "preview": "node node_modules/vite/bin/vite.js preview",
+    "test:loan-e2e": "node --dns-result-order=ipv4first scripts/e2e/loan-pipeline.mjs",
+    "test:loan-e2e:preflight": "node --dns-result-order=ipv4first scripts/e2e/loan-pipeline.mjs preflight"
   },
   "dependencies": {
     "@ark-ui/react": "^5.36.1",
