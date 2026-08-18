@@ -82,6 +82,7 @@ import StandingOrders from "./pages/Accounts/StandingOrders/index.jsx";
 import StandingOrderExecution from "./pages/Accounts/StandingOrders/Execution.jsx";
 import CustomerAccountStatement from "./pages/Accounts/CustomerAccountStatement/index.jsx";
 import GeneralLedgerStatement from "./pages/Accounts/GeneralLedgerStatement/index.jsx";
+import AccountStatuses from "./pages/Accounts/AccountStatuses/index.jsx";
 import Members from "./pages/Membership/Members/index.jsx";
 import CustomersAccount from "./pages/Membership/CustomerAccounts/index.jsx";
 import Employers from "./pages/Membership/Employers/index.jsx";
@@ -90,6 +91,7 @@ import Companies from "./pages/Administration/Company/index.jsx";
 import Branches from "./pages/Administration/Branches/index.jsx";
 import TextAlerts from "./pages/Messaging/TextAlerts/index.jsx";
 import EmailAlerts from "./pages/Messaging/EmailAlerts/index.jsx";
+import InstantMessaging from "./pages/Messaging/InstantMessaging/index.jsx";
 import Division from "./pages/Membership/Division/index.jsx";
 import Zones from "./pages/Membership/Zones/index.jsx";
 import Stations from "./pages/Membership/Stations/index.jsx";
@@ -104,6 +106,7 @@ import LoanCaseApproval from "./pages/Loaning/LoanCases/ApprovalScreen.jsx";
 import LoanCaseAudit from "./pages/Loaning/LoanCases/AuditScreen.jsx";
 import LoanCaseCancellation from "./pages/Loaning/LoanCases/CancellationScreen.jsx";
 import LoanRestructuring from "./pages/Loaning/Restructuring/index.jsx";
+import CheckOffDataCapture from "./pages/Loaning/CheckOffDataCapture/index.jsx";
 import Guarantors from "./pages/Loaning/Guarantors/index.jsx";
 import CreateLoanGuarantor from "./pages/Loaning/Guarantors/create.jsx";
 import GuarantorAttachment from "./pages/Loaning/GuarantorAttachment/index.jsx";
@@ -125,6 +128,7 @@ import MemberExit from "./pages/Membership/MemberExit/index.jsx";
 import GenerateSasraForm from "./pages/Reports/GenerateSasraForm/index.jsx";
 import MemberStatement from "./pages/Reports/MemberStatement/index.jsx";
 import Reports from "./pages/Reports/index.jsx";
+import UserDefinedReports from "./pages/Reports/UserDefinedReports/index.jsx";
 import LoanRegister from "./pages/Loaning/LoanRegister/index.jsx";
 import Roles from "./pages/UserManagement/Roles/Roles.jsx";
 import Users from "./pages/UserManagement/Users/index.jsx";
@@ -154,6 +158,27 @@ import HRDepartments from "./pages/HumanResource/Departments/index.jsx";
 import CreateDepartment from "./pages/HumanResource/Departments/create.jsx";
 import Designations from "./pages/HumanResource/Designations/index.jsx";
 import CreateDesignation from "./pages/HumanResource/Designations/create.jsx";
+import Holidays from "./pages/HumanResource/Holidays/index.jsx";
+import CreateHoliday from "./pages/HumanResource/Holidays/create.jsx";
+import EmployeeDocuments from "./pages/HumanResource/Documents/index.jsx";
+import CreateEmployeeDocument from "./pages/HumanResource/Documents/create.jsx";
+import LeaveApplicationList from "./pages/HumanResource/Leave/Application/index.jsx";
+import CreateLeaveApplication from "./pages/HumanResource/Leave/Application/create.jsx";
+import LeaveApprovalList from "./pages/HumanResource/Leave/Approval/index.jsx";
+import LeaveRecallList from "./pages/HumanResource/Leave/Recall/index.jsx";
+import LeaveTypes from "./pages/HumanResource/LeaveTypes/index.jsx";
+import CreateLeaveType from "./pages/HumanResource/LeaveTypes/create.jsx";
+import SalaryHeads from "./pages/HumanResource/SalaryHeads/index.jsx";
+import CreateSalaryHead from "./pages/HumanResource/SalaryHeads/create.jsx";
+import SalaryGroups from "./pages/HumanResource/SalaryGroups/index.jsx";
+import CreateSalaryGroup from "./pages/HumanResource/SalaryGroups/create.jsx";
+import SalaryGroupDetail from "./pages/HumanResource/SalaryGroups/Detail.jsx";
+import SalaryCards from "./pages/HumanResource/SalaryCards/index.jsx";
+import CreateSalaryCard from "./pages/HumanResource/SalaryCards/create.jsx";
+import SalaryCardDetail from "./pages/HumanResource/SalaryCards/Detail.jsx";
+import SalaryPeriods from "./pages/HumanResource/SalaryPeriods/index.jsx";
+import CreateSalaryPeriod from "./pages/HumanResource/SalaryPeriods/create.jsx";
+import SalaryPeriodDetail from "./pages/HumanResource/SalaryPeriods/Detail.jsx";
 import EmployeeTypes from "./pages/HumanResource/EmployeeTypes/index.jsx";
 import CreateEmployeeType from "./pages/HumanResource/EmployeeTypes/create.jsx";
 
@@ -325,10 +350,16 @@ export default function App() {
           <Route path="Accounts/StandingOrders/Execution" element={<StandingOrderExecution />} />
           <Route path="Accounts/CustomerAccountStatement" element={<CustomerAccountStatement />} />
           <Route path="Accounts/GeneralLedgerStatement" element={<GeneralLedgerStatement />} />
+          <Route path="Accounts/AccountStatuses" element={<AccountStatuses />} />
           <Route path="Administration/Company" element={<Companies />} />
           <Route path="Administration/Branches" element={<Branches />} />
           <Route path="Messaging/TextAlerts" element={<TextAlerts />} />
           <Route path="Messaging/EmailAlerts" element={<EmailAlerts />} />
+          <Route path="Messaging/InstantMessaging" element={<InstantMessaging />} />
+          <Route path="Loaning/CheckOff/DataPeriods" element={<CheckOffDataCapture mode="periods" />} />
+          <Route path="Loaning/CheckOff/DataProcessing" element={<CheckOffDataCapture mode="processing" />} />
+          <Route path="Loaning/CheckOff/Closing" element={<CheckOffDataCapture mode="closing" />} />
+          <Route path="Loaning/CheckOff/Catalogue" element={<CheckOffDataCapture mode="catalogue" />} />
           <Route path="Membership/Division" element={<Division />} />
           <Route path="Membership/Zones" element={<Zones />} />
           <Route path="Membership/Stations" element={<Stations />} />
@@ -370,6 +401,7 @@ export default function App() {
           <Route path="Reports/FinancialReports" element={<FinanceReports />} />
           <Route path="Reports/GenerateSasraForm" element={<GenerateSasraForm />} />
           <Route path="Reports/MemberStatement" element={<MemberStatement />} />
+          <Route path="Reports/UserDefinedReports" element={<UserDefinedReports />} />
 
 
           {/**User Management */}
@@ -388,6 +420,27 @@ export default function App() {
           <Route path="HumanResource/Departments/create" element={<CreateDepartment />} />
           <Route path="HumanResource/Designations" element={<Designations />} />
           <Route path="HumanResource/Designations/create" element={<CreateDesignation />} />
+          <Route path="HumanResource/Holidays" element={<Holidays />} />
+          <Route path="HumanResource/Holidays/create" element={<CreateHoliday />} />
+          <Route path="HumanResource/Documents" element={<EmployeeDocuments />} />
+          <Route path="HumanResource/Documents/create" element={<CreateEmployeeDocument />} />
+          <Route path="HumanResource/Leave/Application" element={<LeaveApplicationList />} />
+          <Route path="HumanResource/Leave/Application/create" element={<CreateLeaveApplication />} />
+          <Route path="HumanResource/Leave/Approval" element={<LeaveApprovalList />} />
+          <Route path="HumanResource/Leave/Recall" element={<LeaveRecallList />} />
+          <Route path="HumanResource/LeaveTypes" element={<LeaveTypes />} />
+          <Route path="HumanResource/LeaveTypes/create" element={<CreateLeaveType />} />
+          <Route path="HumanResource/SalaryHeads" element={<SalaryHeads />} />
+          <Route path="HumanResource/SalaryHeads/create" element={<CreateSalaryHead />} />
+          <Route path="HumanResource/SalaryGroups" element={<SalaryGroups />} />
+          <Route path="HumanResource/SalaryGroups/create" element={<CreateSalaryGroup />} />
+          <Route path="HumanResource/SalaryGroups/:id" element={<SalaryGroupDetail />} />
+          <Route path="HumanResource/SalaryCards" element={<SalaryCards />} />
+          <Route path="HumanResource/SalaryCards/create" element={<CreateSalaryCard />} />
+          <Route path="HumanResource/SalaryCards/:id" element={<SalaryCardDetail />} />
+          <Route path="HumanResource/SalaryPeriods" element={<SalaryPeriods />} />
+          <Route path="HumanResource/SalaryPeriods/create" element={<CreateSalaryPeriod />} />
+          <Route path="HumanResource/SalaryPeriods/:id" element={<SalaryPeriodDetail />} />
           <Route path="HumanResource/EmployeeTypes" element={<EmployeeTypes />} />
           <Route path="HumanResource/EmployeeTypes/create" element={<CreateEmployeeType />} />
 

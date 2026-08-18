@@ -83,6 +83,25 @@ export function findFirstLeaf(tree, routeMap) {
   return null;
 }
 
+// First descendant leaf (including `node` itself) that resolves to a real,
+// curated route in `routeMap` — i.e. an actual built page, not the generic
+// `/modules/:code` placeholder. Depth-first in the same Code-ascending order
+// buildModuleTree sorts into. Used so clicking a root/area node (e.g. the
+// MiniSidebar module icons) lands on real content instead of the
+// placeholder for the area's own Code, which is almost never mapped since
+// areas aren't pages. Returns null if nothing under `node` has a built page
+// yet.
+export function findFirstBuiltPath(node, routeMap) {
+  if (node.Children.length === 0) {
+    return routeMap[node.Code] ?? null;
+  }
+  for (const child of node.Children) {
+    const found = findFirstBuiltPath(child, routeMap);
+    if (found) return found;
+  }
+  return null;
+}
+
 // True when `pathname` is a route governed by the module/role permission
 // system — either the generic `/modules/:code` placeholder or one of the
 // hand-curated moduleRouteMap destinations (or a sub-path of one, e.g.

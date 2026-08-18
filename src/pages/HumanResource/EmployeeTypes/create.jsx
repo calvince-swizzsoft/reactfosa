@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/select";
 import { FaUserTag } from "react-icons/fa";
 import Swal from "sweetalert2";
+import { apiFetch } from "@/lib/api";
 
 const BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 
@@ -28,7 +29,7 @@ export default function CreateEmployeeType() {
 
   useEffect(() => {
     setLoadingData(true);
-    fetch(`${BASE}/api/values/GetChartOfAccount`)
+    apiFetch(`${BASE}/api/values/GetChartOfAccount`)
       .then((r) => r.json())
       .then((d) => setCoaList(Array.isArray(d.Data) ? d.Data : []))
       .catch(() => setCoaList([]))
@@ -42,9 +43,8 @@ export default function CreateEmployeeType() {
     setLoading(true);
     try {
       const payload = { ...form, Category: parseInt(form.Category) || 1 };
-      const res = await fetch(`${BASE}/api/humanresource/employeetypes`, {
+      const res = await apiFetch(`${BASE}/api/humanresource/employeetypes`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
       const data = await res.json().catch(() => ({}));
@@ -60,7 +60,7 @@ export default function CreateEmployeeType() {
 
   return (
     <div className="bg-white m-8 px-8 py-8 shadow-2xl rounded-lg relative">
-      <div className="flex items-center justify-between gap-3 mb-6 bg-indigo-700 px-6 py-3 rounded-2xl">
+      <div className="flex items-center justify-between gap-3 mb-6 bg-indigo-800 px-6 py-3 rounded-2xl">
         <div className="flex items-center gap-3">
           <FaUserTag className="text-white text-xl" />
           <h2 className="text-xl font-bold text-white">Create Employee Type</h2>

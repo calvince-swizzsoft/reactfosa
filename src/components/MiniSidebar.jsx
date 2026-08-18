@@ -1,7 +1,7 @@
 
 import { Link, useLocation } from "react-router-dom";
 import { getIconForModule } from "@/lib/faIconMap";
-import { resolveModulePath } from "@/lib/moduleTree";
+import { resolveModulePath, findFirstBuiltPath, nodeContainsPath } from "@/lib/moduleTree";
 import { moduleRouteMap } from "@/lib/moduleRouteMap";
 
 export default function MiniSidebar({ workspaces, onSelect }) {
@@ -10,8 +10,11 @@ export default function MiniSidebar({ workspaces, onSelect }) {
   return (
     <div className="w-16 bg-indigo-800 text-white flex flex-col items-center py-2 space-y-2 overflow-y-auto">
       {workspaces.map((ws) => {
-        const path = resolveModulePath(ws, moduleRouteMap);
-        const isActive = location.pathname === path || location.pathname.startsWith(`${path}/`);
+        // The area's own Code is almost never a real page — route to the
+        // first built page under it instead, falling back to the generic
+        // placeholder only if nothing under this module has been built yet.
+        const path = findFirstBuiltPath(ws, moduleRouteMap) ?? resolveModulePath(ws, moduleRouteMap);
+        const isActive = nodeContainsPath(ws, location.pathname, moduleRouteMap);
         const Icon = getIconForModule(ws.Icon);
 
         return (

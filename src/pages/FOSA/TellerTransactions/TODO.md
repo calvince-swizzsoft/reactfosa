@@ -125,19 +125,10 @@ Not done / known gaps:
 - **The Payment Voucher section has no cheque-book → voucher picker** —
   `PaymentVoucher.Id` stays unset on submit (form-layout doc note 5); no
   lookup endpoint exists yet for that cheque-book/voucher relationship.
-- **Backend bug found while building `EndOfDay.jsx` — a genuinely Balanced
-  day can't succeed.** `EndOfDayController.Create` only sets its internal
-  `postExcessOrShortage` flag inside the `Shortage`/`Excess` switch cases;
-  the `Balanced` case just `break`s, leaving it `false`. The method then
-  checks that same flag and returns `{ success: false, message:
-  "postExcessOrShortage boolean was false." }` whenever it's `false` — so a
-  teller who counts exactly their book balance currently always gets a
-  failure response back, even though the base journal for the day already
-  posted server-side before that check. `EndOfDay.jsx` surfaces this
-  message as-is rather than special-casing it client-side (per the
-  no-client-side-business-logic decision for this page) — needs a real
-  backend fix (set `postExcessOrShortage = true` in the `Balanced` case
-  too), not a frontend workaround.
+- ~~A genuinely balanced End of Day returned failure after posting its base
+  journal~~ — **resolved**. `EndOfDayController.Create` now returns the
+  teller-to-treasury journal as success for `Balanced`; only shortage and
+  excess require a second variance journal.
 - **`EndOfDayController`'s teller-lookup dependency**: `EndOfDay.jsx`
   resolves "my teller" via `GET tellers/teller?employeeId=<id>`, decoding
   the JWT's own `EmployeeId` claim client-side (`getEmployeeIdFromToken` in

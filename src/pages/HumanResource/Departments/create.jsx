@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FaBuilding } from "react-icons/fa";
 import Swal from "sweetalert2";
+import { apiFetch } from "@/lib/api";
 
 const BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 
@@ -18,9 +19,8 @@ export default function CreateDepartment() {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await fetch(`${BASE}/api/humanresource/departments`, {
+      const res = await apiFetch(`${BASE}/api/humanresource/departments`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
       const data = await res.json().catch(() => ({}));
@@ -36,7 +36,7 @@ export default function CreateDepartment() {
 
   return (
     <div className="bg-white m-8 px-8 py-8 shadow-2xl rounded-lg relative">
-      <div className="flex items-center justify-between gap-3 mb-6 bg-indigo-700 px-6 py-3 rounded-2xl">
+      <div className="flex items-center justify-between gap-3 mb-6 bg-indigo-800 px-6 py-3 rounded-2xl">
         <div className="flex items-center gap-3">
           <FaBuilding className="text-white text-xl" />
           <h2 className="text-xl font-bold text-white">Create Department</h2>

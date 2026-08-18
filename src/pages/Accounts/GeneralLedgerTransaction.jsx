@@ -166,10 +166,10 @@ export function StatementRow({ line, showGlAccount = false }) {
   return (
     <div className="grid grid-cols-12 gap-2 items-center py-3 px-4 text-sm border-b last:border-b-0">
       <span className="col-span-2 text-gray-600">{formatStatementDate(line.JournalValueDate || line.JournalCreatedDate)}</span>
-      <div className={showGlAccount ? "col-span-3" : "col-span-4"}>
-        <p className="text-gray-700">{line.JournalPrimaryDescription || "—"}</p>
+      <div className={`${showGlAccount ? "col-span-3" : "col-span-4"} min-w-0`}>
+        <p className="text-gray-700 truncate" title={line.JournalPrimaryDescription || ""}>{line.JournalPrimaryDescription || "—"}</p>
         {line.JournalSecondaryDescription && (
-          <p className="text-xs text-gray-400">{line.JournalSecondaryDescription}</p>
+          <p className="text-xs text-gray-400 truncate" title={line.JournalSecondaryDescription}>{line.JournalSecondaryDescription}</p>
         )}
       </div>
       {showGlAccount && (
@@ -178,10 +178,10 @@ export function StatementRow({ line, showGlAccount = false }) {
           {line.CustomerFullName && <p className="text-xs text-gray-400">{line.CustomerFullName}</p>}
         </div>
       )}
-      <span className="col-span-1 text-gray-500">{line.JournalReference || "—"}</span>
-      <span className="col-span-1 text-right text-red-600">{line.Debit ? formatMoney(line.Debit) : ""}</span>
-      <span className="col-span-1 text-right text-green-600">{line.Credit ? formatMoney(line.Credit) : ""}</span>
-      <span className="col-span-1 text-right font-medium text-gray-800">{formatMoney(line.RunningBalance)}</span>
+      <span className="col-span-1 min-w-0 truncate text-gray-500" title={line.JournalReference || ""}>{line.JournalReference || "—"}</span>
+      <span className="col-span-1 whitespace-nowrap text-right text-red-600">{line.Debit ? formatMoney(line.Debit) : ""}</span>
+      <span className="col-span-1 whitespace-nowrap text-right text-green-600">{line.Credit ? formatMoney(line.Credit) : ""}</span>
+      <span className="col-span-1 whitespace-nowrap text-right font-medium text-gray-800">{formatMoney(line.RunningBalance)}</span>
       <span className="col-span-1 text-right">
         {line.JournalIsLocked && (
           <span className="px-2 py-0.5 rounded text-xs font-semibold bg-red-100 text-red-600">Reversed</span>

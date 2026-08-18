@@ -12,6 +12,8 @@ dist
 dist-ssr
 *.local
 .env
+scripts/e2e/*.state.json
+scripts/e2e/*-LATEST.md
 
 # Editor directories and files
 .vscode/*

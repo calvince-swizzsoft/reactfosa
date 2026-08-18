@@ -48,3 +48,30 @@ fallback. A 409 from that fallback is accepted only after a GET proves that the
 dispatcher already moved the entry to `Posted`.
 
 See [RESULTS.md](./RESULTS.md) for the latest executed run and defects found.
+
+# Front Office E2E
+
+`front-office.mjs` exercises a complete teller day against the same REST APIs
+used by the React screens. It is intentionally split into restartable stages:
+
+1. `preflight`, `fixtures`, and `bind-teller`
+2. `start-day`
+3. `cash-deposit`, `cash-withdrawal`, `cheque-deposit`, and `payment-voucher`
+4. `cheque-transfer` and `cash-transfer`
+5. `end-of-day` and `assertions`
+
+```powershell
+npm run test:frontoffice-e2e:preflight
+npm run test:frontoffice-e2e -- cash-deposit
+npm run test:frontoffice-e2e -- all
+```
+
+The defaults are documented in `front-office.env.example`. This suite creates
+a teller, permission mappings, authorization workflows, requests, fiscal
+counts, cheques, and financial journals. Run it only against a disposable test
+database. Named stages are useful for incremental diagnosis. A full teller day
+is not repeatable for the same employee and server date after End of Day has
+committed; use a fresh employee/teller fixture for another complete run.
+
+See [FRONT-OFFICE-RESULTS.md](./FRONT-OFFICE-RESULTS.md) for the latest staged
+campaign and the defects corrected during it.

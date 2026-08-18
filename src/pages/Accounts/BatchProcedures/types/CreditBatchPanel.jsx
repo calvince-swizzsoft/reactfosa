@@ -1,15 +1,16 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Swal from "sweetalert2";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaPlus, FaChevronDown, FaTimes, FaTrash } from "react-icons/fa";
+import { FaPlus, FaChevronDown, FaTimes, FaTrash, FaUpload, FaExchangeAlt, FaBan } from "react-icons/fa";
 import { useAuth } from "@/context/AuthContext";
 import NotFoundImage from "/assets/scopefinding.png";
 import {
   listCreditBatches, createCreditBatch, listCreditBatchEntries, addCreditBatchEntry,
-  removeCreditBatchEntries, auditCreditBatch, authorizeCreditBatch,
+  removeCreditBatchEntries, auditCreditBatch, authorizeCreditBatch, importCreditBatch,
+  listCreditBatchDiscrepancies, matchCreditBatchDiscrepancy, rejectCreditBatchDiscrepancy,
 } from "./creditBatchApi";
 import { BatchStatus, CreditBatchType } from "../lib/batchEnums";
 import BatchStatusBadge from "../lib/BatchStatusBadge";
@@ -30,6 +31,22 @@ const CREDIT_TYPE_OPTIONS = [
   { value: CreditBatchType.CashPickup, label: "Cash Pickup" },
   { value: CreditBatchType.SundryPayments, label: "Sundry Payments" },
 ];
+
+// Raw Column1..8 layout on a discrepancy row differs by CreditBatchType —
+// transcribed from CreditBatchAppService.ParseCreditBatchImport, the only
+// place these column meanings are defined server-side (they're bare
+// "Column1".."Column8" strings on the wire, no field names).
+const DISCREPANCY_FIELDS = {
+  [CreditBatchType.CheckOff]: [
+    ["Column1", "Department"], ["Column2", "Payroll No."], ["Column3", "Contribution"],
+    ["Column4", "Product Balance"], ["Column5", "Beneficiary"], ["Column6", "Product Code"],
+    ["Column7", "Entry Type"], ["Column8", "Reference"],
+  ],
+  [CreditBatchType.Payout]: [
+    ["Column1", "Payroll No."], ["Column2", "Customer Name"], ["Column3", "Amount"],
+    ["Column4", "Savings Product Code"], ["Column5", "Reference"],
+  ],
+};
 
 const PRIORITY_OPTIONS = [
   { value: 0, label: "Lowest" }, { value: 1, label: "Very Low" }, { value: 2, label: "Low" },
@@ -182,6 +199,13 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
   const [addingEntry, setAddingEntry] = useState(false);
   const [picker, setPicker] = useState(false);
   const [auditOpen, setAuditOpen] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState(null);
+  const fileInputRef = useRef(null);
+  const [discrepancies, setDiscrepancies] = useState([]);
+  const [loadingDiscrepancies, setLoadingDiscrepancies] = useState(true);
+  const [matchTarget, setMatchTarget] = useState(null);
+  const [matching, setMatching] = useState(false);
 
   const fetchEntries = () => {
     if (!batch) return;
@@ -192,13 +216,53 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { fetchEntries(); setEntryForm(emptyEntryForm); }, [batch?.Id]);
+  // Discrepancies exist only for Payout/CheckOff batches — the two types an
+  // import can leave unmatched rows for (see CreditBatchAppService.
+  // ParseCreditBatchImport). No server-side status filter exists, so every
+  // row (Pending/Posted/Rejected) comes back and Pending is filtered here.
+  const showDiscrepancies = batch && (batch.Type === CreditBatchType.Payout || batch.Type === CreditBatchType.CheckOff);
+
+  const fetchDiscrepancies = () => {
+    if (!batch || !showDiscrepancies) { setLoadingDiscrepancies(false); return; }
+    setLoadingDiscrepancies(true);
+    listCreditBatchDiscrepancies(batch.Id, { pageSize: 200 })
+      .then((page) => setDiscrepancies(page?.pageCollection || page?.PageCollection || []))
+      .catch(() => setDiscrepancies([]))
+      .finally(() => setLoadingDiscrepancies(false));
+  };
+
+  useEffect(() => { fetchEntries(); fetchDiscrepancies(); setEntryForm(emptyEntryForm); setImportResult(null); }, [batch?.Id]);
 
   if (!batch) return null;
 
   const isMine = batch.CreatedBy === currentUser;
   const canManageEntries = stage === "origination" && batch.Status === BatchStatus.Pending && isMine;
   const entriesTotal = entries.reduce((sum, e) => sum + (e.Principal || 0) + (e.Interest || 0), 0);
+  const pendingDiscrepancies = discrepancies.filter((d) => d.Status === BatchStatus.Pending);
+  const discrepancyFields = DISCREPANCY_FIELDS[batch.Type] || [];
+
+  const handleMatch = async (customerAccountId) => {
+    if (!matchTarget) return;
+    setMatching(true);
+    try {
+      await matchCreditBatchDiscrepancy(batch.Id, matchTarget.Id, customerAccountId);
+      Swal.fire("Matched", "The row was allocated to that account.", "success");
+      setMatchTarget(null);
+      fetchDiscrepancies();
+      fetchEntries();
+    } catch (err) {
+      Swal.fire("Could not match this row", err.message, "error");
+    } finally {
+      setMatching(false);
+    }
+  };
+
+  const handleRejectDiscrepancy = (row) => {
+    runBatchAction(
+      () => rejectCreditBatchDiscrepancy(batch.Id, row.Id),
+      { confirmTitle: "Reject this row?", successMessage: "Row rejected.", onSuccess: fetchDiscrepancies }
+    );
+  };
 
   const handleAddEntry = async (e) => {
     e.preventDefault();
@@ -233,6 +297,32 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
       () => removeCreditBatchEntries([entry]),
       { confirmTitle: "Remove this entry?", successMessage: "Entry removed.", onSuccess: fetchEntries }
     );
+  };
+
+  const handleImport = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith(".csv")) {
+      Swal.fire("Unsupported file", "Export the completed Excel sheet as CSV before uploading it.", "warning");
+      return;
+    }
+
+    setImporting(true);
+    try {
+      const result = await importCreditBatch(batch.Id, file);
+      setImportResult(result);
+      fetchEntries();
+      Swal.fire(
+        "Import complete",
+        `${result.MatchedCount ?? 0} matched entries and ${result.MismatchCount ?? 0} discrepancies were recorded.`,
+        result.MismatchCount ? "warning" : "success"
+      );
+    } catch (err) {
+      Swal.fire("Import failed", err.message, "error");
+    } finally {
+      setImporting(false);
+    }
   };
 
   const handleAudit = async (option, remarks) => {
@@ -276,6 +366,72 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
           {batch.AuthorizationRemarks && (
             <div className="text-xs bg-gray-50 border rounded-lg p-3">
               <span className="font-semibold text-gray-600">Authorization remarks:</span> {batch.AuthorizationRemarks}
+            </div>
+          )}
+
+          {canManageEntries && (
+            <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-indigo-900">Import from Excel</p>
+                  <p className="mt-1 text-xs text-indigo-700">Export the workbook as CSV. Importing replaces this batch's matched entries and records unmatched rows for reconciliation.</p>
+                </div>
+                <Button type="button" disabled={importing} onClick={() => fileInputRef.current?.click()} className="shrink-0 gap-2 bg-indigo-600 hover:bg-indigo-700">
+                  <FaUpload /> {importing ? "Importing…" : "Choose CSV"}
+                </Button>
+                <input ref={fileInputRef} type="file" accept=".csv,text/csv" className="hidden" onChange={handleImport} />
+              </div>
+              {importResult && (
+                <div className="mt-3 rounded-lg bg-white p-3 text-xs text-gray-700 shadow">
+                  <p><span className="font-semibold text-green-700">Matched:</span> {importResult.MatchedCount ?? 0} · <span className="font-semibold text-amber-700">Discrepancies:</span> {importResult.MismatchCount ?? 0}</p>
+                  {!!importResult.Mismatches?.length && (
+                    <div className="mt-2 max-h-40 space-y-1 overflow-y-auto">
+                      {importResult.Mismatches.map((row, index) => <p key={index} className="rounded bg-amber-50 px-2 py-1 text-amber-900">{row.Remarks || `Row ${index + 1} could not be matched.`}</p>)}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {showDiscrepancies && (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">
+                Discrepancies{pendingDiscrepancies.length > 0 ? ` (${pendingDiscrepancies.length} unresolved)` : ""}
+              </p>
+              {loadingDiscrepancies ? (
+                <div className="space-y-2 animate-pulse">{[1, 2].map((i) => <div key={i} className="h-14 bg-gray-100 rounded-lg" />)}</div>
+              ) : discrepancies.length > 0 ? (
+                <div className="space-y-2">
+                  {discrepancies.map((row) => (
+                    <div key={row.Id} className="bg-white rounded-lg shadow border px-3 py-2 text-sm">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1 grid grid-cols-2 gap-x-3 gap-y-0.5">
+                          {discrepancyFields.map(([field, label]) => (
+                            <div key={field} className="truncate">
+                              <span className="text-gray-400">{label}:</span> <span className="text-gray-700">{row[field] || "—"}</span>
+                            </div>
+                          ))}
+                        </div>
+                        <BatchStatusBadge status={row.Status} />
+                      </div>
+                      {row.Remarks && <p className="mt-1 text-xs text-amber-700">{row.Remarks}</p>}
+                      {canManageEntries && row.Status === BatchStatus.Pending && (
+                        <div className="mt-2 flex justify-end gap-2">
+                          <Button type="button" size="sm" variant="outline" onClick={() => handleRejectDiscrepancy(row)} className="gap-1">
+                            <FaBan className="text-red-500" /> Reject
+                          </Button>
+                          <Button type="button" size="sm" onClick={() => setMatchTarget(row)} className="gap-1 bg-indigo-600 hover:bg-indigo-700">
+                            <FaExchangeAlt /> Match to account
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-gray-400 text-center py-2">No discrepancies — every imported row matched automatically.</p>
+              )}
             </div>
           )}
 
@@ -359,6 +515,17 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
         onSubmit={stage === "verification" ? handleAudit : handleAuthorize}
         onClose={() => setAuditOpen(false)}
       />
+
+      {matchTarget && (
+        <EntryPickerModal
+          title={`Match "${matchTarget.Column5 || matchTarget.Column2 || "row"}" to an account`}
+          fetchUrl={`${FIN_BASE}/api/accounts/customer-accounts?pageSize=1000`}
+          getLabel={(i) => i.CustomerFullName || [i.CustomerIndividualFirstName, i.CustomerIndividualLastName].filter(Boolean).join(" ") || i.FullAccountNumber}
+          getSublabel={(i) => [i.FullAccountNumber, i.CustomerAccountTypeTargetProductDescription].filter(Boolean).join(" — ")}
+          onSelect={(i) => handleMatch(i.Id)}
+          onClose={() => !matching && setMatchTarget(null)}
+        />
+      )}
     </AnimatePresence>
   );
 }

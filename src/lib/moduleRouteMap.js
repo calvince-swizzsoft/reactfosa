@@ -53,9 +53,10 @@
 //   E-Statements feature ever gets built server-side — this Code would
 //   need to move back to that at that point, not stay dual-purposed.
 // - `26012` was pointed at Accounts/GeneralLedgerStatement, but Code
-//   26012 belongs to the *Command Hub* module, not Accounts — it's
-//   "Financial Position" (ControllerName: FinancialPosition), an unbuilt
-//   feature. Removed; GeneralLedgerStatement.jsx is ungated (legacy). The
+//   26012 belongs to the *Command Hub* module, not Accounts — it is
+//   "Financial Position" (ControllerName: FinancialPosition). It now maps
+//   to the faithful consolidated/branch financial-statements screen;
+//   GeneralLedgerStatement.jsx remains ungated (legacy). The
 //   real Command Hub Code for "Approval Requests" is `26015` (previously
 //   `26010`, which is actually "Instant Messaging" — also fixed below).
 export const moduleRouteMap = {
@@ -78,9 +79,81 @@ export const moduleRouteMap = {
   // Setup (22001)
   22003: "/HumanResource/Departments",    // Departments (ControllerName: Department)
   22004: "/HumanResource/Designations",   // Designations (ControllerName: Designation)
+  // 22005 "Holidays" (ControllerName: Holiday) had no backend REST
+  // controller at all until 2026-08-18 (only the legacy WCF
+  // HolidayService.svc + the IHolidayAppService app-service layer existed)
+  // — added HolidaysController mirroring this sibling shape, plus real
+  // DELETE and paged/text search since the app service actually supports
+  // both here, unlike Department/Designation/EmployeeType.
+  22005: "/HumanResource/Holidays",       // Holidays (ControllerName: Holiday)
   22006: "/HumanResource/EmployeeTypes",  // Employee Types (ControllerName: EmployeeType)
   // Operations (22002) > Employees (22007, area) > Register (22008, leaf)
   22008: "/HumanResource/Employees",      // Register (ControllerName: Employee) — 22007 itself is just the "Employees" folder node
+  // Operations (22002) > Employees (22007, area) > Document (22009, leaf)
+  // ControllerName: EmployeeDocuments — had no backend REST controller at
+  // all until 2026-08-18, same gap as 22005 Holidays (see note there).
+  // IEmployeeDocumentAppService has no per-employee find overload, so the
+  // page this routes to browses every employee's documents flat rather
+  // than drilling in from a specific employee record.
+  22009: "/HumanResource/Documents",      // Document (ControllerName: EmployeeDocuments)
+  // Roster (22010, area) > Regular Day Program (22011, leaf) — deliberately
+  // NOT wired, unlike 22005/22009 above. Checked 2026-08-18: this one has
+  // no backend substance anywhere to expose, not just a missing REST
+  // layer — ControllerName is the literal placeholder string "Controller"
+  // (not a real name like "Holiday"/"EmployeeDocuments"), and
+  // "RegularDayProgram"/"Roster" appear nowhere else in the whole
+  // SwiftFinancialz codebase: no domain aggregate, no app service, no DTO,
+  // no DB mapping. Confirmed absent from the reference project too, per
+  // user. The sibling Attendance area (22012, area) > Register (22013) /
+  // Import Data (22014) is the same story — both leaves also have
+  // ControllerName "Controller", and the one name-matching DTO
+  // (HumanResourcesModule/Attendancelog.cs) is an orphaned stub with no
+  // [DataMember]s, no validation, and zero references anywhere. Building
+  // any of these would mean designing a genuinely new feature from
+  // scratch, not wiring up an existing one — out of scope until there's a
+  // real spec for what Regular Day Program/Attendance should actually
+  // track.
+
+  // Operations (22002) > Leave (22015, area) — Application/Approval/Recall
+  // are really one data source (LeaveApplication) viewed through three
+  // workflow lenses, not three separate resources: Approval is the
+  // Pending queue, Recall is the Approved queue, Application is
+  // everything. Same gap as 22005/22009 — ILeaveApplicationAppService/
+  // ILeaveTypeAppService were already fully built with no REST controller
+  // until 2026-08-18. Leave Types (the LeaveTypeId reference table
+  // applications point to) has no NavigationMenu leaf of its own anywhere
+  // in this tree — reachable only via a link from the Application screen,
+  // same ungated-utility-page pattern as Administration/Roles/Create.
+  22016: "/HumanResource/Leave/Application", // Application (ControllerName: LeaveApplication)
+  22017: "/HumanResource/Leave/Approval",    // Approval (ControllerName: LeaveApproval)
+  22018: "/HumanResource/Leave/Recall",      // Recall (ControllerName: LeaveRecall)
+
+  // Operations (22002) > Salary (22019, area) — three-part dependency chain
+  // (Heads -> Groups -> Cards) documented by the user in
+  // WebApplication1/Areas/Salary Heads.md / Salary Groups.md / Salary
+  // Cards.md, all built 2026-08-18. Same gap as 22005/22009/22016-18 —
+  // ISalaryHeadAppService/ISalaryGroupAppService/ISalaryCardAppService were
+  // already fully built with no REST controller.
+  22020: "/HumanResource/SalaryHeads",       // Salary Heads (ControllerName: Salary)
+  22021: "/HumanResource/SalaryGroups",      // Salary Groups (ControllerName: Salary)
+  22022: "/HumanResource/SalaryCards",       // Salary Cards (ControllerName: Salary)
+  // Salary Periods (22023) / Salary Processing (22024) / Payslips (22025) /
+  // Period Closing (22026), per the user-supplied Salary Processing.md,
+  // built 2026-08-18 — same gap as the rest of the Salary area
+  // (ISalaryPeriodAppService/IPaySlipAppService already existed, no REST
+  // controller). All four route to the same /HumanResource/SalaryPeriods
+  // screen rather than four distinct pages — that's not a shortcut, it's
+  // what the backend actually models: one SalaryProcessingDTO/
+  // ISalaryPeriodAppService covers create/update/process/close, and
+  // IPaySlipAppService can only list payslips scoped to one
+  // SalaryPeriodId (no cross-period browse exists) — so Processing,
+  // Payslips, and Period Closing are all actions on a single period's own
+  // detail page (src/pages/HumanResource/SalaryPeriods/Detail.jsx), not
+  // separate screens with separate data sources.
+  22023: "/HumanResource/SalaryPeriods",     // Salary Periods (ControllerName: Salary)
+  22024: "/HumanResource/SalaryPeriods",     // Salary Processing (ControllerName: Salary)
+  22025: "/HumanResource/SalaryPeriods",     // Payslips (ControllerName: Salary)
+  22026: "/HumanResource/SalaryPeriods",     // Period Closing (ControllerName: Salary)
 
   // ── Registry (0x00005208 = 21000) ────────────────────────────────
   21003: "/Registry/Employer",            // Setup > Employers (ControllerName: Employer)
@@ -174,6 +247,10 @@ export const moduleRouteMap = {
   70015: "/Loaning/GuarantorAttachment",   // Guarantor Substitution — same controller/screen as 70014, Substitute tab
   70016: "/Loaning/GuarantorAttachment",   // Guarantor Relieving — same controller/screen as 70014, History/Relieve tab
   70017: "/Loaning/Guarantors",            // Guarantor Management (ControllerName: GuarantorManagement) — api/backoffice/loanguarantors, adds one more guarantor to an already-registered case
+  70019: "/Loaning/CheckOff/DataPeriods",    // Open and amend payroll/checkoff capture periods
+  70020: "/Loaning/CheckOff/DataProcessing", // Capture checkoff entries against customer product accounts
+  70021: "/Loaning/CheckOff/Closing",        // Close an open capture period
+  70022: "/Loaning/CheckOff/Catalogue",      // Read-only captured-entry catalogue
 
   // ── Front-Office (0x000061A8 = 25000) ────────────────────────────
   // Operations (25001) > Treasury (25002)
@@ -198,6 +275,10 @@ export const moduleRouteMap = {
   // Operations (26002) > Messaging (26007)
   26008: "/Messaging/TextAlerts",         // Text Alerts (ControllerName: TextAlerts) — textalert-api-spec.md §5: this is a different, read-only reference controller than the create-capable Areas/Messaging one this route actually serves; no seeded nav entry exists for the latter yet
   26009: "/Messaging/EmailAlerts",        // E-mail Alerts (ControllerName: EmailAlerts, AreaName: Dashboard) — consolidated history/detail/compose screen over api/messaging/emailalerts
+  26010: "/Messaging/InstantMessaging",   // Instant Messaging — authenticated, persistent direct and group conversations
   // Operations (26002) > Utilities (26011), direct leaves
+  26012: "/Reports/FinancialReports",     // Financial Position — Trial Balance, Income & Expenditure, Balance Sheet, and branch financial statement
+  26013: "/Accounts/AccountStatuses",     // Account Statuses — read-only customer account and related-facilities inquiry
+  26014: "/Reports/UserDefinedReports",   // User-Defined Reports — secured SSRS catalogue and viewer launcher
   26015: "/CommandHub/ApprovalRequests",  // Approval Requests (ControllerName: Workflow, AreaName: Workflows)
 };

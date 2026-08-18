@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import NotFoundImage from "/assets/scopefinding.png";
-import { FaEdit, FaSearch, FaUserPlus } from "react-icons/fa";
+import { FaEdit, FaSearch, FaUserPlus, FaBell } from "react-icons/fa";
 import { apiFetch } from "@/lib/api";
 import CreateCustomerDrawer from "./create";
 import EditCustomerDrawer from "./edit";
+import AlertPreferencesDrawer from "./AlertPreferencesDrawer";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
@@ -31,6 +32,7 @@ export default function Customers() {
   const [loading, setLoading] = useState(true);
   const [addOpen, setAddOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [alertPrefsCustomer, setAlertPrefsCustomer] = useState(null);
   const [canEdit, setCanEdit] = useState(false);
   const [search, setSearch] = useState("");
   const [query, setQuery] = useState("");
@@ -137,7 +139,10 @@ export default function Customers() {
                       {item.IsLocked ? "Locked" : "Active"}
                     </span>
                   </span>
-                  <span className="col-span-1 text-right">{canEdit && <Button size="sm" variant="outline" onClick={() => setEditingId(item.Id ?? item.id)} title="Edit customer"><FaEdit /></Button>}</span>
+                  <span className="col-span-1 text-right flex justify-end gap-1">
+                    <Button size="sm" variant="outline" onClick={() => setAlertPrefsCustomer(item)} title="Alert preferences"><FaBell /></Button>
+                    {canEdit && <Button size="sm" variant="outline" onClick={() => setEditingId(item.Id ?? item.id)} title="Edit customer"><FaEdit /></Button>}
+                  </span>
                 </div>
               </div>
             ))}
@@ -163,6 +168,12 @@ export default function Customers() {
 
       <CreateCustomerDrawer open={addOpen} onClose={() => setAddOpen(false)} onSuccess={() => fetchItems(pageIndex, query, appliedFilter)} />
       <EditCustomerDrawer customerId={editingId} open={Boolean(editingId)} onClose={() => setEditingId(null)} onSuccess={() => fetchItems(pageIndex, query, appliedFilter)} />
+      <AlertPreferencesDrawer
+        open={Boolean(alertPrefsCustomer)}
+        customerId={alertPrefsCustomer?.Id ?? alertPrefsCustomer?.id}
+        customerName={alertPrefsCustomer ? customerName(alertPrefsCustomer) : ""}
+        onClose={() => setAlertPrefsCustomer(null)}
+      />
     </div>
   );
 }

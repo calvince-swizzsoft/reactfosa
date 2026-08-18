@@ -75,4 +75,46 @@ export function removeCreditBatchEntries(entries) {
   return unwrap(apiFetch(`${BASE}/entries/remove`, { method: "POST", body: JSON.stringify(entries) }));
 }
 
+export function importCreditBatch(id, file) {
+  const body = new FormData();
+  body.append("file", file);
+  return unwrap(apiFetch(`${BASE}/${id}/import`, { method: "POST", body }));
+}
+
+// Discrepancy rows: what an import couldn't auto-match. No server-side
+// status filter exists here (`filter` selects which raw column to text
+// search, not status) — a caller that only wants actionable rows must
+// filter Status === 1 (Pending) itself.
+export function listCreditBatchDiscrepancies(id, { text = "", filter = 0, pageIndex = 0, pageSize = 50 } = {}) {
+  const params = new URLSearchParams({ text, filter: String(filter), pageIndex: String(pageIndex), pageSize: String(pageSize) });
+  return unwrap(apiFetch(`${BASE}/${id}/discrepancies?${params.toString()}`));
+}
+
+// Allocate a discrepancy row to a specific customer product account — for
+// CheckOff this is where the server picks the right posting shape
+// (sLoan/sInterest/sShare/wCont/sInvest/sRisk/wLoan/sLoanInterest) off the
+// row's own Column7, recomputing real balances rather than trusting the
+// file. Throws with the server's real reason on a bad match (wrong
+// account, wrong product, ambiguous, batch total exceeded).
+export function matchCreditBatchDiscrepancy(id, discrepancyId, customerAccountId) {
+  return unwrap(apiFetch(`${BASE}/${id}/discrepancies/${discrepancyId}/match`, {
+    method: "POST",
+    body: JSON.stringify({ CustomerAccountId: customerAccountId }),
+  }));
+}
+
+// The non-member path: post a discrepancy row straight to a G/L account.
+// Posts synchronously (unlike the customer-account match, which queues for
+// async posting on batch Authorize).
+export function matchCreditBatchDiscrepancyGl(id, discrepancyId, chartOfAccountId, moduleNavigationItemCode = 0) {
+  return unwrap(apiFetch(`${BASE}/${id}/discrepancies/${discrepancyId}/match-gl`, {
+    method: "POST",
+    body: JSON.stringify({ ChartOfAccountId: chartOfAccountId, ModuleNavigationItemCode: moduleNavigationItemCode }),
+  }));
+}
+
+export function rejectCreditBatchDiscrepancy(id, discrepancyId) {
+  return unwrap(apiFetch(`${BASE}/${id}/discrepancies/${discrepancyId}/reject`, { method: "POST" }));
+}
+
 export { normalizeList };

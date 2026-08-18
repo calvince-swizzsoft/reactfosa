@@ -1,6 +1,6 @@
 // src/components/Navbar.jsx
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { FiSearch, FiBell, FiHelpCircle } from "react-icons/fi";
 import { useAuth } from "@/context/AuthContext";
 
@@ -19,9 +19,7 @@ export default function Navbar() {
     <div className="h-12 bg-indigo-800  flex items-center justify-between px-4 text-white sticky top-0 z-39">
       {/* Left: Workspace / Branding */}
       <div className="flex items-center space-x-4 ml-15">
-        <span className="font-bold">Swift Financial</span>
-        {/*<Link to="/" className="hover:text-gray-300 text-sm">Home</Link>
-        <Link to="/settings" className="hover:text-gray-300 text-sm">Settings</Link>*/}
+        <Link to="/home" className="font-bold hover:text-gray-300">Swift Financial</Link>
       </div>
 
       {/* Middle: Search Bar */}

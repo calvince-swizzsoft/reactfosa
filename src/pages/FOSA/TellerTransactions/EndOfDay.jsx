@@ -54,12 +54,8 @@ const BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 // - TellerCashBalanceStatusValue is compared against BookBalance
 //   server-side to decide which journal entries to post — computed here
 //   client-side from the same two numbers the server already has.
-// - Known backend quirk (not something the frontend can work around): the
-//   Balanced case never sets the internal postExcessOrShortage flag before
-//   checking it, so a genuinely balanced day currently always comes back
-//   as { success: false, message: "postExcessOrShortage boolean was false." }
-//   even though the day's base journal did post. Surfaced as-is (see
-//   TODO.md) rather than special-cased client-side.
+// - A balanced close requires only the teller-to-treasury journal; shortage
+//   and excess closes additionally post their variance journal.
 
 function FieldGroup({ label, children }) {
   return (
