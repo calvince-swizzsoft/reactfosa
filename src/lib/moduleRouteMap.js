@@ -158,7 +158,16 @@ export const moduleRouteMap = {
   // ── Registry (0x00005208 = 21000) ────────────────────────────────
   21003: "/Registry/Employer",            // Setup > Employers (ControllerName: Employer)
   21004: "/Registry/Zone",                // Setup > Zones (ControllerName: Zone)
+  21006: "/Registry/Customers/Documents", // Operations > Customers > Documents (ControllerName: Document) — standalone screen per Areas/Registry/Documents.md, unlike the other Customers sub-items (Next-Of-Kin, Account Alerts, ...) which are per-customer actions, not pages
   21007: "/Registry/Customers",           // Operations > Customers > Register (ControllerName: Customer) — replaces the old Members flow
+  21008: "/Registry/Customers",           // Operations > Customers > Next-Of-Kin (ControllerName: NextOfKin) — no standalone screen (NextOfKinController is customer-scoped only, GetByCustomer requires a customerId), reachable via the row action on the Customers list; pointed at that list rather than left ungated so the nav item lands somewhere real instead of the generic placeholder
+  21009: "/Registry/Customers",           // Operations > Customers > Account Alerts (ControllerName: Controller — real backing is CustomerController's /account-alerts routes) — same reasoning as Next-Of-Kin above: customer-scoped only (AlertPreferencesDrawer, a row action), no standalone screen, so pointed at the Customers list rather than left ungated
+  21010: "/Registry/Customers/ChargesExemptions", // Operations > Customers > Charges Exemptions (ControllerName: ChargeExemptions) — no ChargeExemption domain/DTO exists anywhere; backed by ICommissionExemptionAppService instead (same "Charges" = Commission naming as Code 23009), a real standalone screen unlike Next-Of-Kin/Account Alerts above
+  21011: "/Registry/Customers/Delegates",         // Operations > Customers > Delegates (ControllerName: Delegate) — IDelegateAppService was already fully built, just missing a controller; a real standalone screen (list + create/edit, own zone/customer lookups), same as ChargesExemptions
+  21012: "/Registry/Customers/Directors",          // Operations > Customers > Directors (ControllerName: Director) — same shape as Delegates: IDirectorAppService already fully built, just missing a controller; division lookup (Employer > Divisions) instead of zone
+  21013: "/Registry/Customers/StationLinkage",      // Operations > Customers > Station Linkage (ControllerName: Station) — not a separate entity, just Customer.StationId; CustomerController.cs already had by-station/{id} + PUT {id}/station live, only DELETE {id}/station (reset/unlink, wrapping the already-built ResetCustomerStationAsync) was missing
+  21014: "/Registry/Customers/BranchLinkage",        // Operations > Customers > Branch Linkage (ControllerName: BranchLinkage) — not a Customer.BranchId either; UpdateCustomerBranch reassigns the customer's existing accounts to the branch (fails if they have none), wrapped as PUT {id}/branch on CustomerController.cs; no reset/unlink capability exists for this one
+  21015: "/Registry/Customers/ConditionalLendings",   // Operations > Customers > Conditional Lending (ControllerName: ConditionalLending) — same "group + entries" shape as ChargesExemptions, tied to a loan product; IConditionalLendingAppService already fully built, just missing a controller (and ConditionalLendingDTO needed the same [DataContract]-without-[DataMember] fix NextOfKinDTO got)
   21018: "/Registry/FileTracking",        // File Tracking > Dispatch > Multi-Destination
   21019: "/Registry/FileTracking",        // File Tracking > Dispatch > Single-Destination
   21020: "/Registry/FileTracking",        // File Tracking > Receive
@@ -192,6 +201,7 @@ export const moduleRouteMap = {
   // is a different LoanProduct concept from the legacy screen's backend —
   // repointed 2026-08-12 to the new screen actually built against it.
   23018: "/Accounts/LoanProducts",        // Loans (ControllerName: LoanProduct)
+  23019: "/Accounts/PostingPeriods",      // Posting Periods (ControllerName: PostingPeriod) — IPostingPeriodAppService already fully built, just missing a controller
   // Setup (23001), direct leaves
   23020: "/Accounts/Treasuries",          // Treasuries (ControllerName: Treasuries)
   23021: "/Accounts/Tellers",             // Tellers (ControllerName: Teller, AreaName: FrontOffice)
@@ -199,6 +209,7 @@ export const moduleRouteMap = {
   23023: "/Accounts/ChequeTypes",         // Cheque Types (ControllerName: ChequeType) — was unmapped entirely; list/create/edit all built
   23028: "/Accounts/UnpayReasons",        // Unpay Reasons (ControllerName: UnpayReason) — real, documented controller (docs/api/unpayreason-api-spec.md); was previously unmapped, with FOSA/TellerTransactions/UnpayReasons.jsx calling an undocumented /api/unpay endpoint instead of this one
   23029: "/Accounts/FixedDepositTypes",   // Fixed Deposit Types (ControllerName: FixedDepositType) — controller was built 2026-08-16 (previously didn't exist at all, zero rows in swiftFin_FixedDepositTypes); closes the FixedDepositTypeId picker gap noted in FOSA/TellerTransactions/TODO.md
+  23034: "/Accounts/PostingPeriodClosing", // Operations > Transactions Journal > Posting Period Closing (ControllerName: ClosingPostingPeriod) — same IPostingPeriodAppService as 23019, but ClosePostingPeriod is a real irreversible financial operation (posts fiscal-period-closing journals), not a CRUD action, so it's a separate screen
   // Operations (23002) > Recurring Procedures (23035)
   23039: "/Accounts/StandingOrders/Execution", // Standing Order Execution (ControllerName: SatndingOrderExecution — real backend typo, admin/ops only)
   // Operations (23002) > Customer Accounts (23043)

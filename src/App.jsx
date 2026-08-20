@@ -73,6 +73,14 @@ import DocumentAttach from "./pages/Procurement/Document/index.jsx";
 import VendorComparison from "./pages/Procurement/VendorComparison/index.jsx";
 import Membership from "./pages/Membership/index.jsx";
 import Customers from "./pages/Registry/Customers/index.jsx";
+import CustomerDocuments from "./pages/Registry/Customers/Documents/index.jsx";
+import CreateCustomerDocument from "./pages/Registry/Customers/Documents/create.jsx";
+import ChargesExemptions from "./pages/Registry/Customers/ChargesExemptions/index.jsx";
+import Delegates from "./pages/Registry/Customers/Delegates/index.jsx";
+import Directors from "./pages/Registry/Customers/Directors/index.jsx";
+import StationLinkage from "./pages/Registry/Customers/StationLinkage/index.jsx";
+import BranchLinkage from "./pages/Registry/Customers/BranchLinkage/index.jsx";
+import ConditionalLendings from "./pages/Registry/Customers/ConditionalLendings/index.jsx";
 import RegistryZones from "./pages/Registry/Zone/index.jsx";
 import RegistryDivisions from "./pages/Registry/Division/index.jsx";
 import RegistryEmployers from "./pages/Registry/Employer/index.jsx";
@@ -194,6 +202,8 @@ import AlternateChannelFees from "./pages/Accounts/AlternateChannels/Fees.jsx";
 import Treasuries from "./pages/Accounts/Treasuries/index.jsx";
 import CreateTreasury from "./pages/Accounts/Treasuries/create.jsx";
 import CostCenters from "./pages/Accounts/CostCenters/index.jsx";
+import PostingPeriods from "./pages/Accounts/PostingPeriods/index.jsx";
+import PostingPeriodClosing from "./pages/Accounts/PostingPeriodClosing/index.jsx";
 import ChequeTypes from "./pages/Accounts/ChequeTypes/index.jsx";
 import CreateChequeType from "./pages/Accounts/ChequeTypes/create.jsx";
 import Commissions from "./pages/Accounts/Commissions/index.jsx";
@@ -341,6 +351,14 @@ export default function App() {
           {/**Membership */}
           <Route path="Membership" element={<Membership />} />
           <Route path="Registry/Customers" element={<Customers />} />
+          <Route path="Registry/Customers/Documents" element={<CustomerDocuments />} />
+          <Route path="Registry/Customers/Documents/create" element={<CreateCustomerDocument />} />
+          <Route path="Registry/Customers/ChargesExemptions" element={<ChargesExemptions />} />
+          <Route path="Registry/Customers/Delegates" element={<Delegates />} />
+          <Route path="Registry/Customers/Directors" element={<Directors />} />
+          <Route path="Registry/Customers/StationLinkage" element={<StationLinkage />} />
+          <Route path="Registry/Customers/BranchLinkage" element={<BranchLinkage />} />
+          <Route path="Registry/Customers/ConditionalLendings" element={<ConditionalLendings />} />
           <Route path="Registry/Zone" element={<RegistryZones />} />
           <Route path="Registry/Division" element={<RegistryDivisions />} />
           <Route path="Registry/Employer" element={<RegistryEmployers />} />
@@ -459,6 +477,8 @@ export default function App() {
           <Route path="Accounts/BankLinkages" element={<AccountsBankLinkages />} />
           <Route path="Accounts/BankLinkages/create" element={<CreateBankLinkage />} />
           <Route path="Accounts/CostCenters" element={<CostCenters />} />
+          <Route path="Accounts/PostingPeriods" element={<PostingPeriods />} />
+          <Route path="Accounts/PostingPeriodClosing" element={<PostingPeriodClosing />} />
           <Route path="Accounts/ChequeTypes" element={<ChequeTypes />} />
           <Route path="Accounts/ChequeTypes/create" element={<CreateChequeType />} />
           <Route path="Accounts/Commissions" element={<Commissions />} />

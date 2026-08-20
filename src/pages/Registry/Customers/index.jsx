@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import NotFoundImage from "/assets/scopefinding.png";
-import { FaEdit, FaSearch, FaUserPlus, FaBell } from "react-icons/fa";
+import { FaEdit, FaSearch, FaUserPlus, FaBell, FaUsers } from "react-icons/fa";
 import { apiFetch } from "@/lib/api";
 import CreateCustomerDrawer from "./create";
 import EditCustomerDrawer from "./edit";
 import AlertPreferencesDrawer from "./AlertPreferencesDrawer";
+import NextOfKinDrawer from "./NextOfKinDrawer";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
@@ -33,6 +34,7 @@ export default function Customers() {
   const [addOpen, setAddOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [alertPrefsCustomer, setAlertPrefsCustomer] = useState(null);
+  const [nextOfKinCustomer, setNextOfKinCustomer] = useState(null);
   const [canEdit, setCanEdit] = useState(false);
   const [search, setSearch] = useState("");
   const [query, setQuery] = useState("");
@@ -110,9 +112,9 @@ export default function Customers() {
           <span className="col-span-3">Name</span>
           <span className="col-span-2">ID Number</span>
           <span className="col-span-2">Type</span>
-          <span className="col-span-3">Mobile</span>
+          <span className="col-span-2">Mobile</span>
           <span className="col-span-1">Status</span>
-          <span className="col-span-1 text-right">Action</span>
+          <span className="col-span-2 text-right">Action</span>
         </div>
 
         {loading ? (
@@ -133,13 +135,14 @@ export default function Customers() {
                   <span className="col-span-3 font-medium text-indigo-700">{customerName(item)}</span>
                   <span className="col-span-2 text-sm text-gray-600">{item.IndividualIdentityCardNumber || "—"}</span>
                   <span className="col-span-2 text-sm text-gray-600">{item.TypeDescription || customerTypeLabels[item.Type] || "—"}</span>
-                  <span className="col-span-3 text-sm text-gray-600">{item.AddressMobileLine || "—"}</span>
+                  <span className="col-span-2 text-sm text-gray-600">{item.AddressMobileLine || "—"}</span>
                   <span className="col-span-1">
                     <span className={`px-2 py-1 rounded text-xs font-semibold ${item.IsLocked ? "bg-red-100 text-red-600" : "bg-green-100 text-green-600"}`}>
                       {item.IsLocked ? "Locked" : "Active"}
                     </span>
                   </span>
-                  <span className="col-span-1 text-right flex justify-end gap-1">
+                  <span className="col-span-2 text-right flex justify-end gap-1">
+                    <Button size="sm" variant="outline" onClick={() => setNextOfKinCustomer(item)} title="Next of kin"><FaUsers /></Button>
                     <Button size="sm" variant="outline" onClick={() => setAlertPrefsCustomer(item)} title="Alert preferences"><FaBell /></Button>
                     {canEdit && <Button size="sm" variant="outline" onClick={() => setEditingId(item.Id ?? item.id)} title="Edit customer"><FaEdit /></Button>}
                   </span>
@@ -173,6 +176,12 @@ export default function Customers() {
         customerId={alertPrefsCustomer?.Id ?? alertPrefsCustomer?.id}
         customerName={alertPrefsCustomer ? customerName(alertPrefsCustomer) : ""}
         onClose={() => setAlertPrefsCustomer(null)}
+      />
+      <NextOfKinDrawer
+        open={Boolean(nextOfKinCustomer)}
+        customerId={nextOfKinCustomer?.Id ?? nextOfKinCustomer?.id}
+        customerName={nextOfKinCustomer ? customerName(nextOfKinCustomer) : ""}
+        onClose={() => setNextOfKinCustomer(null)}
       />
     </div>
   );
