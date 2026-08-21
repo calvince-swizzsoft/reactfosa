@@ -12,6 +12,7 @@ dist
 dist-ssr
 *.local
 .env
+.env.production
 scripts/e2e/*.state.json
 scripts/e2e/*-LATEST.md
 
