@@ -11,6 +11,7 @@ import Swal from "sweetalert2";
 import NotFoundImage from "/assets/scopefinding.png";
 import AddLocation from "./AddLocation";
 import EditLocation from "./EditLocation";
+import { apiErrorMessage, apiJson, normalizeList } from "@/lib/api";
 
 export default function AdministrationLocations() {
   const [locations, setLocations] = useState([]);
@@ -22,12 +23,11 @@ export default function AdministrationLocations() {
   const fetchLocations = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/locations`);
-      const json = await res.json();
-      const locationList = Array.isArray(json?.data) ? json.data : Array.isArray(json) ? json : [];
-      setLocations(locationList);
+      const data = await apiJson(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/locations`);
+      setLocations(normalizeList(data));
     } catch (err) {
-      console.error("Fetch Locations Error:", err);
+      setLocations([]);
+      Swal.fire("Error", apiErrorMessage(err, "Unable to load locations."), "error");
     } finally {
       setLoading(false);
     }
@@ -49,16 +49,14 @@ export default function AdministrationLocations() {
     }).then(async (result) => {
       if (result.isConfirmed) {
         try {
-          const res = await fetch(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/locations/${id}`, {
+          await apiJson(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/locations/${id}`, {
             method: "DELETE",
           });
-
-          if (!res.ok) throw new Error("Failed to delete location");
 
           setLocations((prev) => prev.filter((l) => l.Id !== id));
           Swal.fire("Deleted!", "Location removed successfully.", "success");
         } catch (error) {
-          Swal.fire("Error", error.message, "error");
+          Swal.fire("Error", apiErrorMessage(error, "Unable to delete the location."), "error");
         }
       }
     });

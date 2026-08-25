@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Swal from "sweetalert2";
-import { apiFetch, normalizeList } from "@/lib/api";
+import { apiErrorMessage, apiJson, normalizeList } from "@/lib/api";
 
 export default function AddLocation({ open, onClose, refresh }) {
   const [loading, setLoading] = useState(false);
@@ -22,13 +22,13 @@ export default function AddLocation({ open, onClose, refresh }) {
   useEffect(() => {
     const fetchBranches = async () => {
       try {
-        const res = await apiFetch(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/branches`);
-        const data = await res.json();
+        const data = await apiJson(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/branches`);
         // GET / now returns PageCollectionInfo<BranchDTO> (paged), not a
         // bare array.
         setBranches(normalizeList(data));
       } catch (err) {
-        console.error("Failed to fetch branches", err);
+        setBranches([]);
+        Swal.fire("Error", apiErrorMessage(err, "Unable to load branches."), "error");
       }
     };
     fetchBranches();
@@ -37,20 +37,17 @@ export default function AddLocation({ open, onClose, refresh }) {
   const handleSubmit = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/locations`, {
+      await apiJson(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/locations`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
-
-      if (!response.ok) throw new Error("Failed to add location");
 
       Swal.fire("Success!", "Location added successfully", "success");
       setForm({ Description: "", BranchId: "", IsLocked: false });
       refresh();
       onClose();
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to add the location."), "error");
     } finally {
       setLoading(false);
     }
