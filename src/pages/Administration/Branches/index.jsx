@@ -21,7 +21,7 @@ import Swal from "sweetalert2";
 import NotFoundImage from "/assets/scopefinding.png";
 import AddBranch from "./AddBranch";
 import EditBranch from "./EditBranch";
-import { apiFetch } from "@/lib/api";
+import { apiErrorMessage, apiJson } from "@/lib/api";
 
 const FIN_BASE = `${import.meta.env.VITE_APP_MEMBERSHIP_URL}`;
 const BRANCH_BASE = `${FIN_BASE}/api/administration/branches`;
@@ -66,13 +66,12 @@ export default function Branches() {
                 pageSize: String(pageSize),
                 text: searchQuery,
             });
-            const res = await apiFetch(`${BRANCH_BASE}?${params.toString()}`);
-            const json = await res.json();
+            const json = await apiJson(`${BRANCH_BASE}?${params.toString()}`, {}, { fallbackMessage: "Failed to load branches." });
             const payload = json?.data ?? json?.Data ?? {};
             setBranches(normalizeList(json));
             setItemsCount(payload.itemsCount ?? payload.ItemsCount ?? 0);
         } catch (err) {
-            console.error("Fetch Branches Error:", err);
+            Swal.fire("Error", apiErrorMessage(err, "Unable to load branches."), "error");
             setBranches([]);
             setItemsCount(0);
         } finally {
@@ -172,13 +171,11 @@ export default function Branches() {
         });
         if (!r.isConfirmed) return;
         try {
-            const res = await apiFetch(`${BRANCH_BASE}/${branch.Id}/toggle-lock`, { method: "PATCH" });
-            const data = await res.json().catch(() => ({}));
-            if (!res.ok || data.success === false) throw new Error(data.message || "Failed to toggle lock");
+            const data = await apiJson(`${BRANCH_BASE}/${branch.Id}/toggle-lock`, { method: "PATCH" }, { fallbackMessage: "Failed to change the branch lock state." });
             Swal.fire("Done", data.message || `Branch ${willLock ? "locked" : "unlocked"} successfully`, "success");
             fetchBranches();
         } catch (err) {
-            Swal.fire("Error", err.message, "error");
+            Swal.fire("Error", apiErrorMessage(err, "Unable to change the branch lock state."), "error");
         }
     };
 
