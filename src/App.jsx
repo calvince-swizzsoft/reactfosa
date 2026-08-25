@@ -76,6 +76,9 @@ import Customers from "./pages/Registry/Customers/index.jsx";
 import CustomerDocuments from "./pages/Registry/Customers/Documents/index.jsx";
 import CreateCustomerDocument from "./pages/Registry/Customers/Documents/create.jsx";
 import ChargesExemptions from "./pages/Registry/Customers/ChargesExemptions/index.jsx";
+import Suppliers from "./pages/Control/Suppliers/index.jsx";
+import AssetTypes from "./pages/Control/AssetTypes/index.jsx";
+import PackageTypes from "./pages/Control/PackageTypes/index.jsx";
 import Delegates from "./pages/Registry/Customers/Delegates/index.jsx";
 import Directors from "./pages/Registry/Customers/Directors/index.jsx";
 import StationLinkage from "./pages/Registry/Customers/StationLinkage/index.jsx";
@@ -354,6 +357,9 @@ export default function App() {
           <Route path="Registry/Customers/Documents" element={<CustomerDocuments />} />
           <Route path="Registry/Customers/Documents/create" element={<CreateCustomerDocument />} />
           <Route path="Registry/Customers/ChargesExemptions" element={<ChargesExemptions />} />
+          <Route path="Control/Suppliers" element={<Suppliers />} />
+          <Route path="Control/AssetTypes" element={<AssetTypes />} />
+          <Route path="Control/PackageTypes" element={<PackageTypes />} />
           <Route path="Registry/Customers/Delegates" element={<Delegates />} />
           <Route path="Registry/Customers/Directors" element={<Directors />} />
           <Route path="Registry/Customers/StationLinkage" element={<StationLinkage />} />

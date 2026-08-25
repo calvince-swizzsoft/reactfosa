@@ -13,7 +13,9 @@
 // leaves little doubt about the match. Most of the backend's module tree
 // (the Loan-Origination/"Back Office" module beyond the 4 core pipeline
 // stages now built — guarantor sub-flows, restructuring, cancellation,
-// payroll/check-off data capture — all of Control/Procurement, all of
+// payroll/check-off data capture — nearly all of Control/Procurement (only
+// Suppliers 30003, Asset Types 30004, and Package Types 30006 are built so
+// far), all of
 // Micro-Credit, and most Accounts reconciliation/budget/HR
 // roster-attendance-salary detail screens) has no frontend page built yet
 // — those are deliberately left out rather than guessed, and fall back to
@@ -292,4 +294,33 @@ export const moduleRouteMap = {
   26013: "/Accounts/AccountStatuses",     // Account Statuses — read-only customer account and related-facilities inquiry
   26014: "/Reports/UserDefinedReports",   // User-Defined Reports — secured SSRS catalogue and viewer launcher
   26015: "/CommandHub/ApprovalRequests",  // Approval Requests (ControllerName: Workflow, AreaName: Workflows)
+
+  // ── Control / Procurement (0x00007530 = 30000) ───────────────────
+  // Setup (30001). Suppliers had no domain/AppService/controller of its own
+  // anywhere until this build — only a lone, unused SupplierDTO existed.
+  // Built against InventoryModule (Application.MainBoundedContext/
+  // InventoryModule/Services), the existing-but-until-now-fully-unwired
+  // namespace this NavigationMenu area's sibling entities (Category,
+  // Inventory, PurchaseOrder, SalesOrder) already live in — no controller,
+  // EF mapping, or DI registration existed for ANY of them before this.
+  // Asset Types (30004) is the same story — Asset Types.md, built the same
+  // way right after Suppliers. DepreciationMethod was a free-text string on
+  // the original stub AssetTypeDTO; there's a real backing enum
+  // (Infrastructure.Crosscutting.Framework.Utils.Enumerations.
+  // DepreciationMethod), so it's now stored/transmitted as that enum's int
+  // value, transcribed frontend-side in Control/lib/controlEnums.js — same
+  // convention as frontOfficeEnums.js.
+  //
+  // Package Types (30006) — Package Types.md, built the same way right
+  // after Asset Types. Simplest of the three so far: just Name + Remarks,
+  // no lock/unlock and no other fields described in the doc.
+  //
+  // Everything else in Control/Procurement remains unmapped (see the file
+  // header note above) — Inventory Categories/Unit Of Measure/Tenders/
+  // Evaluation/Bidings/Contracts (30005, 30007-30011) and the
+  // Assets/Inventory Operations leaves (30013/30014/30016, all still the
+  // literal placeholder ControllerName "Controller").
+  30003: "/Control/Suppliers",            // Suppliers (ControllerName: Supplier)
+  30004: "/Control/AssetTypes",           // Asset Types (ControllerName: AssetTypes)
+  30006: "/Control/PackageTypes",         // Package Types (ControllerName: PackageType)
 };
