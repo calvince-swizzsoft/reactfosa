@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Swal from "sweetalert2";
+import { apiErrorMessage, apiJson } from "@/lib/api";
 
 export default function AddInvLocationDrawer({ open, onClose, onSuccess }) {
   const [formData, setFormData] = useState({ code: "", description: "" });
@@ -14,24 +15,20 @@ export default function AddInvLocationDrawer({ open, onClose, onSuccess }) {
     setLoading(true);
 
     try {
-      const res = await fetch(`${import.meta.env.VITE_APP_INV_URL}/api/locations`, {
+      await apiJson(`${import.meta.env.VITE_APP_INV_URL}/api/locations`, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
           "ngrok-skip-browser-warning": "true",
         },
         body: JSON.stringify(formData),
       });
-
-      if (!res.ok) throw new Error("Failed to add location");
 
       Swal.fire("Success", "Location added successfully!", "success");
       setFormData({ code: "", description: "" });
       if (onSuccess) onSuccess();
       onClose();
     } catch (err) {
-      console.error(err);
-      Swal.fire("Error", "Failed to add location.", "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to add the inventory location."), "error");
     } finally {
       setLoading(false);
     }
