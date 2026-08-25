@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Swal from "sweetalert2";
+import { apiErrorMessage, apiJson, normalizeList } from "@/lib/api";
 
 export default function EditInvJournalDrawer({ open, onClose, onSuccess, journal }) {
   const [items, setItems] = useState([]);
@@ -30,17 +31,19 @@ export default function EditInvJournalDrawer({ open, onClose, onSuccess, journal
       const fetchData = async () => {
         try {
           const [itemsRes, locRes] = await Promise.all([
-            fetch(`${import.meta.env.VITE_APP_INV_URL}/api/items`, {
+            apiJson(`${import.meta.env.VITE_APP_INV_URL}/api/items`, {
               headers: { "ngrok-skip-browser-warning": "true" },
-            }).then((r) => r.json()),
-            fetch(`${import.meta.env.VITE_APP_INV_URL}/api/locations`, {
+            }),
+            apiJson(`${import.meta.env.VITE_APP_INV_URL}/api/locations`, {
               headers: { "ngrok-skip-browser-warning": "true" },
-            }).then((r) => r.json()),
+            }),
           ]);
-          setItems(itemsRes.data || []);
-          setLocations(locRes.data || []);
+          setItems(normalizeList(itemsRes));
+          setLocations(normalizeList(locRes));
         } catch (err) {
-          console.error("Failed fetching dropdowns", err);
+          setItems([]);
+          setLocations([]);
+          Swal.fire("Error", apiErrorMessage(err, "Unable to load journal options."), "error");
         }
       };
       fetchData();
@@ -51,26 +54,21 @@ export default function EditInvJournalDrawer({ open, onClose, onSuccess, journal
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await fetch(
+      const response = await apiJson(
         `${import.meta.env.VITE_APP_INV_URL}/api/itemjournals/${journal.Id}`,
         {
           method: "PUT",
           headers: {
-            "Content-Type": "application/json",
             "ngrok-skip-browser-warning": "true",
           },
           body: JSON.stringify(form),
         }
       );
-      const response = await res.json();
-      if (!res.ok) throw new Error(response.message || "Failed to update journal");
-
-      response.success && Swal.fire("Updated!", response.message, "success");
+      if (response?.success) Swal.fire("Updated!", response.message, "success");
       if (onSuccess) onSuccess();
       onClose();
     } catch (err) {
-      console.error(err);
-      Swal.fire("Error", err.message || "Failed to update journal", "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to update the journal."), "error");
     } finally {
       setLoading(false);
     }

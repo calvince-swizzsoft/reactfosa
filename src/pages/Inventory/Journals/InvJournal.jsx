@@ -508,6 +508,7 @@ import AddInvJournalDrawer from "./AddInvJournalDrawer";
 import EditInvJournalDrawer from "./EditInvJournalDrawer";
 import { MdCancel, MdEditDocument, MdOutlinePostAdd } from "react-icons/md";
 import NotFoundImage from "/assets/scopefinding.png";
+import { apiErrorMessage, apiJson, normalizeList } from "@/lib/api";
 
 export default function InvJournal() {
   const [journals, setJournals] = useState([]);
@@ -517,16 +518,19 @@ export default function InvJournal() {
   const [editJournal, setEditJournal] = useState(null);
   const [expanded, setExpanded] = useState({});
 
-  const fetchJournals = () => {
-    fetch(`${import.meta.env.VITE_APP_INV_URL}/api/itemjournals`, {
-      headers: { "ngrok-skip-browser-warning": "true" },
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        setJournals(data.data || []);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
+  const fetchJournals = async () => {
+    setLoading(true);
+    try {
+      const data = await apiJson(`${import.meta.env.VITE_APP_INV_URL}/api/itemjournals`, {
+        headers: { "ngrok-skip-browser-warning": "true" },
+      });
+      setJournals(normalizeList(data));
+    } catch (error) {
+      setJournals([]);
+      Swal.fire("Error", apiErrorMessage(error, "Unable to load item journals."), "error");
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -545,19 +549,17 @@ export default function InvJournal() {
     }).then(async (result) => {
       if (result.isConfirmed) {
         try {
-          const res = await fetch(
+          await apiJson(
             `${import.meta.env.VITE_APP_INV_URL}/api/itemjournals/${id}`,
             {
               method: "DELETE",
               headers: { "ngrok-skip-browser-warning": "true" },
             }
           );
-          if (!res.ok) throw new Error("Failed to delete journal");
           Swal.fire("Deleted!", "Journal has been deleted.", "success");
           fetchJournals();
         } catch (err) {
-          console.error(err);
-          Swal.fire("Error!", "Failed to delete journal.", "error");
+          Swal.fire("Error!", apiErrorMessage(err, "Unable to delete the journal."), "error");
         }
       }
     });
@@ -575,19 +577,17 @@ export default function InvJournal() {
     }).then(async (result) => {
       if (result.isConfirmed) {
         try {
-          const res = await fetch(
+          await apiJson(
             `${import.meta.env.VITE_APP_INV_URL}/api/itemjournals/${id}/post`,
             {
               method: "POST",
               headers: { "ngrok-skip-browser-warning": "true" },
             }
           );
-          if (!res.ok) throw new Error("Failed to post journal");
           Swal.fire("Success!", "Journal has been posted.", "success");
           fetchJournals();
         } catch (err) {
-          console.error(err);
-          Swal.fire("Error!", "Failed to post journal.", "error");
+          Swal.fire("Error!", apiErrorMessage(err, "Unable to post the journal."), "error");
         }
       }
     });
@@ -605,19 +605,17 @@ export default function InvJournal() {
     }).then(async (result) => {
       if (result.isConfirmed) {
         try {
-          const res = await fetch(
+          await apiJson(
             `${import.meta.env.VITE_APP_INV_URL}/api/itemjournals/${id}/cancel`,
             {
               method: "POST",
               headers: { "ngrok-skip-browser-warning": "true" },
             }
           );
-          if (!res.ok) throw new Error("Failed to cancel journal");
           Swal.fire("Cancelled!", "Journal has been cancelled.", "success");
           fetchJournals();
         } catch (err) {
-          console.error(err);
-          Swal.fire("Error!", "Failed to cancel journal.", "error");
+          Swal.fire("Error!", apiErrorMessage(err, "Unable to cancel the journal."), "error");
         }
       }
     });
