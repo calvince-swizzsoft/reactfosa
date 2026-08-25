@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { getToken } from "@/lib/auth";
+import { apiErrorMessage, apiJson } from "@/lib/api";
 import { buildModuleTree } from "@/lib/moduleTree";
 
 // The by-role endpoint already returns exactly the navigation items a role
@@ -41,14 +41,7 @@ function normalizeRoleModuleItem(item) {
 // copies of the same identical response; removed along with the now-deleted
 // param.)
 async function fetchModulesForCurrentUser() {
-  const response = await fetch(MODULES_BY_ROLE_ENDPOINT, {
-    headers: { Authorization: `Bearer ${getToken()}` },
-  });
-  const data = await response.json().catch(() => null);
-
-  if (!response.ok) {
-    throw new Error(`by-role fetch failed: ${response.status} ${response.statusText}`);
-  }
+  const data = await apiJson(MODULES_BY_ROLE_ENDPOINT, {}, { fallbackMessage: "Unable to load navigation." });
 
   const itemList = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
 
@@ -95,7 +88,7 @@ export function ModuleTreeProvider({ children }) {
         }
       } catch (err) {
         if (!cancelled) {
-          setError(err.message || "Unable to load navigation");
+          setError(apiErrorMessage(err, "Unable to load navigation."));
           setTree([]);
         }
       } finally {

@@ -6,7 +6,7 @@ import {
 } from "react-icons/fa";
 import { useAuth } from "@/context/AuthContext";
 import { useModuleTree } from "@/context/ModuleTreeContext";
-import { apiFetch, normalizeList } from "@/lib/api";
+import { apiJson, normalizeList } from "@/lib/api";
 import { findFirstBuiltPath, isPathGranted } from "@/lib/moduleTree";
 import { moduleRouteMap } from "@/lib/moduleRouteMap";
 import { getIconForModule } from "@/lib/faIconMap";
@@ -31,9 +31,11 @@ const itemsCountOf = (page) =>
 
 async function fetchCustomerCount() {
   const params = new URLSearchParams({ pageIndex: "0", pageSize: "1", text: "", customerFilter: "2" });
-  const response = await apiFetch(`${FIN_BASE}/api/registry/customer?${params.toString()}`);
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error("Failed to load customer count");
+  const body = await apiJson(
+    `${FIN_BASE}/api/registry/customer?${params.toString()}`,
+    {},
+    { fallbackMessage: "Failed to load customer count." },
+  );
   return itemsCountOf(body?.data ?? body?.Data ?? body);
 }
 
@@ -53,9 +55,11 @@ async function fetchPendingApprovalsCount(roles) {
     pageIndex: "0",
     pageSize: "1000",
   });
-  const response = await apiFetch(`${ADMIN_URL}/api/administration/workflows/items/mine?${params.toString()}`);
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data?.message || "Failed to load approvals");
+  const data = await apiJson(
+    `${ADMIN_URL}/api/administration/workflows/items/mine?${params.toString()}`,
+    {},
+    { fallbackMessage: "Failed to load approvals." },
+  );
 
   const list = normalizeList(data).map(normalizeWorkflowItem);
   return list.filter(

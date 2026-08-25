@@ -4,25 +4,7 @@ import { FaGoogle, FaApple } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
 import { useAuth } from "@/context/AuthContext";
-
-async function readResponseBody(response) {
-  const text = await response.text();
-  if (!text.trim()) return {};
-
-  try {
-    return JSON.parse(text);
-  } catch {
-    return { message: text };
-  }
-}
-
-function responseErrorMessage(response, data, fallback) {
-  const serverMessage = data?.message ?? data?.Message;
-  if (typeof serverMessage === "string" && serverMessage.trim()) return serverMessage;
-  if (typeof data === "string" && data.trim()) return data;
-  if (response.status === 401) return "Invalid username or password.";
-  return fallback;
-}
+import { apiErrorMessage, readApiResponse } from "@/lib/api";
 
 
 export default function Login() {
@@ -75,11 +57,7 @@ export default function Login() {
 
        );
 
-      const data = await readResponseBody(response);
-
-      if (!response.ok) {
-        throw new Error(responseErrorMessage(response, data, "Login failed"));
-      }
+      const data = await readApiResponse(response, { fallbackMessage: "Login failed" });
 
       const userName = data.userName || data.UserName || form.UserName;
       if (data.requiresPasswordChange || data.RequiresPasswordChange) {
@@ -100,7 +78,7 @@ export default function Login() {
 
       navigate("/home");
     } catch (error) {
-      Swal.fire("Error", error.message, "error");
+      Swal.fire("Error", apiErrorMessage(error, "Login failed"), "error");
     } finally {
       setLoading(false);
     }
@@ -128,10 +106,7 @@ export default function Login() {
           body: JSON.stringify(passwordForm),
         },
       );
-      const data = await readResponseBody(response);
-      if (!response.ok) {
-        throw new Error(responseErrorMessage(response, data, "Password change failed"));
-      }
+      const data = await readApiResponse(response, { fallbackMessage: "Password change failed" });
 
       const roles = Array.isArray(data.roles) ? data.roles : Array.isArray(data.Roles) ? data.Roles : [];
       const userName = data.userName || data.UserName || passwordForm.UserName;
@@ -139,7 +114,7 @@ export default function Login() {
       await Swal.fire("Password Changed", "Your new password is active and you are now signed in.", "success");
       navigate("/home");
     } catch (error) {
-      Swal.fire("Unable to Change Password", error.message, "error");
+      Swal.fire("Unable to Change Password", apiErrorMessage(error, "Password change failed"), "error");
     } finally {
       setLoading(false);
     }
