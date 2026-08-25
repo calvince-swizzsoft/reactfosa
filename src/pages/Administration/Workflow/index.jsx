@@ -8,7 +8,7 @@ import {
   WorkflowRecordStatus,
   WORKFLOW_MATCHED_STATUS_NOT_MATCHED,
 } from "@/lib/workflowFormat";
-import { apiFetch, normalizeList } from "@/lib/api";
+import { apiErrorMessage, apiJson, normalizeList } from "@/lib/api";
 
 const ADMIN_URL = import.meta.env.VITE_APP_ADMIN_URL;
 
@@ -41,16 +41,15 @@ export default function AdministrationWorkflows() {
   const fetchWorkflows = async () => {
     setLoading(true);
     try {
-      const response = await apiFetch(`${ADMIN_URL}/api/administration/workflows`);
-      const data = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        throw new Error(data?.message || "Failed to load workflows");
-      }
+      const data = await apiJson(
+        `${ADMIN_URL}/api/administration/workflows`,
+        {},
+        { fallbackMessage: "Failed to load workflows." },
+      );
 
       setWorkflows(normalizeList(data).map(normalizeWorkflow));
     } catch (error) {
-      Swal.fire("Error", error.message || "Unable to load workflows.", "error");
+      Swal.fire("Error", apiErrorMessage(error, "Unable to load workflows."), "error");
       setWorkflows([]);
     } finally {
       setLoading(false);
@@ -77,14 +76,9 @@ export default function AdministrationWorkflows() {
 
     setMatchingIds((prev) => new Set(prev).add(workflow.id));
     try {
-      const response = await apiFetch(`${ADMIN_URL}/api/administration/workflows/${workflow.id}/match`, {
+      const data = await apiJson(`${ADMIN_URL}/api/administration/workflows/${workflow.id}/match`, {
         method: "POST",
-      });
-      const data = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        throw new Error(data?.message || "Failed to match this workflow");
-      }
+      }, { fallbackMessage: "Failed to match this workflow." });
 
       // 400 = workflow hasn't reached a final Approved/Rejected status yet;
       // already-matched is a harmless success, not an error — either way
@@ -92,7 +86,7 @@ export default function AdministrationWorkflows() {
       Swal.fire("Done", data?.message || "Workflow matched successfully.", "success");
       fetchWorkflows();
     } catch (error) {
-      Swal.fire("Error", error.message || "Unable to match this workflow.", "error");
+      Swal.fire("Error", apiErrorMessage(error, "Unable to match this workflow."), "error");
     } finally {
       setMatchingIds((prev) => {
         const next = new Set(prev);

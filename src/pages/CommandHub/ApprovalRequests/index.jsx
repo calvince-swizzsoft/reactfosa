@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { FaSearch } from "react-icons/fa";
 import Swal from "sweetalert2";
 import { useAuth } from "@/context/AuthContext";
-import { apiFetch, normalizeList } from "@/lib/api";
+import { apiErrorMessage, apiJson, normalizeList } from "@/lib/api";
 import {
   normalizeWorkflowItem,
   paddedReferenceNumber,
@@ -100,12 +100,11 @@ export default function ApprovalRequests() {
         pageIndex: "0",
         pageSize: String(MAX_PAGE_SIZE),
       });
-      const response = await apiFetch(`${ADMIN_URL}/api/administration/workflows/items/mine?${params.toString()}`);
-      const data = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        throw new Error(data?.message || "Failed to load your approval requests");
-      }
+      const data = await apiJson(
+        `${ADMIN_URL}/api/administration/workflows/items/mine?${params.toString()}`,
+        {},
+        { fallbackMessage: "Failed to load your approval requests." },
+      );
 
       // Unlike most of this API, /items/mine's response isn't wrapped in
       // the { success, message, data } envelope — it's the bare
@@ -130,7 +129,7 @@ export default function ApprovalRequests() {
 
       setTasks(myTasks);
     } catch (error) {
-      Swal.fire("Error", error.message || "Unable to load your approval requests.", "error");
+      Swal.fire("Error", apiErrorMessage(error, "Unable to load your approval requests."), "error");
       setTasks([]);
     } finally {
       setLoading(false);
@@ -163,21 +162,15 @@ export default function ApprovalRequests() {
         UsedBiometrics: Boolean(formValues.usedBiometrics),
       };
 
-      const response = await apiFetch(`${ADMIN_URL}/api/administration/workflows/items/approve`, {
+      const data = await apiJson(`${ADMIN_URL}/api/administration/workflows/items/approve`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
-      });
-      const data = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        throw new Error(data?.message || `Failed to ${decision} this item`);
-      }
+      }, { fallbackMessage: `Failed to ${decision} this item.` });
 
       setTasks((prev) => prev.filter((t) => t.id !== item.id));
       Swal.fire("Success", data?.message || `Item ${decision === "approve" ? "approved" : "rejected"}.`, "success");
     } catch (error) {
-      Swal.fire("Error", error.message || `Unable to ${decision} this item.`, "error");
+      Swal.fire("Error", apiErrorMessage(error, `Unable to ${decision} this item.`), "error");
     } finally {
       setActingIds((prev) => {
         const next = new Set(prev);
