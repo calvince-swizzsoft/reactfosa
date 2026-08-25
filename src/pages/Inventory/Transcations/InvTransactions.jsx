@@ -232,6 +232,7 @@ import { FaBook, FaChevronDown, FaChevronUp, FaFileExcel } from "react-icons/fa"
 import * as XLSX from "xlsx";   // Excel export library
 import Swal from "sweetalert2";
 import NotFoundImage from "/assets/scopefinding.png";
+import { apiErrorMessage, apiJson, normalizeList } from "@/lib/api";
 
 export default function InvTransactions() {
   const [transactions, setTransactions] = useState([]);
@@ -239,16 +240,19 @@ export default function InvTransactions() {
   const [expanded, setExpanded] = useState({});
 
   // fetch all transactions
-  const fetchTransactions = () => {
-    fetch(`${import.meta.env.VITE_APP_INV_URL}/api/inventory-transactions`, {
-      headers: { "ngrok-skip-browser-warning": "true" },
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        setTransactions(data.data || []);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
+  const fetchTransactions = async () => {
+    setLoading(true);
+    try {
+      const data = await apiJson(`${import.meta.env.VITE_APP_INV_URL}/api/inventory-transactions`, {
+        headers: { "ngrok-skip-browser-warning": "true" },
+      });
+      setTransactions(normalizeList(data));
+    } catch (error) {
+      setTransactions([]);
+      Swal.fire("Error", apiErrorMessage(error, "Unable to load inventory transactions."), "error");
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
