@@ -16,6 +16,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { listAllChartOfAccounts } from "@/pages/Accounts/ChartOfAccounts/api";
 import {
     CheckCircle2,
     Plus,
@@ -118,9 +119,8 @@ export default function Receipting() {
         setLines((p) => p.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
 
     useEffect(() => {
-        fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/values/GetChartOfAccount`)
-            .then((r) => r.json())
-            .then((d) => d.Success && setAccounts(d.Data.map((a) => ({ id: a.Id, name: a.AccountName }))));
+        listAllChartOfAccounts()
+            .then((items) => setAccounts(items.map((a) => ({ id: a.Id, name: a.AccountName }))));
 
         fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/values/branches`)
             .then((r) => r.json())

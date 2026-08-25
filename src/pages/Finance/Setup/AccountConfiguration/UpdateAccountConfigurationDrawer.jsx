@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Swal from "sweetalert2";
+import { listAllChartOfAccounts } from "@/pages/Accounts/ChartOfAccounts/api";
 
 // Reuse sub drawers
 
@@ -19,11 +20,7 @@ function ChartOfAccountSubDrawer({ open, onClose, onSelect }) {
     if (open) {
       const fetchAccounts = async () => {
         try {
-          const res = await fetch(
-            `${import.meta.env.VITE_APP_FIN_URL}/api/values/GetChartOfAccount`
-          );
-          const data = await res.json();
-          if (data.Success) setAccounts(data.Data);
+          setAccounts(await listAllChartOfAccounts());
         } catch (err) {
           console.error("Failed to fetch chart of accounts:", err);
         } finally {

@@ -359,6 +359,7 @@ import Swal from "sweetalert2";
 import { FaTrash, FaChevronDown, FaChevronUp } from "react-icons/fa";
 import { IoIosArrowDropleftCircle } from "react-icons/io";
 import { nanoid } from "nanoid";
+import { listAllChartOfAccounts } from "@/pages/Accounts/ChartOfAccounts/api";
 
 export default function UpdatePurchaseCreditMemoDrawer({ open, onClose, onSuccess, creditMemo }) {
   const [formData, setFormData] = useState({
@@ -402,11 +403,8 @@ export default function UpdatePurchaseCreditMemoDrawer({ open, onClose, onSucces
 
   // Fetch Chart of Accounts & Memo Types
   useEffect(() => {
-    fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/values/GetChartOfAccount`, {
-      headers: { "ngrok-skip-browser-warning": "true" },
-    })
-      .then((res) => res.json())
-      .then((data) => setChartOfAccounts(Array.isArray(data) ? data : data.Data || []))
+    listAllChartOfAccounts()
+      .then(setChartOfAccounts)
       .catch(() => setChartOfAccounts([]));
 
     fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/values/GetPurchaseInvoiceEntryTypes`, {

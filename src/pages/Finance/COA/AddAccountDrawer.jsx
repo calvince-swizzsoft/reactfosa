@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import Swal from "sweetalert2";
+import { listAllChartOfAccounts } from "@/pages/Accounts/ChartOfAccounts/api";
 
 const TYPE_COLORS = {
   Asset: "bg-blue-100 text-blue-700",
@@ -197,12 +198,7 @@ export default function AddAccountDrawer({ open, onClose, onSuccess }) {
   useEffect(() => {
     const fetchAccounts = async () => {
       try {
-        const res = await fetch(
-          `${import.meta.env.VITE_APP_FIN_URL}/api/values/GetChartOfAccount`
-        );
-        if (!res.ok) throw new Error("Failed to fetch accounts");
-        const data = await res.json();
-        if (data?.Success) setAllAccounts(data.Data);
+        setAllAccounts(await listAllChartOfAccounts());
       } catch (err) {
         console.error(err);
       }

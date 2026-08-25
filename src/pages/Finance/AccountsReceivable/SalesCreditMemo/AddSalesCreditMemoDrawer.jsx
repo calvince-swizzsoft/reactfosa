@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { listAllChartOfAccounts } from "@/pages/Accounts/ChartOfAccounts/api";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -153,14 +154,8 @@ export default function AddSalesCreditMemoDrawer({ open, onClose, onSuccess }) {
       .then((data) => setInvoiceTypes(data))
       .catch((err) => console.error("Error fetching invoice types:", err));
 
-    fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/values/GetChartOfAccount`, {
-      headers: { "ngrok-skip-browser-warning": "true" },
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        const accounts = Array.isArray(data) ? data : data.Data || [];
-        setChartOfAccounts(accounts);
-      })
+    listAllChartOfAccounts()
+      .then(setChartOfAccounts)
       .catch((err) => {
         console.error("Error fetching chart of accounts:", err);
         setChartOfAccounts([]);

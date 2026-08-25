@@ -13,6 +13,7 @@ import {
 import Swal from "sweetalert2";
 import { FaTrash, FaChevronDown, FaChevronUp } from "react-icons/fa";
 import { IoIosArrowDropleftCircle } from "react-icons/io";
+import { listAllChartOfAccounts } from "@/pages/Accounts/ChartOfAccounts/api";
 
 export default function AddPaymentVoucherDrawer({ open, onClose, onSuccess }) {
   const [formData, setFormData] = useState({
@@ -171,12 +172,8 @@ export default function AddPaymentVoucherDrawer({ open, onClose, onSuccess }) {
       .catch((err) => console.error("Error fetching payment types:", err));
 
     // fetch Chart of Accounts
-    fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/values/GetChartOfAccount`)
-      .then((res) => res.json())
-      .then((data) => {
-        const accounts = Array.isArray(data) ? data : data.Data || [];
-        setChartOfAccounts(accounts);
-      })
+    listAllChartOfAccounts()
+      .then(setChartOfAccounts)
       .catch(() => setChartOfAccounts([]));
 
     // fetch Invoice Lines

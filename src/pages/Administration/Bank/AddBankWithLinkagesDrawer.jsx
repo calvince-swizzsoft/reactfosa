@@ -7,6 +7,12 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import Swal from "sweetalert2";
+import { apiFetch, normalizeList } from "@/lib/api";
+import { createBank } from "@/pages/Administration/Banks/api";
+import { createBankLinkage } from "@/pages/Accounts/BankLinkages/api";
+import { listChartOfAccounts } from "@/pages/Accounts/ChartOfAccounts/api";
+
+const FIN_BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 
 export default function AddBankWithLinkagesDrawer({ open, onClose, onSuccess }) {
   const [formData, setFormData] = useState({
@@ -50,11 +56,8 @@ export default function AddBankWithLinkagesDrawer({ open, onClose, onSuccess }) 
   useEffect(() => {
     const fetchChartOfAccounts = async () => {
       try {
-        const res = await fetch(
-          `${import.meta.env.VITE_APP_FIN_URL}/api/values/GetChartOfAccount`
-        );
-        const data = await res.json();
-        if (data.Success) setChartOfAccounts(data.Data);
+        const page = await listChartOfAccounts({ pageIndex: 0, pageSize: 1000 });
+        setChartOfAccounts(page?.pageCollection || page?.PageCollection || []);
       } catch (err) {
         console.error("Error fetching chart of accounts:", err);
       }
@@ -65,11 +68,14 @@ export default function AddBankWithLinkagesDrawer({ open, onClose, onSuccess }) 
   useEffect(() => {
     const fetchBranches = async () => {
       try {
-        const res = await fetch(
-          `${import.meta.env.VITE_APP_FIN_URL}/api/values/branches`
+        const res = await apiFetch(
+          `${FIN_BASE}/api/administration/branches?pageIndex=0&pageSize=1000`
         );
         const data = await res.json();
-        if (data.Success) setBranches(data.Data);
+        if (!res.ok || data.success === false) {
+          throw new Error(data.message || "Failed to load branches");
+        }
+        setBranches(normalizeList(data));
       } catch (err) {
         console.error("Error fetching branches:", err);
       }
@@ -115,34 +121,33 @@ export default function AddBankWithLinkagesDrawer({ open, onClose, onSuccess }) 
     setLoading(true);
 
     const createdDate = new Date().toISOString();
-    // ValuesController.AddBankWithLinkages takes { Bank, BankLinkage } now
-    // (used to be one flat overloaded object) — read directly off the real
-    // controller source (AddBankWithLinkagesRequest class), not just the
-    // spec doc. Bank.Code is NOT server-assigned (bank-api-spec.md §4.5) —
-    // must be an explicit unique number. BankLinkage.BankId is set
-    // server-side from the newly-created bank's id, not sent here.
     const selectedBranch = branches.find((b) => b.Id === linkageForm.BranchId);
-    const payload = {
-      Bank: {
-        Code: Number(formData.Code) || 0,
-        Description: formData.BankName,
-        Address: formData.Address,
-        City: formData.City,
-        SwiftCode: formData.SwiftCode,
-        IbanNo: formData.IbanNo,
-        BankBranchesDTO: formData.Branches.map((b) => ({
-          ...b,
-          Code: 0, // auto-generated on server
-          PaddedCode: "",
-          BankCode: 0,
-          BankDescription: formData.BankName,
-          CreatedDate: createdDate,
-        })),
-      },
-      BankLinkage: {
+    const selectedAccount = chartOfAccounts.find((account) => account.Id === linkageForm.ChartOfAccountId);
+    const bank = {
+      Code: Number(formData.Code) || 0,
+      Description: formData.BankName,
+      Address: formData.Address,
+      City: formData.City,
+      SwiftCode: formData.SwiftCode,
+      IbanNo: formData.IbanNo,
+    };
+    const bankBranches = formData.Branches.map((branch) => ({
+      ...branch,
+      Code: 0,
+      PaddedCode: "",
+      BankCode: 0,
+      BankDescription: formData.BankName,
+      CreatedDate: createdDate,
+    }));
+
+    try {
+      const created = await createBank(bank, bankBranches);
+      const createdBank = created?.bank || created?.Bank;
+      if (!createdBank?.Id) throw new Error("Bank was created without an id");
+
+      await createBankLinkage({
+        BankId: createdBank.Id,
         BankAccountNumber: linkageForm.BankAccountNumber,
-        // BankLinkageDTO.bankName/bankBranchName are [Required] display
-        // copies the caller sets directly — not re-derived from the FKs.
         BankName: formData.BankName,
         BankBranchName: linkageForm.BankBranchName,
         BranchId: linkageForm.BranchId,
@@ -150,23 +155,11 @@ export default function AddBankWithLinkagesDrawer({ open, onClose, onSuccess }) 
         Remarks: linkageForm.Remarks,
         IsLocked: linkageForm.IsLocked,
         ChartOfAccountId: linkageForm.ChartOfAccountId,
-        ChartOfAccountAccountType: 1000,
+        ChartOfAccountAccountType: selectedAccount?.AccountType ?? 1000,
+        ChartOfAccountAccountCode: selectedAccount?.AccountCode ?? 0,
+        ChartOfAccountAccountName: selectedAccount?.AccountName || "",
         ChartOfAccountCostCenterId: linkageForm.ChartOfAccountCostCenterId || null,
-      },
-    };
-
-    try {
-      const res = await fetch(
-        `${import.meta.env.VITE_APP_FIN_URL}/api/values/AddBankWithLinkages`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        }
-      );
-      const data = await res.json().catch(() => ({}));
-
-      if (!res.ok || data.Success === false) throw new Error(data.Message || "Failed to add bank linkage");
+      });
 
       Swal.fire({
         icon: "success",
@@ -215,7 +208,7 @@ export default function AddBankWithLinkagesDrawer({ open, onClose, onSuccess }) 
       Swal.fire({
         icon: "error",
         title: "Error",
-        text: "Failed to add bank with linkages. Please try again.",
+        text: err.message || "Failed to add bank with linkages. Please try again.",
         confirmButtonColor: "#dc2626",
       });
     } finally {

@@ -13,6 +13,7 @@ import { FaEllipsisV, FaTrash, FaEdit, FaPlus, FaPiggyBank } from "react-icons/f
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { listAllChartOfAccounts } from "@/pages/Accounts/ChartOfAccounts/api";
 
 const BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 
@@ -179,9 +180,8 @@ function EditSavingsProductDrawer({ open, onClose, onSuccess, item }) {
   useEffect(() => {
     if (!open) return;
     setLoadingData(true);
-    fetch(`${BASE}/api/values/GetChartOfAccount`)
-      .then((r) => r.json())
-      .then((d) => setCoaList(Array.isArray(d.Data) ? d.Data : []))
+    listAllChartOfAccounts()
+      .then(setCoaList)
       .catch(() => setCoaList([]))
       .finally(() => setLoadingData(false));
   }, [open]);

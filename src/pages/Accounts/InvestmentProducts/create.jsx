@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/select";
 import { FaChartLine } from "react-icons/fa";
 import Swal from "sweetalert2";
+import { listAllChartOfAccounts } from "@/pages/Accounts/ChartOfAccounts/api";
 
 const BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 
@@ -50,9 +51,8 @@ export default function CreateInvestmentProduct() {
 
   useEffect(() => {
     setLoadingData(true);
-    fetch(`${BASE}/api/values/GetChartOfAccount`)
-      .then((r) => r.json())
-      .then((d) => setCoaList(Array.isArray(d.Data) ? d.Data : []))
+    listAllChartOfAccounts()
+      .then(setCoaList)
       .catch(() => setCoaList([]))
       .finally(() => setLoadingData(false));
   }, []);

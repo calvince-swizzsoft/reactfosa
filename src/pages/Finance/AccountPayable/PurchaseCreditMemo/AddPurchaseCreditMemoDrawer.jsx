@@ -383,6 +383,7 @@ import {
 import Swal from "sweetalert2";
 import { FaTrash, FaChevronDown, FaChevronUp } from "react-icons/fa";
 import { IoIosArrowDropleftCircle } from "react-icons/io";
+import { listAllChartOfAccounts } from "@/pages/Accounts/ChartOfAccounts/api";
 
 export default function AddPurchaseCreditMemoDrawer({ open, onClose, onSuccess }) {
   const [formData, setFormData] = useState({
@@ -418,11 +419,8 @@ export default function AddPurchaseCreditMemoDrawer({ open, onClose, onSuccess }
       .then(data => setPurchaseInvoices(data.Data || []))
       .catch(() => setPurchaseInvoices([]));
 
-    fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/values/GetChartOfAccount`, {
-      headers: { "ngrok-skip-browser-warning": "true" }
-    })
-      .then(res => res.json())
-      .then(data => setChartOfAccounts(Array.isArray(data) ? data : data.Data || []))
+    listAllChartOfAccounts()
+      .then(setChartOfAccounts)
       .catch(() => setChartOfAccounts([]));
 
     fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/values/GetPurchaseInvoiceEntryTypes`, {

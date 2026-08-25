@@ -12,6 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarIcon, CheckCircle2, Plus, Save, Trash2, Upload, AlertTriangle, FilePlus2 } from "lucide-react";
+import { listAllChartOfAccounts } from "@/pages/Accounts/ChartOfAccounts/api";
 
 const fmt = (n) => Number(n || 0).toLocaleString(undefined, { style: "currency", currency: "USD" });
 const EMPTY_ROW = { accountId: "", description: "", debit: "", credit: "", department: "" };
@@ -122,11 +123,10 @@ export default function PostingJournal() {
   useEffect(() => {
     const fetchAccounts = async () => {
       try {
-        const res = await fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/values/GetChartOfAccount`);
-        const data = await res.json();
-        if (data.Success && Array.isArray(data.Data)) {
+        const accounts = await listAllChartOfAccounts();
+        if (accounts.length > 0) {
           setAccountOptions(
-            data.Data.map((acc) => ({
+            accounts.map((acc) => ({
               id: acc.Id,
               name: acc.AccountName,
               type: acc.AccountTypeDescription,

@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/select";
 import Swal from "sweetalert2";
 import { apiFetch } from "@/lib/api";
+import { listAllChartOfAccounts } from "@/pages/Accounts/ChartOfAccounts/api";
 
 //const BASE = "https://rubani.ngrok.io";
 const BASE = `${import.meta.env.VITE_APP_FIN_URL}`
@@ -81,10 +82,10 @@ export default function AddTellerDrawer({ open, onClose, onSuccess }) {
     setLoadingData(true);
     Promise.all([
       apiFetch(`${BASE}/api/humanresource/employees`).then((r) => r.json()),
-      apiFetch(`${BASE}/api/values/GetChartOfAccount`).then((r) => r.json()),
-    ]).then(([empData, coaData]) => {
+      listAllChartOfAccounts(),
+    ]).then(([empData, accounts]) => {
       setEmployees(Array.isArray(empData) ? empData : []);
-      setAccounts(Array.isArray(coaData.Data) ? coaData.Data : []);
+      setAccounts(accounts);
     }).catch(() => { }).finally(() => setLoadingData(false));
   }, [open]);
 

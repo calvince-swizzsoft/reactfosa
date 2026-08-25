@@ -9,6 +9,7 @@ import {
 import { FaVault } from "react-icons/fa6";
 import Swal from "sweetalert2";
 import { apiFetch, normalizeList } from "@/lib/api";
+import { listAllChartOfAccounts } from "@/pages/Accounts/ChartOfAccounts/api";
 
 const BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 // Treasury master data moved to Areas/Accounts (docs/api/treasury-api-spec.md)
@@ -44,12 +45,12 @@ export default function CreateTreasury() {
     setLoadingData(true);
     Promise.all([
       apiFetch(`${BASE}/api/administration/branches`).then((r) => r.json()),
-      apiFetch(`${BASE}/api/values/GetChartOfAccount`).then((r) => r.json()),
-    ]).then(([branchData, coaData]) => {
+      listAllChartOfAccounts(),
+    ]).then(([branchData, accounts]) => {
       // GET / now returns PageCollectionInfo<BranchDTO> (paged), not a
       // bare array.
       setBranches(normalizeList(branchData));
-      setCoaList(Array.isArray(coaData.Data) ? coaData.Data : []);
+      setCoaList(accounts);
     }).catch(() => { }).finally(() => setLoadingData(false));
   }, []);
 

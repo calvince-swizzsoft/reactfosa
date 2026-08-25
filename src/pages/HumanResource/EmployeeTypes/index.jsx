@@ -11,6 +11,7 @@ import Swal from "sweetalert2";
 import NotFoundImage from "/assets/scopefinding.png";
 import { FaEdit, FaPlus, FaUserTag } from "react-icons/fa";
 import { apiFetch, normalizeList } from "@/lib/api";
+import { listAllChartOfAccounts } from "@/pages/Accounts/ChartOfAccounts/api";
 
 // Areas/HumanResource/Controllers/EmployeeTypesController.cs — GET/POST/PUT
 // only, no DELETE route and no paging/text-filter support (Index() returns
@@ -89,9 +90,8 @@ function EditEmployeeTypeDrawer({ open, onClose, onSuccess, item }) {
   useEffect(() => {
     if (!open) return;
     setLoadingData(true);
-    apiFetch(`${BASE}/api/values/GetChartOfAccount`)
-      .then((r) => r.json())
-      .then((d) => setCoaList(Array.isArray(d.Data) ? d.Data : []))
+    listAllChartOfAccounts()
+      .then(setCoaList)
       .catch(() => setCoaList([]))
       .finally(() => setLoadingData(false));
   }, [open]);

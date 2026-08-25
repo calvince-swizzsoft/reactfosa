@@ -3,9 +3,10 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { FaUniversity, FaPlus, FaDollarSign } from "react-icons/fa";
+import { FaUniversity, FaPlus } from "react-icons/fa";
 import AddBankWithLinkagesDrawer from "./AddBankWithLinkagesDrawer";
 import NotFoundImage from "/assets/scopefinding.png";
+import { listBankLinkages } from "@/pages/Accounts/BankLinkages/api";
 
 export default function BankLinkages() {
   const [linkages, setLinkages] = useState([]);
@@ -13,24 +14,19 @@ export default function BankLinkages() {
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const fetchLinkages = () => {
-    fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/values/getBankWithLinkages`)
-      .then((res) => res.json())
-      .then((data) => {
-        setLinkages(data.Data || []);
-        setLoading(false);
-        console.log("API response:", data);
-        console.log("Data.Data:", data.Data, Array.isArray(data.Data));
+    setLoading(true);
+    listBankLinkages({ pageIndex: 0, pageSize: 1000 })
+      .then((page) => {
+        setLinkages(page?.pageCollection || page?.PageCollection || []);
       })
-      .catch(() => setLoading(false));
+      .catch(() => setLinkages([]))
+      .finally(() => setLoading(false));
   };
 
   useEffect(() => {
     fetchLinkages();
   }, []);
 
-
-
-  console.log(linkages)
 
 
   return (
@@ -54,9 +50,9 @@ export default function BankLinkages() {
           <span>No</span>
           <span>Bank Name</span>
           <span>Branch</span>
-          <span>Address</span>
+          <span>Remarks</span>
           <span>Chart Of Account</span>
-          <span className="text-right">Balance</span>
+          <span className="text-right">Status</span>
         </div>
 
         {/* Table Body */}
@@ -83,16 +79,15 @@ export default function BankLinkages() {
                 <span className="font-medium text-indigo-700">{idx + 1}</span>
                 <span className="font-medium text-gray-900">{link.BankName}</span>
                 <span>{link.BankBranchName}</span>
-                <span>{link.Address}</span>
-                <span className="text-gray-600">{link.ChartOfAccountName}</span>
+                <span>{link.Remarks || "-"}</span>
+                <span className="text-gray-600">{link.ChartOfAccountAccountName}</span>
                 <span
-                  className={`text-right font-semibold bg-gray-100 rounded-lg py-2 px-4 ${link.BankLinkageBalance >= 0
-                    ? "text-green-600"
-                    : "text-red-600"
-                    }`}
+                  className={`text-right font-semibold rounded-lg py-2 px-4 ${link.IsLocked
+                    ? "bg-red-100 text-red-600"
+                    : "bg-green-100 text-green-600"
+                  }`}
                 >
-                  <FaDollarSign className="inline mr-1" />
-                  {link.BankLinkageBalance.toLocaleString()}
+                  {link.IsLocked ? "Locked" : "Active"}
                 </span>
               </div>
             ))}

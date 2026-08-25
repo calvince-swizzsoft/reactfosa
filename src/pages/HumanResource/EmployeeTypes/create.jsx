@@ -9,6 +9,7 @@ import {
 import { FaUserTag } from "react-icons/fa";
 import Swal from "sweetalert2";
 import { apiFetch } from "@/lib/api";
+import { listAllChartOfAccounts } from "@/pages/Accounts/ChartOfAccounts/api";
 
 const BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 
@@ -29,9 +30,8 @@ export default function CreateEmployeeType() {
 
   useEffect(() => {
     setLoadingData(true);
-    apiFetch(`${BASE}/api/values/GetChartOfAccount`)
-      .then((r) => r.json())
-      .then((d) => setCoaList(Array.isArray(d.Data) ? d.Data : []))
+    listAllChartOfAccounts()
+      .then(setCoaList)
       .catch(() => setCoaList([]))
       .finally(() => setLoadingData(false));
   }, []);

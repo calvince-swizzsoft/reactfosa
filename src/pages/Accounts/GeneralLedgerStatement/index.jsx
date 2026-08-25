@@ -9,6 +9,7 @@ import Swal from "sweetalert2";
 import NotFoundImage from "/assets/scopefinding.png";
 import { FaBookOpen, FaChevronLeft, FaChevronRight } from "react-icons/fa";
 import { apiFetch } from "@/lib/api";
+import { listAllChartOfAccounts } from "@/pages/Accounts/ChartOfAccounts/api";
 import {
   JOURNAL_ENTRY_FILTER_OPTIONS,
   DEFAULT_JOURNAL_ENTRY_FILTER,
@@ -67,9 +68,8 @@ export default function GeneralLedgerStatement() {
 
   useEffect(() => {
     setLoadingCoa(true);
-    apiFetch(`${FIN_BASE}/api/values/GetChartOfAccount`)
-      .then((r) => r.json())
-      .then((d) => setCoaList(Array.isArray(d.Data) ? d.Data : []))
+    listAllChartOfAccounts()
+      .then(setCoaList)
       .catch(() => setCoaList([]))
       .finally(() => setLoadingCoa(false));
   }, []);

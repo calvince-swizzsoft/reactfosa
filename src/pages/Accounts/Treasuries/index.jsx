@@ -14,6 +14,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { apiFetch, normalizeList } from "@/lib/api";
+import { listAllChartOfAccounts } from "@/pages/Accounts/ChartOfAccounts/api";
 
 const BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 // Treasury master data lives under Areas/Accounts now, not Areas/FrontOffice
@@ -137,12 +138,12 @@ function EditTreasuryDrawer({ open, onClose, onSuccess, item }) {
     setLoadingData(true);
     Promise.all([
       apiFetch(`${BASE}/api/administration/branches`).then((r) => r.json()),
-      apiFetch(`${BASE}/api/values/GetChartOfAccount`).then((r) => r.json()),
-    ]).then(([branchData, coaData]) => {
+      listAllChartOfAccounts(),
+    ]).then(([branchData, accounts]) => {
       // GET / now returns PageCollectionInfo<BranchDTO> (paged), not a
       // bare array.
       setBranches(normalizeList(branchData));
-      setCoaList(Array.isArray(coaData.Data) ? coaData.Data : []);
+      setCoaList(accounts);
     }).catch(() => { }).finally(() => setLoadingData(false));
   }, [open]);
 

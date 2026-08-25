@@ -1,4 +1,5 @@
 import { apiFetch, normalizeList } from "@/lib/api";
+import { listAllChartOfAccounts } from "@/pages/Accounts/ChartOfAccounts/api";
 
 // Client for WebApplication1's new SalaryHeadsController
 // (Areas/HumanResource/Controllers/SalaryHeadsController.cs, added
@@ -39,9 +40,7 @@ export function updateSalaryHead(id, payload) {
 // G/L Account picker — same api/values/GetChartOfAccount lookup
 // HumanResource/EmployeeTypes already uses for the identical purpose.
 export function listChartOfAccounts() {
-  return apiFetch(`${BASE}/api/values/GetChartOfAccount`)
-    .then((r) => r.json())
-    .then((d) => (Array.isArray(d.Data) ? d.Data : []));
+  return listAllChartOfAccounts();
 }
 
 // Product pickers, one per ProductCode — each already a real, working

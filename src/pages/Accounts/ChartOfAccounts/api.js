@@ -37,6 +37,11 @@ export function listChartOfAccounts({ text = "", pageIndex = 0, pageSize = 20 } 
   return unwrap(apiFetch(`${COA_BASE}?${params.toString()}`));
 }
 
+export async function listAllChartOfAccounts() {
+  const page = await listChartOfAccounts({ pageIndex: 0, pageSize: 1000 });
+  return page?.pageCollection || page?.PageCollection || [];
+}
+
 export function getChartOfAccount(id) {
   return unwrap(apiFetch(`${COA_BASE}/${id}`));
 }
