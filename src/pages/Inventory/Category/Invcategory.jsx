@@ -5,6 +5,7 @@ import AddInvCategoryDrawer from "./AddInvCategoryDrawer";
 import EditInvCategoryDrawer from "./EditInvCategoryDrawer";
 import Swal from "sweetalert2";
 import NotFoundImage from "/assets/scopefinding.png";
+import { apiErrorMessage, apiJson, normalizeList } from "@/lib/api";
 
 export default function Invcategory() {
   const [categories, setCategories] = useState([]);
@@ -14,16 +15,19 @@ export default function Invcategory() {
   const [editCategory, setEditCategory] = useState(null);
 
 
-  const fetchCategories = () => {
-    fetch(`${import.meta.env.VITE_APP_INV_URL}/api/categories`, {
-      headers: { "ngrok-skip-browser-warning": "true" },
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        setCategories(data.data || []);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
+  const fetchCategories = async () => {
+    setLoading(true);
+    try {
+      const data = await apiJson(`${import.meta.env.VITE_APP_INV_URL}/api/categories`, {
+        headers: { "ngrok-skip-browser-warning": "true" },
+      });
+      setCategories(normalizeList(data));
+    } catch (error) {
+      setCategories([]);
+      Swal.fire("Error", apiErrorMessage(error, "Unable to load categories."), "error");
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -43,20 +47,17 @@ export default function Invcategory() {
     }).then(async (result) => {
       if (result.isConfirmed) {
         try {
-          const res = await fetch(
+          await apiJson(
             `${import.meta.env.VITE_APP_INV_URL}/api/categories/${id}`,
             {
               method: "DELETE",
               headers: { "ngrok-skip-browser-warning": "true" },
             }
           );
-          if (!res.ok) throw new Error("Failed to delete category");
-
           Swal.fire("Deleted!", "Category has been deleted.", "success");
           fetchCategories();
         } catch (err) {
-          console.error(err);
-          Swal.fire("Error!", "Failed to delete category.", "error");
+          Swal.fire("Error!", apiErrorMessage(err, "Unable to delete the category."), "error");
         }
       }
     });
