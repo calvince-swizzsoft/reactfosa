@@ -6,6 +6,7 @@ import EditInvItemDrawer from "./EditInvItemDrawer";
 import Swal from "sweetalert2";
 import NotFoundImage from "/assets/scopefinding.png";
 import StockJournalDrawer from "./StockJournalDrawer";
+import { apiErrorMessage, apiJson, normalizeList } from "@/lib/api";
 
 export default function Invitem() {
   const [items, setItems] = useState([]);
@@ -19,16 +20,19 @@ export default function Invitem() {
   const [selectedItem, setSelectedItem] = useState(null);
 
 
-  const fetchItems = () => {
-    fetch(`${import.meta.env.VITE_APP_INV_URL}/api/items`, {
-      headers: { "ngrok-skip-browser-warning": "true" },
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        setItems(data.data || []);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
+  const fetchItems = async () => {
+    setLoading(true);
+    try {
+      const data = await apiJson(`${import.meta.env.VITE_APP_INV_URL}/api/items`, {
+        headers: { "ngrok-skip-browser-warning": "true" },
+      });
+      setItems(normalizeList(data));
+    } catch (error) {
+      setItems([]);
+      Swal.fire("Error", apiErrorMessage(error, "Unable to load inventory items."), "error");
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -47,19 +51,17 @@ export default function Invitem() {
     }).then(async (result) => {
       if (result.isConfirmed) {
         try {
-          const res = await fetch(
+          await apiJson(
             `${import.meta.env.VITE_APP_INV_URL}/api/items/${id}`,
             {
               method: "DELETE",
               headers: { "ngrok-skip-browser-warning": "true" },
             }
           );
-          if (!res.ok) throw new Error("Failed to delete item");
           Swal.fire("Deleted!", "Item has been deleted.", "success");
           fetchItems();
         } catch (err) {
-          console.error(err);
-          Swal.fire("Error!", "Failed to delete item.", "error");
+          Swal.fire("Error!", apiErrorMessage(err, "Unable to delete the inventory item."), "error");
         }
       }
     });

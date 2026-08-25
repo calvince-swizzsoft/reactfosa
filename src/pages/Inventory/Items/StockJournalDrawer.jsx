@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import NotFoundImage from "/assets/scopefinding.png";
+import Swal from "sweetalert2";
+import { apiErrorMessage, apiJson, normalizeList } from "@/lib/api";
 
 export default function StockJournalDrawer({ open, onClose, item }) {
   const [loading, setLoading] = useState(false);
@@ -13,18 +15,21 @@ export default function StockJournalDrawer({ open, onClose, item }) {
   useEffect(() => {
     if (open && item) {
       setLoading(true);
-      fetch(
+      apiJson(
         `${import.meta.env.VITE_APP_INV_URL}/api/items/${item.Id}/stockjournal`,
         { headers: { "ngrok-skip-browser-warning": "true" } }
       )
-        .then((res) => res.json())
         .then((data) => {
-          const list = data.data || [];
+          const list = normalizeList(data);
           setEntries(list);
           setFilteredEntries(list);
-          setLoading(false);
         })
-        .catch(() => setLoading(false));
+        .catch((error) => {
+          setEntries([]);
+          setFilteredEntries([]);
+          Swal.fire("Error", apiErrorMessage(error, "Unable to load the stock journal."), "error");
+        })
+        .finally(() => setLoading(false));
     }
   }, [open, item]);
 
