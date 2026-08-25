@@ -7,7 +7,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import Swal from "sweetalert2";
-import { apiFetch, normalizeList } from "@/lib/api";
+import { apiErrorMessage, apiJson, normalizeList } from "@/lib/api";
 
 const normalizeRoleName = (role) => role?.roleName || role?.RoleName || role?.name || role?.Name || role;
 
@@ -70,19 +70,12 @@ export default function AdministrationPermissionTypes() {
     const fetchPermissionTypes = async () => {
       setPermissionTypesLoading(true);
       try {
-        const response = await fetch(
-          `${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/roles/permissiontypes`
-        );
-        const data = await response.json().catch(() => ({}));
-
-        if (!response.ok) {
-          throw new Error(data?.message || "Failed to load permission types");
-        }
+        const data = await apiJson(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/roles/permissiontypes`, {}, { fallbackMessage: "Failed to load permission types." });
 
         const list = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
         setPermissionTypes(list.map(normalizePermissionType).filter(Boolean));
       } catch (error) {
-        Swal.fire("Error", error.message || "Unable to load permission types.", "error");
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load permission types."), "error");
       } finally {
         setPermissionTypesLoading(false);
       }
@@ -91,17 +84,12 @@ export default function AdministrationPermissionTypes() {
     const fetchRoles = async () => {
       setRolesLoading(true);
       try {
-        const response = await fetch(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/roles`);
-        const data = await response.json().catch(() => ({}));
-
-        if (!response.ok) {
-          throw new Error(data?.message || "Failed to load roles");
-        }
+        const data = await apiJson(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/roles`, {}, { fallbackMessage: "Failed to load roles." });
 
         const roleList = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
         setRoles(roleList.map(normalizeRoleName).filter(Boolean));
       } catch (error) {
-        Swal.fire("Error", error.message || "Unable to load roles.", "error");
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load roles."), "error");
       } finally {
         setRolesLoading(false);
       }
@@ -110,19 +98,14 @@ export default function AdministrationPermissionTypes() {
     const fetchBranches = async () => {
       setBranchesLoading(true);
       try {
-        const response = await apiFetch(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/branches`);
-        const data = await response.json().catch(() => ({}));
-
-        if (!response.ok) {
-          throw new Error(data?.message || "Failed to load branches");
-        }
+        const data = await apiJson(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/branches`, {}, { fallbackMessage: "Failed to load branches." });
 
         // GET / now returns PageCollectionInfo<BranchDTO> (paged), not a
         // bare array — the old Array.isArray(data?.data) check silently
         // returned [] once that shape landed, breaking this dropdown.
         setBranches(normalizeList(data));
       } catch (error) {
-        Swal.fire("Error", error.message || "Unable to load branches.", "error");
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load branches."), "error");
       } finally {
         setBranchesLoading(false);
       }
@@ -152,19 +135,12 @@ export default function AdministrationPermissionTypes() {
     const fetchAssignedRoles = async () => {
       setAssignedLoading(true);
       try {
-        const response = await fetch(
-          `${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/roles/GetRolesForPermissionType?permissionType=${encodeURIComponent(selectedPermissionType)}`
-        );
-        const data = await response.json().catch(() => ({}));
-
-        if (!response.ok) {
-          throw new Error(data?.message || "Failed to load roles for this permission type");
-        }
+        const data = await apiJson(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/roles/GetRolesForPermissionType?permissionType=${encodeURIComponent(selectedPermissionType)}`, {}, { fallbackMessage: "Failed to load roles for this permission type." });
 
         const rowList = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
         setAssignedRows(rowList.map(normalizeAssignedRole).filter((row) => row.roleName));
       } catch (error) {
-        Swal.fire("Error", error.message || "Unable to load current roles for this permission type.", "error");
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load current roles for this permission type."), "error");
         setAssignedRows([]);
       } finally {
         setAssignedLoading(false);
@@ -222,11 +198,10 @@ export default function AdministrationPermissionTypes() {
     setRemovingRoleNames((prev) => new Set(prev).add(roleName));
 
     try {
-      const response = await fetch(
+      const data = await apiJson(
         `${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/roles/RemoveRolesFromPermissionType`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             SystemPermissionType: selectedPermissionType,
             permissionTypeinRoles: [
@@ -238,17 +213,13 @@ export default function AdministrationPermissionTypes() {
               },
             ],
           }),
-        }
+        },
+        { fallbackMessage: `Failed to remove "${roleName}" from "${selectedPermissionType}".` },
       );
-      const data = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        throw new Error(data?.message || `Failed to remove "${roleName}" from "${selectedPermissionType}"`);
-      }
 
       setAssignedRows((prev) => prev.filter((r) => r.roleName !== roleName));
     } catch (error) {
-      Swal.fire("Error", error.message || "Unable to remove role mapping.", "error");
+      Swal.fire("Error", apiErrorMessage(error, "Unable to remove role mapping."), "error");
     } finally {
       setRemovingRoleNames((prev) => {
         const next = new Set(prev);
@@ -269,11 +240,10 @@ export default function AdministrationPermissionTypes() {
 
     setAdding(true);
     try {
-      const response = await fetch(
+      const data = await apiJson(
         `${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/roles/addPermissionTypeToRoles`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             SystemPermissionType: selectedPermissionType,
             permissionTypeinRoles: [
@@ -285,13 +255,9 @@ export default function AdministrationPermissionTypes() {
               },
             ],
           }),
-        }
+        },
+        { fallbackMessage: `Failed to map "${roleName}" to "${selectedPermissionType}".` },
       );
-      const data = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        throw new Error(data?.message || `Failed to map "${roleName}" to "${selectedPermissionType}"`);
-      }
 
       setAssignedRows((prev) => [
         ...prev,
@@ -306,7 +272,7 @@ export default function AdministrationPermissionTypes() {
       setAddForm(emptyAddForm);
       Swal.fire("Success", data?.message || `"${roleName}" mapped to "${selectedPermissionType}".`, "success");
     } catch (error) {
-      Swal.fire("Error", error.message || "Unable to add role mapping.", "error");
+      Swal.fire("Error", apiErrorMessage(error, "Unable to add role mapping."), "error");
     } finally {
       setAdding(false);
     }
