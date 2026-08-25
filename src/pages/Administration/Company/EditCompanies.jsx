@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import Swal from "sweetalert2";
-import { apiFetch } from "@/lib/api";
+import { apiErrorMessage, apiJson } from "@/lib/api";
 import { TABS, emptyCompanyForm } from "./companyFormConfig";
 import CompanyFormFields from "./CompanyFormFields";
 
@@ -112,9 +112,9 @@ export default function EditCompanies({ open, onClose, data, refresh }) {
     setProductsDirty(false);
     setLoadingProducts(true);
     Promise.all([
-      apiFetch(`${FIN_BASE}/api/accounts/savingsproducts`).then((r) => r.json()),
-      apiFetch(`${FIN_BASE}/api/accounts/investmentsproducts`).then((r) => r.json()),
-      apiFetch(`${COMPANY_BASE}/${data.Id}/attached-products`).then((r) => r.json()),
+      apiJson(`${FIN_BASE}/api/accounts/savingsproducts`, {}, { fallbackMessage: "Failed to load savings products." }),
+      apiJson(`${FIN_BASE}/api/accounts/investmentsproducts`, {}, { fallbackMessage: "Failed to load investment products." }),
+      apiJson(`${COMPANY_BASE}/${data.Id}/attached-products`, {}, { fallbackMessage: "Failed to load attached products." }),
     ]).then(([savingsData, investmentData, attachedData]) => {
       const savings = normalizeList(savingsData).map((p) => ({ ...p, ProductType: "Savings" }));
       const investments = normalizeList(investmentData).map((p) => ({ ...p, ProductType: "Investment" }));
@@ -126,7 +126,11 @@ export default function EditCompanies({ open, onClose, data, refresh }) {
         ...(attached.savingsProductCollection || attached.SavingsProductCollection || []),
       ].map((p) => p.id || p.Id);
       setSelectedProductIds(attachedIds);
-    }).catch(() => { setProducts([]); setSelectedProductIds([]); }).finally(() => setLoadingProducts(false));
+    }).catch((error) => {
+      setProducts([]);
+      setSelectedProductIds([]);
+      Swal.fire("Error", apiErrorMessage(error, "Unable to load mandatory products."), "error");
+    }).finally(() => setLoadingProducts(false));
   }, [open, data]);
 
   const update = (key, value) => setForm((p) => ({ ...p, [key]: value }));
@@ -143,12 +147,10 @@ export default function EditCompanies({ open, onClose, data, refresh }) {
         timeDurationStartTime: toTimeSpan(form.timeDurationStartTime),
         timeDurationEndTime: toTimeSpan(form.timeDurationEndTime),
       };
-      const response = await apiFetch(`${COMPANY_BASE}/${form.id}`, {
+      const respData = await apiJson(`${COMPANY_BASE}/${form.id}`, {
         method: "PUT",
         body: JSON.stringify(payload),
-      });
-      const respData = await response.json().catch(() => ({}));
-      if (!response.ok || respData.success === false) throw new Error(respData.message || "Failed to update company");
+      }, { fallbackMessage: "Failed to update company." });
 
       // Attached products are a separate sub-resource — full-replace PUT,
       // so only fire it if the user actually touched the Mandatory Products
@@ -156,24 +158,20 @@ export default function EditCompanies({ open, onClose, data, refresh }) {
       // that were never loaded into `products` yet).
       if (productsDirty) {
         const selectedProducts = products.filter((p) => selectedProductIds.includes(p.Id));
-        const productsRes = await apiFetch(`${COMPANY_BASE}/${form.id}/attached-products`, {
+        await apiJson(`${COMPANY_BASE}/${form.id}/attached-products`, {
           method: "PUT",
           body: JSON.stringify({
             investmentProductCollection: selectedProducts.filter((p) => p.ProductType === "Investment").map((p) => ({ id: p.Id })),
             savingsProductCollection: selectedProducts.filter((p) => p.ProductType === "Savings").map((p) => ({ id: p.Id })),
           }),
-        });
-        const productsData = await productsRes.json().catch(() => ({}));
-        if (!productsRes.ok || productsData.success === false) {
-          throw new Error(productsData.message || "Failed to update mandatory products");
-        }
+        }, { fallbackMessage: "Failed to update mandatory products." });
       }
 
       Swal.fire("Updated!", respData.message || "Company updated successfully", "success");
       refresh();
       onClose();
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to update company."), "error");
     } finally {
       setLoading(false);
     }

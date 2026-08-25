@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import Swal from "sweetalert2";
-import { apiFetch } from "@/lib/api";
+import { apiErrorMessage, apiJson } from "@/lib/api";
 import { TABS, emptyCompanyForm } from "./companyFormConfig";
 import CompanyFormFields from "./CompanyFormFields";
 
@@ -37,13 +37,16 @@ export default function AddCompanies({ open, onClose, refresh }) {
     setSelectedProductIds([]);
     setLoadingProducts(true);
     Promise.all([
-      apiFetch(`${FIN_BASE}/api/accounts/savingsproducts`).then((r) => r.json()),
-      apiFetch(`${FIN_BASE}/api/accounts/investmentsproducts`).then((r) => r.json()),
+      apiJson(`${FIN_BASE}/api/accounts/savingsproducts`, {}, { fallbackMessage: "Failed to load savings products." }),
+      apiJson(`${FIN_BASE}/api/accounts/investmentsproducts`, {}, { fallbackMessage: "Failed to load investment products." }),
     ]).then(([savingsData, investmentData]) => {
       const savings = normalizeList(savingsData).map((p) => ({ ...p, ProductType: "Savings" }));
       const investments = normalizeList(investmentData).map((p) => ({ ...p, ProductType: "Investment" }));
       setProducts([...savings, ...investments]);
-    }).catch(() => setProducts([])).finally(() => setLoadingProducts(false));
+    }).catch((error) => {
+      setProducts([]);
+      Swal.fire("Error", apiErrorMessage(error, "Unable to load mandatory products."), "error");
+    }).finally(() => setLoadingProducts(false));
   }, [open]);
 
   const update = (key, value) => setForm((p) => ({ ...p, [key]: value }));
@@ -70,18 +73,16 @@ export default function AddCompanies({ open, onClose, refresh }) {
         },
       };
 
-      const response = await apiFetch(COMPANY_BASE, {
+      const data = await apiJson(COMPANY_BASE, {
         method: "POST",
         body: JSON.stringify(payload),
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok || data.success === false) throw new Error(data.message || "Failed to add company");
+      }, { fallbackMessage: "Failed to add company." });
 
       Swal.fire("Success!", data.message || "Company added successfully", "success");
       refresh();
       onClose();
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to add company."), "error");
     } finally {
       setLoading(false);
     }
