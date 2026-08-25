@@ -7,6 +7,7 @@ import { FaUniversity } from "react-icons/fa";
 import Swal from "sweetalert2";
 import BankBranchesFields, { emptyBranch } from "./BankBranchesFields";
 import { createBank } from "./api";
+import { apiErrorMessage } from "@/lib/api";
 
 const emptyForm = { Code: "", Description: "", Address: "", City: "", IbanNo: "", SwiftCode: "" };
 
@@ -38,7 +39,7 @@ export default function CreateBank() {
       Swal.fire("Success", "Bank created successfully", "success");
       navigate("/Administration/Banks");
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to create the bank."), "error");
     } finally {
       setLoading(false);
     }

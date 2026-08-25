@@ -1,4 +1,4 @@
-import { apiFetch } from "@/lib/api";
+import { apiJson } from "@/lib/api";
 
 // Client functions for WebApplication1's BankController
 // (Areas/Admin/Controllers/BankController.cs), base
@@ -26,45 +26,36 @@ import { apiFetch } from "@/lib/api";
 const FIN_BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 const BANKS_BASE = `${FIN_BASE}/api/administration/banks`;
 
-async function unwrap(responsePromise) {
-  const res = await responsePromise;
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok || body.success === false) {
-    const err = new Error(body?.message || `Request failed (${res.status})`);
-    err.status = res.status;
-    throw err;
-  }
-  return body?.data ?? body;
-}
+const unwrap = (body) => body?.data ?? body?.Data ?? body;
 
 export function listBanks({ text = "", pageIndex = 0, pageSize = 20 } = {}) {
   const params = new URLSearchParams({ text, pageIndex: String(pageIndex), pageSize: String(pageSize) });
-  return unwrap(apiFetch(`${BANKS_BASE}?${params.toString()}`));
+  return apiJson(`${BANKS_BASE}?${params.toString()}`, {}, { fallbackMessage: "Failed to load banks." }).then(unwrap);
 }
 
 // GET /all — unpaged, fine for a dropdown (bank-api-spec.md §4.2).
 export function listAllBanks() {
-  return unwrap(apiFetch(`${BANKS_BASE}/all`));
+  return apiJson(`${BANKS_BASE}/all`, {}, { fallbackMessage: "Failed to load banks." }).then(unwrap);
 }
 
 export function getBank(id) {
-  return unwrap(apiFetch(`${BANKS_BASE}/${id}`));
+  return apiJson(`${BANKS_BASE}/${id}`, {}, { fallbackMessage: "Failed to load the bank." }).then(unwrap);
 }
 
 export function getBankBranches(id) {
-  return unwrap(apiFetch(`${BANKS_BASE}/${id}/branches`));
+  return apiJson(`${BANKS_BASE}/${id}/branches`, {}, { fallbackMessage: "Failed to load bank branches." }).then(unwrap);
 }
 
 export function createBank(bank, branches) {
-  return unwrap(apiFetch(BANKS_BASE, {
+  return apiJson(BANKS_BASE, {
     method: "POST",
     body: JSON.stringify({ Bank: bank, Branches: branches }),
-  }));
+  }, { fallbackMessage: "Failed to create the bank." }).then(unwrap);
 }
 
 export function updateBank(id, bank, branches) {
-  return unwrap(apiFetch(`${BANKS_BASE}/${id}`, {
+  return apiJson(`${BANKS_BASE}/${id}`, {
     method: "PUT",
     body: JSON.stringify({ Bank: { ...bank, Id: id }, Branches: branches }),
-  }));
+  }, { fallbackMessage: "Failed to update the bank." }).then(unwrap);
 }

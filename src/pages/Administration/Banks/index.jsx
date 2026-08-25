@@ -9,6 +9,7 @@ import NotFoundImage from "/assets/scopefinding.png";
 import { FaUniversity, FaEdit, FaPlus, FaChevronLeft, FaChevronRight } from "react-icons/fa";
 import BankBranchesFields, { emptyBranch } from "./BankBranchesFields";
 import { listBanks, getBankBranches, updateBank } from "./api";
+import { apiErrorMessage } from "@/lib/api";
 
 function FieldGroup({ label, children }) {
   return (
@@ -38,7 +39,10 @@ function EditBankDrawer({ open, onClose, onSuccess, item }) {
     setLoadingBranches(true);
     getBankBranches(item.Id)
       .then((rows) => setBranches(rows && rows.length ? rows : [{ ...emptyBranch }]))
-      .catch(() => setBranches([{ ...emptyBranch }]))
+      .catch((error) => {
+        setBranches([{ ...emptyBranch }]);
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load bank branches."), "error");
+      })
       .finally(() => setLoadingBranches(false));
   }, [item]);
 
@@ -57,7 +61,7 @@ function EditBankDrawer({ open, onClose, onSuccess, item }) {
       onSuccess();
       onClose();
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to update the bank."), "error");
     } finally {
       setLoading(false);
     }
@@ -137,7 +141,11 @@ export default function Banks() {
         setItems(page?.pageCollection || page?.PageCollection || []);
         setItemsCount(page?.itemsCount || page?.ItemsCount || 0);
       })
-      .catch(() => { setItems([]); setItemsCount(0); })
+      .catch((error) => {
+        setItems([]);
+        setItemsCount(0);
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load banks."), "error");
+      })
       .finally(() => setLoading(false));
   };
 
