@@ -5,6 +5,7 @@ import Swal from "sweetalert2";
 import { FaChevronLeft, FaChevronRight, FaIdCard, FaSearch, FaUserCircle } from "react-icons/fa";
 import NotFoundImage from "/assets/scopefinding.png";
 import { getAccountHistory, getCustomerStatus, searchCustomers } from "./api";
+import { apiErrorMessage } from "@/lib/api";
 
 const TABS = [
   ["accounts", "Account Listings"], ["selected", "Selected Account Details"],
@@ -57,7 +58,7 @@ export default function AccountStatuses() {
       const page = await searchCustomers({ text: search.trim(), customerFilter, pageIndex, pageSize: 20 });
       setCustomers(v(page, "PageCollection", "pageCollection") || []);
       setItemsCount(Number(v(page, "ItemsCount", "itemsCount") || 0));
-    } catch (error) { setCustomers([]); Swal.fire("Unable to search customers", error.message, "error"); }
+    } catch (error) { setCustomers([]); setItemsCount(0); Swal.fire("Unable to search customers", apiErrorMessage(error, "Unable to search customers."), "error"); }
     finally { setLoadingCustomers(false); }
   };
   useEffect(() => { fetchCustomers(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [pageIndex]);
@@ -65,14 +66,14 @@ export default function AccountStatuses() {
   const selectCustomer = async (customer) => {
     setLoadingStatus(true); setStatus(null); setSelectedAccount(null); setHistory([]);
     try { setStatus(await getCustomerStatus(v(customer, "Id", "id"))); setTab("accounts"); }
-    catch (error) { Swal.fire(error.message.includes("permission") ? "Access denied" : "Unable to load account status", error.message, error.message.includes("permission") ? "warning" : "error"); }
+    catch (error) { const denied = error?.status === 403; Swal.fire(denied ? "Access denied" : "Unable to load account status", apiErrorMessage(error, "Unable to load the customer's account status."), denied ? "warning" : "error"); }
     finally { setLoadingStatus(false); }
   };
 
   const selectAccount = async (account) => {
     setSelectedAccount(account); setTab("selected"); setHistory([]);
     try { const result = await getAccountHistory(accountId(account)); setHistory(Array.isArray(result) ? result : v(result, "PageCollection", "pageCollection") || []); }
-    catch { setHistory([]); }
+    catch (error) { setHistory([]); Swal.fire("Unable to load account history", apiErrorMessage(error, "Unable to load the account's management history."), "error"); }
   };
 
   const customer = v(status, "customer", "Customer") || {};

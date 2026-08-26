@@ -12,6 +12,7 @@ import {
 } from "./api";
 import { ALTERNATE_CHANNEL_TYPE_OPTIONS, BROKEN_CARD_NUMBER_TYPES, AlternateChannelType } from "./lib/alternateChannelEnums";
 import EntryPickerModal from "../BatchProcedures/lib/EntryPickerModal";
+import { apiErrorMessage } from "@/lib/api";
 
 const FIN_BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 
@@ -96,7 +97,7 @@ function LinkChannelDrawer({ open, onClose, onSuccess }) {
       onSuccess();
       onClose();
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to link the alternate channel."), "error");
     } finally {
       setLoading(false);
     }
@@ -191,7 +192,7 @@ function DetailDrawer({ channel, onClose, onChanged }) {
       onChanged();
       onClose();
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to stop the alternate channel."), "error");
     }
   };
 
@@ -213,7 +214,7 @@ function DetailDrawer({ channel, onClose, onChanged }) {
       onChanged();
       onClose();
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to delink the alternate channel."), "error");
     }
   };
 
@@ -231,7 +232,7 @@ function DetailDrawer({ channel, onClose, onChanged }) {
       onChanged();
       onClose();
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", apiErrorMessage(err, `Unable to ${replaceMode} the alternate channel.`), "error");
     } finally {
       setBusy(false);
     }
@@ -313,7 +314,11 @@ export default function AlternateChannelManagement() {
         setItems(page?.pageCollection || page?.PageCollection || []);
         setItemsCount(page?.itemsCount ?? page?.ItemsCount ?? 0);
       })
-      .catch(() => setItems([]))
+      .catch((error) => {
+        setItems([]);
+        setItemsCount(0);
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load alternate channels."), "error");
+      })
       .finally(() => setLoading(false));
   };
 

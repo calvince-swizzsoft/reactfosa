@@ -7,6 +7,7 @@ import { FaClipboardCheck, FaSearch } from "react-icons/fa";
 import NotFoundImage from "/assets/scopefinding.png";
 import { listAlternateChannelsPaged, approveAlternateChannel, rejectAlternateChannel } from "./api";
 import { RecordStatus } from "./lib/alternateChannelEnums";
+import { apiErrorMessage } from "@/lib/api";
 
 function StatusBadge({ status }) {
   const meta = {
@@ -34,7 +35,7 @@ function ReviewDrawer({ channel, onClose, onChanged }) {
       onChanged();
       onClose();
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to update the alternate-channel request."), "error");
     } finally {
       setBusy(false);
     }
@@ -115,7 +116,11 @@ export default function RegisterAlternateChannel() {
         setItems(all.filter((c) => c.RecordStatus === RecordStatus.New || c.RecordStatus === RecordStatus.Edited));
         setItemsCount(page?.itemsCount ?? page?.ItemsCount ?? 0);
       })
-      .catch(() => setItems([]))
+      .catch((error) => {
+        setItems([]);
+        setItemsCount(0);
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load alternate-channel requests."), "error");
+      })
       .finally(() => setLoading(false));
   };
 
