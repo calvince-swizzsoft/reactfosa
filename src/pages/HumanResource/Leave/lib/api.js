@@ -82,7 +82,6 @@ export function updateLeaveType(id, payload) {
 
 /** GET api/humanresource/employees — unpaged, for the employee picker (same endpoint HumanResource/Documents/api.js already uses). */
 export async function listEmployees() {
-  const res = await apiFetch(EMPLOYEES_BASE);
-  const body = await res.json().catch(() => []);
+  const body = await apiFetch(EMPLOYEES_BASE);
   return Array.isArray(body) ? body : [];
 }

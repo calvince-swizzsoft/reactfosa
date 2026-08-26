@@ -44,18 +44,15 @@ export function listChartOfAccounts() {
 // list pages use these same routes).
 export function listSavingsProducts() {
   return apiFetch(`${BASE}/api/accounts/savingsproducts`)
-    .then((r) => r.json())
     .then((d) => (Array.isArray(d) ? d : Array.isArray(d?.Data) ? d.Data : Array.isArray(d?.data) ? d.data : []));
 }
 
 export function listInvestmentProducts() {
   return apiFetch(`${BASE}/api/accounts/investmentsproducts`)
-    .then((r) => r.json())
     .then((d) => (Array.isArray(d) ? d : Array.isArray(d?.Data) ? d.Data : Array.isArray(d?.data) ? d.data : []));
 }
 
 export function listLoanProducts() {
   return apiFetch(`${BASE}/api/accounts/loanproducts`)
-    .then((r) => r.json())
     .then((body) => normalizeList(body?.data ?? body?.Data ?? body));
 }

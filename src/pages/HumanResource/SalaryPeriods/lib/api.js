@@ -88,14 +88,12 @@ export function listPostingPeriods() {
 }
 
 export async function listBranches() {
-  const res = await apiFetch(`${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/administration/branches?pageIndex=0&pageSize=1000`);
-  const body = await res.json().catch(() => ({}));
+  const body = await apiFetch(`${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/administration/branches?pageIndex=0&pageSize=1000`);
   const page = body?.data ?? body?.Data ?? body;
   return page?.pageCollection || page?.PageCollection || (Array.isArray(page) ? page : []);
 }
 
 export async function listDepartments() {
-  const res = await apiFetch(`${BASE}/api/humanresource/departments`);
-  const body = await res.json().catch(() => []);
+  const body = await apiFetch(`${BASE}/api/humanresource/departments`);
   return Array.isArray(body) ? body : Array.isArray(body?.data) ? body.data : [];
 }
