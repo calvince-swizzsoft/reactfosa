@@ -10,7 +10,7 @@ import {
 } from "react-icons/fa";
 import Swal from "sweetalert2";
 import NotFoundImage from "/assets/scopefinding.png";
-import { apiFetch, normalizeList } from "@/lib/api";
+import { apiErrorMessage, apiJson, normalizeList } from "@/lib/api";
 import { listAllUnpayReasons } from "../../Accounts/UnpayReasons/api";
 
 // api/frontoffice/cheques + api/frontoffice/transfers/cheques —
@@ -70,10 +70,12 @@ function CataloguePanel() {
 
   useEffect(() => {
     setLoading(true);
-    apiFetch(`${BASE}/api/frontoffice/cheques?pageSize=1000`)
-      .then((r) => r.json())
+    apiJson(`${BASE}/api/frontoffice/cheques?pageSize=1000`)
       .then((d) => setCheques(normalizeList(d)))
-      .catch(() => setCheques([]))
+      .catch((error) => {
+        setCheques([]);
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load cheques."), "error");
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -189,10 +191,12 @@ function SearchSelectModal({ title, fetchUrl, getLabel, getSublabel, onSelect, o
   const [query, setQuery] = useState("");
 
   useEffect(() => {
-    apiFetch(fetchUrl)
-      .then((r) => r.json())
+    apiJson(fetchUrl)
       .then((d) => setItems(normalizeList(d)))
-      .catch(() => setItems([]))
+      .catch((error) => {
+        setItems([]);
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load cheques."), "error");
+      })
       .finally(() => setLoading(false));
   }, [fetchUrl]);
 
@@ -300,14 +304,18 @@ function BankPanel() {
   const fetchCheques = () => {
     setLoading(true);
     Promise.all([
-      apiFetch(`${BASE}/api/frontoffice/cheques?pageSize=1000`).then((r) => r.json()),
-      apiFetch(`${BASE}/api/administration/branches`).then((r) => r.json()),
+      apiJson(`${BASE}/api/frontoffice/cheques?pageSize=1000`),
+      apiJson(`${BASE}/api/administration/branches`),
     ])
       .then(([chequeData, branchData]) => {
         setCheques(normalizeList(chequeData));
         setBranches(normalizeList(branchData));
       })
-      .catch(() => { })
+      .catch((error) => {
+        setCheques([]);
+        setBranches([]);
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load cheque-banking options."), "error");
+      })
       .finally(() => setLoading(false));
   };
 
@@ -345,7 +353,7 @@ function BankPanel() {
     if (!confirm.isConfirmed) return;
     setSubmitting(true);
     try {
-      const res = await apiFetch(`${BASE}/api/frontoffice/cheques/bank`, {
+      const data = await apiJson(`${BASE}/api/frontoffice/cheques/bank`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -353,15 +361,13 @@ function BankPanel() {
           bankLinkageDTO: { Id: linkage.Id, ChartOfAccountId: linkage.ChartOfAccountId, BranchId: branchId },
         }),
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || data.success === false) throw new Error(data.message || "Banking failed");
       Swal.fire("Success", data.message || "Cheques banked successfully.", "success");
       setSelected([]);
       setLinkage(emptyLinkage);
       setBranchId("");
       fetchCheques();
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to bank the selected cheques."), "error");
     } finally {
       setSubmitting(false);
     }
@@ -517,7 +523,7 @@ function ClearPanel() {
   const fetchAll = () => {
     setLoading(true);
     Promise.all([
-      apiFetch(`${BASE}/api/frontoffice/cheques?pageSize=1000`).then((r) => r.json()),
+      apiJson(`${BASE}/api/frontoffice/cheques?pageSize=1000`),
       // api/accounts/unpayreasons — the real, documented controller
       // (docs/api/unpayreason-api-spec.md), replacing the undocumented
       // /api/unpay endpoint this screen used to call.
@@ -527,7 +533,11 @@ function ClearPanel() {
         setCheques(normalizeList(chequeData));
         setUnpayReasons(normalizeList(reasonData));
       })
-      .catch(() => { })
+      .catch((error) => {
+        setCheques([]);
+        setUnpayReasons([]);
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load cheque-clearing options."), "error");
+      })
       .finally(() => setLoading(false));
   };
 
@@ -573,19 +583,17 @@ function ClearPanel() {
           ? { Id: reason.Id, Code: reason.Code, Description: reason.Description }
           : {},
       };
-      const res = await apiFetch(`${BASE}/api/frontoffice/cheques/clear`, {
+      const data = await apiJson(`${BASE}/api/frontoffice/cheques/clear`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || data.success === false) throw new Error(data.message || "Clearing failed");
       Swal.fire("Success", data.message || `Cheques ${label.toLowerCase()}ed successfully.`, "success");
       setSelected([]);
       setSelectedReasonId("");
       fetchAll();
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to clear the selected cheques."), "error");
     } finally {
       setSubmitting(false);
     }

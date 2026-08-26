@@ -13,7 +13,7 @@ import {
 import Swal from "sweetalert2";
 import { Trash2, Plus } from "lucide-react";
 import CustomerSelectModal from "./CustomerSelectModal";
-import { apiFetch, normalizeList } from "@/lib/api";
+import { apiErrorMessage, apiJson, normalizeList } from "@/lib/api";
 
 const today = new Date();
 const todayStr = today.toISOString().split("T")[0];
@@ -63,8 +63,7 @@ export default function AddInterAccountTransfer({ open, onClose, onSuccess }) {
   );
 
   useEffect(() => {
-    apiFetch(`${import.meta.env.VITE_APP_FIN_URL}/api/administration/branches`)
-      .then((res) => res.json())
+    apiJson(`${import.meta.env.VITE_APP_FIN_URL}/api/administration/branches`)
       .then((data) => {
         // Was checking `data.Success`/`data.Data` (capitalized) against an
         // envelope that's always been lowercase `success`/`data` — this
@@ -73,9 +72,9 @@ export default function AddInterAccountTransfer({ open, onClose, onSuccess }) {
         // { pageCollection: [...] } shape GET / returns.
         setAllBranches(normalizeList(data));
       })
-      .catch((err) => {
-        console.error(err);
-        Swal.fire("Error", "Failed to load branches", "error");
+      .catch((error) => {
+        setAllBranches([]);
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load branches."), "error");
       });
   }, []);
 
@@ -85,12 +84,14 @@ export default function AddInterAccountTransfer({ open, onClose, onSuccess }) {
     setLines((p) => p.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
 
   const fetchAccounts = (customerId) =>
-    fetch(
+    apiJson(
       `${import.meta.env.VITE_APP_FIN_URL}/api/values/CustomerAccount/by-customer?customerId=${customerId}`
     )
-      .then((res) => res.json())
       .then((data) => (Array.isArray(data) ? data : []))
-      .catch(() => []);
+      .catch((error) => {
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load customer accounts."), "error");
+        return [];
+      });
 
   const onSourceMemberSelect = async (member) => {
     setSelectedSourceMember(member);
@@ -167,7 +168,7 @@ export default function AddInterAccountTransfer({ open, onClose, onSuccess }) {
 
     setLoading(true);
     try {
-      const res = await fetch(
+      const data = await apiJson(
         `${import.meta.env.VITE_APP_FIN_URL}/api/values/InterAccountTransferBatch`,
         {
           method: "POST",
@@ -175,30 +176,21 @@ export default function AddInterAccountTransfer({ open, onClose, onSuccess }) {
           body: JSON.stringify(payload),
         }
       );
-      const data = await res.json();
-
-      console.log("Batch post response:", data);
-
-      if (data.Success) {
-        Swal.fire("Success", "Batch posted successfully", "success");
-        setLines([{ ...EMPTY_LINE }]);
-        setReference("");
-        setBatchNumber("");
-        setStartDate(firstOfMonthStr);
-        setEndDate(todayStr);
-        setWireTransferAuthOption("1");
-        setAvailableBalance("");
-        setSelectedSourceMember(null);
-        setSelectedSourceAccountId("");
-        setSourceAccounts([]);
-        setBranchId("");
-        if (onSuccess) onSuccess(data);
-      } else {
-        Swal.fire("Error", data.Message || "Failed to post batch", "error");
-      }
+      Swal.fire("Success", "Batch posted successfully", "success");
+      setLines([{ ...EMPTY_LINE }]);
+      setReference("");
+      setBatchNumber("");
+      setStartDate(firstOfMonthStr);
+      setEndDate(todayStr);
+      setWireTransferAuthOption("1");
+      setAvailableBalance("");
+      setSelectedSourceMember(null);
+      setSelectedSourceAccountId("");
+      setSourceAccounts([]);
+      setBranchId("");
+      if (onSuccess) onSuccess(data);
     } catch (err) {
-      console.error(err);
-      Swal.fire("Error", "Network error", "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to post the transfer batch."), "error");
     } finally {
       setLoading(false);
     }

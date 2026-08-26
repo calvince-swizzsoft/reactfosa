@@ -14,6 +14,7 @@ import {
 import Swal from "sweetalert2";
 import { FaTrash, FaChevronDown, FaChevronUp } from "react-icons/fa";
 import { IoIosArrowDropleftCircle } from "react-icons/io";
+import { apiErrorMessage, apiJson } from "@/lib/api";
 
 export default function UpdateSalesCreditMemoDrawer({
   open,
@@ -67,21 +68,20 @@ export default function UpdateSalesCreditMemoDrawer({
 
   // fetch entry types + chart of accounts
   useEffect(() => {
-    fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/values/GetPurchaseInvoiceEntryTypes`, {
+    apiJson(`${import.meta.env.VITE_APP_FIN_URL}/api/values/GetPurchaseInvoiceEntryTypes`, {
       headers: { "ngrok-skip-browser-warning": "true" },
     })
-      .then((r) => r.json())
       .then((data) => setEntryTypes(Array.isArray(data) ? data : data.Data || []))
       .catch((err) => {
-        console.error("Error fetching entry types:", err);
         setEntryTypes([]);
+        Swal.fire("Error", apiErrorMessage(err, "Unable to load entry types."), "error");
       });
 
     listAllChartOfAccounts()
       .then(setChartOfAccounts)
       .catch((err) => {
-        console.error("Error fetching chart of accounts:", err);
         setChartOfAccounts([]);
+        Swal.fire("Error", apiErrorMessage(err, "Unable to load chart accounts."), "error");
       });
   }, []);
 
@@ -134,7 +134,7 @@ export default function UpdateSalesCreditMemoDrawer({
     setLoading(true);
 
     try {
-      const res = await fetch(
+      const data = await apiJson(
         `${import.meta.env.VITE_APP_FIN_URL}/api/values/UpdateSalesCreditMemos`,
         {
           method: "PUT",
@@ -146,15 +146,11 @@ export default function UpdateSalesCreditMemoDrawer({
         }
       );
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.message || "Failed to update sales credit memo");
-
       Swal.fire("Success", data?.message || "Credit memo updated successfully", "success");
       onSuccess?.();
       onClose();
     } catch (err) {
-      console.error(err);
-      Swal.fire("Error", err?.message || "Update failed", "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to update the sales credit memo."), "error");
     } finally {
       setLoading(false);
     }

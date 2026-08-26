@@ -207,6 +207,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import NotFoundImage from "/assets/scopefinding.png";
 import ViewDetailPostedReceipt from "./ViewDetailPostedReceipt";
+import Swal from "sweetalert2";
+import { apiErrorMessage, apiJson } from "@/lib/api";
 
 export default function PostedReceipt() {
     const [receipts, setReceipts] = useState([]);
@@ -221,16 +223,16 @@ export default function PostedReceipt() {
 
     const fetchReceipts = async () => {
         try {
-            const res = await fetch(
+            const data = await apiJson(
                 `${import.meta.env.VITE_APP_FIN_URL}/api/customer-receipts`,
                 {
                     headers: { "ngrok-skip-browser-warning": "true" },
                 }
             );
-            const data = await res.json();
             setReceipts(data.data || []);
         } catch (err) {
-            console.error("Failed to fetch receipts", err);
+            setReceipts([]);
+            Swal.fire("Error", apiErrorMessage(err, "Unable to load posted receipts."), "error");
         } finally {
             setLoading(false);
         }
@@ -388,4 +390,3 @@ export default function PostedReceipt() {
         </div>
     );
 }
-

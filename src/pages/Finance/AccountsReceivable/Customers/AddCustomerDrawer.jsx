@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Swal from "sweetalert2";
+import { apiErrorMessage, apiJson } from "@/lib/api";
 
 export default function AddCustomerDrawer({ open, onClose, onSuccess }) {
     const [formData, setFormData] = useState({
@@ -23,7 +24,7 @@ export default function AddCustomerDrawer({ open, onClose, onSuccess }) {
         e.preventDefault();
         setLoading(true);
         try {
-            const res = await fetch(
+            await apiJson(
                 `${import.meta.env.VITE_APP_FIN_URL}/api/values/AddARCustomer`,
                 {
                     method: "POST",
@@ -34,10 +35,6 @@ export default function AddCustomerDrawer({ open, onClose, onSuccess }) {
                     body: JSON.stringify(formData),
                 }
             );
-
-            const data = await res.json();
-            if (!res.ok || !data.success)
-                throw new Error(data.message || "Failed to add customer");
 
             Swal.fire("Success", data.message, "success");
             setFormData({
@@ -54,7 +51,7 @@ export default function AddCustomerDrawer({ open, onClose, onSuccess }) {
             if (onSuccess) onSuccess();
             onClose();
         } catch (err) {
-            Swal.fire("Error", err.message, "error");
+            Swal.fire("Error", apiErrorMessage(err, "Unable to add the customer."), "error");
         } finally {
             setLoading(false);
         }

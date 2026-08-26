@@ -4,7 +4,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import Swal from "sweetalert2";
 import { FaHourglassEnd } from "react-icons/fa";
-import { apiFetch } from "@/lib/api";
+import { apiErrorMessage, apiJson } from "@/lib/api";
 import { getEmployeeIdFromToken } from "@/lib/auth";
 import DenominationCountFields, {
   emptyDenominationCounts,
@@ -88,15 +88,17 @@ export default function EndOfDay() {
       setLoadingTeller(false);
       return;
     }
-    apiFetch(`${BASE}/api/frontoffice/tellers/teller?employeeId=${employeeId}`)
-      .then((r) => r.json())
+    apiJson(`${BASE}/api/frontoffice/tellers/teller?employeeId=${employeeId}`)
       // TellerController now wraps every response in the standard
       // { success, message, data } envelope (it used to return the bare
       // TellerDTO) — without unwrapping, teller.BookBalance/.Description
       // silently come back undefined, which made every EOD close compute
       // BookBalance as 0 and misclassify a balanced day as "Excess".
       .then((d) => setTeller(d?.data ?? d))
-      .catch(() => setTeller(null))
+      .catch((error) => {
+        setTeller(null);
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load the current teller."), "error");
+      })
       .finally(() => setLoadingTeller(false));
   }, []);
 
@@ -137,21 +139,16 @@ export default function EndOfDay() {
         ...toDenominationSubtotals(counts),
       };
 
-      const res = await apiFetch(`${BASE}/api/frontoffice/endofday`, {
+      const data = await apiJson(`${BASE}/api/frontoffice/endofday`, {
         method: "POST",
         body: JSON.stringify(payload),
       });
-      const data = await res.json().catch(() => ({}));
-
-      if (!res.ok) throw new Error(data.message || data.Message || "End of Day process failed");
-      if (data.success === false) throw new Error(data.message || "End of Day process failed");
-
       setReceiptJournal(data.data);
       setCounts(emptyDenominationCounts);
       setReference("");
       setRemarks("");
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to complete the end-of-day process."), "error");
     } finally {
       setSubmitting(false);
     }

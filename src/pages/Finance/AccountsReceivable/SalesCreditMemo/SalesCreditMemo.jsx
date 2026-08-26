@@ -18,6 +18,7 @@ import NotFoundImage from "/assets/scopefinding.png";
 import AddSalesCreditMemoDrawer from "./AddSalesCreditMemoDrawer";
 import UpdateSalesCreditMemoDrawer from "./UpdateSalesCreditMemoDrawer";
 import { MdOutlinePostAdd } from "react-icons/md";
+import { apiErrorMessage, apiJson } from "@/lib/api";
 
 export default function SalesCreditMemo() {
   const [creditMemos, setCreditMemos] = useState([]);
@@ -30,15 +31,18 @@ export default function SalesCreditMemo() {
 
   // Fetch Credit Memos
   const fetchMemos = () => {
-    fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/values/GetSalesCreditMemos`, {
+    apiJson(`${import.meta.env.VITE_APP_FIN_URL}/api/values/GetSalesCreditMemos`, {
       headers: { "ngrok-skip-browser-warning": "true" },
     })
-      .then((res) => res.json())
       .then((data) => {
         setCreditMemos(data.Data || []);
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch((error) => {
+        setCreditMemos([]);
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load sales credit memos."), "error");
+      })
+      .finally(() => setLoading(false));
   };
 
   useEffect(() => {
@@ -66,7 +70,7 @@ export default function SalesCreditMemo() {
   // Post Credit Memo
   const handlePostMemo = async (memoId) => {
     try {
-      const response = await fetch(
+      const resData = await apiJson(
         `${import.meta.env.VITE_APP_FIN_URL}/api/values/PostSalesCreditMemos/${memoId}`,
         {
           method: "POST",
@@ -74,19 +78,10 @@ export default function SalesCreditMemo() {
         }
       );
 
-      const resData = await response.json();
-      if (response.ok && resData.success === true) {
-        Swal.fire("Success!", resData.message, "success");
-        fetchMemos();
-      } else {
-        Swal.fire(
-          "Error!",
-          resData.message || "Failed to post credit memo.",
-          "error"
-        );
-      }
+      Swal.fire("Success!", resData?.message || "Credit memo posted successfully.", "success");
+      fetchMemos();
     } catch (err) {
-      Swal.fire("Error!", "Failed to post credit memo.", "error");
+      Swal.fire("Error!", apiErrorMessage(err, "Unable to post the sales credit memo."), "error");
     }
   };
 

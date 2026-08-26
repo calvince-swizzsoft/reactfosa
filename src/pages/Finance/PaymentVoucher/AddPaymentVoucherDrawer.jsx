@@ -14,6 +14,7 @@ import Swal from "sweetalert2";
 import { FaTrash, FaChevronDown, FaChevronUp } from "react-icons/fa";
 import { IoIosArrowDropleftCircle } from "react-icons/io";
 import { listAllChartOfAccounts } from "@/pages/Accounts/ChartOfAccounts/api";
+import { apiErrorMessage, apiJson } from "@/lib/api";
 
 export default function AddPaymentVoucherDrawer({ open, onClose, onSuccess }) {
   const [formData, setFormData] = useState({
@@ -105,7 +106,7 @@ export default function AddPaymentVoucherDrawer({ open, onClose, onSuccess }) {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await fetch(
+      await apiJson(
         `${import.meta.env.VITE_APP_FIN_URL}/api/values/PostPaymentVoucher`,
         {
           method: "POST",
@@ -115,13 +116,6 @@ export default function AddPaymentVoucherDrawer({ open, onClose, onSuccess }) {
           body: JSON.stringify(formData),
         }
       );
-
-      console.log(formData);
-      console.log(res);
-
-      const data = await res.json().catch(() => ({}));
-      console.log(data);
-      if (!res.ok) throw new Error(data.message || "Failed to create voucher");
 
       Swal.fire("Success", "Payment Voucher created successfully", "success");
 
@@ -148,7 +142,7 @@ export default function AddPaymentVoucherDrawer({ open, onClose, onSuccess }) {
       if (onSuccess) onSuccess();
       onClose();
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to create the payment voucher."), "error");
     } finally {
       setLoading(false);
     }
@@ -164,27 +158,28 @@ export default function AddPaymentVoucherDrawer({ open, onClose, onSuccess }) {
   // Fetch static data
   useEffect(() => {
     // fetch Payment Types
-    fetch(
+    apiJson(
       `${import.meta.env.VITE_APP_FIN_URL}/api/values/GetPurchaseInvoiceEntryTypes`
     )
-      .then((res) => res.json())
       .then((data) => setPaymentTypes(data))
-      .catch((err) => console.error("Error fetching payment types:", err));
+      .catch((error) => Swal.fire("Error", apiErrorMessage(error, "Unable to load payment types."), "error"));
 
     // fetch Chart of Accounts
     listAllChartOfAccounts()
       .then(setChartOfAccounts)
-      .catch(() => setChartOfAccounts([]));
+      .catch((error) => {
+        setChartOfAccounts([]);
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load chart accounts."), "error");
+      });
 
     // fetch Invoice Lines
-    fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/values/invoicelines`)
-      .then((res) => res.json())
+    apiJson(`${import.meta.env.VITE_APP_FIN_URL}/api/values/invoicelines`)
       .then((data) => {
         if (data.Success && Array.isArray(data.Data)) {
           setInvoiceLines(data.Data);
         }
       })
-      .catch((err) => console.error("Error fetching invoice lines:", err));
+      .catch((error) => Swal.fire("Error", apiErrorMessage(error, "Unable to load invoice lines."), "error"));
   }, []);
 
   return (

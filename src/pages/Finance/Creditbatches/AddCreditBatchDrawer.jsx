@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Swal from "sweetalert2";
+import { apiErrorMessage, apiJson } from "@/lib/api";
 
 export default function AddCreditBatchDrawer({ open, onClose, onSuccess }) {
     const [loading, setLoading] = useState(false);
@@ -47,13 +48,13 @@ export default function AddCreditBatchDrawer({ open, onClose, onSuccess }) {
         const fetchCreditTypes = async () => {
             try {
                 setCreditTypesLoading(true);
-                const res = await fetch(
+                const data = await apiJson(
                     `${import.meta.env.VITE_APP_FIN_URL}/api/values/credittypes`
                 );
-                const data = await res.json();
                 setCreditTypes(data || []);
-            } catch {
-                Swal.fire("Error", "Failed to load credit types", "error");
+            } catch (error) {
+                setCreditTypes([]);
+                Swal.fire("Error", apiErrorMessage(error, "Unable to load credit types."), "error");
             } finally {
                 setCreditTypesLoading(false);
             }
@@ -63,13 +64,13 @@ export default function AddCreditBatchDrawer({ open, onClose, onSuccess }) {
         const fetchBranches = async () => {
             try {
                 setBranchesLoading(true);
-                const res = await fetch(
+                const data = await apiJson(
                     `${import.meta.env.VITE_APP_FIN_URL}/api/values/branches`
                 );
-                const data = await res.json();
                 setBranches(data.Data || []);
-            } catch {
-                Swal.fire("Error", "Failed to load branches", "error");
+            } catch (error) {
+                setBranches([]);
+                Swal.fire("Error", apiErrorMessage(error, "Unable to load branches."), "error");
             } finally {
                 setBranchesLoading(false);
             }
@@ -79,13 +80,13 @@ export default function AddCreditBatchDrawer({ open, onClose, onSuccess }) {
         const fetchPostingPeriods = async () => {
             try {
                 setPostingPeriodsLoading(true);
-                const res = await fetch(
+                const data = await apiJson(
                     `${import.meta.env.VITE_APP_FIN_URL}/api/loaning/GetPostingPeriods`
                 );
-                const data = await res.json();
                 setPostingPeriods(data || []);
-            } catch {
-                Swal.fire("Error", "Failed to load posting periods", "error");
+            } catch (error) {
+                setPostingPeriods([]);
+                Swal.fire("Error", apiErrorMessage(error, "Unable to load posting periods."), "error");
             } finally {
                 setPostingPeriodsLoading(false);
             }
@@ -105,7 +106,7 @@ export default function AddCreditBatchDrawer({ open, onClose, onSuccess }) {
         setLoading(true);
 
         try {
-            const res = await fetch(
+            await apiJson(
                 `${import.meta.env.VITE_APP_FIN_URL}/api/values/creditbatch/add`,
                 {
                     method: "POST",
@@ -119,14 +120,11 @@ export default function AddCreditBatchDrawer({ open, onClose, onSuccess }) {
                     }),
                 }
             );
-            const data = await res.json().catch(() => ({}));
-            if (!res.ok) throw new Error(data?.message || "Failed to create credit batch");
-
             Swal.fire("Success", "Credit Batch created successfully", "success");
             onSuccess?.();
             onClose();
         } catch (err) {
-            Swal.fire("Error", err.message, "error");
+            Swal.fire("Error", apiErrorMessage(err, "Unable to create the credit batch."), "error");
         } finally {
             setLoading(false);
         }

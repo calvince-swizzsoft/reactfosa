@@ -9,6 +9,7 @@ import {
 import AddInterAccountBatchDrawer from "./AddInterAccountTransfer";
 import NotFoundImage from "/assets/scopefinding.png";
 import InterAccountBatchEntriesDrawer from "./InterAccountBatchEntriesDrawer";
+import { apiErrorMessage, apiJson } from "@/lib/api";
 
 const API_BASE = `${import.meta.env.VITE_APP_FIN_URL}/api/values`;
 
@@ -24,13 +25,13 @@ export default function InterAccountTransferBatchIndex() {
     const fetchBatches = async () => {
         setLoading(true);
         try {
-            const res = await fetch(`${API_BASE}/FindInterTransferBatches`, {
+            const json = await apiJson(`${API_BASE}/FindInterTransferBatches`, {
                 headers: { "ngrok-skip-browser-warning": "true" },
             });
-            const json = await res.json();
             setBatches(json?.data || []);
-        } catch {
-            Swal.fire("Error", "Failed to load batches", "error");
+        } catch (error) {
+            setBatches([]);
+            Swal.fire("Error", apiErrorMessage(error, "Unable to load inter-account transfer batches."), "error");
         } finally {
             setLoading(false);
         }
@@ -55,21 +56,17 @@ export default function InterAccountTransferBatchIndex() {
                 didOpen: () => Swal.showLoading(),
             });
 
-            const res = await fetch(
+            await apiJson(
                 `${import.meta.env.VITE_APP_FIN_URL}/api/values/PostinterAccount?batchId=${batchId}`,
                 {
                     method: "POST",
                 }
             );
 
-            if (!res.ok) {
-                throw new Error("Post failed");
-            }
-
             Swal.fire("Success", "Batch posted successfully", "success");
             fetchBatches(); // ✅ refresh list
         } catch (err) {
-            Swal.fire("Error", "Failed to post batch", "error");
+            Swal.fire("Error", apiErrorMessage(err, "Unable to post the transfer batch."), "error");
         }
     };
 

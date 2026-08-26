@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import logo from "../../../../assets/rubanilogo.jpeg";
+import Swal from "sweetalert2";
+import { apiErrorMessage, apiJson } from "@/lib/api";
 
 
 function ViewDetailPostedReceipt({ open, onClose, receiptId }) {
@@ -19,13 +21,13 @@ function ViewDetailPostedReceipt({ open, onClose, receiptId }) {
         const fetchDetails = async () => {
             setLoading(true);
             try {
-                const res = await fetch(
+                const json = await apiJson(
                     `${import.meta.env.VITE_APP_FIN_URL}/api/customer-receipts/${receiptId}/with-details`,
                 );
-                const json = await res.json();
                 setData(json.data);
             } catch (err) {
-                console.error(err);
+                setData(null);
+                Swal.fire("Error", apiErrorMessage(err, "Unable to load receipt details."), "error");
             } finally {
                 setLoading(false);
             }

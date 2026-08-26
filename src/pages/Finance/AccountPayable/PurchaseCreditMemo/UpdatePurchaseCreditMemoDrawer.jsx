@@ -360,6 +360,7 @@ import { FaTrash, FaChevronDown, FaChevronUp } from "react-icons/fa";
 import { IoIosArrowDropleftCircle } from "react-icons/io";
 import { nanoid } from "nanoid";
 import { listAllChartOfAccounts } from "@/pages/Accounts/ChartOfAccounts/api";
+import { apiErrorMessage, apiJson } from "@/lib/api";
 
 export default function UpdatePurchaseCreditMemoDrawer({ open, onClose, onSuccess, creditMemo }) {
   const [formData, setFormData] = useState({
@@ -405,14 +406,13 @@ export default function UpdatePurchaseCreditMemoDrawer({ open, onClose, onSucces
   useEffect(() => {
     listAllChartOfAccounts()
       .then(setChartOfAccounts)
-      .catch(() => setChartOfAccounts([]));
+      .catch((error) => { setChartOfAccounts([]); Swal.fire("Error", apiErrorMessage(error, "Unable to load chart accounts."), "error"); });
 
-    fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/values/GetPurchaseInvoiceEntryTypes`, {
+    apiJson(`${import.meta.env.VITE_APP_FIN_URL}/api/values/GetPurchaseInvoiceEntryTypes`, {
       headers: { "ngrok-skip-browser-warning": "true" },
     })
-      .then((res) => res.json())
       .then((data) => setMemoTypes(data || []))
-      .catch(() => setMemoTypes([]));
+      .catch((error) => { setMemoTypes([]); Swal.fire("Error", apiErrorMessage(error, "Unable to load credit-memo types."), "error"); });
   }, []);
 
   const handleFieldChange = (field, value) => {
@@ -461,7 +461,7 @@ export default function UpdatePurchaseCreditMemoDrawer({ open, onClose, onSucces
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await fetch(
+      const data = await apiJson(
         `${import.meta.env.VITE_APP_FIN_URL}/api/values/UpdatePurchaseCreditMemo`,
         {
           method: "PUT",
@@ -469,13 +469,11 @@ export default function UpdatePurchaseCreditMemoDrawer({ open, onClose, onSucces
           body: JSON.stringify(formData),
         }
       );
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.message || "Failed to update credit memo");
       Swal.fire("Success", data?.message || "Credit Memo updated", "success");
       if (onSuccess) onSuccess();
       onClose();
     } catch (err) {
-      Swal.fire("Error", err.message || "Update failed", "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to update the purchase credit memo."), "error");
     } finally {
       setLoading(false);
     }

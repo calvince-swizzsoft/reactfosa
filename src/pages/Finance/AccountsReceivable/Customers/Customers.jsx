@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import Swal from "sweetalert2";
 import NotFoundImage from "/assets/scopefinding.png";
+import { apiErrorMessage, apiJson } from "@/lib/api";
 import AddCustomerDrawer from "./AddCustomerDrawer";
 
 export default function Customers() {
@@ -27,15 +28,18 @@ export default function Customers() {
     const [showAddDrawer, setShowAddDrawer] = useState(false);
 
     const fetchCustomers = () => {
-        fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/values/GetARCustomers`, {
+        apiJson(`${import.meta.env.VITE_APP_FIN_URL}/api/values/GetARCustomers`, {
             headers: { "ngrok-skip-browser-warning": "true" },
         })
-            .then((res) => res.json())
             .then((data) => {
                 setCustomers(data.Data || []);
                 setLoading(false);
             })
-            .catch(() => setLoading(false));
+            .catch((error) => {
+                setCustomers([]);
+                Swal.fire("Error", apiErrorMessage(error, "Unable to load accounts-receivable customers."), "error");
+            })
+            .finally(() => setLoading(false));
     };
 
     useEffect(() => {

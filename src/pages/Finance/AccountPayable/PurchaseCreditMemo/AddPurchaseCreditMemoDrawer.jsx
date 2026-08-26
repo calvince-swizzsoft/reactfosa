@@ -384,6 +384,7 @@ import Swal from "sweetalert2";
 import { FaTrash, FaChevronDown, FaChevronUp } from "react-icons/fa";
 import { IoIosArrowDropleftCircle } from "react-icons/io";
 import { listAllChartOfAccounts } from "@/pages/Accounts/ChartOfAccounts/api";
+import { apiErrorMessage, apiJson } from "@/lib/api";
 
 export default function AddPurchaseCreditMemoDrawer({ open, onClose, onSuccess }) {
   const [formData, setFormData] = useState({
@@ -412,23 +413,21 @@ export default function AddPurchaseCreditMemoDrawer({ open, onClose, onSuccess }
   
   // Fetch data
   useEffect(() => {
-    fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/values/GetPurchaseInvoices`, {
+    apiJson(`${import.meta.env.VITE_APP_FIN_URL}/api/values/GetPurchaseInvoices`, {
       headers: { "ngrok-skip-browser-warning": "true" }
     })
-      .then(res => res.json())
       .then(data => setPurchaseInvoices(data.Data || []))
-      .catch(() => setPurchaseInvoices([]));
+      .catch((error) => { setPurchaseInvoices([]); Swal.fire("Error", apiErrorMessage(error, "Unable to load purchase invoices."), "error"); });
 
     listAllChartOfAccounts()
       .then(setChartOfAccounts)
-      .catch(() => setChartOfAccounts([]));
+      .catch((error) => { setChartOfAccounts([]); Swal.fire("Error", apiErrorMessage(error, "Unable to load chart accounts."), "error"); });
 
-    fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/values/GetPurchaseInvoiceEntryTypes`, {
+    apiJson(`${import.meta.env.VITE_APP_FIN_URL}/api/values/GetPurchaseInvoiceEntryTypes`, {
       headers: { "ngrok-skip-browser-warning": "true" }
     })
-      .then(res => res.json())
       .then(data => setMemoTypes(data || []))
-      .catch(() => setMemoTypes([]));
+      .catch((error) => { setMemoTypes([]); Swal.fire("Error", apiErrorMessage(error, "Unable to load credit-memo types."), "error"); });
   }, []);
 
   // Map selected invoice to form and open lines drawer
@@ -497,7 +496,7 @@ export default function AddPurchaseCreditMemoDrawer({ open, onClose, onSuccess }
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await fetch(
+      const data = await apiJson(
         `${import.meta.env.VITE_APP_FIN_URL}/api/values/AddPurchaseCreditMemo`,
         {
           method: "POST",
@@ -505,10 +504,6 @@ export default function AddPurchaseCreditMemoDrawer({ open, onClose, onSuccess }
           body: JSON.stringify(formData),
         }
       );
-      const data = await res.json();
-
-      if (!res.ok || !data.success) throw new Error(data.message || "Failed to add credit memo");
-
       Swal.fire("Success", data.message, "success");
 
       // reset form
@@ -528,7 +523,7 @@ export default function AddPurchaseCreditMemoDrawer({ open, onClose, onSuccess }
       if (onSuccess) onSuccess();
       onClose();
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to add the purchase credit memo."), "error");
     } finally {
       setLoading(false);
     }
