@@ -1,4 +1,4 @@
-import { apiFetch } from "@/lib/api";
+import { apiJson as apiFetch } from "@/lib/api";
 
 // Client for WebApplication1's new SalaryGroupsController
 // (Areas/HumanResource/Controllers/SalaryGroupsController.cs, added
@@ -20,11 +20,7 @@ const BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 const SALARY_GROUPS_BASE = `${BASE}/api/humanresource/salarygroups`;
 
 async function unwrapJson(responsePromise) {
-  const res = await responsePromise;
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    throw new Error(body?.Message || body?.message || `Request failed (${res.status})`);
-  }
+  const body = await responsePromise;
   return body;
 }
 

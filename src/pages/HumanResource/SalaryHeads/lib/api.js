@@ -1,4 +1,4 @@
-import { apiFetch, normalizeList } from "@/lib/api";
+import { apiJson as apiFetch, normalizeList } from "@/lib/api";
 import { listAllChartOfAccounts } from "@/pages/Accounts/ChartOfAccounts/api";
 
 // Client for WebApplication1's new SalaryHeadsController
@@ -15,11 +15,7 @@ const BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 const SALARY_HEADS_BASE = `${BASE}/api/humanresource/salaryheads`;
 
 async function unwrapJson(responsePromise) {
-  const res = await responsePromise;
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    throw new Error(body?.Message || body?.message || `Request failed (${res.status})`);
-  }
+  const body = await responsePromise;
   return body;
 }
 

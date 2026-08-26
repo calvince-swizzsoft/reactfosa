@@ -1,4 +1,4 @@
-import { apiFetch, normalizeList } from "@/lib/api";
+import { apiJson as apiFetch, normalizeList } from "@/lib/api";
 
 // Client for WebApplication1's new HolidaysController
 // (Areas/HumanResource/Controllers/HolidaysController.cs, added 2026-08-18
@@ -15,11 +15,7 @@ const BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 const HOLIDAYS_BASE = `${BASE}/api/humanresource/holidays`;
 
 async function unwrap(responsePromise) {
-  const res = await responsePromise;
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    throw new Error(body?.Message || body?.message || `Request failed (${res.status})`);
-  }
+  const body = await responsePromise;
   return body;
 }
 
