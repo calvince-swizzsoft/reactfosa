@@ -1,12 +1,10 @@
-import { apiFetch, normalizeList } from "@/lib/api";
+import { apiJson as apiFetch, normalizeList } from "@/lib/api";
 
 const FIN = import.meta.env.VITE_APP_FIN_URL;
 const BASE = `${FIN}/api/backoffice/checkoff-data-capture`;
 
 async function read(responsePromise) {
-  const response = await responsePromise;
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok || payload?.success === false) throw new Error(payload?.message || payload?.Message || `Request failed (${response.status})`);
+  const payload = await responsePromise;
   return payload?.data ?? payload?.Data ?? payload;
 }
 
@@ -21,8 +19,6 @@ export const addEntry = (id, data) => read(apiFetch(`${BASE}/periods/${id}/entri
 export const importEntries = (id, file) => { const form = new FormData(); form.append("file", file); return read(apiFetch(`${BASE}/periods/${id}/entries/import`, { method: "POST", body: form })); };
 export const removeEntry = (periodId, entryId) => read(apiFetch(`${BASE}/periods/${periodId}/entries/${entryId}`, { method: "DELETE" }));
 export async function customerAccounts(customerId) {
-  const response = await apiFetch(`${FIN}/api/accounts/customer-accounts/${customerId}/accounts`);
-  if (!response.ok) throw new Error("Unable to load customer accounts.");
-  const payload = await response.json();
+  const payload = await apiFetch(`${FIN}/api/accounts/customer-accounts/${customerId}/accounts`);
   return normalizeList(payload?.data ?? payload?.Data ?? payload);
 }
