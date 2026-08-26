@@ -1,4 +1,4 @@
-import { apiFetch, normalizeList } from "@/lib/api";
+import { apiJson as apiFetch, normalizeList } from "@/lib/api";
 
 // Client for WebApplication1's ConditionalLendingController
 // (Areas/Registry/Controllers/ConditionalLendingController.cs), wrapping the
@@ -10,11 +10,7 @@ const CONDITIONAL_LENDINGS_BASE = `${BASE}/api/registry/conditionallendings`;
 export const LOAN_PRODUCTS_BASE = `${BASE}/api/accounts/loanproducts`;
 
 async function unwrapJson(responsePromise) {
-  const res = await responsePromise;
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok || body?.success === false) {
-    throw new Error(body?.message || body?.Message || `Request failed (${res.status})`);
-  }
+  const body = await responsePromise;
   return body?.data ?? body;
 }
 
