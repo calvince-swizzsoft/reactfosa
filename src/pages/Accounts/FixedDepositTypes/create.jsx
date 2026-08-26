@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FaPiggyBank } from "react-icons/fa";
 import Swal from "sweetalert2";
-import { apiFetch, normalizeList } from "@/lib/api";
+import { apiErrorMessage, apiJson, normalizeList } from "@/lib/api";
 import { createFixedDepositType } from "./api";
 import PickerList from "../lib/PickerList";
 import GraduatedScalesEditor from "./GraduatedScalesEditor";
@@ -41,12 +41,16 @@ export default function CreateFixedDepositType() {
   useEffect(() => {
     setLoadingPickers(true);
     Promise.all([
-      apiFetch(`${FIN_BASE}/api/accounts/loanproducts`).then((r) => r.json()),
-      apiFetch(`${FIN_BASE}/api/accounts/levies`).then((r) => r.json()),
+      apiJson(`${FIN_BASE}/api/accounts/loanproducts`),
+      apiJson(`${FIN_BASE}/api/accounts/levies`),
     ]).then(([loanProductData, levyData]) => {
       setLoanProducts(normalizeList(loanProductData));
       setLevies(normalizeList(levyData));
-    }).catch(() => { }).finally(() => setLoadingPickers(false));
+    }).catch((error) => {
+      setLoanProducts([]);
+      setLevies([]);
+      Swal.fire("Error", apiErrorMessage(error, "Unable to load fixed-deposit options."), "error");
+    }).finally(() => setLoadingPickers(false));
   }, []);
 
   const toggleLoanProduct = (id) => setSelectedLoanProductIds((prev) => {
@@ -93,7 +97,7 @@ export default function CreateFixedDepositType() {
       Swal.fire("Success", data?.message || "Fixed deposit type created successfully", "success");
       navigate("/Accounts/FixedDepositTypes");
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to create the fixed deposit type."), "error");
     } finally {
       setLoading(false);
     }

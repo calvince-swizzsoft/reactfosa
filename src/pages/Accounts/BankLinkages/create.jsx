@@ -4,6 +4,7 @@ import { FaExchangeAlt } from "react-icons/fa";
 import Swal from "sweetalert2";
 import BankLinkageForm from "./BankLinkageForm";
 import { createBankLinkage } from "./api";
+import { apiErrorMessage } from "@/lib/api";
 
 const emptyForm = {
   BankId: "",
@@ -38,7 +39,7 @@ export default function CreateBankLinkage() {
       Swal.fire("Success", "Bank linkage created successfully", "success");
       navigate("/Accounts/BankLinkages");
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to create the bank linkage."), "error");
     } finally {
       setLoading(false);
     }

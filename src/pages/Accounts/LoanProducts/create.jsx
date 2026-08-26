@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Swal from "sweetalert2";
 import { FaHandHoldingUsd, FaChevronDown } from "react-icons/fa";
-import { apiFetch, normalizeList } from "@/lib/api";
+import { apiErrorMessage, apiJson, normalizeList } from "@/lib/api";
 import { createLoanProduct } from "./api";
 import EntryPickerModal from "../BatchProcedures/lib/EntryPickerModal";
 import LoanCycleRows from "./lib/LoanCycleRows";
@@ -147,9 +147,9 @@ export default function CreateLoanProduct() {
   useEffect(() => {
     setLoadingProducts(true);
     Promise.all([
-      apiFetch(`${FIN_BASE}/api/accounts/loanproducts`).then((r) => r.json()),
-      apiFetch(`${FIN_BASE}/api/accounts/savingsproducts`).then((r) => r.json()),
-      apiFetch(`${FIN_BASE}/api/accounts/investmentsproducts`).then((r) => r.json()),
+      apiJson(`${FIN_BASE}/api/accounts/loanproducts`),
+      apiJson(`${FIN_BASE}/api/accounts/savingsproducts`),
+      apiJson(`${FIN_BASE}/api/accounts/investmentsproducts`),
     ]).then(([loanData, savingsData, investmentData]) => {
       setLoanProducts(normalizeList(loanData));
       setSavingsProducts(normalizeList(savingsData));
@@ -184,7 +184,7 @@ export default function CreateLoanProduct() {
       Swal.fire("Success", "Loan product created.", "success");
       navigate("/Accounts/LoanProducts");
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to create the loan product."), "error");
     } finally {
       setLoading(false);
     }

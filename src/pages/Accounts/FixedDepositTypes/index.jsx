@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import Swal from "sweetalert2";
 import NotFoundImage from "/assets/scopefinding.png";
 import { FaPiggyBank, FaPlus, FaChevronLeft, FaChevronRight, FaEdit } from "react-icons/fa";
-import { apiFetch, normalizeList } from "@/lib/api";
+import { apiErrorMessage, apiJson, normalizeList } from "@/lib/api";
 import {
   listFixedDepositTypes, updateFixedDepositType,
   listFixedDepositTypeLevies, updateFixedDepositTypeLevies,
@@ -58,8 +58,8 @@ function EditFixedDepositTypeDrawer({ open, onClose, onSuccess, item }) {
 
     setLoadingSubResources(true);
     Promise.all([
-      apiFetch(`${BASE}/api/accounts/loanproducts`).then((r) => r.json()),
-      apiFetch(`${BASE}/api/accounts/levies`).then((r) => r.json()),
+      apiJson(`${BASE}/api/accounts/loanproducts`),
+      apiJson(`${BASE}/api/accounts/levies`),
       listFixedDepositTypeAttachedProducts(item.Id),
       listFixedDepositTypeLevies(item.Id),
       listFixedDepositTypeGraduatedScales(item.Id),
@@ -71,7 +71,11 @@ function EditFixedDepositTypeDrawer({ open, onClose, onSuccess, item }) {
       setGraduatedScales((scales || []).map((s) => ({
         RangeLowerLimit: s.RangeLowerLimit, RangeUpperLimit: s.RangeUpperLimit, Percentage: s.Percentage,
       })));
-    }).catch(() => { }).finally(() => setLoadingSubResources(false));
+    }).catch((error) => {
+      setLoanProducts([]);
+      setLevies([]);
+      Swal.fire("Error", apiErrorMessage(error, "Unable to load fixed-deposit options."), "error");
+    }).finally(() => setLoadingSubResources(false));
   }, [open, item]);
 
   const toggleLoanProduct = (id) => setSelectedLoanProductIds((prev) => {
@@ -114,7 +118,7 @@ function EditFixedDepositTypeDrawer({ open, onClose, onSuccess, item }) {
       onSuccess();
       onClose();
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to update the fixed deposit type."), "error");
     } finally {
       setLoading(false);
     }
@@ -218,7 +222,11 @@ export default function FixedDepositTypes() {
         setItems(page?.pageCollection || page?.PageCollection || []);
         setItemsCount(page?.itemsCount || page?.ItemsCount || 0);
       })
-      .catch(() => { setItems([]); setItemsCount(0); })
+      .catch((error) => {
+        setItems([]);
+        setItemsCount(0);
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load fixed deposit types."), "error");
+      })
       .finally(() => setLoading(false));
   };
 
