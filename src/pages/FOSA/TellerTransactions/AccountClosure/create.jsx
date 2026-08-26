@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/select";
 import { FaUserSlash } from "react-icons/fa";
 import Swal from "sweetalert2";
-import { apiFetch, normalizeList } from "@/lib/api";
+import { apiErrorMessage, apiJson, normalizeList } from "@/lib/api";
 import { createAccountClosure } from "../accountClosuresApi";
 
 // Create -> Registered (AccountClosureController.cs). 409 if the account
@@ -41,12 +41,16 @@ export default function CreateAccountClosure() {
   useEffect(() => {
     setLoadingData(true);
     Promise.all([
-      apiFetch(`${FIN_BASE}/api/administration/branches`).then((r) => r.json()),
-      apiFetch(`${FIN_BASE}/api/registry/customers`).then((r) => r.json()),
+      apiJson(`${FIN_BASE}/api/administration/branches`),
+      apiJson(`${FIN_BASE}/api/registry/customers`),
     ]).then(([branchData, customerData]) => {
       setBranches(normalizeList(branchData));
       setCustomers(normalizeList(customerData));
-    }).catch(() => { }).finally(() => setLoadingData(false));
+    }).catch((error) => {
+      setBranches([]);
+      setCustomers([]);
+      Swal.fire("Error", apiErrorMessage(error, "Unable to load account-closure options."), "error");
+    }).finally(() => setLoadingData(false));
   }, []);
 
   const handleCustomerChange = (customerId) => {
@@ -55,10 +59,12 @@ export default function CreateAccountClosure() {
     setCustomerAccountId("");
     if (!customerId) return;
     setLoadingAccounts(true);
-    apiFetch(`${FIN_BASE}/api/accounts/customer-accounts/${customerId}/accounts`)
-      .then((r) => r.json())
+    apiJson(`${FIN_BASE}/api/accounts/customer-accounts/${customerId}/accounts`)
       .then((d) => setAccounts(normalizeList(d)))
-      .catch(() => setAccounts([]))
+      .catch((error) => {
+        setAccounts([]);
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load customer accounts."), "error");
+      })
       .finally(() => setLoadingAccounts(false));
   };
 
@@ -79,7 +85,7 @@ export default function CreateAccountClosure() {
       Swal.fire("Success", "Account closure request created — pending approval", "success");
       navigate("/FrontOffice/AccountClosure");
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to create the account-closure request."), "error");
     } finally {
       setLoading(false);
     }

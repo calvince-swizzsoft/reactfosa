@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/select";
 import { FaPiggyBank } from "react-icons/fa";
 import Swal from "sweetalert2";
-import { apiFetch, normalizeList } from "@/lib/api";
+import { apiErrorMessage, apiJson, normalizeList } from "@/lib/api";
 import { createFixedDeposit } from "../fixedDepositsApi";
 import { listAllFixedDepositTypes } from "../../../Accounts/FixedDepositTypes/api";
 import { FixedDepositCategory, FixedDepositMaturityAction } from "../../lib/frontOfficeEnums";
@@ -62,14 +62,19 @@ export default function CreateFixedDeposit() {
   useEffect(() => {
     setLoadingData(true);
     Promise.all([
-      apiFetch(`${FIN_BASE}/api/administration/branches`).then((r) => r.json()),
-      apiFetch(`${FIN_BASE}/api/registry/customers`).then((r) => r.json()),
+      apiJson(`${FIN_BASE}/api/administration/branches`),
+      apiJson(`${FIN_BASE}/api/registry/customers`),
       listAllFixedDepositTypes(),
     ]).then(([branchData, customerData, fixedDepositTypeData]) => {
       setBranches(normalizeList(branchData));
       setCustomers(normalizeList(customerData));
       setFixedDepositTypes(normalizeList(fixedDepositTypeData));
-    }).catch(() => { }).finally(() => setLoadingData(false));
+    }).catch((error) => {
+      setBranches([]);
+      setCustomers([]);
+      setFixedDepositTypes([]);
+      Swal.fire("Error", apiErrorMessage(error, "Unable to load fixed-deposit options."), "error");
+    }).finally(() => setLoadingData(false));
   }, []);
 
   const handleCustomerChange = (customerId) => {
@@ -78,10 +83,12 @@ export default function CreateFixedDeposit() {
     setForm((p) => ({ ...p, CustomerAccountId: "" }));
     if (!customerId) return;
     setLoadingAccounts(true);
-    apiFetch(`${FIN_BASE}/api/accounts/customer-accounts/${customerId}/accounts`)
-      .then((r) => r.json())
+    apiJson(`${FIN_BASE}/api/accounts/customer-accounts/${customerId}/accounts`)
       .then((d) => setAccounts(normalizeList(d)))
-      .catch(() => setAccounts([]))
+      .catch((error) => {
+        setAccounts([]);
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load customer accounts."), "error");
+      })
       .finally(() => setLoadingAccounts(false));
   };
 
@@ -111,7 +118,7 @@ export default function CreateFixedDeposit() {
       Swal.fire("Success", "Fixed deposit created — pending verification", "success");
       navigate("/FrontOffice/FixedDeposits");
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to create the fixed deposit."), "error");
     } finally {
       setLoading(false);
     }

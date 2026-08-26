@@ -13,6 +13,7 @@ import {
   terminateFixedDeposits, liquidateFixedDeposits,
 } from "./fixedDepositsApi";
 import { FixedDepositStatus } from "../lib/frontOfficeEnums";
+import { apiErrorMessage } from "@/lib/api";
 
 // api/frontoffice/fixeddeposits — docs/api/frontoffice-api-spec.md §11.
 const MODULE_NAVIGATION_ITEM_CODE = 25012;
@@ -48,8 +49,14 @@ function FixedDepositDetailDrawer({ id, onClose, onChanged }) {
   useEffect(() => {
     if (!id) return;
     setLoading(true);
-    getFixedDeposit(id).then(setDeposit).catch(() => setDeposit(null)).finally(() => setLoading(false));
-    listFixedDepositPayables(id).then((p) => setPayables(Array.isArray(p) ? p : [])).catch(() => setPayables([]));
+    getFixedDeposit(id).then(setDeposit).catch((error) => {
+      setDeposit(null);
+      Swal.fire("Error", apiErrorMessage(error, "Unable to load the fixed deposit."), "error");
+    }).finally(() => setLoading(false));
+    listFixedDepositPayables(id).then((p) => setPayables(Array.isArray(p) ? p : [])).catch((error) => {
+      setPayables([]);
+      Swal.fire("Error", apiErrorMessage(error, "Unable to load fixed-deposit payables."), "error");
+    });
   }, [id]);
 
   if (!id) return null;
@@ -71,7 +78,7 @@ function FixedDepositDetailDrawer({ id, onClose, onChanged }) {
       Swal.fire("Success", `Fixed deposit ${approve ? "posted" : "rejected"}`, "success");
       onChanged?.();
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to verify the fixed deposit."), "error");
     } finally {
       setVerifying(false);
     }
@@ -162,7 +169,11 @@ export default function FixedDeposits() {
         setItems(page?.pageCollection || page?.PageCollection || []);
         setItemsCount(page?.itemsCount || page?.ItemsCount || 0);
       })
-      .catch(() => { setItems([]); setItemsCount(0); })
+      .catch((error) => {
+        setItems([]);
+        setItemsCount(0);
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load fixed deposits."), "error");
+      })
       .finally(() => setLoading(false));
   };
 
@@ -190,7 +201,7 @@ export default function FixedDeposits() {
       setSelected([]);
       fetchItems();
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", apiErrorMessage(err, `Unable to ${label.toLowerCase()} the selected fixed deposits.`), "error");
     } finally {
       setSubmitting(false);
     }
