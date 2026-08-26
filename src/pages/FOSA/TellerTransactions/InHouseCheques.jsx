@@ -9,7 +9,7 @@ import {
 import Swal from "sweetalert2";
 import NotFoundImage from "/assets/scopefinding.png";
 import { FaMoneyCheck, FaPlus, FaChevronLeft, FaChevronRight, FaPrint } from "react-icons/fa";
-import { apiFetch, normalizeList } from "@/lib/api";
+import { apiErrorMessage, apiJson, normalizeList } from "@/lib/api";
 import { listInHouseCheques, listUnprintedInHouseCheques, printInHouseCheque } from "./inHouseChequesApi";
 
 // api/frontoffice/inhousecheques — docs/api/frontoffice-api-spec.md §14.
@@ -38,10 +38,12 @@ function PrintChequeModal({ cheque, onClose, onPrinted }) {
   const [printed, setPrinted] = useState(false);
 
   useEffect(() => {
-    apiFetch(`${FIN_BASE}/api/values/getBankWithLinkages`)
-      .then((r) => r.json())
+    apiJson(`${FIN_BASE}/api/values/getBankWithLinkages`)
       .then((d) => setLinkages(normalizeList(d)))
-      .catch(() => setLinkages([]))
+      .catch((error) => {
+        setLinkages([]);
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load bank linkages."), "error");
+      })
       .finally(() => setLoadingLinkages(false));
   }, []);
 
@@ -63,7 +65,7 @@ function PrintChequeModal({ cheque, onClose, onPrinted }) {
       setPrinted(true);
       onPrinted?.();
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to print the in-house cheque."), "error");
     } finally {
       setSubmitting(false);
     }
@@ -142,14 +144,17 @@ export default function InHouseCheques() {
   const [printCheque, setPrintCheque] = useState(null);
 
   useEffect(() => {
-    apiFetch(`${FIN_BASE}/api/administration/branches`)
-      .then((r) => r.json())
+    apiJson(`${FIN_BASE}/api/administration/branches`)
       .then((d) => {
         const list = normalizeList(d);
         setBranches(list);
         if (list.length > 0) setBranchId(list[0].Id);
       })
-      .catch(() => setBranches([]));
+      .catch((error) => {
+        setBranches([]);
+        setBranchId("");
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load branches."), "error");
+      });
   }, []);
 
   const fetchItems = () => {
@@ -163,7 +168,11 @@ export default function InHouseCheques() {
         setItems(page?.pageCollection || page?.PageCollection || []);
         setItemsCount(page?.itemsCount || page?.ItemsCount || 0);
       })
-      .catch(() => { setItems([]); setItemsCount(0); })
+      .catch((error) => {
+        setItems([]);
+        setItemsCount(0);
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load in-house cheques."), "error");
+      })
       .finally(() => setLoading(false));
   };
 
