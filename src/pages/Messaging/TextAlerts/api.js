@@ -1,4 +1,4 @@
-import { apiFetch } from "@/lib/api";
+import { apiJson as apiFetch } from "@/lib/api";
 
 // Client functions for WebApplication1's TextAlertController.
 // Spec: SwiftFinancialz/docs/api/textalert-api-spec.md
@@ -46,13 +46,7 @@ export const QueuePriority = {
 };
 
 async function unwrap(responsePromise) {
-  const res = await responsePromise;
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok || body.success === false) {
-    const err = new Error(body.message || "Request failed");
-    err.status = res.status;
-    throw err;
-  }
+  const body = await responsePromise;
   return body.data;
 }
 

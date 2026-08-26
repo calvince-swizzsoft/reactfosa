@@ -1,4 +1,4 @@
-import { apiFetch, normalizeList } from "@/lib/api";
+import { apiJson as apiFetch, normalizeList } from "@/lib/api";
 
 // Client for WebApplication1's SupplierController
 // (Areas/Control/Controllers/SupplierController.cs). NavigationMenu.cs Code
@@ -13,11 +13,7 @@ export const SUPPLIERS_BASE = `${BASE}/api/control/suppliers`;
 export const CHART_OF_ACCOUNTS_BASE = `${BASE}/api/accounts/chartofaccounts`;
 
 async function unwrapJson(responsePromise) {
-  const res = await responsePromise;
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok || body?.success === false) {
-    throw new Error(body?.message || body?.Message || `Request failed (${res.status})`);
-  }
+  const body = await responsePromise;
   return body?.data ?? body;
 }
 
