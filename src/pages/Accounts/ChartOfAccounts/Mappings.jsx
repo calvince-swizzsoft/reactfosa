@@ -11,6 +11,7 @@ import {
   listSystemGeneralLedgerMappings, mapSystemGeneralLedgerAccountCode, getChartOfAccountTree,
 } from "./api";
 import { SYSTEM_GENERAL_LEDGER_ACCOUNT_CODES } from "../lib/systemGeneralLedgerAccountCodes";
+import { apiErrorMessage } from "@/lib/api";
 
 // "G/L Account Determination" — which chart-of-account each
 // SystemGeneralLedgerAccountCode posts to by default. Genuinely distinct
@@ -45,7 +46,10 @@ export default function ChartOfAccountMappings() {
     setLoading(true);
     listSystemGeneralLedgerMappings({ pageIndex: 0, pageSize: 1000 })
       .then((page) => setMappingRows(page?.pageCollection || page?.PageCollection || []))
-      .catch(() => setMappingRows([]))
+      .catch((error) => {
+        setMappingRows([]);
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load ledger mappings."), "error");
+      })
       .finally(() => setLoading(false));
   };
 
@@ -55,7 +59,10 @@ export default function ChartOfAccountMappings() {
     setLoadingAccounts(true);
     getChartOfAccountTree()
       .then((tree) => setAccounts(Array.isArray(tree) ? tree : []))
-      .catch(() => setAccounts([]))
+      .catch((error) => {
+        setAccounts([]);
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load chart accounts."), "error");
+      })
       .finally(() => setLoadingAccounts(false));
   }, []);
 
@@ -93,7 +100,7 @@ export default function ChartOfAccountMappings() {
       Swal.fire("Success", "Mapping saved successfully", "success");
       fetchMappings();
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to save the ledger mapping."), "error");
     } finally {
       setSavingCode(null);
     }

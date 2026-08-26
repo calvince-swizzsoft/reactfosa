@@ -9,6 +9,7 @@ import NotFoundImage from "/assets/scopefinding.png";
 import { FaBook, FaChevronLeft, FaChevronRight, FaMoneyCheck, FaFlag } from "react-icons/fa";
 import { getChequeBook, listVouchers, payVoucher, flagVoucher } from "./api";
 import { PaymentVoucherStatus, PaymentVoucherManagementAction } from "../lib/chequeBookEnums";
+import { apiErrorMessage } from "@/lib/api";
 
 // Areas/Accounts/Controllers/ChequeBookController.cs — docs/api/chequebook-api-spec.md
 // §6.6/§6.8/§6.9. Per-leaf voucher register for one chequebook — a
@@ -69,7 +70,7 @@ function PayVoucherDrawer({ open, onClose, onSuccess, voucher }) {
       onSuccess();
       onClose();
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to pay the voucher."), "error");
     } finally {
       setLoading(false);
     }
@@ -132,12 +133,19 @@ export default function ChequeBookVouchers() {
         setItems(page?.pageCollection || page?.PageCollection || []);
         setItemsCount(page?.itemsCount || page?.ItemsCount || 0);
       })
-      .catch(() => { setItems([]); setItemsCount(0); })
+      .catch((error) => {
+        setItems([]);
+        setItemsCount(0);
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load cheque-book vouchers."), "error");
+      })
       .finally(() => setLoading(false));
   };
 
   useEffect(() => {
-    getChequeBook(id).then(setChequeBook).catch(() => setChequeBook(null));
+    getChequeBook(id).then(setChequeBook).catch((error) => {
+      setChequeBook(null);
+      Swal.fire("Error", apiErrorMessage(error, "Unable to load the cheque book."), "error");
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
@@ -170,7 +178,7 @@ export default function ChequeBookVouchers() {
       Swal.fire("Success", `Voucher ${flagging ? "flagged" : "unflagged"} successfully`, "success");
       fetchVouchers();
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to update the voucher flag."), "error");
     } finally {
       setFlaggingId(null);
     }

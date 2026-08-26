@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { FaAddressBook } from "react-icons/fa";
 import Swal from "sweetalert2";
-import { apiFetch, normalizeList } from "@/lib/api";
+import { apiErrorMessage, apiJson, normalizeList } from "@/lib/api";
 import { getChartOfAccountTree, createChartOfAccount } from "./api";
 import ChartOfAccountForm from "./ChartOfAccountForm";
 import { ChartOfAccountType, ChartOfAccountCategory } from "./enums";
@@ -33,11 +33,15 @@ export default function CreateChartOfAccount() {
     setLoadingData(true);
     Promise.all([
       getChartOfAccountTree(),
-      apiFetch(`${FIN_BASE}/api/accounts/costcenters?pageSize=1000`).then((r) => r.json()),
+      apiJson(`${FIN_BASE}/api/accounts/costcenters?pageSize=1000`),
     ]).then(([tree, costCenterData]) => {
       setParentOptions(Array.isArray(tree) ? tree : []);
       setCostCenters(normalizeList(costCenterData));
-    }).catch(() => { }).finally(() => setLoadingData(false));
+    }).catch((error) => {
+      setParentOptions([]);
+      setCostCenters([]);
+      Swal.fire("Error", apiErrorMessage(error, "Unable to load chart-account options."), "error");
+    }).finally(() => setLoadingData(false));
   }, []);
 
   const handleChange = (field, value) => setForm((p) => ({ ...p, [field]: value }));
@@ -56,7 +60,7 @@ export default function CreateChartOfAccount() {
       Swal.fire("Success", `Chart of account "${created.AccountName}" created successfully`, "success");
       setForm(emptyForm);
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to create the chart account."), "error");
     } finally {
       setLoading(false);
     }
