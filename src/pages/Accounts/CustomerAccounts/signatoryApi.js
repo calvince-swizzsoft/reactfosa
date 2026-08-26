@@ -1,4 +1,4 @@
-import { apiFetch } from "@/lib/api";
+import { apiJson } from "@/lib/api";
 
 // Client functions for WebApplication1's CustomerAccountSignatoryController
 // — additional sub-routes on the same /api/accounts/customer-accounts
@@ -21,20 +21,14 @@ export const SignatoryRelationship = {
 };
 
 async function unwrap(responsePromise) {
-  const res = await responsePromise;
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok || body.success === false) {
-    const err = new Error(body.message || "Request failed");
-    err.status = res.status;
-    throw err;
-  }
+  const body = await responsePromise;
   return body.data;
 }
 
 /** GET /{customerAccountId}/signatories — paged. Returns PageCollectionInfo<CustomerAccountSignatoryDTO>. */
 export function listSignatories(customerAccountId, { pageIndex = 0, pageSize = 20 } = {}) {
   return unwrap(
-    apiFetch(`${CUSTOMER_ACCOUNT_BASE}/${customerAccountId}/signatories?pageIndex=${pageIndex}&pageSize=${pageSize}`)
+    apiJson(`${CUSTOMER_ACCOUNT_BASE}/${customerAccountId}/signatories?pageIndex=${pageIndex}&pageSize=${pageSize}`)
   );
 }
 
@@ -44,7 +38,7 @@ export function listSignatories(customerAccountId, { pageIndex = 0, pageSize = 2
  * that genuinely need the full set (e.g. a signature-count check).
  */
 export function listAllSignatories(customerAccountId) {
-  return unwrap(apiFetch(`${CUSTOMER_ACCOUNT_BASE}/${customerAccountId}/signatories/all`));
+  return unwrap(apiJson(`${CUSTOMER_ACCOUNT_BASE}/${customerAccountId}/signatories/all`));
 }
 
 /**
@@ -54,7 +48,7 @@ export function listAllSignatories(customerAccountId) {
  */
 export function addSignatory(customerAccountId, signatory) {
   return unwrap(
-    apiFetch(`${CUSTOMER_ACCOUNT_BASE}/${customerAccountId}/signatories`, {
+    apiJson(`${CUSTOMER_ACCOUNT_BASE}/${customerAccountId}/signatories`, {
       method: "POST",
       body: JSON.stringify(signatory),
     })
@@ -70,7 +64,7 @@ export function addSignatory(customerAccountId, signatory) {
  */
 export function removeSignatories(ids) {
   return unwrap(
-    apiFetch(`${CUSTOMER_ACCOUNT_BASE}/signatories`, {
+    apiJson(`${CUSTOMER_ACCOUNT_BASE}/signatories`, {
       method: "DELETE",
       body: JSON.stringify(ids),
     })

@@ -1,4 +1,4 @@
-import { apiFetch } from "@/lib/api";
+import { apiJson } from "@/lib/api";
 
 // Client functions for WebApplication1's GeneralLedgerStatementController.
 // Spec: SwiftFinancialz/docs/api/general-ledger-statement-api-spec.md
@@ -15,13 +15,7 @@ export const TransactionDateFilter = {
 };
 
 async function unwrap(responsePromise) {
-  const res = await responsePromise;
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok || body.success === false) {
-    const err = new Error(body.message || "Request failed");
-    err.status = res.status;
-    throw err;
-  }
+  const body = await responsePromise;
   return body.data;
 }
 
@@ -52,7 +46,7 @@ export function getGlAccountStatement(chartOfAccountId, {
   tallyDebitsCredits = true,
 } = {}) {
   return unwrap(
-    apiFetch(`${GL_STATEMENT_BASE}/${chartOfAccountId}${buildQuery({ startDate, endDate, pageIndex, pageSize, text, journalEntryFilter, transactionDateFilter, tallyDebitsCredits })}`)
+    apiJson(`${GL_STATEMENT_BASE}/${chartOfAccountId}${buildQuery({ startDate, endDate, pageIndex, pageSize, text, journalEntryFilter, transactionDateFilter, tallyDebitsCredits })}`)
   );
 }
 
@@ -72,7 +66,7 @@ export function getGlAccountStatementByTransactionCode(chartOfAccountId, {
   tallyDebitsCredits = true,
 } = {}) {
   return unwrap(
-    apiFetch(`${GL_STATEMENT_BASE}/${chartOfAccountId}/by-transaction-code${buildQuery({ startDate, endDate, pageIndex, pageSize, transactionCode, reference, transactionDateFilter, tallyDebitsCredits })}`)
+    apiJson(`${GL_STATEMENT_BASE}/${chartOfAccountId}/by-transaction-code${buildQuery({ startDate, endDate, pageIndex, pageSize, transactionCode, reference, transactionDateFilter, tallyDebitsCredits })}`)
   );
 }
 
@@ -90,6 +84,6 @@ export function browseGlPostings({
   journalEntryFilter,
 } = {}) {
   return unwrap(
-    apiFetch(`${GL_STATEMENT_BASE}${buildQuery({ startDate, endDate, pageIndex, pageSize, text, journalEntryFilter })}`)
+    apiJson(`${GL_STATEMENT_BASE}${buildQuery({ startDate, endDate, pageIndex, pageSize, text, journalEntryFilter })}`)
   );
 }

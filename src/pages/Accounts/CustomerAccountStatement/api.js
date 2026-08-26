@@ -1,4 +1,4 @@
-import { apiFetch } from "@/lib/api";
+import { ApiError, apiErrorFromResponse, apiFetch, apiJson } from "@/lib/api";
 
 // Client functions for WebApplication1's CustomerAccountStatementController.
 // Spec: SwiftFinancialz/docs/api/customer-account-statement-api-spec.md
@@ -7,13 +7,7 @@ const FIN_BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 const STATEMENT_BASE = `${FIN_BASE}/api/accounts/statements/customer-account`;
 
 async function unwrap(responsePromise) {
-  const res = await responsePromise;
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok || body.success === false) {
-    const err = new Error(body.message || "Request failed");
-    err.status = res.status;
-    throw err;
-  }
+  const body = await responsePromise;
   return body.data;
 }
 
@@ -34,7 +28,7 @@ const buildQuery = (params) => {
  */
 export function getMiniStatement(customerAccountId, { lastXDays = 90, lastXItems = 20, tallyDebitsCredits = true } = {}) {
   return unwrap(
-    apiFetch(`${STATEMENT_BASE}/${customerAccountId}/mini${buildQuery({ lastXDays, lastXItems, tallyDebitsCredits })}`)
+    apiJson(`${STATEMENT_BASE}/${customerAccountId}/mini${buildQuery({ lastXDays, lastXItems, tallyDebitsCredits })}`)
   );
 }
 
@@ -53,7 +47,7 @@ export function getFullStatement(customerAccountId, {
   tallyDebitsCredits = true,
 } = {}) {
   return unwrap(
-    apiFetch(`${STATEMENT_BASE}/${customerAccountId}${buildQuery({ startDate, endDate, pageIndex, pageSize, text, journalEntryFilter, tallyDebitsCredits })}`)
+    apiJson(`${STATEMENT_BASE}/${customerAccountId}${buildQuery({ startDate, endDate, pageIndex, pageSize, text, journalEntryFilter, tallyDebitsCredits })}`)
   );
 }
 
@@ -73,15 +67,25 @@ export async function printStatement(customerAccountId, {
   includeInterestStatement = false,
   moduleNavigationItemCode,
 } = {}) {
-  const res = await apiFetch(
-    `${STATEMENT_BASE}/${customerAccountId}/print${buildQuery({ startDate, endDate, chargeForPrinting, includeInterestStatement, moduleNavigationItemCode })}`
-  );
-  const contentType = res.headers.get("Content-Type") || "";
-  if (!res.ok || !contentType.includes("application/pdf")) {
-    const text = await res.text().catch(() => "");
-    throw new Error(text || "Failed to generate statement PDF");
+  try {
+    const res = await apiFetch(
+      `${STATEMENT_BASE}/${customerAccountId}/print${buildQuery({ startDate, endDate, chargeForPrinting, includeInterestStatement, moduleNavigationItemCode })}`
+    );
+    const contentType = res.headers.get("Content-Type") || "";
+    if (!res.ok || !contentType.includes("application/pdf")) {
+      const text = await res.text().catch(() => "");
+      throw apiErrorFromResponse(res, text, "Unable to generate the statement PDF.");
+    }
+    return res.blob();
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    throw new ApiError({
+      status: 0,
+      code: "NETWORK_ERROR",
+      message: "The server could not be reached. Check your connection and try again.",
+      cause: error,
+    });
   }
-  return res.blob();
 }
 
 // Triggers a browser download for the blob returned by printStatement().

@@ -1,4 +1,4 @@
-import { apiFetch } from "@/lib/api";
+import { apiJson } from "@/lib/api";
 
 // Client functions for WebApplication1's StandingOrderController.
 // Spec: SwiftFinancialz/docs/api/standing-order-api-spec.md
@@ -79,13 +79,7 @@ export const TargetDateOption = {
 // ("created, but flagged with a conflict message") needs different handling
 // from a genuine failure.
 async function unwrap(responsePromise) {
-  const res = await responsePromise;
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok || body.success === false) {
-    const err = new Error(body.message || "Request failed");
-    err.status = res.status;
-    throw err;
-  }
+  const body = await responsePromise;
   return body.data;
 }
 
@@ -109,7 +103,7 @@ export function listStandingOrders({
   trigger,
 } = {}) {
   return unwrap(
-    apiFetch(
+    apiJson(
       `${STANDING_ORDER_BASE}${buildQuery({ pageIndex, pageSize, text, customerAccountFilter, customerFilter, trigger })}`
     )
   );
@@ -117,32 +111,32 @@ export function listStandingOrders({
 
 /** GET /{id} — single standing order. */
 export function getStandingOrder(id) {
-  return unwrap(apiFetch(`${STANDING_ORDER_BASE}/${id}`));
+  return unwrap(apiJson(`${STANDING_ORDER_BASE}/${id}`));
 }
 
 /** GET /{id}/history — paged StandingOrderHistoryDTO. */
 export function getStandingOrderHistory(id, { pageIndex = 0, pageSize = 20 } = {}) {
-  return unwrap(apiFetch(`${STANDING_ORDER_BASE}/${id}/history${buildQuery({ pageIndex, pageSize })}`));
+  return unwrap(apiJson(`${STANDING_ORDER_BASE}/${id}/history${buildQuery({ pageIndex, pageSize })}`));
 }
 
 /** GET /by-benefactor-account/{id} — StandingOrderDTO[], optionally narrowed by trigger. */
 export function getStandingOrdersByBenefactorAccount(benefactorCustomerAccountId, { trigger } = {}) {
   return unwrap(
-    apiFetch(`${STANDING_ORDER_BASE}/by-benefactor-account/${benefactorCustomerAccountId}${buildQuery({ trigger })}`)
+    apiJson(`${STANDING_ORDER_BASE}/by-benefactor-account/${benefactorCustomerAccountId}${buildQuery({ trigger })}`)
   );
 }
 
 /** GET /by-beneficiary-account/{id} — StandingOrderDTO[], optionally narrowed by trigger. */
 export function getStandingOrdersByBeneficiaryAccount(beneficiaryCustomerAccountId, { trigger } = {}) {
   return unwrap(
-    apiFetch(`${STANDING_ORDER_BASE}/by-beneficiary-account/${beneficiaryCustomerAccountId}${buildQuery({ trigger })}`)
+    apiJson(`${STANDING_ORDER_BASE}/by-beneficiary-account/${beneficiaryCustomerAccountId}${buildQuery({ trigger })}`)
   );
 }
 
 /** GET /by-benefactor-customer/{id} — StandingOrderDTO[] across all of a customer's accounts. */
 export function getStandingOrdersByBenefactorCustomer(benefactorCustomerId, { productCode } = {}) {
   return unwrap(
-    apiFetch(`${STANDING_ORDER_BASE}/by-benefactor-customer/${benefactorCustomerId}${buildQuery({ productCode })}`)
+    apiJson(`${STANDING_ORDER_BASE}/by-benefactor-customer/${benefactorCustomerId}${buildQuery({ productCode })}`)
   );
 }
 
@@ -158,7 +152,7 @@ export function getDueStandingOrders({
   customerFilter,
 } = {}) {
   return unwrap(
-    apiFetch(`${STANDING_ORDER_BASE}/due${buildQuery({ targetDate, targetDateOption, text, customerAccountFilter, customerFilter })}`)
+    apiJson(`${STANDING_ORDER_BASE}/due${buildQuery({ targetDate, targetDateOption, text, customerAccountFilter, customerFilter })}`)
   );
 }
 
@@ -172,7 +166,7 @@ export function getSkippedStandingOrders({
   pageSize = 20,
 } = {}) {
   return unwrap(
-    apiFetch(`${STANDING_ORDER_BASE}/skipped${buildQuery({ targetDate, text, customerAccountFilter, customerFilter, pageIndex, pageSize })}`)
+    apiJson(`${STANDING_ORDER_BASE}/skipped${buildQuery({ targetDate, text, customerAccountFilter, customerFilter, pageIndex, pageSize })}`)
   );
 }
 
@@ -187,7 +181,7 @@ export function getSkippedStandingOrders({
  */
 export function createStandingOrder(standingOrder) {
   return unwrap(
-    apiFetch(STANDING_ORDER_BASE, {
+    apiJson(STANDING_ORDER_BASE, {
       method: "POST",
       body: JSON.stringify(standingOrder),
     })
@@ -202,7 +196,7 @@ export function createStandingOrder(standingOrder) {
  */
 export function updateStandingOrder(id, standingOrder) {
   return unwrap(
-    apiFetch(`${STANDING_ORDER_BASE}/${id}`, {
+    apiJson(`${STANDING_ORDER_BASE}/${id}`, {
       method: "PUT",
       body: JSON.stringify(standingOrder),
     })
@@ -217,7 +211,7 @@ export function updateStandingOrder(id, standingOrder) {
  */
 export function autoCreateStandingOrders({ benefactorProductId, benefactorProductCode, beneficiaryProductId }) {
   return unwrap(
-    apiFetch(`${STANDING_ORDER_BASE}/auto-create`, {
+    apiJson(`${STANDING_ORDER_BASE}/auto-create`, {
       method: "POST",
       body: JSON.stringify({ benefactorProductId, benefactorProductCode, beneficiaryProductId }),
     })
