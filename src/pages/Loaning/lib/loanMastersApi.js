@@ -1,4 +1,4 @@
-import { apiFetch } from "@/lib/api";
+import { apiJson as apiFetch } from "@/lib/api";
 
 // Clients for LoanPurposeController (api/backoffice/loanpurposes) and
 // LoaningRemarkController (api/backoffice/loaningremarks) — both were
@@ -13,11 +13,7 @@ import { apiFetch } from "@/lib/api";
 const FIN_BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 
 async function unwrap(responsePromise) {
-  const res = await responsePromise;
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok || body.success === false) {
-    throw new Error(body?.message || `Request failed (${res.status})`);
-  }
+  const body = await responsePromise;
   return body?.data ?? body;
 }
 
