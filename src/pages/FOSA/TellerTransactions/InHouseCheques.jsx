@@ -38,7 +38,7 @@ function PrintChequeModal({ cheque, onClose, onPrinted }) {
   const [printed, setPrinted] = useState(false);
 
   useEffect(() => {
-    apiJson(`${FIN_BASE}/api/values/getBankWithLinkages`)
+    apiJson(`${FIN_BASE}/api/accounts/banklinkages/all`)
       .then((d) => setLinkages(normalizeList(d)))
       .catch((error) => {
         setLinkages([]);

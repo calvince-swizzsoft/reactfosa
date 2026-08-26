@@ -493,7 +493,7 @@ function BankPanel() {
       {openModal === "bankLinkage" && (
         <SearchSelectModal
           title="Select Bank Linkage"
-          fetchUrl={`${BASE}/api/values/getBankWithLinkages`}
+          fetchUrl={`${BASE}/api/accounts/banklinkages/all`}
           getLabel={(item) => `${item.BankName || ""} — ${item.BankBranchName || ""}`.trim() || item.Id}
           getSublabel={(item) => `Acc: ${item.BankAccountNumber || "—"}  |  Bal: ${(item.BankLinkageBalance ?? 0).toLocaleString()}  |  ${item.BranchDescription || ""}`}
           onSelect={(item) => { handleBankLinkageSelect(item); setOpenModal(null); }}

@@ -264,8 +264,13 @@ export default function Home() {
 
   if (treeLoading) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center p-6 text-sm text-gray-500">
-        Loading your workspace...
+      <div className="bg-white m-8 px-8 py-8 shadow-2xl rounded-lg" aria-label="Preparing dashboard">
+        <div className="h-12 animate-pulse rounded-2xl bg-indigo-200" />
+        <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+          {Array.from({ length: 8 }).map((_, index) => (
+            <div key={index} className="h-28 animate-pulse rounded-lg bg-gray-100 shadow" />
+          ))}
+        </div>
       </div>
     );
   }

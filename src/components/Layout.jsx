@@ -42,7 +42,12 @@ export default function Layout() {
         {sidebarUnavailable ? (
           <div className="hidden lg:flex w-60 shrink-0 items-center justify-center bg-indigo-900 text-white/80 text-sm p-4 text-center">
             {loading ? (
-              "Loading navigation..."
+              <div className="w-full space-y-3" aria-label="Loading navigation">
+                <div className="mx-auto h-8 w-36 animate-pulse rounded-lg bg-indigo-700" />
+                {Array.from({ length: 6 }).map((_, index) => (
+                  <div key={index} className="h-7 animate-pulse rounded-md bg-indigo-800" />
+                ))}
+              </div>
             ) : (
               <div className="space-y-2">
                 <p>Couldn't load navigation.</p>

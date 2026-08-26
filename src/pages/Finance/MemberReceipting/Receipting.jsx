@@ -28,7 +28,7 @@ import MemberSelectModal from "./MemberSelectModal";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import Swal from "sweetalert2";
-import { apiErrorMessage, apiJson } from "@/lib/api";
+import { apiErrorMessage, apiJson, normalizeList } from "@/lib/api";
 import logo from "../../../assets/rubanilogo.jpeg";
 
 
@@ -147,9 +147,9 @@ export default function Receipting() {
 
     // Fetch banks with linkages
     useEffect(() => {
-        apiJson(`${import.meta.env.VITE_APP_FIN_URL}/api/values/getBankWithLinkages`)
+        apiJson(`${import.meta.env.VITE_APP_FIN_URL}/api/accounts/banklinkages/all`)
             .then((d) => {
-                if (d.Success) setBanks(d.Data);
+                setBanks(normalizeList(d));
             })
             .catch((error) => {
                 setBanks([]);

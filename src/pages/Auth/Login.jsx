@@ -5,11 +5,13 @@ import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
 import { useAuth } from "@/context/AuthContext";
 import { apiErrorMessage, readApiResponse } from "@/lib/api";
+import { useModuleTree } from "@/context/ModuleTreeContext";
 
 
 export default function Login() {
   const navigate = useNavigate();
   const { login } = useAuth();
+  const { loadModules } = useModuleTree();
   const [loading, setLoading] = useState(false);
   const [requiresPasswordChange, setRequiresPasswordChange] = useState(false);
 
@@ -73,9 +75,7 @@ export default function Login() {
 
       const roles = Array.isArray(data.roles) ? data.roles : Array.isArray(data.Roles) ? data.Roles : [];
       login(data.token || data.Token, userName, roles);
-
-      Swal.fire("Success!", "Login successful", "success");
-
+      await loadModules({ userName, roles }).catch(() => null);
       navigate("/home");
     } catch (error) {
       Swal.fire("Error", apiErrorMessage(error, "Login failed"), "error");
@@ -111,7 +111,7 @@ export default function Login() {
       const roles = Array.isArray(data.roles) ? data.roles : Array.isArray(data.Roles) ? data.Roles : [];
       const userName = data.userName || data.UserName || passwordForm.UserName;
       login(data.token || data.Token, userName, roles);
-      await Swal.fire("Password Changed", "Your new password is active and you are now signed in.", "success");
+      await loadModules({ userName, roles }).catch(() => null);
       navigate("/home");
     } catch (error) {
       Swal.fire("Unable to Change Password", apiErrorMessage(error, "Password change failed"), "error");
@@ -302,7 +302,7 @@ export default function Login() {
               disabled={loading}
               className="w-full bg-[#6B4EFF] hover:bg-[#5b3cd8] text-white py-2 rounded-md font-medium"
             >
-              {loading ? "Please wait..." : requiresPasswordChange ? "Change password and continue" : "Login"}
+              {loading ? "Signing you in..." : requiresPasswordChange ? "Change password and continue" : "Login"}
             </button>
           </form>
 

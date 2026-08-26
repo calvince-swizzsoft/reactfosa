@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { apiErrorMessage, apiJson } from "@/lib/api";
 import { buildModuleTree } from "@/lib/moduleTree";
@@ -10,6 +10,20 @@ import { buildModuleTree } from "@/lib/moduleTree";
 const MODULES_BY_ROLE_ENDPOINT = `${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/modules/by-role`;
 
 const ModuleTreeContext = createContext(null);
+const MODULE_CACHE_PREFIX = "moduleTree:";
+
+function cacheKey(userName, roles) {
+  return `${MODULE_CACHE_PREFIX}${userName || "anonymous"}:${[...(roles || [])].sort().join("|")}`;
+}
+
+function readCachedTree(userName, roles) {
+  try {
+    const value = JSON.parse(sessionStorage.getItem(cacheKey(userName, roles)));
+    return Array.isArray(value) ? value : null;
+  } catch {
+    return null;
+  }
+}
 
 // A NavigationItemInRoleDTO row uses Navigation-item-prefixed field names
 // (and its own `Id` is the role-grant record, not the module) — normalize
@@ -53,17 +67,45 @@ async function fetchModulesForCurrentUser() {
 }
 
 export function ModuleTreeProvider({ children }) {
-  const { isAuthenticated, roles } = useAuth();
+  const { isAuthenticated, roles, userName } = useAuth();
   const [tree, setTree] = useState([]);
   const [loading, setLoading] = useState(() => isAuthenticated && roles?.length > 0);
   const [error, setError] = useState(null);
   const [attempt, setAttempt] = useState(0);
+  const inFlightRef = useRef(null);
 
   const refetch = useCallback(() => setAttempt((n) => n + 1), []);
+
+  const loadModules = useCallback(async ({ userName: requestedUserName, roles: requestedRoles, background = false } = {}) => {
+    if (inFlightRef.current) return inFlightRef.current;
+
+    if (!background) setLoading(true);
+    setError(null);
+
+    const request = fetchModulesForCurrentUser()
+      .then((moduleList) => {
+        const nextTree = buildModuleTree(moduleList);
+        setTree(nextTree);
+        sessionStorage.setItem(cacheKey(requestedUserName ?? userName, requestedRoles ?? roles), JSON.stringify(nextTree));
+        return nextTree;
+      })
+      .catch((err) => {
+        setError(apiErrorMessage(err, "Unable to load navigation."));
+        throw err;
+      })
+      .finally(() => {
+        if (!background) setLoading(false);
+        inFlightRef.current = null;
+      });
+
+    inFlightRef.current = request;
+    return request;
+  }, [roles, userName]);
 
   useEffect(() => {
     if (!isAuthenticated) {
       setTree([]);
+      setLoading(false);
       return;
     }
 
@@ -71,40 +113,28 @@ export function ModuleTreeProvider({ children }) {
       // No roles on record means nothing has been granted — show no nav
       // rather than guessing at an unfiltered fallback.
       setTree([]);
+      setLoading(false);
       return;
     }
 
     let cancelled = false;
+    const cached = readCachedTree(userName, roles);
+    if (cached) {
+      setTree(cached);
+      setLoading(false);
+    }
 
-    const fetchModules = async () => {
-      setLoading(true);
-      setError(null);
-
-      try {
-        const moduleList = await fetchModulesForCurrentUser();
-
-        if (!cancelled) {
-          setTree(buildModuleTree(moduleList));
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setError(apiErrorMessage(err, "Unable to load navigation."));
-          setTree([]);
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-
-    fetchModules();
+    loadModules({ userName, roles, background: Boolean(cached) }).catch(() => {
+      if (!cancelled && !cached) setTree([]);
+    });
 
     return () => {
       cancelled = true;
     };
-  }, [isAuthenticated, roles, attempt]);
+  }, [isAuthenticated, roles, userName, attempt, loadModules]);
 
   return (
-    <ModuleTreeContext.Provider value={{ tree, loading, error, refetch }}>
+    <ModuleTreeContext.Provider value={{ tree, loading, error, refetch, loadModules }}>
       {children}
     </ModuleTreeContext.Provider>
   );

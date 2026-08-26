@@ -21,6 +21,10 @@ export function listBankLinkages({ text = "", pageIndex = 0, pageSize = 20 } = {
   return unwrap(apiJson(`${BANK_LINKAGES_BASE}?${params.toString()}`));
 }
 
+export function listAllBankLinkages() {
+  return unwrap(apiJson(`${BANK_LINKAGES_BASE}/all`));
+}
+
 export function createBankLinkage(bankLinkageDTO) {
   return unwrap(apiJson(BANK_LINKAGES_BASE, { method: "POST", body: JSON.stringify(bankLinkageDTO) }));
 }

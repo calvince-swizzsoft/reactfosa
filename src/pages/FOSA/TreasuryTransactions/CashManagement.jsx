@@ -73,16 +73,10 @@ export default function CashManagement() {
       // (docs/api/treasury-api-spec.md) — api/frontoffice/treasurys no
       // longer resolves at all, that controller was removed/merged.
       apiJson(`${FIN_BASE}/api/accounts/treasurys?pageSize=1000`),
-      // ValuesController.getBankWithLinkages — the right source for this
-      // picker since it's the only endpoint that enriches BankLinkageDTO
-      // rows with live balance/display fields (bank-linkage-api-spec.md
-      // §4: bankLinkageBalance/address/city/etc. aren't populated by the
-      // plain api/accounts/banklinkages CRUD controller). Confirmed
-      // directly against the controller source: each row is a
-      // BankLinkageDTO with a real, distinct `BankId` field — that's what
-      // gets submitted below, NOT the row's own `Id` (the linkage's own
-      // id) — see the picker's key/value binding.
-      apiJson(`${FIN_BASE}/api/values/getBankWithLinkages`),
+      // The active BankLinkageController enriches the unpaged `all`
+      // response with bank details and live G/L balances. Submit BankId,
+      // not the linkage row's own Id — see the picker binding below.
+      apiJson(`${FIN_BASE}/api/accounts/banklinkages/all`),
     ]).then(([branchData, tellerData, treasuryData, bankData]) => {
       setBranches(normalizeList(branchData));
       setTellers(normalizeList(tellerData));
