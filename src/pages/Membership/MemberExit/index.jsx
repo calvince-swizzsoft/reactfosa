@@ -1,324 +1,76 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
-import {
-    FaSignOutAlt,
-    FaChevronLeft,
-    FaChevronRight,
-    FaEllipsisV,
-} from "react-icons/fa";
-
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { apiJson, normalizeList } from "@/lib/api";
 import Swal from "sweetalert2";
+import { FaSignOutAlt, FaSyncAlt } from "react-icons/fa";
 import NotFoundImage from "/assets/scopefinding.png";
-import MemberExitDetailsDrawer from "./MemberExitDetailsDrawer";
-import AddMemberExitDrawer from "./AddMemberExitDrawer";
-import { Verified } from "lucide-react";
-import SettlementDetailsDrawer from "./SettlementDetailsDrawer";
+
+const BASE = `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/registry`;
+const API = `${BASE}/withdrawal-notifications`;
+const STAGES = [
+  ["register", "Registration"], ["approval", "Approval", [1, 16]],
+  ["verification", "Verification", [2]], ["settlement", "Settlement", [4]],
+  ["death", "Death Claim", [8]],
+];
+const CATEGORIES = [[1792, "Deceased"], [1793, "Voluntary"], [1794, "Retiree"]];
+const cash = (v) => Number(v || 0).toLocaleString(undefined, { minimumFractionDigits: 2 });
+const err = (e) => e?.message || "The operation could not be completed.";
+const Field = ({ label, children }) => <div><Label className="text-sm font-semibold text-gray-700">{label}</Label>{children}</div>;
+
+function Accounts({ title, rows, field = "BookBalance" }) {
+  return <div className="border rounded-lg p-3"><h4 className="font-semibold mb-2">{title}</h4>{rows?.length ? rows.map((x) =>
+    <div key={x.Id} className="flex justify-between bg-gray-50 p-2 rounded mb-2 text-sm"><span>{x.FullAccountNumber}<small className="block">{x.CustomerAccountTypeTargetProductDescription}</small></span><b>{cash(x[field])}</b></div>
+  ) : <p className="text-sm text-gray-400">None</p>}</div>;
+}
 
 export default function MemberExit() {
-    const [exits, setExits] = useState([]);
-    const [loading, setLoading] = useState(true);
+  const [stage, setStage] = useState("register"), [items, setItems] = useState([]), [customers, setCustomers] = useState([]);
+  const [selected, setSelected] = useState(null), [position, setPosition] = useState(null), [search, setSearch] = useState(""), [loading, setLoading] = useState(true);
+  const [customerId, setCustomerId] = useState(""), [category, setCategory] = useState(1793), [remarks, setRemarks] = useState("");
+  const [actionRemarks, setActionRemarks] = useState(""), [option, setOption] = useState(1), [settlementType, setSettlementType] = useState(1);
+  const [insurers, setInsurers] = useState([]), [insurerId, setInsurerId] = useState(""), [settlements, setSettlements] = useState([]), [checked, setChecked] = useState([]);
 
-    const [search, setSearch] = useState("");
-    const [currentPage, setCurrentPage] = useState(1);
-    const pageSize = 10;
-    const [openDetailsDrawer, setOpenDetailsDrawer] = useState(false);
-    const [selectedExit, setSelectedExit] = useState(null);
-    const [openAddExit, setOpenAddExit] = useState(false);
-    const [selectedCustomerId, setSelectedCustomerId] = useState(null);
-    const [openSettlementDrawer, setOpenSettlementDrawer] = useState(false);
+  const load = useCallback(async () => { setLoading(true); try { setItems(normalizeList(await apiJson(API))); } catch (e) { Swal.fire("Error", err(e), "error"); } finally { setLoading(false); } }, []);
+  useEffect(() => { load(); apiJson(`${BASE}/customer?pageIndex=0&pageSize=500`).then((x) => setCustomers(normalizeList(x))).catch(() => setCustomers([])); }, [load]);
+  useEffect(() => { if (!customerId) return setPosition(null); apiJson(`${API}/customer/${customerId}/position`).then((x) => setPosition(x.data)).catch((e) => Swal.fire("Error", err(e), "error")); }, [customerId]);
+  useEffect(() => { if (stage === "death") apiJson(`${API}/insurance-companies`).then((x) => setInsurers(normalizeList(x))); }, [stage]);
+  useEffect(() => { if (stage === "death" && selected) apiJson(`${API}/${selected.Id}/settlements`).then((x) => { const r = normalizeList(x); setSettlements(r); setChecked(r.map((y) => y.Id)); }); }, [stage, selected]);
 
+  const config = STAGES.find((x) => x[0] === stage), customer = customers.find((x) => x.Id === customerId);
+  const visible = useMemo(() => items.filter((x) => (!config[2] || config[2].includes(x.Status)) && (stage !== "death" || x.Category === 1792) && `${x.CustomerFullName} ${x.CustomerReference2} ${x.CustomerIndividualIdentityCardNumber}`.toLowerCase().includes(search.toLowerCase())), [items, config, stage, search]);
 
-    useEffect(() => {
-        fetchMemberExits();
-    }, []);
+  async function register() {
+    if (!customerId || !position?.branchId || !remarks.trim()) return Swal.fire("Required", "Select a customer with an account and enter remarks.", "info");
+    try { await apiJson(API, { method: "POST", body: JSON.stringify({ CustomerId: customerId, BranchId: position.branchId, Category: +category, Remarks: remarks.trim() }) }); await Swal.fire("Success", "Withdrawal registered.", "success"); setCustomerId(""); setRemarks(""); load(); } catch (e) { Swal.fire("Unable to register", err(e), "error"); }
+  }
+  async function update() {
+    if (!selected || !actionRemarks.trim()) return Swal.fire("Required", "Select a case and enter remarks.", "info");
+    const endpoint = stage === "approval" ? "approval" : stage === "verification" ? "verification" : "settlement";
+    try { await apiJson(`${API}/${selected.Id}/${endpoint}`, { method: "POST", body: JSON.stringify({ Option: +option, Remarks: actionRemarks.trim(), SettlementType: +settlementType, ModuleNavigationItemCode: 0 }) }); await Swal.fire("Success", `${config[1]} updated.`, "success"); setSelected(null); setActionRemarks(""); load(); } catch (e) { Swal.fire("Unable to update", err(e), "error"); }
+  }
+  async function deathClaim() {
+    const insurer = insurers.find((x) => x.Id === insurerId), rows = settlements.filter((x) => checked.includes(x.Id));
+    if (!insurer || !rows.length) return Swal.fire("Required", "Select an insurer and at least one settlement.", "info");
+    try { await apiJson(`${API}/${selected.Id}/death-claim`, { method: "POST", body: JSON.stringify({ InsuranceCompany: insurer, Settlements: rows, ModuleNavigationItemCode: 0 }) }); await Swal.fire("Success", "Death claim settled.", "success"); setSelected(null); load(); } catch (e) { Swal.fire("Unable to settle", err(e), "error"); }
+  }
 
-    const fetchMemberExits = async () => {
-        setLoading(true);
-        try {
-            const res = await fetch(
-                `${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/MemberExit/GetAll`,
-                {
-                    headers: {
-                        "ngrok-skip-browser-warning": "true",
-                    },
-                }
-            );
-
-            const json = await res.json();
-            setExits(json.Data?.PageCollection || []);
-        } catch (err) {
-            console.error("Fetch Member Exit Error:", err);
-            Swal.fire("Error", "Failed to load member exits", "error");
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const getFullName = (m) =>
-        `${m.CustomerIndividualFirstName || ""} ${m.CustomerIndividualLastName || ""}`;
-
-    const formatDate = (date) =>
-        date && date !== "0001-01-01T00:00:00"
-            ? new Date(date).toLocaleDateString()
-            : "-";
-
-    // 🔍 Search filter
-    const filteredExits = exits.filter((m) => {
-        const term = search.toLowerCase();
-        return (
-            getFullName(m).toLowerCase().includes(term) ||
-            (m.CustomerIndividualIdentityCardNumber || "")
-                .toLowerCase()
-                .includes(term) ||
-            (m.CustomerAddressMobileLine || "")
-                .toLowerCase()
-                .includes(term) ||
-            (m.PaddedCustomerSerialNumber || "")
-                .toLowerCase()
-                .includes(term)
-        );
-    });
-
-    // 📄 Pagination (frontend)
-    const startIndex = (currentPage - 1) * pageSize;
-    const paginatedData = filteredExits.slice(
-        startIndex,
-        startIndex + pageSize
-    );
-
-    const totalPages = Math.ceil(filteredExits.length / pageSize);
-
-
-    const handleSettle = async (exit) => {
-        // Get current date-time in format YYYY-MM-DDTHH:MM
-        const now = new Date();
-        const pad = (n) => n.toString().padStart(2, "0");
-        const defaultDate = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
-
-        const { value: formValues } = await Swal.fire({
-            title: "Settle Member Exit",
-            html: `
-            <input type="datetime-local" id="settleDate" class="swal2-input" value="${defaultDate}">
-            <input type="text" id="settleRemarks" class="swal2-input" placeholder="Enter remarks">
-        `,
-            focusConfirm: false,
-            showCancelButton: true,
-            preConfirm: () => {
-                const date = document.getElementById("settleDate").value;
-                const remarks = document.getElementById("settleRemarks").value;
-                if (!date) {
-                    Swal.showValidationMessage("Please select a settlement date");
-                }
-                return { date, remarks };
-            },
-        });
-
-        if (!formValues) return; // Cancelled
-
-        try {
-            const payload = {
-                Id: exit.Id,
-                status: 1,
-                SettledDate: new Date(formValues.date).toISOString(),
-                SettlementRemarks: formValues.remarks || "",
-            };
-
-            const res = await fetch(`${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/MemberExit/Settle`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload),
-            });
-
-            if (!res.ok) {
-                const msg = await res.text();
-                throw new Error(msg || "Failed to settle member exit");
-            }
-
-            Swal.fire("Success", "Member exit settled successfully", "success");
-            fetchMemberExits(); // Refresh table
-        } catch (err) {
-            Swal.fire("Error", err.message, "error");
-        }
-    };
-
-
-    console.log(exits);
-
-    return (
-        <div className="bg-white m-8 px-8 py-8 shadow-2xl rounded-lg">
-            {/* Header */}
-            <div className="flex justify-between items-center mb-6 bg-indigo-800 px-6 py-3 rounded-2xl">
-                <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                    <FaSignOutAlt /> Member Exits
-                </h2>
-                <Button
-                    className="bg-indigo-600 hover:bg-indigo-700"
-                    onClick={() => {
-                        setSelectedCustomerId("PUT_CUSTOMER_ID_HERE");
-                        setOpenAddExit(true);
-                    }}
-                >
-                    Add Member Exit
-                </Button>
-
-            </div>
-
-            {/* Search */}
-            <div className="flex justify-start mb-6">
-                <input
-                    type="text"
-                    placeholder="Search by name, ID, phone or Member No"
-                    value={search}
-                    onChange={(e) => {
-                        setSearch(e.target.value);
-                        setCurrentPage(1);
-                    }}
-                    className="w-full max-w-md px-4 py-3 rounded-full border border-gray-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-            </div>
-
-            {/* Table */}
-            <div className="bg-gray-200 p-4 rounded-sm">
-                <div className="grid grid-cols-14 gap-4 bg-gray-700 text-gray-100 font-semibold p-3 rounded-lg mb-4">
-                    <span className="col-span-2">Member No</span>
-                    <span className="col-span-2">Full Name</span>
-                    <span className="col-span-2">ID No</span>
-                    <span className="col-span-2">Phone</span>
-                    <span className="col-span-2">Status</span>
-                    <span className="col-span-4 text-right">Actions</span>
-                </div>
-
-                {loading ? (
-                    <div className="p-6 text-center text-gray-500">
-                        Loading member exits...
-                    </div>
-                ) : paginatedData.length === 0 ? (
-                    <div className="flex flex-col justify-center items-center p-10">
-                        <img src={NotFoundImage} className="w-40 opacity-70" />
-                        <p className="mt-4 text-gray-500">
-                            No Member Exit Records Found
-                        </p>
-                    </div>
-                ) : (
-                    paginatedData.map((m) => (
-                        <div
-                            key={m.Id}
-                            className="bg-white shadow-sm rounded-lg p-4 mb-4"
-                        >
-                            <div className="grid grid-cols-14 gap-4 items-center">
-                                <span className="col-span-2 font-semibold truncate">
-                                    {m.PaddedCustomerSerialNumber}
-                                </span>
-
-                                <span className="col-span-2 font-semibold truncate">
-                                    {getFullName(m)}
-                                </span>
-
-                                <span className="col-span-2">
-                                    {m.CustomerIndividualIdentityCardNumber}
-                                </span>
-
-                                <span className="col-span-2">
-                                    {m.CustomerAddressMobileLine}
-                                </span>
-
-                                <span className="col-span-2">
-                                    {m.StatusDescription}
-                                </span>
-                                <span className="col-span-4 flex gap-2">
-                                    {/* View Details Button */}
-                                    <Button
-                                        size="sm"
-                                        variant="outline"
-                                        className="text-gray-50 hover:text-white hover:bg-gray-800 bg-gray-700"
-                                        onClick={() => {
-                                            setSelectedExit(m);
-                                            setOpenDetailsDrawer(true);
-                                        }}
-                                    >
-                                        View Details
-                                    </Button>
-
-                                    {/* Settle Button */}
-                                    <Button
-                                        size="sm"
-                                        className="bg-green-600 hover:bg-green-700 text-white"
-                                        onClick={() => handleSettle(m)}
-                                        disabled={m.StatusDescription === "Withdrawal Settled"} // Disabled if already settled
-
-                                    >
-                                        {m.StatusDescription === "Withdrawal Settled" ? "Settled" : "Settle"}
-                                    </Button>
-                                    <Button
-                                        size="sm"
-                                        className="bg-blue-600 hover:bg-blue-700 text-white"
-                                        onClick={() => { setSelectedExit(m); setOpenSettlementDrawer(true); }}>
-                                        View Settlement
-                                    </Button>
-                                </span>
-
-
-
-                            </div>
-                        </div>
-                    ))
-                )}
-            </div>
-
-            {/* Pagination */}
-            {totalPages > 1 && (
-                <div className="flex justify-center items-center gap-4 mt-6">
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={currentPage === 1}
-                        onClick={() => setCurrentPage(currentPage - 1)}
-                    >
-                        <FaChevronLeft /> Prev
-                    </Button>
-
-                    <span className="text-sm text-gray-600">
-                        Page {currentPage} of {totalPages}
-                    </span>
-
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={currentPage === totalPages}
-                        onClick={() => setCurrentPage(currentPage + 1)}
-                    >
-                        Next <FaChevronRight />
-                    </Button>
-                </div>
-            )}
-
-            <AddMemberExitDrawer
-                open={openAddExit}
-                onClose={() => setOpenAddExit(false)}
-                customerId={selectedCustomerId}
-                refresh={fetchMemberExits}
-            />
-
-
-            <MemberExitDetailsDrawer
-                open={openDetailsDrawer}
-                onClose={() => setOpenDetailsDrawer(false)}
-                exit={selectedExit}
-            />
-
-            <SettlementDetailsDrawer
-                open={openSettlementDrawer}
-                onClose={() => setOpenSettlementDrawer(false)}
-                exitId={selectedExit?.Id}
-            />
-
-        </div>
-    );
+  return <div className="bg-white m-8 px-8 py-8 shadow-2xl rounded-lg relative">
+    <div className="flex justify-between items-center mb-6 bg-indigo-800 px-6 py-3 rounded-2xl"><h2 className="text-xl font-bold text-white flex gap-2 items-center"><FaSignOutAlt/> Membership Withdrawals</h2><Button className="bg-indigo-600 hover:bg-indigo-700" onClick={load}><FaSyncAlt/> Refresh</Button></div>
+    <div className="flex gap-2 flex-wrap mb-6">{STAGES.map(([id, label]) => <Button key={id} onClick={() => { setStage(id); setSelected(null); }} className={stage === id ? "bg-indigo-600 hover:bg-indigo-700" : "bg-gray-200 text-gray-700 hover:bg-gray-300"}>{label}</Button>)}</div>
+    {stage === "register" ? <div className="space-y-5">
+      <div className="grid md:grid-cols-3 gap-4 bg-gray-50 border rounded-lg p-4">
+        <Field label="Customer"><select className="w-full border rounded-md h-10 px-3" value={customerId} onChange={(e) => setCustomerId(e.target.value)}><option value="">Select customer</option>{customers.map((x) => <option key={x.Id} value={x.Id}>{x.FullName || `${x.IndividualFirstName || ""} ${x.IndividualLastName || ""}`} — {x.Reference2 || x.SerialNumber}</option>)}</select></Field>
+        <Field label="Serial / Membership #"><Input readOnly value={customer ? `${customer.SerialNumber || ""} / ${customer.Reference2 || ""}` : ""}/></Field>
+        <Field label="Identity / Payroll #"><Input readOnly value={customer ? `${customer.IndividualIdentityCardNumber || ""} / ${customer.IndividualPayrollNumbers || ""}` : ""}/></Field>
+        <Field label="Station"><Input readOnly value={customer?.StationDescription || ""}/></Field>
+        <Field label="Category"><select className="w-full border rounded-md h-10 px-3" value={category} onChange={(e) => setCategory(e.target.value)}>{CATEGORIES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></Field>
+        <Field label="Remarks"><Input value={remarks} onChange={(e) => setRemarks(e.target.value)}/></Field>
+      </div>
+      {position && <><div className="grid md:grid-cols-3 gap-3"><Accounts title="Savings Accounts" rows={position.savings}/><Accounts title="Loan Accounts" rows={position.loans} field="PrincipalBalance"/><Accounts title="Investment Accounts" rows={position.investments}/></div><div className="grid md:grid-cols-4 gap-3 text-sm"><div className="p-3 bg-indigo-50 rounded">Refundable investments<br/><b>{cash(position.refundableInvestments)}</b></div><div className="p-3 bg-red-50 rounded">Loan liability<br/><b>{cash(position.loanLiability)}</b></div><div className={`p-3 rounded ${position.netRefundable < 0 ? "bg-red-100" : "bg-green-100"}`}>Net refundable<br/><b>{cash(position.netRefundable)}</b></div><div className="p-3 bg-amber-50 rounded">Loans guaranteed<br/><b>{position.totalLoansGuaranteed}</b></div></div></>}
+      <div className="flex justify-end"><Button className="bg-indigo-600 hover:bg-indigo-700" onClick={register}>Register Withdrawal</Button></div>
+    </div> : <div className="grid lg:grid-cols-5 gap-5"><div className="lg:col-span-3"><Input className="mb-4" placeholder="Search member, membership or ID number" value={search} onChange={(e) => setSearch(e.target.value)}/><div className="bg-gray-200 p-4 rounded-sm"><div className="grid grid-cols-12 gap-3 bg-gray-700 text-gray-100 font-semibold p-3 rounded-lg mb-4"><span className="col-span-4">Member</span><span className="col-span-3">Category</span><span className="col-span-3">Status</span><span className="col-span-2">Select</span></div>{loading ? <p className="p-6 text-center">Loading...</p> : visible.length ? visible.map((x) => <button key={x.Id} onClick={() => setSelected(x)} className={`w-full grid grid-cols-12 gap-3 p-3 mb-2 rounded-lg shadow-lg text-left border ${selected?.Id === x.Id ? "bg-indigo-50 border-indigo-500" : "bg-white"}`}><span className="col-span-4">{x.CustomerFullName}<small className="block">{x.CustomerReference2}</small></span><span className="col-span-3">{x.CategoryDescription}</span><span className="col-span-3">{x.StatusDescription}</span><span className="col-span-2 text-indigo-600">Open</span></button>) : <div className="text-center p-8"><img src={NotFoundImage} className="mx-auto w-32"/><p className="text-gray-400">No eligible cases</p></div>}</div></div>
+      <div className="lg:col-span-2 border rounded-lg p-4 space-y-4"><h3 className="font-semibold">{config[1]}</h3>{selected ? <><div className="bg-gray-50 p-3 rounded text-sm"><b>{selected.CustomerFullName}</b><p>{selected.CustomerStationDescription}</p><p>{selected.Remarks}</p><p>Maturity: {new Date(selected.MaturityDate).toLocaleDateString()}</p></div>{stage === "death" ? <><Field label="Insurer"><select className="w-full border rounded-md h-10 px-3" value={insurerId} onChange={(e) => setInsurerId(e.target.value)}><option value="">Select insurer</option>{insurers.map((x) => <option key={x.Id} value={x.Id}>{x.Description}</option>)}</select></Field><div><Label>Settlements</Label>{settlements.map((x) => <label key={x.Id} className="flex gap-2 p-2 border rounded mt-2"><input type="checkbox" className="accent-indigo-600" checked={checked.includes(x.Id)} onChange={(e) => setChecked(e.target.checked ? [...checked, x.Id] : checked.filter((id) => id !== x.Id))}/>{x.FullAccountNumber} — {cash(+x.Principal + +x.Interest + +x.CarryForwards)}</label>)}</div><Button className="w-full bg-indigo-600 hover:bg-indigo-700" onClick={deathClaim}>Settle Death Claim</Button></> : <><Field label={`${config[1]} remarks`}><Input value={actionRemarks} onChange={(e) => setActionRemarks(e.target.value)}/></Field><Field label="Action"><select className="w-full border rounded-md h-10 px-3" value={option} onChange={(e) => setOption(e.target.value)}><option value={1}>{stage === "approval" ? "Approve" : stage === "verification" ? "Verify" : "Settle"}</option><option value={2}>Defer</option></select></Field>{stage === "settlement" && <Field label="Settlement type"><select className="w-full border rounded-md h-10 px-3" value={settlementType} onChange={(e) => setSettlementType(e.target.value)}><option value={1}>Normal</option><option value={2}>Express</option><option value={4}>Waiver</option></select></Field>}<Button className="w-full bg-indigo-600 hover:bg-indigo-700" onClick={update}>Update</Button></>}</> : <p className="text-sm text-gray-400">Select an eligible case.</p>}</div></div>}
+  </div>;
 }

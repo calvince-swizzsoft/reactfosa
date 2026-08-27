@@ -165,6 +165,14 @@ export const moduleRouteMap = {
   21008: "/Registry/Customers",           // Operations > Customers > Next-Of-Kin (ControllerName: NextOfKin) — no standalone screen (NextOfKinController is customer-scoped only, GetByCustomer requires a customerId), reachable via the row action on the Customers list; pointed at that list rather than left ungated so the nav item lands somewhere real instead of the generic placeholder
   21009: "/Registry/Customers",           // Operations > Customers > Account Alerts (ControllerName: Controller — real backing is CustomerController's /account-alerts routes) — same reasoning as Next-Of-Kin above: customer-scoped only (AlertPreferencesDrawer, a row action), no standalone screen, so pointed at the Customers list rather than left ungated
   21010: "/Registry/Customers/ChargesExemptions", // Operations > Customers > Charges Exemptions (ControllerName: ChargeExemptions) — no ChargeExemption domain/DTO exists anywhere; backed by ICommissionExemptionAppService instead (same "Charges" = Commission naming as Code 23009), a real standalone screen unlike Next-Of-Kin/Account Alerts above
+  // Operations > Membership Termination (21023). The five leaves share one
+  // workflow screen; its tabs enforce the Registered -> Approved -> Verified
+  // -> Settled -> Death Claim progression.
+  21024: "/Membership/MemberExit", // Registration
+  21025: "/Membership/MemberExit", // Approval
+  21026: "/Membership/MemberExit", // Verification
+  21027: "/Membership/MemberExit", // Settlement
+  21028: "/Membership/MemberExit", // Death Claim
   21011: "/Registry/Customers/Delegates",         // Operations > Customers > Delegates (ControllerName: Delegate) — IDelegateAppService was already fully built, just missing a controller; a real standalone screen (list + create/edit, own zone/customer lookups), same as ChargesExemptions
   21012: "/Registry/Customers/Directors",          // Operations > Customers > Directors (ControllerName: Director) — same shape as Delegates: IDirectorAppService already fully built, just missing a controller; division lookup (Employer > Divisions) instead of zone
   21013: "/Registry/Customers/StationLinkage",      // Operations > Customers > Station Linkage (ControllerName: Station) — not a separate entity, just Customer.StationId; CustomerController.cs already had by-station/{id} + PUT {id}/station live, only DELETE {id}/station (reset/unlink, wrapping the already-built ResetCustomerStationAsync) was missing
