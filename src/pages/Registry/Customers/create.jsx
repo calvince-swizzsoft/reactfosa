@@ -1,524 +1,148 @@
-import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useEffect, useMemo, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { FaCamera, FaPlus, FaTrash } from "react-icons/fa";
+import Swal from "sweetalert2";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
-import Swal from "sweetalert2";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { apiFetch } from "@/lib/api";
+import { apiErrorMessage, readApiResponse } from "@/lib/api-errors";
 
-const FIN_BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
-const STATION_BASE = `${FIN_BASE}/api/registry/station`;
-
-const salutationOptions = [
-  { value: 1, label: "Mr" },
-  { value: 2, label: "Mrs" },
-  { value: 3, label: "Miss" },
-  { value: 4, label: "Dr" },
-  { value: 5, label: "Prof" },
-  { value: 6, label: "Rev" },
-  { value: 7, label: "Eng" },
-  { value: 8, label: "Hon" },
-];
-
-const genderOptions = [
-  { value: 1, label: "Male" },
-  { value: 2, label: "Female" },
-  { value: 3, label: "Non-Binary" },
-];
-
-const maritalStatusOptions = [
-  { value: 1, label: "Married" },
-  { value: 2, label: "Single" },
-  { value: 3, label: "Divorced" },
-  { value: 4, label: "Separated" },
-];
-
-const identityCardTypeOptions = [
-  { value: 1, label: "National ID" },
-  { value: 2, label: "Passport" },
-  { value: 3, label: "Alien ID" },
-  { value: 4, label: "Birth Certificate" },
-];
-
-const classificationOptions = [
-  { value: 1, label: "Class A" },
-  { value: 2, label: "Class B" },
-];
-
-const individualTypeOptions = [
-  { value: 0, label: "Adult" },
-  { value: 1, label: "Minor" },
-];
-
-// Individual particulars/address/referees/investment products/savings
-// products are wired up — Credit Types, Debit Types, Specimen, and Capture
-// Specimen remain stubbed (matching the full tab set from the reference
-// screenshot). See TODO.md for what's left.
-const TABS = [
-  { id: "individual", label: "Individual Particulars", stub: false },
-  { id: "address", label: "Address", stub: false },
-  { id: "referees", label: "Referees", stub: false },
-  { id: "creditTypes", label: "Credit Types", stub: true },
-  { id: "debitTypes", label: "Debit Types", stub: true },
-  { id: "investmentProducts", label: "Investment Products", stub: false },
-  { id: "savingsProducts", label: "Savings Products", stub: false },
-  { id: "specimen", label: "Specimen", stub: true },
-  { id: "captureSpecimen", label: "Capture Specimen", stub: true },
-];
-
+const BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
+const CUSTOMER_URL = `${BASE}/api/registry/customer`;
+const TYPES = [[0, "Individual"], [1, "Partnership"], [2, "Corporation"], [3, "Micro-credit"]];
+const SALUTATIONS = [[1, "Mr"], [2, "Mrs"], [3, "Miss"], [4, "Dr"], [5, "Prof"]];
+const GENDERS = [[1, "Male"], [2, "Female"], [3, "Non-Binary"]];
+const ID_TYPES = [[1, "National ID"], [2, "Passport"], [3, "Alien ID"], [4, "Birth Certificate"]];
+const IMAGE_FIELDS = [["passportBuffer", "Passport photograph"], ["signatureBuffer", "Signature"], ["identityCardFrontSideBuffer", "Identity card — front"], ["identityCardBackSideBuffer", "Identity card — back"]];
 const emptyForm = {
-  branchId: "",
-  stationId: "",
-  personalIdentificationNumber: "",
-  individualType: 0,
-  individualFirstName: "",
-  individualLastName: "",
-  individualIdentityCardType: 1,
-  individualIdentityCardNumber: "",
-  individualIdentityCardSerialNumber: "",
-  individualPayrollNumbers: "",
-  individualSalutation: 1,
-  individualGender: 1,
-  individualMaritalStatus: 1,
-  individualNationality: "",
-  individualBirthDate: "",
-  individualEmploymentDesignation: "",
-  individualEmploymentDate: "",
-  individualClassification: 1,
-  bankName: "",
-  branchName: "",
-  addressAddressLine1: "",
-  addressAddressLine2: "",
-  addressStreet: "",
-  addressPostalCode: "",
-  addressCity: "",
-  addressEmail: "",
-  addressLandLine: "",
-  addressMobileLine: "",
-  reference1: "",
-  reference2: "",
-  reference3: "",
-  remarks: "",
-  isDefaulter: false,
-  isLocked: false,
-  inhibitGuaranteeing: false,
+  type: 0, branchId: "", stationId: "", personalIdentificationNumber: "", individualType: 0,
+  individualFirstName: "", individualLastName: "", individualIdentityCardType: 1,
+  individualIdentityCardNumber: "", individualIdentityCardSerialNumber: "", individualPayrollNumbers: "",
+  individualSalutation: 1, individualGender: 1, individualMaritalStatus: 1, individualNationality: "",
+  individualBirthDate: "", individualEmploymentDesignation: "", individualEmploymentDate: "", individualClassification: 1,
+  nonIndividualDescription: "", nonIndividualRegistrationNumber: "", nonIndividualRegistrationSerialNumber: "",
+  nonIndividualDateEstablished: "", addressAddressLine1: "", addressAddressLine2: "", addressStreet: "",
+  addressPostalCode: "", addressCity: "", addressEmail: "", addressLandLine: "", addressMobileLine: "",
+  bankName: "", branchName: "", reference1: "", reference2: "", reference3: "", remarks: "",
+  isDefaulter: false, isLocked: false, inhibitGuaranteeing: false,
 };
+const emptyPartner = { salutation: 1, firstName: "", lastName: "", identityCardType: 1, identityCardNumber: "", gender: 1, relationship: 0, addressMobileLine: "", addressEmail: "", remarks: "", signatory: false };
+const pick = (item, ...keys) => keys.map((key) => item?.[key]).find((v) => v !== undefined && v !== null);
+const list = (body) => { const data = body?.data ?? body?.Data ?? body; return Array.isArray(data) ? data : data?.PageCollection ?? data?.pageCollection ?? []; };
+const nameOf = (item) => pick(item, "FullName", "fullName") || `${pick(item, "IndividualFirstName", "individualFirstName") || ""} ${pick(item, "IndividualLastName", "individualLastName") || ""}`.trim();
+const iso = (date) => date ? new Date(date).toISOString() : null;
 
-function FieldGroup({ label, children }) {
-  return (
-    <div>
-      <Label className="text-sm font-semibold text-gray-700">{label}</Label>
-      {children}
-    </div>
-  );
+function Field({ label, required, children }) {
+  return <div><Label className="text-sm font-semibold text-gray-700">{label}{required && <span className="text-red-600"> *</span>}</Label>{children}</div>;
 }
-
 function EnumSelect({ value, options, onChange }) {
-  return (
-    <Select value={String(value)} onValueChange={(v) => onChange(Number(v))}>
-      <SelectTrigger><SelectValue /></SelectTrigger>
-      <SelectContent>
-        {options.map((o) => (
-          <SelectItem key={o.value} value={String(o.value)}>{o.label}</SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  );
+  return <Select value={String(value)} onValueChange={(v) => onChange(Number(v))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{options.map(([id, label]) => <SelectItem key={id} value={String(id)}>{label}</SelectItem>)}</SelectContent></Select>;
+}
+function Options({ items, selected, toggle, empty }) {
+  if (!items.length) return <p className="text-sm text-gray-400">{empty}</p>;
+  return <div className="divide-y rounded-lg border">{items.map((item) => { const id = pick(item, "Id", "id"); return <label key={id} className="flex gap-3 p-3 hover:bg-gray-50"><input type="checkbox" checked={selected.includes(id)} onChange={() => toggle(id)} className="accent-indigo-600" /><span>{pick(item, "Description", "description")}</span>{pick(item, "IsMandatory", "isMandatory") && <small className="ml-auto text-indigo-600">Mandatory</small>}</label>; })}</div>;
 }
 
 export default function CreateCustomerDrawer({ open, onClose, onSuccess }) {
   const [form, setForm] = useState(emptyForm);
-  const [activeTab, setActiveTab] = useState("individual");
+  const [tab, setTab] = useState("particulars");
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(false);
-  const [branches, setBranches] = useState([]);
-  const [stations, setStations] = useState([]);
-  const [investmentProducts, setInvestmentProducts] = useState([]);
-  const [savingsProducts, setSavingsProducts] = useState([]);
-  const [selectedInvestmentProductIds, setSelectedInvestmentProductIds] = useState([]);
-  const [selectedSavingsProductIds, setSelectedSavingsProductIds] = useState([]);
-
-  // Handles both the plain shapes ({data:[...]} / {Data:[...]} / bare
-  // array) used by branches/investment-products/savings-products, and the
-  // paged Registry envelope (data.PageCollection, alongside
-  // PageIndex/PageSize/ItemsCount/TotalCount/TotalPages) used by stations.
-  const normalizeList = (d) => {
-    const payload = d?.data ?? d?.Data ?? d;
-    if (Array.isArray(payload)) return payload;
-    if (Array.isArray(payload?.PageCollection)) return payload.PageCollection;
-    if (Array.isArray(payload?.pageCollection)) return payload.pageCollection;
-    return [];
-  };
+  const [branches, setBranches] = useState([]), [stations, setStations] = useState([]);
+  const [debits, setDebits] = useState([]), [investments, setInvestments] = useState([]), [savings, setSavings] = useState([]);
+  const [selectedDebits, setSelectedDebits] = useState([]), [selectedInvestments, setSelectedInvestments] = useState([]), [selectedSavings, setSelectedSavings] = useState([]);
+  const [images, setImages] = useState({});
+  const [partner, setPartner] = useState(emptyPartner), [partners, setPartners] = useState([]);
+  const [corporationMembers, setCorporationMembers] = useState([]), [referees, setReferees] = useState([]);
+  const [search, setSearch] = useState(""), [results, setResults] = useState([]), [searching, setSearching] = useState(false);
+  const typeLabel = TYPES.find(([id]) => id === form.type)?.[1];
+  const tabs = useMemo(() => [
+    ["particulars", `${typeLabel} Particulars`],
+    ...([1, 2].includes(form.type) ? [["members", "Member Details"]] : []),
+    ["address", "Address"], ["referees", "Referees"], ["images", "Images & Specimen"],
+    ["debits", "Debit Types"], ["investments", "Investment Products"], ["savings", "Savings Products"],
+  ], [form.type, typeLabel]);
 
   useEffect(() => {
     if (!open) return;
-    setForm(emptyForm);
-    setActiveTab("individual");
-    setSelectedInvestmentProductIds([]);
-    setSelectedSavingsProductIds([]);
+    setForm(emptyForm); setTab("particulars"); setSelectedDebits([]); setSelectedInvestments([]); setSelectedSavings([]);
+    setImages({}); setPartners([]); setCorporationMembers([]); setReferees([]); setResults([]); setSearch("");
     setLoadingData(true);
     Promise.all([
-      apiFetch(`${FIN_BASE}/api/administration/branches`).then((r) => r.json()),
-      apiFetch(`${STATION_BASE}?pageIndex=0&pageSize=1000&text=`).then((r) => r.json()),
-      apiFetch(`${FIN_BASE}/api/accounts/investmentsproducts`).then((r) => r.json()),
-      apiFetch(`${FIN_BASE}/api/accounts/savingsproducts`).then((r) => r.json()),
-    ]).then(([branchData, stationData, investmentData, savingsData]) => {
-      setBranches(normalizeList(branchData));
-      setStations(normalizeList(stationData));
-      setInvestmentProducts(normalizeList(investmentData));
-      setSavingsProducts(normalizeList(savingsData));
-    }).catch(() => { }).finally(() => setLoadingData(false));
+      apiFetch(`${BASE}/api/administration/branches`).then((r) => r.json()),
+      apiFetch(`${BASE}/api/registry/station?pageIndex=0&pageSize=1000&text=`).then((r) => r.json()),
+      apiFetch(`${CUSTOMER_URL}/registration/debit-types`).then((r) => r.json()),
+      apiFetch(`${BASE}/api/accounts/investmentsproducts`).then((r) => r.json()),
+      apiFetch(`${BASE}/api/accounts/savingsproducts`).then((r) => r.json()),
+    ]).then(([b, st, d, i, s]) => { setBranches(list(b)); setStations(list(st)); setDebits(list(d)); setInvestments(list(i)); setSavings(list(s)); })
+      .catch((error) => Swal.fire("Unable to load registration options", apiErrorMessage(error), "error"))
+      .finally(() => setLoadingData(false));
   }, [open]);
 
-  const handleChange = (field, value) => setForm((p) => ({ ...p, [field]: value }));
-
-  const toggleSelection = (setter, id) =>
-    setter((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
-
-  const toIsoOrNull = (dateStr) => (dateStr ? new Date(dateStr).toISOString() : null);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!form.individualFirstName || !form.individualLastName || !form.individualIdentityCardNumber) {
-      Swal.fire("Missing Fields", "First name, last name, and identity card number are required.", "warning");
-      return;
-    }
-    if (!form.branchId || !form.stationId) {
-      Swal.fire("Missing Fields", "Branch and Station are required.", "warning");
-      return;
-    }
-
+  const change = (key, value) => setForm((current) => ({ ...current, [key]: value }));
+  const toggle = (setter, id) => setter((current) => current.includes(id) ? current.filter((value) => value !== id) : [...current, id]);
+  const selectType = (type) => { change("type", type); setTab("particulars"); setPartners([]); setCorporationMembers([]); };
+  const addPartner = () => {
+    if (!partner.firstName.trim() || !partner.lastName.trim() || !partner.identityCardNumber.trim()) return Swal.fire("Missing details", "Member first name, last name, and identity card number are required.", "warning");
+    setPartners((items) => [...items, { ...partner, key: crypto.randomUUID() }]); setPartner(emptyPartner);
+  };
+  const readImage = (field, file) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/") || file.size > 5 * 1024 * 1024) return Swal.fire("Invalid image", "Choose an image no larger than 5 MB.", "warning");
+    const reader = new FileReader(); reader.onload = () => setImages((current) => ({ ...current, [field]: { preview: reader.result, bytes: String(reader.result).split(",")[1] } })); reader.readAsDataURL(file);
+  };
+  const findCustomers = async () => {
+    if (!search.trim()) return;
+    setSearching(true);
+    try { const response = await apiFetch(`${CUSTOMER_URL}?pageIndex=0&pageSize=20&customerFilter=2&text=${encodeURIComponent(search.trim())}`); setResults(list(await response.json())); }
+    catch (error) { Swal.fire("Search failed", apiErrorMessage(error), "error"); } finally { setSearching(false); }
+  };
+  const addExisting = (customer, target) => {
+    const id = pick(customer, "Id", "id"), item = { customerId: id, name: nameOf(customer), remarks: "", signatory: false };
+    const setter = target === "corporation" ? setCorporationMembers : setReferees;
+    setter((items) => items.some((entry) => entry.customerId === id) ? items : [...items, item]);
+  };
+  const validationError = () => {
+    if (!form.branchId || !form.stationId) return "Branch and station are required.";
+    if (form.type === 0 && (!form.individualFirstName.trim() || !form.individualLastName.trim() || !form.individualIdentityCardNumber.trim() || !form.individualBirthDate)) return "First name, last name, identity card number, and birth date are required.";
+    if (form.type !== 0 && (!form.nonIndividualDescription.trim() || !form.nonIndividualRegistrationNumber.trim() || !form.nonIndividualDateEstablished)) return "Name, registration number, and date established are required.";
+    if (form.type === 1 && !partners.length) return "Add at least one partnership member.";
+    if (form.type === 2 && !corporationMembers.length) return "Add at least one corporation member.";
+    return null;
+  };
+  const submit = async (event) => {
+    event.preventDefault(); const issue = validationError(); if (issue) return Swal.fire("Missing fields", issue, "warning");
     setLoading(true);
     try {
-      const today = new Date().toISOString();
-      // Company-mandatory debit types/products auto-attach server-side now —
-      // these arrays are strictly for extras the user opts into on top of
-      // that mandatory set, keyed by id (see CreateCustomerRequest).
-      const payload = {
-        customer: {
-          branchId: form.branchId,
-          type: 0,
-          personalIdentificationNumber: form.personalIdentificationNumber,
-          individualType: Number(form.individualType),
-          individualFirstName: form.individualFirstName,
-          individualLastName: form.individualLastName,
-          individualIdentityCardType: Number(form.individualIdentityCardType),
-          individualIdentityCardNumber: form.individualIdentityCardNumber,
-          individualIdentityCardSerialNumber: form.individualIdentityCardSerialNumber,
-          individualPayrollNumbers: form.individualPayrollNumbers,
-          individualSalutation: Number(form.individualSalutation),
-          individualGender: Number(form.individualGender),
-          individualMaritalStatus: Number(form.individualMaritalStatus),
-          individualNationality: Number(form.individualNationality) || 0,
-          individualBirthDate: toIsoOrNull(form.individualBirthDate),
-          durationStartDate: today,
-          durationEndDate: today,
-          individualEmploymentDesignation: form.individualEmploymentDesignation,
-          individualEmploymentDate: toIsoOrNull(form.individualEmploymentDate),
-          individualClassification: Number(form.individualClassification),
-          bankName: form.bankName,
-          branchName: form.branchName,
-          addressAddressLine1: form.addressAddressLine1,
-          addressAddressLine2: form.addressAddressLine2,
-          addressStreet: form.addressStreet,
-          addressPostalCode: form.addressPostalCode,
-          addressCity: form.addressCity,
-          addressEmail: form.addressEmail,
-          addressLandLine: form.addressLandLine,
-          addressMobileLine: form.addressMobileLine,
-          stationId: form.stationId,
-          reference1: form.reference1,
-          reference2: form.reference2,
-          reference3: form.reference3,
-          remarks: form.remarks,
-          isDefaulter: form.isDefaulter,
-          isLocked: form.isLocked,
-          inhibitGuaranteeing: form.inhibitGuaranteeing,
-          recordStatus: 0,
-        },
-        additionalDebitTypes: [],
-        additionalInvestmentProducts: selectedInvestmentProductIds.map((id) => ({ id })),
-        additionalSavingsProducts: selectedSavingsProductIds.map((id) => ({ id })),
-        moduleNavigationItemCode: 21007,
-      };
-
-      const res = await apiFetch(`${FIN_BASE}/api/registry/customer`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.message || "Failed to create customer");
-      Swal.fire("Success", data.message || "Customer created successfully", "success");
-      setForm(emptyForm);
-      onSuccess();
-      onClose();
-    } catch (err) {
-      Swal.fire("Error", err.message, "error");
-    } finally {
-      setLoading(false);
-    }
+      const now = new Date().toISOString();
+      const customer = { ...form, individualNationality: Number(form.individualNationality) || 0, individualBirthDate: iso(form.individualBirthDate), individualEmploymentDate: iso(form.individualEmploymentDate), nonIndividualDateEstablished: iso(form.nonIndividualDateEstablished), durationStartDate: now, durationEndDate: now, registrationDate: now, recordStatus: 0, ...Object.fromEntries(IMAGE_FIELDS.map(([field]) => [field, images[field]?.bytes || null])) };
+      const response = await apiFetch(CUSTOMER_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
+        customer, additionalDebitTypes: selectedDebits.map((id) => ({ id })), additionalInvestmentProducts: selectedInvestments.map((id) => ({ id })), additionalSavingsProducts: selectedSavings.map((id) => ({ id })),
+        partnershipMembers: partners.map(({ key, ...member }) => member), corporationMembers: corporationMembers.map((member) => ({ customerId: member.customerId, remarks: member.remarks, signatory: member.signatory })), referees: referees.map((member) => ({ witnessId: member.customerId, remarks: member.remarks })), moduleNavigationItemCode: 21007,
+      }) });
+      const body = await readApiResponse(response, { fallbackMessage: "Customer registration failed." }); await Swal.fire("Customer registered", body.message || `${typeLabel} customer created successfully.`, "success"); onSuccess?.(); onClose();
+    } catch (error) { Swal.fire("Registration failed", apiErrorMessage(error), "error"); } finally { setLoading(false); }
   };
 
-  const activeTabMeta = TABS.find((t) => t.id === activeTab);
+  const Lookup = ({ target }) => <div className="space-y-3"><div className="flex gap-2"><Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search registered customers by name" /><Button type="button" onClick={findCustomers}>{searching ? "Searching..." : "Search"}</Button></div>{results.map((customer) => <button type="button" key={pick(customer, "Id", "id")} onClick={() => addExisting(customer, target)} className="w-full flex justify-between border rounded-lg p-3 hover:bg-gray-50"><span><b>{nameOf(customer)}</b><small className="block text-gray-500">ID: {pick(customer, "IndividualIdentityCardNumber", "individualIdentityCardNumber") || "—"}</small></span><FaPlus className="text-indigo-600" /></button>)}</div>;
+  const MemberRows = ({ items, setter, signatory }) => <div className="space-y-2">{items.map((member, index) => <div key={member.customerId || member.key} className="flex items-center gap-3 border rounded-lg p-3"><span className="flex-1 font-semibold">{member.name || `${member.firstName} ${member.lastName}`}</span>{signatory && <label className="text-sm flex gap-2"><input type="checkbox" checked={member.signatory} onChange={(e) => setter((rows) => rows.map((row, i) => i === index ? { ...row, signatory: e.target.checked } : row))} />Signatory</label>}<Button type="button" variant="ghost" onClick={() => setter((rows) => rows.filter((_, i) => i !== index))}><FaTrash className="text-red-600" /></Button></div>)}</div>;
 
-  return (
-    <AnimatePresence>
-      {open && (
-        <>
-          <motion.div
-            className="fixed inset-0 bg-black z-40"
-            initial={{ opacity: 0 }} animate={{ opacity: 0.4 }} exit={{ opacity: 0 }}
-            onClick={onClose}
-          />
-          <motion.div
-            className="fixed top-3 right-3 w-[85vw] max-w-[1150px] h-[94vh] max-h-[94vh] bg-white shadow-2xl z-50 flex flex-col rounded-2xl overflow-hidden"
-            initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
-            transition={{ type: "spring", stiffness: 280, damping: 28 }}
-          >
-            <div className="p-4 flex justify-between items-center bg-indigo-700 rounded-2xl m-2 shrink-0">
-              <h2 className="font-bold text-lg text-white">New Customer — Individual</h2>
-              <Button variant="outline" size="sm" onClick={onClose}>Close</Button>
-            </div>
-
-            <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
-              {/* Header fields — always visible above the tabs */}
-              <div className="px-5 pt-2 pb-4 grid grid-cols-1 md:grid-cols-3 gap-4 shrink-0">
-                <FieldGroup label="Customer Type">
-                  <div className="rounded-md border border-input bg-gray-100 px-3 py-2 text-sm text-gray-700">Individual</div>
-                  <p className="mt-1 text-xs text-gray-400">Partnership and MicroCredit are coming soon.</p>
-                </FieldGroup>
-                <FieldGroup label="Branch">
-                  <Select value={form.branchId} onValueChange={(v) => handleChange("branchId", v)} disabled={loadingData}>
-                    <SelectTrigger><SelectValue placeholder={loadingData ? "Loading..." : "Select Branch"} /></SelectTrigger>
-                    <SelectContent className="max-h-60 overflow-y-auto">
-                      {branches.map((b) => (
-                        <SelectItem key={b.Id} value={b.Id}>{b.Description}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </FieldGroup>
-                <FieldGroup label="Station">
-                  <Select value={form.stationId} onValueChange={(v) => handleChange("stationId", v)} disabled={loadingData}>
-                    <SelectTrigger><SelectValue placeholder={loadingData ? "Loading..." : "Select Station"} /></SelectTrigger>
-                    <SelectContent className="max-h-60 overflow-y-auto">
-                      {stations.map((s) => (
-                        <SelectItem key={s.Id} value={s.Id}>{s.Description}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </FieldGroup>
-              </div>
-
-              <div className="grid grid-cols-12 gap-3 px-3 pb-3 flex-1 overflow-hidden">
-                <aside className="col-span-3 bg-gray-200 p-3 rounded-lg overflow-y-auto">
-                  {TABS.map((tab) => (
-                    <div
-                      key={tab.id}
-                      onClick={() => setActiveTab(tab.id)}
-                      className={`p-3 mb-2 rounded-md cursor-pointer border text-sm font-medium transition-colors ${activeTab === tab.id
-                        ? "bg-indigo-700 border-indigo-500 text-white"
-                        : "bg-white border-transparent hover:bg-gray-100 text-gray-700"
-                        }`}
-                    >
-                      {tab.label}
-                      {tab.stub && <span className="block text-xs opacity-70 mt-0.5">Coming soon</span>}
-                    </div>
-                  ))}
-                </aside>
-
-                <main className="col-span-9 overflow-y-auto pr-1">
-                  {activeTab === "individual" && (
-                    <section className="space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <FieldGroup label="First Name">
-                          <Input value={form.individualFirstName} onChange={(e) => handleChange("individualFirstName", e.target.value)} required placeholder="e.g. John" />
-                        </FieldGroup>
-                        <FieldGroup label="Last Name">
-                          <Input value={form.individualLastName} onChange={(e) => handleChange("individualLastName", e.target.value)} required placeholder="e.g. Doe" />
-                        </FieldGroup>
-                        <FieldGroup label="Salutation">
-                          <EnumSelect value={form.individualSalutation} options={salutationOptions} onChange={(v) => handleChange("individualSalutation", v)} />
-                        </FieldGroup>
-                        <FieldGroup label="Gender">
-                          <EnumSelect value={form.individualGender} options={genderOptions} onChange={(v) => handleChange("individualGender", v)} />
-                        </FieldGroup>
-                        <FieldGroup label="Marital Status">
-                          <EnumSelect value={form.individualMaritalStatus} options={maritalStatusOptions} onChange={(v) => handleChange("individualMaritalStatus", v)} />
-                        </FieldGroup>
-                        <FieldGroup label="Nationality (code)">
-                          <Input type="number" value={form.individualNationality} onChange={(e) => handleChange("individualNationality", e.target.value)} placeholder="e.g. 1" />
-                        </FieldGroup>
-                        <FieldGroup label="Individual Type">
-                          <EnumSelect value={form.individualType} options={individualTypeOptions} onChange={(v) => handleChange("individualType", v)} />
-                        </FieldGroup>
-                        <FieldGroup label="Classification">
-                          <EnumSelect value={form.individualClassification} options={classificationOptions} onChange={(v) => handleChange("individualClassification", v)} />
-                        </FieldGroup>
-                        <FieldGroup label="Birth Date">
-                          <Input type="date" value={form.individualBirthDate} onChange={(e) => handleChange("individualBirthDate", e.target.value)} />
-                        </FieldGroup>
-                        <FieldGroup label="Identity Card Type">
-                          <EnumSelect value={form.individualIdentityCardType} options={identityCardTypeOptions} onChange={(v) => handleChange("individualIdentityCardType", v)} />
-                        </FieldGroup>
-                        <FieldGroup label="Identity Card Number">
-                          <Input value={form.individualIdentityCardNumber} onChange={(e) => handleChange("individualIdentityCardNumber", e.target.value)} required placeholder="e.g. 12345678" />
-                        </FieldGroup>
-                        <FieldGroup label="Identity Card Serial Number">
-                          <Input value={form.individualIdentityCardSerialNumber} onChange={(e) => handleChange("individualIdentityCardSerialNumber", e.target.value)} placeholder="e.g. SN001" />
-                        </FieldGroup>
-                        <FieldGroup label="Personal Identification # (KRA PIN)">
-                          <Input value={form.personalIdentificationNumber} onChange={(e) => handleChange("personalIdentificationNumber", e.target.value)} placeholder="e.g. PIN12345678" />
-                        </FieldGroup>
-                        <FieldGroup label="Payroll Numbers">
-                          <Input value={form.individualPayrollNumbers} onChange={(e) => handleChange("individualPayrollNumbers", e.target.value)} />
-                        </FieldGroup>
-                        <FieldGroup label="Employment Designation">
-                          <Input value={form.individualEmploymentDesignation} onChange={(e) => handleChange("individualEmploymentDesignation", e.target.value)} placeholder="e.g. Accountant" />
-                        </FieldGroup>
-                        <FieldGroup label="Employment Date">
-                          <Input type="date" value={form.individualEmploymentDate} onChange={(e) => handleChange("individualEmploymentDate", e.target.value)} />
-                        </FieldGroup>
-                        <FieldGroup label="Bank Name">
-                          <Input value={form.bankName} onChange={(e) => handleChange("bankName", e.target.value)} placeholder="e.g. KCB" />
-                        </FieldGroup>
-                        <FieldGroup label="Bank Branch">
-                          <Input value={form.branchName} onChange={(e) => handleChange("branchName", e.target.value)} placeholder="e.g. Nairobi Branch" />
-                        </FieldGroup>
-                      </div>
-                      <FieldGroup label="Remarks">
-                        <Input value={form.remarks} onChange={(e) => handleChange("remarks", e.target.value)} placeholder="Enter remarks" />
-                      </FieldGroup>
-                      <div className="flex items-center gap-4 pt-2">
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input type="checkbox" checked={form.isDefaulter} onChange={(e) => handleChange("isDefaulter", e.target.checked)} className="w-4 h-4 accent-indigo-600" />
-                          <span className="text-sm font-medium">Is Defaulter</span>
-                        </label>
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input type="checkbox" checked={form.isLocked} onChange={(e) => handleChange("isLocked", e.target.checked)} className="w-4 h-4 accent-indigo-600" />
-                          <span className="text-sm font-medium">Is Locked</span>
-                        </label>
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input type="checkbox" checked={form.inhibitGuaranteeing} onChange={(e) => handleChange("inhibitGuaranteeing", e.target.checked)} className="w-4 h-4 accent-indigo-600" />
-                          <span className="text-sm font-medium">Inhibit Guaranteeing</span>
-                        </label>
-                      </div>
-                    </section>
-                  )}
-
-                  {activeTab === "address" && (
-                    <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <FieldGroup label="Address Line 1">
-                        <Input value={form.addressAddressLine1} onChange={(e) => handleChange("addressAddressLine1", e.target.value)} placeholder="e.g. P.O. Box 1234" />
-                      </FieldGroup>
-                      <FieldGroup label="Address Line 2">
-                        <Input value={form.addressAddressLine2} onChange={(e) => handleChange("addressAddressLine2", e.target.value)} />
-                      </FieldGroup>
-                      <FieldGroup label="Street">
-                        <Input value={form.addressStreet} onChange={(e) => handleChange("addressStreet", e.target.value)} placeholder="e.g. Moi Avenue" />
-                      </FieldGroup>
-                      <FieldGroup label="City">
-                        <Input value={form.addressCity} onChange={(e) => handleChange("addressCity", e.target.value)} placeholder="e.g. Nairobi" />
-                      </FieldGroup>
-                      <FieldGroup label="Postal Code">
-                        <Input value={form.addressPostalCode} onChange={(e) => handleChange("addressPostalCode", e.target.value)} placeholder="e.g. 00100" />
-                      </FieldGroup>
-                      <FieldGroup label="Email">
-                        <Input type="email" value={form.addressEmail} onChange={(e) => handleChange("addressEmail", e.target.value)} placeholder="e.g. john.doe@example.com" />
-                      </FieldGroup>
-                      <FieldGroup label="Mobile Line">
-                        <Input value={form.addressMobileLine} onChange={(e) => handleChange("addressMobileLine", e.target.value)} placeholder="e.g. 0712345678" />
-                      </FieldGroup>
-                      <FieldGroup label="Land Line">
-                        <Input value={form.addressLandLine} onChange={(e) => handleChange("addressLandLine", e.target.value)} />
-                      </FieldGroup>
-                    </section>
-                  )}
-
-                  {activeTab === "referees" && (
-                    <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <FieldGroup label="Reference 1">
-                        <Input value={form.reference1} onChange={(e) => handleChange("reference1", e.target.value)} />
-                      </FieldGroup>
-                      <FieldGroup label="Reference 2">
-                        <Input value={form.reference2} onChange={(e) => handleChange("reference2", e.target.value)} />
-                      </FieldGroup>
-                      <FieldGroup label="Reference 3">
-                        <Input value={form.reference3} onChange={(e) => handleChange("reference3", e.target.value)} />
-                      </FieldGroup>
-                    </section>
-                  )}
-
-                  {activeTab === "investmentProducts" && (
-                    <section>
-                      <p className="text-sm text-gray-500 mb-3">Select any additional investment products for this customer, on top of any mandatory products attached automatically.</p>
-                      {loadingData ? (
-                        <p className="text-sm text-gray-400">Loading investment products...</p>
-                      ) : investmentProducts.length === 0 ? (
-                        <p className="text-sm text-gray-400">No investment products available.</p>
-                      ) : (
-                        <div className="divide-y rounded-lg border">
-                          {investmentProducts.map((p) => (
-                            <label key={p.Id} className="flex items-center gap-2 px-3 py-2.5 cursor-pointer hover:bg-gray-50">
-                              <input
-                                type="checkbox"
-                                checked={selectedInvestmentProductIds.includes(p.Id)}
-                                onChange={() => toggleSelection(setSelectedInvestmentProductIds, p.Id)}
-                                className="w-4 h-4 accent-indigo-600"
-                              />
-                              <span className="text-sm text-gray-700">{p.Description}</span>
-                            </label>
-                          ))}
-                        </div>
-                      )}
-                    </section>
-                  )}
-
-                  {activeTab === "savingsProducts" && (
-                    <section>
-                      <p className="text-sm text-gray-500 mb-3">Select any additional savings products for this customer, on top of any mandatory products attached automatically.</p>
-                      {loadingData ? (
-                        <p className="text-sm text-gray-400">Loading savings products...</p>
-                      ) : savingsProducts.length === 0 ? (
-                        <p className="text-sm text-gray-400">No savings products available.</p>
-                      ) : (
-                        <div className="divide-y rounded-lg border">
-                          {savingsProducts.map((p) => (
-                            <label key={p.Id} className="flex items-center gap-2 px-3 py-2.5 cursor-pointer hover:bg-gray-50">
-                              <input
-                                type="checkbox"
-                                checked={selectedSavingsProductIds.includes(p.Id)}
-                                onChange={() => toggleSelection(setSelectedSavingsProductIds, p.Id)}
-                                className="w-4 h-4 accent-indigo-600"
-                              />
-                              <span className="text-sm text-gray-700">{p.Description}</span>
-                            </label>
-                          ))}
-                        </div>
-                      )}
-                    </section>
-                  )}
-
-                  {activeTabMeta?.stub && (
-                    <div className="flex items-center justify-center h-64 text-gray-400 text-sm">
-                      This section isn't wired up yet — coming soon.
-                    </div>
-                  )}
-                </main>
-              </div>
-
-              <div className="px-5 py-3 border-t bg-gray-50 flex justify-end rounded-b-2xl shrink-0">
-                <Button type="submit" disabled={loading || loadingData} className="bg-indigo-600 hover:bg-indigo-700">
-                  {loading ? "Saving..." : "Create Customer"}
-                </Button>
-              </div>
-            </form>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
-  );
+  return <AnimatePresence>{open && <><motion.div className="fixed inset-0 bg-black z-40" initial={{ opacity: 0 }} animate={{ opacity: 0.4 }} exit={{ opacity: 0 }} onClick={onClose} /><motion.div className="fixed top-3 right-3 w-[90vw] max-w-[1200px] h-[94vh] bg-white shadow-2xl z-50 flex flex-col rounded-2xl overflow-hidden" initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", stiffness: 300, damping: 30 }}>
+    <div className="p-4 flex justify-between items-center bg-indigo-700 rounded-2xl m-2 shrink-0"><div><h2 className="font-bold text-lg text-white">Register Customer</h2><p className="text-xs text-indigo-100">Individual, partnership, corporation, and micro-credit registration</p></div><Button type="button" variant="outline" size="sm" onClick={onClose}>Close</Button></div>
+    <form onSubmit={submit} className="flex flex-col flex-1 overflow-hidden"><div className="px-5 py-3 grid grid-cols-3 gap-4 shrink-0"><Field label="Customer Type" required><EnumSelect value={form.type} options={TYPES} onChange={selectType} /></Field><Field label="Branch" required><Select value={form.branchId} onValueChange={(v) => change("branchId", v)} disabled={loadingData}><SelectTrigger><SelectValue placeholder="Select branch" /></SelectTrigger><SelectContent>{branches.map((item) => <SelectItem key={pick(item, "Id", "id")} value={pick(item, "Id", "id")}>{pick(item, "Description", "description")}</SelectItem>)}</SelectContent></Select></Field><Field label="Station" required><Select value={form.stationId} onValueChange={(v) => change("stationId", v)} disabled={loadingData}><SelectTrigger><SelectValue placeholder="Select station" /></SelectTrigger><SelectContent>{stations.map((item) => <SelectItem key={pick(item, "Id", "id")} value={pick(item, "Id", "id")}>{pick(item, "Description", "description")}</SelectItem>)}</SelectContent></Select></Field></div>
+      <div className="grid grid-cols-12 gap-3 px-3 pb-3 flex-1 overflow-hidden"><aside className="col-span-3 bg-gray-200 p-3 rounded-lg overflow-y-auto">{tabs.map(([id, label]) => <button type="button" key={id} onClick={() => setTab(id)} className={`w-full text-left p-3 mb-2 rounded-md text-sm font-medium ${tab === id ? "bg-indigo-700 text-white" : "bg-white hover:bg-gray-100 text-gray-700"}`}>{label}</button>)}</aside><main className="col-span-9 overflow-y-auto pr-1">
+        {tab === "particulars" && (form.type === 0 ? <div className="grid grid-cols-3 gap-4"><Field label="First Name" required><Input value={form.individualFirstName} onChange={(e) => change("individualFirstName", e.target.value)} /></Field><Field label="Last Name" required><Input value={form.individualLastName} onChange={(e) => change("individualLastName", e.target.value)} /></Field><Field label="Birth Date" required><Input type="date" value={form.individualBirthDate} onChange={(e) => change("individualBirthDate", e.target.value)} /></Field><Field label="Identity Type"><EnumSelect value={form.individualIdentityCardType} options={ID_TYPES} onChange={(v) => change("individualIdentityCardType", v)} /></Field><Field label="Identity Number" required><Input value={form.individualIdentityCardNumber} onChange={(e) => change("individualIdentityCardNumber", e.target.value)} /></Field><Field label="Identity Serial"><Input value={form.individualIdentityCardSerialNumber} onChange={(e) => change("individualIdentityCardSerialNumber", e.target.value)} /></Field><Field label="Salutation"><EnumSelect value={form.individualSalutation} options={SALUTATIONS} onChange={(v) => change("individualSalutation", v)} /></Field><Field label="Gender"><EnumSelect value={form.individualGender} options={GENDERS} onChange={(v) => change("individualGender", v)} /></Field><Field label="Nationality code"><Input type="number" value={form.individualNationality} onChange={(e) => change("individualNationality", e.target.value)} /></Field><Field label="KRA PIN"><Input value={form.personalIdentificationNumber} onChange={(e) => change("personalIdentificationNumber", e.target.value)} /></Field><Field label="Payroll Numbers"><Input value={form.individualPayrollNumbers} onChange={(e) => change("individualPayrollNumbers", e.target.value)} /></Field><Field label="Employment Designation"><Input value={form.individualEmploymentDesignation} onChange={(e) => change("individualEmploymentDesignation", e.target.value)} /></Field><Field label="Employment Date"><Input type="date" value={form.individualEmploymentDate} onChange={(e) => change("individualEmploymentDate", e.target.value)} /></Field><Field label="Remarks"><Input value={form.remarks} onChange={(e) => change("remarks", e.target.value)} /></Field></div> : <div className="grid grid-cols-2 gap-4"><Field label={`${typeLabel} Name`} required><Input value={form.nonIndividualDescription} onChange={(e) => change("nonIndividualDescription", e.target.value)} /></Field><Field label="Registration Number" required><Input value={form.nonIndividualRegistrationNumber} onChange={(e) => change("nonIndividualRegistrationNumber", e.target.value)} /></Field><Field label="Registration Serial"><Input value={form.nonIndividualRegistrationSerialNumber} onChange={(e) => change("nonIndividualRegistrationSerialNumber", e.target.value)} /></Field><Field label="Date Established" required><Input type="date" value={form.nonIndividualDateEstablished} onChange={(e) => change("nonIndividualDateEstablished", e.target.value)} /></Field><Field label="KRA PIN"><Input value={form.personalIdentificationNumber} onChange={(e) => change("personalIdentificationNumber", e.target.value)} /></Field><Field label="Remarks"><Input value={form.remarks} onChange={(e) => change("remarks", e.target.value)} /></Field></div>)}
+        {tab === "members" && form.type === 1 && <div className="space-y-4"><div className="grid grid-cols-3 gap-3"><Field label="First Name" required><Input value={partner.firstName} onChange={(e) => setPartner((p) => ({ ...p, firstName: e.target.value }))} /></Field><Field label="Last Name" required><Input value={partner.lastName} onChange={(e) => setPartner((p) => ({ ...p, lastName: e.target.value }))} /></Field><Field label="Identity Number" required><Input value={partner.identityCardNumber} onChange={(e) => setPartner((p) => ({ ...p, identityCardNumber: e.target.value }))} /></Field><Field label="Mobile"><Input value={partner.addressMobileLine} onChange={(e) => setPartner((p) => ({ ...p, addressMobileLine: e.target.value }))} /></Field><Field label="Email"><Input type="email" value={partner.addressEmail} onChange={(e) => setPartner((p) => ({ ...p, addressEmail: e.target.value }))} /></Field><label className="flex gap-2 items-center pt-5"><input type="checkbox" checked={partner.signatory} onChange={(e) => setPartner((p) => ({ ...p, signatory: e.target.checked }))} />Signatory</label></div><Button type="button" onClick={addPartner} className="bg-indigo-600"><FaPlus /> Add Member</Button><MemberRows items={partners} setter={setPartners} signatory /></div>}
+        {tab === "members" && form.type === 2 && <div className="space-y-4"><p className="text-sm text-gray-500">Add existing registered customers as corporation members.</p><Lookup target="corporation" /><MemberRows items={corporationMembers} setter={setCorporationMembers} signatory /></div>}
+        {tab === "address" && <div className="grid grid-cols-2 gap-4">{[["addressAddressLine1", "Address Line 1"], ["addressAddressLine2", "Address Line 2"], ["addressStreet", "Street"], ["addressCity", "City"], ["addressPostalCode", "Postal Code"], ["addressEmail", "Email"], ["addressMobileLine", "Mobile (+country code)"], ["addressLandLine", "Land Line"]].map(([key, label]) => <Field key={key} label={label}><Input type={key === "addressEmail" ? "email" : "text"} value={form[key]} onChange={(e) => change(key, e.target.value)} /></Field>)}</div>}
+        {tab === "referees" && <div className="space-y-4"><p className="text-sm text-gray-500">Add existing registered customers as referees.</p><Lookup target="referee" /><MemberRows items={referees} setter={setReferees} /></div>}
+        {tab === "images" && <div className="grid grid-cols-2 gap-4">{IMAGE_FIELDS.map(([field, label]) => <div key={field} className="border rounded-lg p-4"><Label className="font-semibold">{label}</Label>{images[field] ? <img src={images[field].preview} alt={label} className="h-36 w-full object-contain bg-gray-100 mt-2" /> : <div className="h-36 bg-gray-100 mt-2 flex items-center justify-center"><FaCamera className="text-3xl text-gray-400" /></div>}<Input className="mt-3" type="file" accept="image/*" capture="environment" onChange={(e) => readImage(field, e.target.files?.[0])} /><small className="text-gray-400">Camera, scanner output, JPG or PNG; max 5 MB.</small></div>)}</div>}
+        {tab === "debits" && <Options items={debits} selected={selectedDebits} toggle={(id) => toggle(setSelectedDebits, id)} empty="No debit types configured." />}
+        {tab === "investments" && <Options items={investments} selected={selectedInvestments} toggle={(id) => toggle(setSelectedInvestments, id)} empty="No investment products configured." />}
+        {tab === "savings" && <Options items={savings} selected={selectedSavings} toggle={(id) => toggle(setSelectedSavings, id)} empty="No savings products configured." />}
+      </main></div><div className="px-5 py-3 border-t bg-gray-50 flex justify-between shrink-0"><div className="flex gap-4"><label className="flex gap-2"><input type="checkbox" checked={form.isLocked} onChange={(e) => change("isLocked", e.target.checked)} />Locked</label><label className="flex gap-2"><input type="checkbox" checked={form.inhibitGuaranteeing} onChange={(e) => change("inhibitGuaranteeing", e.target.checked)} />Inhibit guaranteeing</label></div><Button type="submit" disabled={loading || loadingData} className="bg-indigo-600 hover:bg-indigo-700">{loading ? "Registering..." : `Register ${typeLabel}`}</Button></div>
+    </form>
+  </motion.div></>}</AnimatePresence>;
 }
