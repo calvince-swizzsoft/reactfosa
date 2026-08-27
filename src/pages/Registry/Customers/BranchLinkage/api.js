@@ -1,4 +1,4 @@
-import { apiFetch } from "@/lib/api";
+import { apiJson as apiFetch } from "@/lib/api";
 
 // Client for the real, live CustomerController.cs (api/registry/customer,
 // singular). PUT {id}/branch wraps ICustomerAppService.UpdateCustomerBranch,
@@ -13,11 +13,7 @@ const CUSTOMER_BASE = `${BASE}/api/registry/customer`;
 export const BRANCHES_BASE = `${BASE}/api/administration/branches`;
 
 async function unwrapJson(responsePromise) {
-  const res = await responsePromise;
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok || body?.success === false) {
-    throw new Error(body?.message || body?.Message || `Request failed (${res.status})`);
-  }
+  const body = await responsePromise;
   return body?.data ?? body;
 }
 

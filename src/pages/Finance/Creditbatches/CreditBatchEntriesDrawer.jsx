@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import Swal from "sweetalert2";
+import { apiErrorMessage, apiJson } from "@/lib/api";
 
 export default function CreditBatchEntriesDrawer({
     open,
@@ -18,15 +19,18 @@ export default function CreditBatchEntriesDrawer({
         if (!open || !creditBatchId) return;
 
         setLoading(true);
-        fetch(
+        apiJson(
             `${import.meta.env.VITE_APP_FIN_URL}/api/values/${creditBatchId}/entries`
         )
-            .then((res) => res.json())
             .then((data) => {
                 setEntries(Array.isArray(data) ? data : [data]);
                 setLoading(false);
             })
-            .catch(() => setLoading(false));
+            .catch((error) => {
+                setEntries([]);
+                Swal.fire("Error", apiErrorMessage(error, "Unable to load credit-batch entries."), "error");
+            })
+            .finally(() => setLoading(false));
     }, [open, creditBatchId]);
 
     useEffect(() => {
@@ -56,30 +60,30 @@ export default function CreditBatchEntriesDrawer({
                 didOpen: () => Swal.showLoading(),
             });
 
-            const res = await fetch(
+            await apiJson(
                 `${import.meta.env.VITE_APP_FIN_URL}/api/values/creditbatch/${creditBatchId}/post`,
                 { method: "POST" }
             );
-
-            const data = await res.json().catch(() => ({}));
-            if (!res.ok) throw new Error(data?.message || "Failed to post batch");
 
             setBatchStatus(2);
             if (onBatchPosted) onBatchPosted(creditBatchId, 2, "Posted");
 
             // Re-fetch entries so their individual StatusDescription updates to Posted
             setLoading(true);
-            fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/values/${creditBatchId}/entries`)
-                .then((res) => res.json())
+            apiJson(`${import.meta.env.VITE_APP_FIN_URL}/api/values/${creditBatchId}/entries`)
                 .then((data) => {
                     setEntries(Array.isArray(data) ? data : [data]);
                     setLoading(false);
                 })
-                .catch(() => setLoading(false));
+                .catch((error) => {
+                    setEntries([]);
+                    Swal.fire("Error", apiErrorMessage(error, "Unable to refresh credit-batch entries."), "error");
+                })
+                .finally(() => setLoading(false));
 
             Swal.fire("Success", "Credit batch posted successfully", "success");
         } catch (err) {
-            Swal.fire("Error", err.message, "error");
+            Swal.fire("Error", apiErrorMessage(err, "Unable to post the credit batch."), "error");
         }
     };
 

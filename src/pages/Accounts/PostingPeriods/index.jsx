@@ -7,6 +7,7 @@ import Swal from "sweetalert2";
 import NotFoundImage from "/assets/scopefinding.png";
 import { FaEdit, FaPlus, FaChevronLeft, FaChevronRight, FaCalendarCheck } from "react-icons/fa";
 import { listPostingPeriods, createPostingPeriod, updatePostingPeriod } from "./api";
+import { apiErrorMessage } from "@/lib/api";
 
 function FieldGroup({ label, children }) {
   return (
@@ -66,7 +67,7 @@ function PostingPeriodDrawer({ open, onClose, onSuccess, item }) {
       onSuccess();
       onClose();
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to save the posting period."), "error");
     } finally {
       setSaving(false);
     }
@@ -129,7 +130,11 @@ export default function PostingPeriods() {
     setLoading(true);
     listPostingPeriods({ text: search, pageIndex, pageSize })
       .then(({ items: results, itemsCount: count }) => { setItems(results); setItemsCount(count); })
-      .catch(() => { setItems([]); setItemsCount(0); })
+      .catch((error) => {
+        setItems([]);
+        setItemsCount(0);
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load posting periods."), "error");
+      })
       .finally(() => setLoading(false));
   };
 

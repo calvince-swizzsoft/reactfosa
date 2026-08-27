@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Swal from "sweetalert2";
-import { apiFetch } from "@/lib/api";
+import { apiErrorMessage, apiJson } from "@/lib/api";
 
 const FIN_BASE = `${import.meta.env.VITE_APP_MEMBERSHIP_URL}`;
 const BRANCH_BASE = `${FIN_BASE}/api/administration/branches`;
@@ -42,10 +42,12 @@ export default function AddBranch({ open, onClose, refresh }) {
         // /all — the unpaged, bare-array endpoint — is the right call for a
         // dropdown per company-api-spec.md §4.2; GET / (paged) returns
         // PageCollectionInfo, not an array.
-        apiFetch(`${FIN_BASE}/api/administration/companies/all`)
-            .then((r) => r.json())
+        apiJson(`${FIN_BASE}/api/administration/companies/all`, {}, { fallbackMessage: "Failed to load companies." })
             .then((d) => setCompanies(normalizeList(d)))
-            .catch(() => setCompanies([]))
+            .catch((error) => {
+                setCompanies([]);
+                Swal.fire("Error", apiErrorMessage(error, "Unable to load companies."), "error");
+            })
             .finally(() => setLoadingCompanies(false));
     }, [open]);
 
@@ -60,18 +62,16 @@ export default function AddBranch({ open, onClose, refresh }) {
         }
         setLoading(true);
         try {
-            const response = await apiFetch(BRANCH_BASE, {
+            const data = await apiJson(BRANCH_BASE, {
                 method: "POST",
                 body: JSON.stringify(form),
-            });
-            const data = await response.json().catch(() => ({}));
-            if (!response.ok || data.success === false) throw new Error(data.message || "Failed to add branch");
+            }, { fallbackMessage: "Failed to add branch." });
 
             Swal.fire("Success!", data.message || "Branch added successfully", "success");
             refresh();
             onClose();
         } catch (err) {
-            Swal.fire("Error", err.message, "error");
+            Swal.fire("Error", apiErrorMessage(err, "Unable to add branch."), "error");
         } finally {
             setLoading(false);
         }

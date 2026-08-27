@@ -8,6 +8,8 @@ import {
   FaUser,
 } from "react-icons/fa";
 import NotFoundImage from "/assets/scopefinding.png";
+import Swal from "sweetalert2";
+import { apiErrorMessage, apiJson, normalizeList } from "@/lib/api";
 
 export default function AuditLogs() {
   const [logs, setLogs] = useState([]);
@@ -19,13 +21,11 @@ export default function AuditLogs() {
     const fetchLogs = async () => {
       setLoading(true);
       try {
-        const res = await fetch(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/auditlogs`);
-        const json = await res.json();
-        const logList = Array.isArray(json?.data) ? json.data : Array.isArray(json) ? json : [];
-        setLogs(logList);
+        const data = await apiJson(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/auditlogs`);
+        setLogs(normalizeList(data));
       } catch (err) {
-        console.error("Fetch Audit Logs Error:", err);
         setLogs([]);
+        Swal.fire("Error", apiErrorMessage(err, "Unable to load audit logs."), "error");
       } finally {
         setLoading(false);
       }

@@ -1,4 +1,4 @@
-import { apiFetch, normalizeList } from "@/lib/api";
+import { apiJson as apiFetch, normalizeList } from "@/lib/api";
 import { listAllChartOfAccounts } from "@/pages/Accounts/ChartOfAccounts/api";
 
 // Client for WebApplication1's new SalaryHeadsController
@@ -15,11 +15,7 @@ const BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 const SALARY_HEADS_BASE = `${BASE}/api/humanresource/salaryheads`;
 
 async function unwrapJson(responsePromise) {
-  const res = await responsePromise;
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    throw new Error(body?.Message || body?.message || `Request failed (${res.status})`);
-  }
+  const body = await responsePromise;
   return body;
 }
 
@@ -48,18 +44,15 @@ export function listChartOfAccounts() {
 // list pages use these same routes).
 export function listSavingsProducts() {
   return apiFetch(`${BASE}/api/accounts/savingsproducts`)
-    .then((r) => r.json())
     .then((d) => (Array.isArray(d) ? d : Array.isArray(d?.Data) ? d.Data : Array.isArray(d?.data) ? d.data : []));
 }
 
 export function listInvestmentProducts() {
   return apiFetch(`${BASE}/api/accounts/investmentsproducts`)
-    .then((r) => r.json())
     .then((d) => (Array.isArray(d) ? d : Array.isArray(d?.Data) ? d.Data : Array.isArray(d?.data) ? d.data : []));
 }
 
 export function listLoanProducts() {
   return apiFetch(`${BASE}/api/accounts/loanproducts`)
-    .then((r) => r.json())
     .then((body) => normalizeList(body?.data ?? body?.Data ?? body));
 }

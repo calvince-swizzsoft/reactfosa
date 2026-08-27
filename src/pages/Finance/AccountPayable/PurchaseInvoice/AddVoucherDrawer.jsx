@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import Swal from "sweetalert2";
+import { apiErrorMessage, apiJson } from "@/lib/api";
 
 export default function AddVoucherDrawer({ open, onClose, onSuccess }) {
   const [formData, setFormData] = useState({
@@ -31,7 +32,7 @@ export default function AddVoucherDrawer({ open, onClose, onSuccess }) {
     setLoading(true);
 
     try {
-      const res = await fetch(
+      await apiJson(
         `${import.meta.env.VITE_APP_FIN_URL}/api/values/AddVoucher`,
         {
           method: "POST",
@@ -42,11 +43,6 @@ export default function AddVoucherDrawer({ open, onClose, onSuccess }) {
           body: JSON.stringify(formData),
         }
       );
-
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.message || "Failed to add voucher");
-      }
 
       Swal.fire("Success", data.message, "success");
 
@@ -62,8 +58,7 @@ export default function AddVoucherDrawer({ open, onClose, onSuccess }) {
       if (onSuccess) onSuccess();
       onClose();
     } catch (err) {
-      console.error(err);
-      Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to add the voucher."), "error");
     } finally {
       setLoading(false);
     }
@@ -74,23 +69,25 @@ export default function AddVoucherDrawer({ open, onClose, onSuccess }) {
   useEffect(() => {
 
     // Fetch purchase invoices
-    fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/values/GetPurchaseInvoices`, {
+    apiJson(`${import.meta.env.VITE_APP_FIN_URL}/api/values/GetPurchaseInvoices`, {
     headers: { "ngrok-skip-browser-warning": "true" },
     })
-    .then((res) => res.json())
     .then((data) => {
         const invoices = data?.Data || [];
         setPurchaseInvoices(invoices);
     })
-    .catch((err) => console.error("Error fetching invoices:", err));
+    .catch((error) => {
+      setPurchaseInvoices([]);
+      Swal.fire("Error", apiErrorMessage(error, "Unable to load purchase invoices."), "error");
+    });
 
 
     // Fetch chart of accounts
     listAllChartOfAccounts()
       .then(setChartOfAccounts)
       .catch((err) => {
-        console.error("Error fetching chart of accounts:", err);
         setChartOfAccounts([]);
+        Swal.fire("Error", apiErrorMessage(err, "Unable to load chart accounts."), "error");
       });
   }, []);
 

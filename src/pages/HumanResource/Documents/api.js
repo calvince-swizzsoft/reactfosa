@@ -1,4 +1,4 @@
-import { apiFetch } from "@/lib/api";
+import { ApiError, apiErrorFromResponse, apiFetch, apiJson } from "@/lib/api";
 
 // Client for WebApplication1's new EmployeeDocumentsController
 // (Areas/HumanResource/Controllers/EmployeeDocumentsController.cs, added
@@ -16,11 +16,7 @@ const DOCUMENTS_BASE = `${BASE}/api/humanresource/employeedocuments`;
 const EMPLOYEES_BASE = `${BASE}/api/humanresource/employees`;
 
 async function unwrapJson(responsePromise) {
-  const res = await responsePromise;
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    throw new Error(body?.Message || body?.message || `Request failed (${res.status})`);
-  }
+  const body = await responsePromise;
   return body;
 }
 
@@ -28,13 +24,12 @@ async function unwrapJson(responsePromise) {
 export function listDocuments({ text = "", pageIndex = 0, pageSize = 20 } = {}) {
   const params = new URLSearchParams({ pageIndex: String(pageIndex), pageSize: String(pageSize) });
   if (text.trim()) params.set("text", text.trim());
-  return unwrapJson(apiFetch(`${DOCUMENTS_BASE}?${params.toString()}`));
+  return unwrapJson(apiJson(`${DOCUMENTS_BASE}?${params.toString()}`));
 }
 
 /** GET api/humanresource/employees — unpaged, for the upload form's employee picker. */
 export async function listEmployees() {
-  const res = await apiFetch(EMPLOYEES_BASE);
-  const body = await res.json().catch(() => []);
+  const body = await apiJson(EMPLOYEES_BASE);
   return Array.isArray(body) ? body : [];
 }
 
@@ -49,12 +44,12 @@ export function uploadDocument({ file, employeeId, fileTitle, fileDescription })
   formData.append("EmployeeId", employeeId);
   formData.append("FileTitle", fileTitle || "");
   formData.append("FileDescription", fileDescription || "");
-  return unwrapJson(apiFetch(DOCUMENTS_BASE, { method: "POST", body: formData }));
+  return unwrapJson(apiJson(DOCUMENTS_BASE, { method: "POST", body: formData }));
 }
 
 /** PUT /{id} — Title/Description/employee reassignment only, never the attached file (see controller remarks). */
 export function updateDocument(id, { employeeId, fileTitle, fileDescription }) {
-  return unwrapJson(apiFetch(`${DOCUMENTS_BASE}/${id}`, {
+  return unwrapJson(apiJson(`${DOCUMENTS_BASE}/${id}`, {
     method: "PUT",
     body: JSON.stringify({ Id: id, EmployeeId: employeeId, FileTitle: fileTitle, FileDescription: fileDescription }),
   }));
@@ -68,18 +63,28 @@ export function updateDocument(id, { employeeId, fileTitle, fileDescription }) {
  * Accounts/CustomerAccountStatement/api.js's printStatement/downloadPdfBlob.
  */
 export async function downloadDocument(id, suggestedFileName) {
-  const res = await apiFetch(`${DOCUMENTS_BASE}/${id}/download`);
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(text || "Failed to download document");
+  try {
+    const res = await apiFetch(`${DOCUMENTS_BASE}/${id}/download`);
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw apiErrorFromResponse(res, text, "Unable to download the document.");
+    }
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = suggestedFileName || "document";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    throw new ApiError({
+      status: 0,
+      code: "NETWORK_ERROR",
+      message: "The server could not be reached. Check your connection and try again.",
+      cause: error,
+    });
   }
-  const blob = await res.blob();
-  const url = window.URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = suggestedFileName || "document";
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  window.URL.revokeObjectURL(url);
 }

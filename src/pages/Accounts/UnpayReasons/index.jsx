@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import Swal from "sweetalert2";
 import NotFoundImage from "/assets/scopefinding.png";
 import { FaHandPaper, FaPlus, FaChevronLeft, FaChevronRight, FaEdit } from "react-icons/fa";
-import { apiFetch, normalizeList } from "@/lib/api";
+import { apiErrorMessage, apiJson, normalizeList } from "@/lib/api";
 import {
   listUnpayReasons, updateUnpayReason, listUnpayReasonCommissions, updateUnpayReasonCommissions,
 } from "./api";
@@ -46,12 +46,16 @@ function EditUnpayReasonDrawer({ open, onClose, onSuccess, item }) {
 
     setLoadingCommissions(true);
     Promise.all([
-      apiFetch(`${BASE}/api/accounts/commissions`).then((r) => r.json()),
+      apiJson(`${BASE}/api/accounts/commissions`),
       listUnpayReasonCommissions(item.Id),
     ]).then(([commissionData, attached]) => {
       setCommissions(normalizeList(commissionData));
       setSelectedCommissionIds(new Set((attached || []).map((c) => c.Id)));
-    }).catch(() => { }).finally(() => setLoadingCommissions(false));
+    }).catch((error) => {
+      setCommissions([]);
+      setSelectedCommissionIds(new Set());
+      Swal.fire("Error", apiErrorMessage(error, "Unable to load commissions."), "error");
+    }).finally(() => setLoadingCommissions(false));
   }, [open, item]);
 
   const toggleCommission = (id) => setSelectedCommissionIds((prev) => {
@@ -76,7 +80,7 @@ function EditUnpayReasonDrawer({ open, onClose, onSuccess, item }) {
       onSuccess();
       onClose();
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to update the unpay reason."), "error");
     } finally {
       setLoading(false);
     }
@@ -154,7 +158,11 @@ export default function UnpayReasons() {
         setItems(page?.pageCollection || page?.PageCollection || []);
         setItemsCount(page?.itemsCount || page?.ItemsCount || 0);
       })
-      .catch(() => { setItems([]); setItemsCount(0); })
+      .catch((error) => {
+        setItems([]);
+        setItemsCount(0);
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load unpay reasons."), "error");
+      })
       .finally(() => setLoading(false));
   };
 

@@ -12,7 +12,7 @@ import NotFoundImage from "/assets/scopefinding.png";
 import {
   FaFileInvoiceDollar, FaPlus, FaChevronLeft, FaChevronRight, FaTrash,
 } from "react-icons/fa";
-import { apiFetch, normalizeList } from "@/lib/api";
+import { apiErrorMessage, apiJson, normalizeList } from "@/lib/api";
 import {
   listExpensePayables, getExpensePayable, listExpensePayableEntries,
   addExpensePayableEntry, removeExpensePayableEntries, verifyExpensePayable,
@@ -66,11 +66,17 @@ function ExpensePayableDetailDrawer({ id, onClose, onChanged }) {
   const fetchAll = () => {
     if (!id) return;
     setLoading(true);
-    getExpensePayable(id).then(setPayable).catch(() => setPayable(null)).finally(() => setLoading(false));
+    getExpensePayable(id).then(setPayable).catch((error) => {
+      setPayable(null);
+      Swal.fire("Error", apiErrorMessage(error, "Unable to load the expense payable."), "error");
+    }).finally(() => setLoading(false));
     setLoadingEntries(true);
     listExpensePayableEntries(id)
       .then((page) => setEntries(page?.pageCollection || page?.PageCollection || []))
-      .catch(() => setEntries([]))
+      .catch((error) => {
+        setEntries([]);
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load expense-payable entries."), "error");
+      })
       .finally(() => setLoadingEntries(false));
   };
 
@@ -81,12 +87,16 @@ function ExpensePayableDetailDrawer({ id, onClose, onChanged }) {
     setEntryForm(emptyEntryForm);
     setVerifyRemarks("");
     Promise.all([
-      apiFetch(`${FIN_BASE}/api/administration/branches`).then((r) => r.json()),
-      apiFetch(`${FIN_BASE}/api/accounts/chartofaccounts?pageSize=1000`).then((r) => r.json()),
+      apiJson(`${FIN_BASE}/api/administration/branches`),
+      apiJson(`${FIN_BASE}/api/accounts/chartofaccounts?pageSize=1000`),
     ]).then(([branchData, coaData]) => {
       setBranches(normalizeList(branchData));
       setChartOfAccounts(normalizeList(coaData));
-    }).catch(() => { });
+    }).catch((error) => {
+      setBranches([]);
+      setChartOfAccounts([]);
+      Swal.fire("Error", apiErrorMessage(error, "Unable to load expense-payable options."), "error");
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
@@ -117,7 +127,7 @@ function ExpensePayableDetailDrawer({ id, onClose, onChanged }) {
       setEntryForm(emptyEntryForm);
       fetchAll();
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to add the expense-payable entry."), "error");
     } finally {
       setSavingEntry(false);
     }
@@ -136,7 +146,7 @@ function ExpensePayableDetailDrawer({ id, onClose, onChanged }) {
       setSelectedEntryIds([]);
       fetchAll();
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to remove the selected expense-payable entries."), "error");
     } finally {
       setRemoving(false);
     }
@@ -167,7 +177,7 @@ function ExpensePayableDetailDrawer({ id, onClose, onChanged }) {
       fetchAll();
       onChanged?.();
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to verify the expense payable."), "error");
     } finally {
       setVerifying(false);
     }
@@ -312,7 +322,11 @@ export default function ExpensePayables() {
         setItems(page?.pageCollection || page?.PageCollection || []);
         setItemsCount(page?.itemsCount || page?.ItemsCount || 0);
       })
-      .catch(() => { setItems([]); setItemsCount(0); })
+      .catch((error) => {
+        setItems([]);
+        setItemsCount(0);
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load expense payables."), "error");
+      })
       .finally(() => setLoading(false));
   };
 

@@ -9,7 +9,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import Swal from "sweetalert2";
 import NotFoundImage from "/assets/scopefinding.png";
 import { FaMoneyBillWave, FaPlus, FaPaperPlane, FaChevronLeft, FaChevronRight } from "react-icons/fa";
-import { apiFetch, normalizeList } from "@/lib/api";
+import { apiErrorMessage, apiJson, normalizeList } from "@/lib/api";
 import { listRequests, createTransaction, postAuthorizedRequest } from "./requestsApi";
 import { FrontOfficeTransactionType, CashWithdrawalCategory } from "../lib/frontOfficeEnums";
 import ReceiptModal from "../lib/ReceiptModal";
@@ -99,12 +99,16 @@ function CreateTransactionDrawer({ open, onClose, onSuccess, onDialog }) {
     setChequeTypes([]);
     setLoadingData(true);
     Promise.all([
-      apiFetch(`${FIN_BASE}/api/registry/customers`).then((r) => r.json()),
-      apiFetch(`${FIN_BASE}/api/administration/branches`).then((r) => r.json()),
+      apiJson(`${FIN_BASE}/api/registry/customers`),
+      apiJson(`${FIN_BASE}/api/administration/branches`),
     ]).then(([customerData, branchData]) => {
       setCustomers(normalizeList(customerData));
       setBranches(normalizeList(branchData));
-    }).catch(() => { }).finally(() => setLoadingData(false));
+    }).catch((error) => {
+      setCustomers([]);
+      setBranches([]);
+      Swal.fire("Error", apiErrorMessage(error, "Unable to load transaction options."), "error");
+    }).finally(() => setLoadingData(false));
   }, [open]);
 
   const isChequeDeposit = form.Type === FrontOfficeTransactionType.ChequeDeposit;
@@ -116,10 +120,12 @@ function CreateTransactionDrawer({ open, onClose, onSuccess, onDialog }) {
   useEffect(() => {
     if (!open || !isChequeDeposit || chequeTypes.length > 0) return;
     setLoadingChequeTypes(true);
-    apiFetch(`${FIN_BASE}/api/accounts/chequetypes/all`)
-      .then((r) => r.json())
+    apiJson(`${FIN_BASE}/api/accounts/chequetypes/all`)
       .then((d) => setChequeTypes(normalizeList(d)))
-      .catch(() => setChequeTypes([]))
+      .catch((error) => {
+        setChequeTypes([]);
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load cheque types."), "error");
+      })
       .finally(() => setLoadingChequeTypes(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, isChequeDeposit]);
@@ -130,10 +136,12 @@ function CreateTransactionDrawer({ open, onClose, onSuccess, onDialog }) {
     setForm((p) => ({ ...p, CreditCustomerAccountId: "" }));
     if (!customerId) return;
     setLoadingAccounts(true);
-    apiFetch(`${FIN_BASE}/api/accounts/customer-accounts/${customerId}/accounts`)
-      .then((r) => r.json())
+    apiJson(`${FIN_BASE}/api/accounts/customer-accounts/${customerId}/accounts`)
       .then((d) => setAccounts(normalizeList(d)))
-      .catch(() => setAccounts([]))
+      .catch((error) => {
+        setAccounts([]);
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load customer accounts."), "error");
+      })
       .finally(() => setLoadingAccounts(false));
   };
 
@@ -216,7 +224,7 @@ function CreateTransactionDrawer({ open, onClose, onSuccess, onDialog }) {
         Swal.fire("Error", data.message || "Failed to create transaction", "error");
       }
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to create the transaction."), "error");
     } finally {
       setLoading(false);
     }
@@ -381,7 +389,11 @@ export default function SavingsReceiptsPayments() {
         setItems(page?.pageCollection || page?.PageCollection || []);
         setItemsCount(page?.itemsCount || page?.ItemsCount || 0);
       })
-      .catch(() => { setItems([]); setItemsCount(0); })
+      .catch((error) => {
+        setItems([]);
+        setItemsCount(0);
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load transaction requests."), "error");
+      })
       .finally(() => setLoading(false));
   };
 
@@ -407,7 +419,7 @@ export default function SavingsReceiptsPayments() {
       setReceiptJournal(journal);
       fetchItems();
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to post the authorized request."), "error");
     } finally {
       setPostingIds((prev) => { const next = new Set(prev); next.delete(id); return next; });
     }

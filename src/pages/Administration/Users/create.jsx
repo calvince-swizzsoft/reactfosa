@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Swal from "sweetalert2";
+import { apiErrorMessage, apiJson } from "@/lib/api";
 
 export default function CreateUser() {
   const [loading, setLoading] = useState(false);
@@ -28,17 +29,12 @@ export default function CreateUser() {
     const fetchEmployees = async () => {
       setEmployeeLoading(true);
       try {
-        const response = await fetch(`${import.meta.env.VITE_APP_ADMIN_URL}/api/humanresource/employees`);
-        const data = await response.json().catch(() => ({}));
-
-        if (!response.ok) {
-          throw new Error(data?.message || "Failed to load employees");
-        }
+        const data = await apiJson(`${import.meta.env.VITE_APP_ADMIN_URL}/api/humanresource/employees`, {}, { fallbackMessage: "Failed to load employees." });
 
         const employeeList = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
         setEmployees(employeeList);
       } catch (error) {
-        Swal.fire("Error", error.message || "Unable to load employees.", "error");
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load employees."), "error");
       } finally {
         setEmployeeLoading(false);
       }
@@ -86,19 +82,10 @@ export default function CreateUser() {
 
       delete payload.confirmPassword;
 
-      const response = await fetch(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/users`, {
+      const data = await apiJson(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/users`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
         body: JSON.stringify(payload),
-      });
-
-      const data = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        throw new Error(data?.message || "Failed to create user");
-      }
+      }, { fallbackMessage: "Failed to create user." });
 
       Swal.fire("Success", data?.message || "User created successfully.", "success");
       setForm({
@@ -117,7 +104,7 @@ export default function CreateUser() {
         lockoutEnabled: false,
       });
     } catch (error) {
-      Swal.fire("Error", error.message || "Unable to create user.", "error");
+      Swal.fire("Error", apiErrorMessage(error, "Unable to create user."), "error");
     } finally {
       setLoading(false);
     }

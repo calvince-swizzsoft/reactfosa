@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Swal from "sweetalert2";
+import { apiErrorMessage, apiJson } from "@/lib/api";
 
 export default function EditInvLocationDrawer({ open, onClose, onSuccess, location }) {
   const [formData, setFormData] = useState({ id: "", code: "", description: "" });
@@ -24,23 +25,19 @@ export default function EditInvLocationDrawer({ open, onClose, onSuccess, locati
     setLoading(true);
 
     try {
-      const res = await fetch(`${import.meta.env.VITE_APP_INV_URL}/api/locations/${location.Id}`, {
+      await apiJson(`${import.meta.env.VITE_APP_INV_URL}/api/locations/${location.Id}`, {
         method: "PUT",
         headers: {
-          "Content-Type": "application/json",
           "ngrok-skip-browser-warning": "true",
         },
         body: JSON.stringify(formData),
       });
 
-      if (!res.ok) throw new Error("Failed to update location");
-
       Swal.fire("Success", "Location updated successfully!", "success");
       if (onSuccess) onSuccess();
       onClose();
     } catch (err) {
-      console.error(err);
-      Swal.fire("Error", "Failed to update location.", "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to update the inventory location."), "error");
     } finally {
       setLoading(false);
     }

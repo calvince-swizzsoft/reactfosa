@@ -5,7 +5,8 @@ import { Label } from "@/components/ui/label";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { apiFetch, normalizeList } from "@/lib/api";
+import { apiErrorMessage, apiJson, normalizeList } from "@/lib/api";
+import Swal from "sweetalert2";
 import { listAllBanks } from "../../Administration/Banks/api";
 import { listChartOfAccounts } from "../ChartOfAccounts/api";
 
@@ -36,15 +37,21 @@ export default function BankLinkageForm({ form, setForm, loading, submitLabel, o
   useEffect(() => {
     setLoadingData(true);
     Promise.all([
-      listAllBanks().catch(() => []),
-      apiFetch(`${FIN_BASE}/api/administration/branches`).then((r) => r.json()).catch(() => []),
-      listChartOfAccounts({ pageSize: 1000 }).catch(() => ({})),
-      apiFetch(`${COST_CENTERS_BASE}?pageSize=1000`).then((r) => r.json()).catch(() => ({})),
+      listAllBanks(),
+      apiJson(`${FIN_BASE}/api/administration/branches`),
+      listChartOfAccounts({ pageSize: 1000 }),
+      apiJson(`${COST_CENTERS_BASE}?pageSize=1000`),
     ]).then(([bankData, branchData, coaPage, costCenterData]) => {
       setBanks(normalizeList(bankData));
       setBranches(normalizeList(branchData));
       setChartOfAccounts(coaPage?.pageCollection || coaPage?.PageCollection || []);
       setCostCenters(normalizeList(costCenterData));
+    }).catch((error) => {
+      setBanks([]);
+      setBranches([]);
+      setChartOfAccounts([]);
+      setCostCenters([]);
+      Swal.fire("Error", apiErrorMessage(error, "Unable to load bank-linkage options."), "error");
     }).finally(() => setLoadingData(false));
   }, []);
 

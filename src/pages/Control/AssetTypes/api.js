@@ -1,4 +1,4 @@
-import { apiFetch, normalizeList } from "@/lib/api";
+import { apiJson as apiFetch, normalizeList } from "@/lib/api";
 
 // Client for WebApplication1's AssetTypesController
 // (Areas/Control/Controllers/AssetTypesController.cs). NavigationMenu.cs Code
@@ -11,11 +11,7 @@ const BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 export const ASSET_TYPES_BASE = `${BASE}/api/control/assettypes`;
 
 async function unwrapJson(responsePromise) {
-  const res = await responsePromise;
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok || body?.success === false) {
-    throw new Error(body?.message || body?.Message || `Request failed (${res.status})`);
-  }
+  const body = await responsePromise;
   return body?.data ?? body;
 }
 

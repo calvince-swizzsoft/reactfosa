@@ -17,6 +17,7 @@ import {
   matchTruncatedChequeVoucher,
 } from "./automatedClearingApi";
 import { ElectronicJournalStatus, TruncatedChequeStatus } from "../lib/frontOfficeEnums";
+import { apiErrorMessage } from "@/lib/api";
 
 // api/frontoffice/automatedclearing — docs/api/frontoffice-api-spec.md §15.
 // Image-based (truncated) cheque clearing.
@@ -49,7 +50,7 @@ function UploadModal({ open, onClose, onUploaded }) {
       onUploaded?.();
       onClose();
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to upload the electronic journal."), "error");
     } finally {
       setUploading(false);
     }
@@ -92,7 +93,10 @@ function ElectronicJournalDrawer({ id, onClose, onChanged }) {
   const fetchJournal = () => {
     if (!id) return;
     setLoading(true);
-    getElectronicJournal(id).then(setJournal).catch(() => setJournal(null)).finally(() => setLoading(false));
+    getElectronicJournal(id).then(setJournal).catch((error) => {
+      setJournal(null);
+      Swal.fire("Error", apiErrorMessage(error, "Unable to load the electronic journal."), "error");
+    }).finally(() => setLoading(false));
   };
 
   const fetchCheques = () => {
@@ -100,7 +104,10 @@ function ElectronicJournalDrawer({ id, onClose, onChanged }) {
     setLoadingCheques(true);
     listTruncatedCheques(id, { status: statusFilter === "" ? undefined : Number(statusFilter), pageSize: 100 })
       .then((page) => setCheques(page?.pageCollection || page?.PageCollection || []))
-      .catch(() => setCheques([]))
+      .catch((error) => {
+        setCheques([]);
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load truncated cheques."), "error");
+      })
       .finally(() => setLoadingCheques(false));
   };
 
@@ -125,7 +132,7 @@ function ElectronicJournalDrawer({ id, onClose, onChanged }) {
       fetchJournal();
       onChanged?.();
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to close the electronic journal."), "error");
     } finally {
       setClosing(false);
     }
@@ -138,7 +145,7 @@ function ElectronicJournalDrawer({ id, onClose, onChanged }) {
       Swal.fire("Success", "Truncated cheque cleared", "success");
       fetchCheques();
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to clear the truncated cheque."), "error");
     } finally {
       setActingId(null);
     }
@@ -151,7 +158,7 @@ function ElectronicJournalDrawer({ id, onClose, onChanged }) {
       Swal.fire("Success", "Payment voucher matched", "success");
       fetchCheques();
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to match the payment voucher."), "error");
     } finally {
       setActingId(null);
     }
@@ -265,7 +272,11 @@ export default function AutomatedClearing() {
         setItems(page?.pageCollection || page?.PageCollection || []);
         setItemsCount(page?.itemsCount || page?.ItemsCount || 0);
       })
-      .catch(() => { setItems([]); setItemsCount(0); })
+      .catch((error) => {
+        setItems([]);
+        setItemsCount(0);
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load electronic journals."), "error");
+      })
       .finally(() => setLoading(false));
   };
 

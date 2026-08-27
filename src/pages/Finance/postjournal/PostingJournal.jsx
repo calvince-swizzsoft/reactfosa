@@ -13,6 +13,8 @@ import { Separator } from "@/components/ui/separator";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CalendarIcon, CheckCircle2, Plus, Save, Trash2, Upload, AlertTriangle, FilePlus2 } from "lucide-react";
 import { listAllChartOfAccounts } from "@/pages/Accounts/ChartOfAccounts/api";
+import Swal from "sweetalert2";
+import { apiErrorMessage, apiJson } from "@/lib/api";
 
 const fmt = (n) => Number(n || 0).toLocaleString(undefined, { style: "currency", currency: "USD" });
 const EMPTY_ROW = { accountId: "", description: "", debit: "", credit: "", department: "" };
@@ -94,22 +96,15 @@ export default function PostingJournal() {
     console.log(apiPayload);
 
     try {
-      const res = await fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/values/PostJournal`, {
+      const data = await apiJson(`${import.meta.env.VITE_APP_FIN_URL}/api/values/PostJournal`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(apiPayload),
       });
-      const data = await res.json();
-      if (res.ok && data.Success) {
-        alert("Journal posted successfully!");
-        clearAll();
-      } else {
-        console.error("API error:", data);
-        alert("Failed to post journal. See console.");
-      }
+      Swal.fire("Success", data?.Message || data?.message || "Journal posted successfully.", "success");
+      clearAll();
     } catch (err) {
-      console.error("Network error:", err);
-      alert("Network error while posting journal.");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to post the journal."), "error");
     }
   };
 
@@ -134,19 +129,20 @@ export default function PostingJournal() {
           );
         }
       } catch (err) {
-        console.error("Failed to fetch accounts:", err);
+        setAccountOptions([]);
+        Swal.fire("Error", apiErrorMessage(err, "Unable to load chart accounts."), "error");
       }
     };
 
     const fetchBranches = async () => {
       try {
-        const res = await fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/values/branches`);
-        const data = await res.json();
+        const data = await apiJson(`${import.meta.env.VITE_APP_FIN_URL}/api/values/branches`);
         if (data.Success && Array.isArray(data.Data)) {
           setBranchOptions(data.Data.map((b) => ({ id: b.Id, description: b.Description })));
         }
       } catch (err) {
-        console.error("Failed to fetch branches:", err);
+        setBranchOptions([]);
+        Swal.fire("Error", apiErrorMessage(err, "Unable to load branches."), "error");
       }
     };
 

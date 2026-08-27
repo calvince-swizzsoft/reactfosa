@@ -1,4 +1,4 @@
-import { apiFetch, normalizeList } from "@/lib/api";
+import { apiJson as apiFetch, normalizeList } from "@/lib/api";
 
 // Client for WebApplication1's CreditBatchController
 // (Areas/Accounts/Controllers/CreditBatchController.cs),
@@ -13,11 +13,7 @@ const FIN_BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 const BASE = `${FIN_BASE}/api/accounts/creditbatches`;
 
 async function unwrap(responsePromise) {
-  const res = await responsePromise;
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok || body.success === false) {
-    throw new Error(body?.message || `Request failed (${res.status})`);
-  }
+  const body = await responsePromise;
   return body?.data ?? body;
 }
 

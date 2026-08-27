@@ -1,4 +1,7 @@
 import { getToken, clearToken, clearRoles, clearUserName } from "@/lib/auth";
+import { ApiError, readApiResponse } from "@/lib/api-errors";
+
+export { ApiError, apiErrorFromResponse, apiErrorMessage, isAbortError, readApiResponse, readResponseBody } from "@/lib/api-errors";
 
 // Attaches Authorization: Bearer <token>, defaults Content-Type to
 // application/json when a non-FormData body is present, lets caller
@@ -26,6 +29,22 @@ export async function apiFetch(url, options = {}) {
   }
 
   return response;
+}
+
+export async function apiJson(url, options = {}, config = {}) {
+  try {
+    const response = await apiFetch(url, options);
+    return await readApiResponse(response, config);
+  } catch (error) {
+    if (error instanceof ApiError || error?.name === "AbortError") throw error;
+
+    throw new ApiError({
+      status: 0,
+      code: "NETWORK_ERROR",
+      message: "The server could not be reached. Check your connection and try again.",
+      cause: error,
+    });
+  }
 }
 
 // Unwraps a list out of whichever envelope shape the endpoint uses: a bare

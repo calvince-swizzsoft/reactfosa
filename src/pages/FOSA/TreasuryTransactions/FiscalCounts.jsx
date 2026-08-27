@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import NotFoundImage from "/assets/scopefinding.png";
 import { FaTable, FaChevronLeft, FaChevronRight } from "react-icons/fa";
-import { apiFetch } from "@/lib/api";
+import Swal from "sweetalert2";
+import { apiErrorMessage, apiJson } from "@/lib/api";
 import { DENOMINATIONS } from "../lib/DenominationCountFields";
 import { FiscalCountTransactionCode } from "../lib/frontOfficeEnums";
 
@@ -67,10 +68,12 @@ function FiscalCountDetailDrawer({ id, onClose }) {
     if (!id) return;
     setLoading(true);
     setItem(null);
-    apiFetch(`${FISCAL_COUNTS_BASE}/${id}`)
-      .then((r) => r.json())
+    apiJson(`${FISCAL_COUNTS_BASE}/${id}`)
       .then((data) => setItem(data?.data ?? data?.Data ?? null))
-      .catch(() => setItem(null))
+      .catch((error) => {
+        setItem(null);
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load the fiscal count."), "error");
+      })
       .finally(() => setLoading(false));
   }, [id]);
 
@@ -168,14 +171,17 @@ export default function FiscalCounts() {
     if (endDate) params.set("endDate", endDate);
     if (transactionCode) params.set("transactionCode", String(transactionCode));
 
-    apiFetch(`${FISCAL_COUNTS_BASE}?${params.toString()}`)
-      .then((r) => r.json())
+    apiJson(`${FISCAL_COUNTS_BASE}?${params.toString()}`)
       .then((data) => {
         const payload = data?.data ?? data?.Data ?? data;
         setItems(payload?.pageCollection || payload?.PageCollection || []);
         setItemsCount(payload?.itemsCount || payload?.ItemsCount || 0);
       })
-      .catch(() => { setItems([]); setItemsCount(0); })
+      .catch((error) => {
+        setItems([]);
+        setItemsCount(0);
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load fiscal counts."), "error");
+      })
       .finally(() => setLoading(false));
   };
 

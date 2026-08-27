@@ -3,6 +3,7 @@ import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { MdPayments } from "react-icons/md";
+import { apiJson } from "@/lib/api";
 
 import AccountConfiguration from "./AccountConfiguration/AccountConfiguration";
 import BankLinkages from "@/pages/Administration/Bank/BankLinkages";
@@ -28,17 +29,14 @@ export default function Setup() {
   useEffect(() => {
     const fetchTotals = async () => {
       try {
-        const [banksRes, branchesRes] = await Promise.all([
-          fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/values/getBankWithLinkages`, {
+        const [banksData, branchesData] = await Promise.all([
+          apiJson(`${import.meta.env.VITE_APP_FIN_URL}/api/accounts/banklinkages/all`, {
             headers: { "ngrok-skip-browser-warning": "true" },
           }),
-          fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/values/getSystemMappings`, {
+          apiJson(`${import.meta.env.VITE_APP_FIN_URL}/api/values/getSystemMappings`, {
             headers: { "ngrok-skip-browser-warning": "true" },
           }),
         ]);
-
-        const banksData = await banksRes.json().catch(() => null);
-        const branchesData = await branchesRes.json().catch(() => null);
 
         setTotals({
           banks: getCount(banksData),

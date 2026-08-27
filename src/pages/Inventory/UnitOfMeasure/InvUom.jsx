@@ -5,6 +5,7 @@ import AddInvUomDrawer from "./AddInvUomDrawer";
 import EditInvUomDrawer from "./EditInvUomDrawer";
 import Swal from "sweetalert2";
 import NotFoundImage from "/assets/scopefinding.png";
+import { apiErrorMessage, apiJson, normalizeList } from "@/lib/api";
 
 export default function InvUom() {
   const [uoms, setUoms] = useState([]);
@@ -14,16 +15,19 @@ export default function InvUom() {
   const [editUom, setEditUom] = useState(null);
 
   // Fetch UOM
-  const fetchUoms = () => {
-    fetch(`${import.meta.env.VITE_APP_INV_URL}/api/unit-of-measure`, {
-      headers: { "ngrok-skip-browser-warning": "true" },
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        setUoms(data.data || []);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
+  const fetchUoms = async () => {
+    setLoading(true);
+    try {
+      const data = await apiJson(`${import.meta.env.VITE_APP_INV_URL}/api/unit-of-measure`, {
+        headers: { "ngrok-skip-browser-warning": "true" },
+      });
+      setUoms(normalizeList(data));
+    } catch (error) {
+      setUoms([]);
+      Swal.fire("Error", apiErrorMessage(error, "Unable to load units of measure."), "error");
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -43,20 +47,17 @@ export default function InvUom() {
     }).then(async (result) => {
       if (result.isConfirmed) {
         try {
-          const res = await fetch(
+          await apiJson(
             `${import.meta.env.VITE_APP_INV_URL}/api/unit-of-measure/${id}`,
             {
               method: "DELETE",
               headers: { "ngrok-skip-browser-warning": "true" },
             }
           );
-          if (!res.ok) throw new Error("Failed to delete UOM");
-
           Swal.fire("Deleted!", "Unit of Measure has been deleted.", "success");
           fetchUoms();
         } catch (err) {
-          console.error(err);
-          Swal.fire("Error!", "Failed to delete UOM.", "error");
+          Swal.fire("Error!", apiErrorMessage(err, "Unable to delete the unit of measure."), "error");
         }
       }
     });

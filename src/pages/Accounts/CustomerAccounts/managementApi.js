@@ -1,4 +1,4 @@
-import { apiFetch } from "@/lib/api";
+import { apiJson } from "@/lib/api";
 
 // Client functions for WebApplication1's CustomerAccountManagementController
 // — additional sub-routes on the same /api/accounts/customer-accounts
@@ -31,19 +31,13 @@ export const CustomerAccountManagementAction = {
 // just the HTTP status. unwrap() already throws on success:false regardless
 // of status code, so callers just await + try/catch as usual.
 async function unwrap(responsePromise) {
-  const res = await responsePromise;
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok || body.success === false) {
-    const err = new Error(body.message || "Request failed");
-    err.status = res.status;
-    throw err;
-  }
+  const body = await responsePromise;
   return body.data;
 }
 
 const manage = (customerAccountId, action, { remarks, remarkType }) =>
   unwrap(
-    apiFetch(`${CUSTOMER_ACCOUNT_BASE}/${customerAccountId}/${action}`, {
+    apiJson(`${CUSTOMER_ACCOUNT_BASE}/${customerAccountId}/${action}`, {
       method: "POST",
       body: JSON.stringify({ remarks, remarkType }),
     })
@@ -81,5 +75,5 @@ export function getCustomerAccountHistory(customerAccountId, { managementAction 
   const qs = managementAction !== undefined && managementAction !== null
     ? `?managementAction=${managementAction}`
     : "";
-  return unwrap(apiFetch(`${CUSTOMER_ACCOUNT_BASE}/${customerAccountId}/history${qs}`));
+  return unwrap(apiJson(`${CUSTOMER_ACCOUNT_BASE}/${customerAccountId}/history${qs}`));
 }

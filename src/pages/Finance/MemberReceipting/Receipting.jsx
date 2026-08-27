@@ -28,6 +28,7 @@ import MemberSelectModal from "./MemberSelectModal";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import Swal from "sweetalert2";
+import { apiErrorMessage, apiJson, normalizeList } from "@/lib/api";
 import logo from "../../../assets/rubanilogo.jpeg";
 
 
@@ -120,26 +121,39 @@ export default function Receipting() {
 
     useEffect(() => {
         listAllChartOfAccounts()
-            .then((items) => setAccounts(items.map((a) => ({ id: a.Id, name: a.AccountName }))));
+            .then((items) => setAccounts(items.map((a) => ({ id: a.Id, name: a.AccountName }))))
+            .catch((error) => {
+                setAccounts([]);
+                Swal.fire("Error", apiErrorMessage(error, "Unable to load chart accounts."), "error");
+            });
 
-        fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/values/branches`)
-            .then((r) => r.json())
-            .then((d) => d.Success && setBranches(d.Data));
+        apiJson(`${import.meta.env.VITE_APP_FIN_URL}/api/values/branches`)
+            .then((d) => setBranches(d.Data || d.data || []))
+            .catch((error) => {
+                setBranches([]);
+                Swal.fire("Error", apiErrorMessage(error, "Unable to load branches."), "error");
+            });
     }, []);
 
     useEffect(() => {
-        fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/registry/customers`)
-            .then((r) => r.json())
-            .then((d) => d.success && setMembers(d.data));
+        apiJson(`${import.meta.env.VITE_APP_FIN_URL}/api/registry/customers`)
+            .then((d) => setMembers(d.data || d.Data || []))
+            .catch((error) => {
+                setMembers([]);
+                Swal.fire("Error", apiErrorMessage(error, "Unable to load members."), "error");
+            });
     }, []);
 
 
     // Fetch banks with linkages
     useEffect(() => {
-        fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/values/getBankWithLinkages`)
-            .then((r) => r.json())
+        apiJson(`${import.meta.env.VITE_APP_FIN_URL}/api/accounts/banklinkages/all`)
             .then((d) => {
-                if (d.Success) setBanks(d.Data);
+                setBanks(normalizeList(d));
+            })
+            .catch((error) => {
+                setBanks([]);
+                Swal.fire("Error", apiErrorMessage(error, "Unable to load bank linkages."), "error");
             });
     }, []);
 
@@ -150,14 +164,16 @@ export default function Receipting() {
             return;
         }
 
-        fetch(
+        apiJson(
             `${import.meta.env.VITE_APP_FIN_URL}/api/values/CustomerAccount/by-customer?customerId=${selectedMemberId}`
         )
-            .then(res => res.json())
             .then(data => {
                 setCustomerAccount(Array.isArray(data) ? data : []);
             })
-            .catch(() => setCustomerAccount([]));
+            .catch((error) => {
+                setCustomerAccount([]);
+                Swal.fire("Error", apiErrorMessage(error, "Unable to load customer accounts."), "error");
+            });
     }, [selectedMemberId]);
 
 
@@ -227,7 +243,7 @@ export default function Receipting() {
         console.log("POST PAYLOAD:", payload);
 
         try {
-            const res = await fetch(
+            const data = await apiJson(
                 `${import.meta.env.VITE_APP_FIN_URL}/api/values/CustomerReceipt`,
                 //"https://4ff2713c989f.ngrok-free.app/api/values/CustomerReceipt",
                 {
@@ -239,8 +255,6 @@ export default function Receipting() {
                 }
             );
 
-            const data = await res.json();
-
             // if (!res.ok) {
             //     console.error(data);
             //     alert(data.message || "Failed to post receipt");
@@ -248,8 +262,7 @@ export default function Receipting() {
             // }
             console.log(data);
 
-            if (data.success) {
-                Swal.fire({
+            Swal.fire({
                     icon: "success",
                     title: "Receipt Posted Successfully",
                     text: "Would you like to print the receipt?",
@@ -268,20 +281,15 @@ export default function Receipting() {
                     setSelectedMemberId("");
                 });
 
-                // reset
-                setLines([{ ...EMPTY_LINE }]);
-                setReference("");
-                setSelectedMemberId("");
-            } else {
-
-                Swal.fire("Error", data.message, "error");
-            }
+            // reset
+            setLines([{ ...EMPTY_LINE }]);
+            setReference("");
+            setSelectedMemberId("");
 
 
 
         } catch (err) {
-            console.error(err);
-            alert("Network error.");
+            Swal.fire("Error", apiErrorMessage(err, "Unable to post the customer receipt."), "error");
         } finally {
             setLoading(false);
         }

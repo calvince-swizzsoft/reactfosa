@@ -5,6 +5,7 @@ import AddInvLocationDrawer from "./AddInvLocationDrawer";
 import EditInvLocationDrawer from "./EditInvLocationDrawer";
 import Swal from "sweetalert2";
 import NotFoundImage from "/assets/scopefinding.png";
+import { apiErrorMessage, apiJson, normalizeList } from "@/lib/api";
 
 export default function InvLocation() {
   const [locations, setLocations] = useState([]);
@@ -13,16 +14,19 @@ export default function InvLocation() {
   const [editDrawerOpen, setEditDrawerOpen] = useState(false);
   const [editLocation, setEditLocation] = useState(null);
 
-  const fetchLocations = () => {
-    fetch(`${import.meta.env.VITE_APP_INV_URL}/api/locations`, {
-      headers: { "ngrok-skip-browser-warning": "true" },
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        setLocations(data.data || []);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
+  const fetchLocations = async () => {
+    setLoading(true);
+    try {
+      const data = await apiJson(`${import.meta.env.VITE_APP_INV_URL}/api/locations`, {
+        headers: { "ngrok-skip-browser-warning": "true" },
+      });
+      setLocations(normalizeList(data));
+    } catch (error) {
+      setLocations([]);
+      Swal.fire("Error", apiErrorMessage(error, "Unable to load inventory locations."), "error");
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -42,20 +46,17 @@ export default function InvLocation() {
     }).then(async (result) => {
       if (result.isConfirmed) {
         try {
-          const res = await fetch(
+          await apiJson(
             `${import.meta.env.VITE_APP_INV_URL}/api/locations/${id}`,
             {
               method: "DELETE",
               headers: { "ngrok-skip-browser-warning": "true" },
             }
           );
-          if (!res.ok) throw new Error("Failed to delete location");
-
           Swal.fire("Deleted!", "Location has been deleted.", "success");
           fetchLocations();
         } catch (err) {
-          console.error(err);
-          Swal.fire("Error!", "Failed to delete location.", "error");
+          Swal.fire("Error!", apiErrorMessage(err, "Unable to delete the inventory location."), "error");
         }
       }
     });

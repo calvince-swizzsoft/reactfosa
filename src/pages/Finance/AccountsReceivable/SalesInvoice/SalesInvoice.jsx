@@ -18,6 +18,7 @@ import NotFoundImage from "/assets/scopefinding.png";
 import AddSalesInvoiceDrawer from "./AddSalesInvoiceDrawer";
 import UpdateSalesInvoiceDrawer from "./UpdateSalesInvoiceDrawer";
 import { MdOutlinePostAdd } from "react-icons/md";
+import { apiErrorMessage, apiJson } from "@/lib/api";
 
 export default function SalesInvoice() {
   const [invoices, setInvoices] = useState([]);
@@ -30,15 +31,18 @@ export default function SalesInvoice() {
   const [selectedInvoice, setSelectedInvoice] = useState(null);
 
   const fetchInvoices = () => {
-    fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/values/GetSalesInvoices`, {
+    apiJson(`${import.meta.env.VITE_APP_FIN_URL}/api/values/GetSalesInvoices`, {
       headers: { "ngrok-skip-browser-warning": "true" },
     })
-      .then((res) => res.json())
       .then((data) => {
         setInvoices(data.Data || []);
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch((error) => {
+        setInvoices([]);
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load sales invoices."), "error");
+      })
+      .finally(() => setLoading(false));
   };
 
   useEffect(() => {
@@ -66,7 +70,7 @@ export default function SalesInvoice() {
   // Post Invoice Handler
   const handlePostInvoice = async (invoiceId) => {
     try {
-      const response = await fetch(
+      const resData = await apiJson(
         `${import.meta.env.VITE_APP_FIN_URL}/api/values/PostSalesInvoice/${invoiceId}`,
         {
           method: "POST",
@@ -74,16 +78,10 @@ export default function SalesInvoice() {
         }
       );
 
-      const resData = await response.json();
-      console.log(resData);
-      if (response.ok && resData.success === true) {
-        Swal.fire("Success!", resData.message, "success");
-        fetchInvoices();
-      } else {
-        Swal.fire("Error!", resData.message || "Failed to post invoice.", "error");
-      }
+      Swal.fire("Success!", resData?.message || "Invoice posted successfully.", "success");
+      fetchInvoices();
     } catch (err) {
-      Swal.fire("Error!", "Failed to post invoice.", "error");
+      Swal.fire("Error!", apiErrorMessage(err, "Unable to post the sales invoice."), "error");
     }
   };
 

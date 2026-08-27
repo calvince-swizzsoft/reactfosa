@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/select";
 import Swal from "sweetalert2";
 import { FaReceipt, FaPaperPlane } from "react-icons/fa";
-import { apiFetch, normalizeList } from "@/lib/api";
+import { apiErrorMessage, apiJson, normalizeList } from "@/lib/api";
 import { createCustomerReceipt } from "./customerReceiptsApi";
 import ReceiptModal from "../lib/ReceiptModal";
 
@@ -40,10 +40,12 @@ export default function CustomerReceipts() {
 
   useEffect(() => {
     setLoadingData(true);
-    apiFetch(`${FIN_BASE}/api/accounts/chartofaccounts?pageSize=1000`)
-      .then((r) => r.json())
+    apiJson(`${FIN_BASE}/api/accounts/chartofaccounts?pageSize=1000`)
       .then((d) => setChartOfAccounts(normalizeList(d)))
-      .catch(() => setChartOfAccounts([]))
+      .catch((error) => {
+        setChartOfAccounts([]);
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load chart accounts."), "error");
+      })
       .finally(() => setLoadingData(false));
   }, []);
 
@@ -67,7 +69,7 @@ export default function CustomerReceipts() {
       setReceiptJournal(journal);
       setForm(emptyForm);
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to post the customer receipt."), "error");
     } finally {
       setLoading(false);
     }

@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import Swal from "sweetalert2";
 import { FaMobileAlt } from "react-icons/fa";
-import { apiFetch, normalizeList } from "@/lib/api";
+import { apiErrorMessage, apiJson, normalizeList } from "@/lib/api";
 import { getAlternateChannelTypeCommissions, replaceAlternateChannelTypeCommissions } from "./api";
 import {
   ALTERNATE_CHANNEL_TYPE_OPTIONS, ALTERNATE_CHANNEL_KNOWN_CHARGE_TYPE_OPTIONS, CHARGE_BENEFACTOR_OPTIONS,
@@ -40,10 +40,12 @@ export default function AlternateChannelFees() {
 
   useEffect(() => {
     setLoadingCommissions(true);
-    apiFetch(`${FIN_BASE}/api/accounts/commissions`)
-      .then((r) => r.json())
+    apiJson(`${FIN_BASE}/api/accounts/commissions`)
       .then((d) => setAllCommissions(normalizeList(d)))
-      .catch(() => setAllCommissions([]))
+      .catch((error) => {
+        setAllCommissions([]);
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load commissions."), "error");
+      })
       .finally(() => setLoadingCommissions(false));
   }, []);
 
@@ -51,7 +53,10 @@ export default function AlternateChannelFees() {
     setLoadingAttached(true);
     getAlternateChannelTypeCommissions(type, knownChargeType)
       .then((list) => setSelectedIds(new Set((list || []).map((c) => c.Id))))
-      .catch(() => setSelectedIds(new Set()))
+      .catch((error) => {
+        setSelectedIds(new Set());
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load attached commissions."), "error");
+      })
       .finally(() => setLoadingAttached(false));
   };
 
@@ -72,7 +77,7 @@ export default function AlternateChannelFees() {
       await replaceAlternateChannelTypeCommissions(type, { knownChargeType, chargeBenefactor, commissions });
       Swal.fire("Success", "Fee configuration saved.", "success");
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to save the fee configuration."), "error");
     } finally {
       setSaving(false);
     }

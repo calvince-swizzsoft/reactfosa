@@ -1,4 +1,4 @@
-import { apiFetch } from "@/lib/api";
+import { apiJson } from "@/lib/api";
 
 // Client functions for WebApplication1's ChartOfAccountController
 // (Areas/Accounts/Controllers/ChartOfAccountController.cs), base
@@ -22,19 +22,13 @@ const FIN_BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 const COA_BASE = `${FIN_BASE}/api/accounts/chartofaccounts`;
 
 async function unwrap(responsePromise) {
-  const res = await responsePromise;
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok || body.success === false) {
-    const err = new Error(body?.message || `Request failed (${res.status})`);
-    err.status = res.status;
-    throw err;
-  }
+  const body = await responsePromise;
   return body?.data ?? body;
 }
 
 export function listChartOfAccounts({ text = "", pageIndex = 0, pageSize = 20 } = {}) {
   const params = new URLSearchParams({ text, pageIndex: String(pageIndex), pageSize: String(pageSize) });
-  return unwrap(apiFetch(`${COA_BASE}?${params.toString()}`));
+  return unwrap(apiJson(`${COA_BASE}?${params.toString()}`));
 }
 
 export async function listAllChartOfAccounts() {
@@ -43,26 +37,26 @@ export async function listAllChartOfAccounts() {
 }
 
 export function getChartOfAccount(id) {
-  return unwrap(apiFetch(`${COA_BASE}/${id}`));
+  return unwrap(apiJson(`${COA_BASE}/${id}`));
 }
 
 // Returns List<GeneralLedgerAccount> — see module note above, not
 // ChartOfAccountDTO[].
 export function getChartOfAccountTree() {
-  return unwrap(apiFetch(`${COA_BASE}/tree`));
+  return unwrap(apiJson(`${COA_BASE}/tree`));
 }
 
 export function createChartOfAccount(chartOfAccountDTO) {
-  return unwrap(apiFetch(COA_BASE, { method: "POST", body: JSON.stringify(chartOfAccountDTO) }));
+  return unwrap(apiJson(COA_BASE, { method: "POST", body: JSON.stringify(chartOfAccountDTO) }));
 }
 
 export function updateChartOfAccount(id, chartOfAccountDTO) {
-  return unwrap(apiFetch(`${COA_BASE}/${id}`, { method: "PUT", body: JSON.stringify(chartOfAccountDTO) }));
+  return unwrap(apiJson(`${COA_BASE}/${id}`, { method: "PUT", body: JSON.stringify(chartOfAccountDTO) }));
 }
 
 export function listSystemGeneralLedgerMappings({ pageIndex = 0, pageSize = 20 } = {}) {
   const params = new URLSearchParams({ pageIndex: String(pageIndex), pageSize: String(pageSize) });
-  return unwrap(apiFetch(`${COA_BASE}/systemgeneralledgermappings?${params.toString()}`));
+  return unwrap(apiJson(`${COA_BASE}/systemgeneralledgermappings?${params.toString()}`));
 }
 
 // PUT /systemgeneralledgermappings/{code} — the body must be the raw
@@ -75,7 +69,7 @@ export function listSystemGeneralLedgerMappings({ pageIndex = 0, pageSize = 20 }
 // not separate create/update calls.
 export function mapSystemGeneralLedgerAccountCode(code, chartOfAccountId) {
   return unwrap(
-    apiFetch(`${COA_BASE}/systemgeneralledgermappings/${code}`, {
+    apiJson(`${COA_BASE}/systemgeneralledgermappings/${code}`, {
       method: "PUT",
       body: JSON.stringify(chartOfAccountId),
     })

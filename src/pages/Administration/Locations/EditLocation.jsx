@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Swal from "sweetalert2";
-import { apiFetch, normalizeList } from "@/lib/api";
+import { apiErrorMessage, apiJson, normalizeList } from "@/lib/api";
 
 export default function EditLocation({ open, onClose, data, refresh }) {
   const [loading, setLoading] = useState(false);
@@ -30,13 +30,13 @@ export default function EditLocation({ open, onClose, data, refresh }) {
   useEffect(() => {
     const fetchBranches = async () => {
       try {
-        const res = await apiFetch(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/branches`);
-        const json = await res.json();
+        const json = await apiJson(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/branches`);
         // GET / now returns PageCollectionInfo<BranchDTO> (paged), not a
         // bare array.
         setBranches(normalizeList(json));
       } catch (err) {
-        console.error("Failed to fetch branches", err);
+        setBranches([]);
+        Swal.fire("Error", apiErrorMessage(err, "Unable to load branches."), "error");
       }
     };
     fetchBranches();
@@ -49,19 +49,16 @@ export default function EditLocation({ open, onClose, data, refresh }) {
   const handleUpdate = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/locations/${form.Id}`, {
+      await apiJson(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/locations/${form.Id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       });
-
-      if (!res.ok) throw new Error("Failed to update location");
 
       Swal.fire("Success!", "Location updated successfully", "success");
       refresh();
       onClose();
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to update the location."), "error");
     } finally {
       setLoading(false);
     }

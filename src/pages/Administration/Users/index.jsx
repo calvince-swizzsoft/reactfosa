@@ -14,7 +14,7 @@ import {
 import Swal from "sweetalert2";
 import NotFoundImage from "/assets/scopefinding.png";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { apiFetch } from "@/lib/api";
+import { apiErrorMessage, apiJson } from "@/lib/api";
 
 export default function AdministrationUsers() {
   const [users, setUsers] = useState([]);
@@ -36,16 +36,11 @@ export default function AdministrationUsers() {
     const fetchUsers = async () => {
       setLoading(true);
       try {
-        const response = await fetch(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/users`);
-        const data = await response.json().catch(() => []);
-
-        if (!response.ok) {
-          throw new Error(data?.message || "Failed to load users");
-        }
+        const data = await apiJson(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/users`, {}, { fallbackMessage: "Failed to load users." });
 
         setUsers(Array.isArray(data) ? data : []);
       } catch (error) {
-        Swal.fire("Error", error.message || "Unable to load users.", "error");
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load users."), "error");
         setUsers([]);
       } finally {
         setLoading(false);
@@ -55,17 +50,12 @@ export default function AdministrationUsers() {
     const fetchRoles = async () => {
       setRoleLoading(true);
       try {
-        const response = await fetch(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/roles`);
-        const data = await response.json().catch(() => ({}));
-
-        if (!response.ok) {
-          throw new Error(data?.message || "Failed to load roles");
-        }
+        const data = await apiJson(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/roles`, {}, { fallbackMessage: "Failed to load roles." });
 
         const roleList = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
         setRoles(roleList);
       } catch (error) {
-        Swal.fire("Error", error.message || "Unable to load roles.", "error");
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load roles."), "error");
       } finally {
         setRoleLoading(false);
       }
@@ -74,13 +64,11 @@ export default function AdministrationUsers() {
     const fetchBranches = async () => {
       setBranchesLoading(true);
       try {
-        const response = await fetch(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/branches`);
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(data?.message || "Failed to load branches");
+        const data = await apiJson(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/branches`, {}, { fallbackMessage: "Failed to load branches." });
         const payload = data?.data ?? data?.Data ?? data;
         setBranches(Array.isArray(payload) ? payload : Array.isArray(payload?.PageCollection) ? payload.PageCollection : Array.isArray(payload?.pageCollection) ? payload.pageCollection : []);
       } catch (error) {
-        Swal.fire("Error", error.message || "Unable to load branches.", "error");
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load branches."), "error");
       } finally {
         setBranchesLoading(false);
       }
@@ -105,12 +93,7 @@ export default function AdministrationUsers() {
   const fetchUserRoles = async (username) => {
     setUserRolesLoading(true);
     try {
-      const response = await fetch(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/users/roles?user=${encodeURIComponent(username)}`);
-      const data = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        throw new Error(data?.message || "Failed to load user roles");
-      }
+      const data = await apiJson(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/users/roles?user=${encodeURIComponent(username)}`, {}, { fallbackMessage: "Failed to load user roles." });
 
       const roleList = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
       setUserRoles(roleList.map(normalizeRoleName));
@@ -166,28 +149,19 @@ export default function AdministrationUsers() {
     if (!selectedUser) return;
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/users`, {
+      const data = await apiJson(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/users`, {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
         body: JSON.stringify({
           ...selectedUser,
           ...editForm,
           BranchId: editForm.BranchId || null,
         }),
-      });
-
-      const data = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        throw new Error(data?.message || "Failed to update user");
-      }
+      }, { fallbackMessage: "Failed to update user." });
 
       Swal.fire("Success", data?.message || "User updated successfully.", "success");
       setDrawerOpen(false);
     } catch (error) {
-      Swal.fire("Error", error.message || "Unable to update user.", "error");
+      Swal.fire("Error", apiErrorMessage(error, "Unable to update user."), "error");
     }
   };
 
@@ -202,28 +176,19 @@ export default function AdministrationUsers() {
     try {
       const username = editForm.userName || selectedUser.userName || selectedUser.UserName || "";
 
-      const response = await fetch(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/roles/add`, {
+      const data = await apiJson(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/roles/add`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
         body: JSON.stringify({
           UserName: username,
           Roles: rolesToAdd,
         }),
-      });
-
-      const data = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        throw new Error(data?.message || "Failed to assign roles");
-      }
+      }, { fallbackMessage: "Failed to assign roles." });
 
       Swal.fire("Success", data?.message || "Roles assigned successfully.", "success");
       setRolesToAdd([]);
       await fetchUserRoles(username);
     } catch (error) {
-      Swal.fire("Error", error.message || "Unable to assign roles.", "error");
+      Swal.fire("Error", apiErrorMessage(error, "Unable to assign roles."), "error");
     }
   };
 
@@ -238,28 +203,19 @@ export default function AdministrationUsers() {
     try {
       const username = editForm.userName || selectedUser.userName || selectedUser.UserName || "";
 
-      const response = await fetch(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/roles/remove`, {
+      const data = await apiJson(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/roles/remove`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
         body: JSON.stringify({
           UserName: username,
           Roles: rolesToRemove,
         }),
-      });
-
-      const data = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        throw new Error(data?.message || "Failed to remove roles");
-      }
+      }, { fallbackMessage: "Failed to remove roles." });
 
       Swal.fire("Success", data?.message || "Roles removed successfully.", "success");
       setRolesToRemove([]);
       await fetchUserRoles(username);
     } catch (error) {
-      Swal.fire("Error", error.message || "Unable to remove roles.", "error");
+      Swal.fire("Error", apiErrorMessage(error, "Unable to remove roles."), "error");
     }
   };
 
@@ -288,18 +244,11 @@ export default function AdministrationUsers() {
 
     setResettingUserNames((previous) => new Set(previous).add(userName));
     try {
-      const response = await apiFetch(
+      const data = await apiJson(
         `${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/users/${encodeURIComponent(userName)}/reset-password`,
         { method: "POST" },
+        { fallbackMessage: "Failed to reset the password." },
       );
-      const data = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        if (response.status === 403) {
-          throw new Error('Your role does not have the "User Password Reset" permission.');
-        }
-        throw new Error(data?.message || data?.Message || "Failed to reset the password");
-      }
 
       await Swal.fire(
         "Password Reset",
@@ -307,7 +256,7 @@ export default function AdministrationUsers() {
         "success",
       );
     } catch (error) {
-      Swal.fire("Unable to Reset Password", error.message || "The password could not be reset.", "error");
+      Swal.fire("Unable to Reset Password", apiErrorMessage(error, "The password could not be reset."), "error");
     } finally {
       setResettingUserNames((previous) => {
         const next = new Set(previous);

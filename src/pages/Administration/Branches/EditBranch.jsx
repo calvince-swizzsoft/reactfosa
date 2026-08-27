@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Swal from "sweetalert2";
-import { apiFetch } from "@/lib/api";
+import { apiErrorMessage, apiJson } from "@/lib/api";
 
 const FIN_BASE = `${import.meta.env.VITE_APP_MEMBERSHIP_URL}`;
 const BRANCH_BASE = `${FIN_BASE}/api/administration/branches`;
@@ -40,10 +40,12 @@ export default function EditBranch({ open, onClose, data, refresh }) {
         // Was previously fetching the wrong path (/api/companies, a 404) —
         // fixed to the real endpoint, and to the unpaged /all variant since
         // GET / (paged) doesn't return a bare array to .map() over.
-        apiFetch(`${FIN_BASE}/api/administration/companies/all`)
-            .then((r) => r.json())
+        apiJson(`${FIN_BASE}/api/administration/companies/all`, {}, { fallbackMessage: "Failed to load companies." })
             .then((d) => setCompanies(normalizeList(d)))
-            .catch(() => setCompanies([]))
+            .catch((error) => {
+                setCompanies([]);
+                Swal.fire("Error", apiErrorMessage(error, "Unable to load companies."), "error");
+            })
             .finally(() => setLoadingCompanies(false));
     }, [open, data]);
 
@@ -52,18 +54,16 @@ export default function EditBranch({ open, onClose, data, refresh }) {
     const handleUpdate = async () => {
         setLoading(true);
         try {
-            const res = await apiFetch(`${BRANCH_BASE}/${form.id}`, {
+            const respData = await apiJson(`${BRANCH_BASE}/${form.id}`, {
                 method: "PUT",
                 body: JSON.stringify(form),
-            });
-            const respData = await res.json().catch(() => ({}));
-            if (!res.ok || respData.success === false) throw new Error(respData.message || "Failed to update branch");
+            }, { fallbackMessage: "Failed to update branch." });
 
             Swal.fire("Success!", respData.message || "Branch updated successfully", "success");
             refresh();
             onClose();
         } catch (err) {
-            Swal.fire("Error", err.message, "error");
+            Swal.fire("Error", apiErrorMessage(err, "Unable to update branch."), "error");
         } finally {
             setLoading(false);
         }

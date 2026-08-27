@@ -1,4 +1,4 @@
-import { apiFetch } from "@/lib/api";
+import { apiJson as apiFetch } from "@/lib/api";
 
 // Client for WebApplication1's LoanGuarantorAttachmentController
 // (Areas/BackOffice/Controllers/LoanGuarantorAttachmentController.cs),
@@ -28,11 +28,7 @@ const FIN_BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 const BASE = `${FIN_BASE}/api/backoffice/loanguarantorattachments`;
 
 async function unwrap(responsePromise) {
-  const res = await responsePromise;
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok || body.success === false) {
-    throw new Error(body?.message || `Request failed (${res.status})`);
-  }
+  const body = await responsePromise;
   return body?.data ?? body;
 }
 

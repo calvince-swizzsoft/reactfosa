@@ -1,4 +1,4 @@
-import { apiFetch } from "@/lib/api";
+import { apiJson } from "@/lib/api";
 
 // Client functions for WebApplication1's StandingOrderExecutionController —
 // a separate controller from api.js's StandingOrderController.
@@ -33,11 +33,7 @@ export const QueuePriority = {
 // getSkippedStandingOrders() (api.js) afterward rather than assuming
 // all-or-nothing.
 async function unwrap(responsePromise) {
-  const res = await responsePromise;
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok || body.success === false) {
-    throw new Error(body.message || "Request failed");
-  }
+  const body = await responsePromise;
   return { ran: body.data, message: body.message };
 }
 
@@ -54,7 +50,7 @@ export function executeDueStandingOrders({
   pageSize = 100,
 }) {
   return unwrap(
-    apiFetch(`${EXECUTION_BASE}/execute`, {
+    apiJson(`${EXECUTION_BASE}/execute`, {
       method: "POST",
       body: JSON.stringify({ targetDate, targetDateOption, priority, maximumStandingOrderExecuteAttemptCount, pageSize }),
     })
@@ -68,7 +64,7 @@ export function executeDueStandingOrders({
  */
 export function fixSkippedStandingOrders({ targetDate, pageSize = 100 } = {}) {
   return unwrap(
-    apiFetch(`${EXECUTION_BASE}/fix-skipped`, {
+    apiJson(`${EXECUTION_BASE}/fix-skipped`, {
       method: "POST",
       body: JSON.stringify({ targetDate, pageSize }),
     })
@@ -82,7 +78,7 @@ export function fixSkippedStandingOrders({ targetDate, pageSize = 100 } = {}) {
  */
 export function sweepStandingOrders({ priority, pageSize = 100 }) {
   return unwrap(
-    apiFetch(`${EXECUTION_BASE}/sweep`, {
+    apiJson(`${EXECUTION_BASE}/sweep`, {
       method: "POST",
       body: JSON.stringify({ priority, pageSize }),
     })
@@ -96,7 +92,7 @@ export function sweepStandingOrders({ priority, pageSize = 100 }) {
  */
 export function payoutStandingOrder({ benefactorCustomerAccountId, month, priority }) {
   return unwrap(
-    apiFetch(`${EXECUTION_BASE}/payout`, {
+    apiJson(`${EXECUTION_BASE}/payout`, {
       method: "POST",
       body: JSON.stringify({ benefactorCustomerAccountId, month, priority }),
     })

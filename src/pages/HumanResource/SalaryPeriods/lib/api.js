@@ -1,4 +1,4 @@
-import { apiFetch } from "@/lib/api";
+import { apiJson as apiFetch } from "@/lib/api";
 
 // Client for WebApplication1's new SalaryPeriodsController/PaySlipsController
 // (Areas/HumanResource/Controllers/, added 2026-08-18 — NavigationMenu.cs
@@ -21,11 +21,7 @@ const SALARY_PERIODS_BASE = `${BASE}/api/humanresource/salaryperiods`;
 const PAYSLIPS_BASE = `${BASE}/api/humanresource/payslips`;
 
 async function unwrapJson(responsePromise) {
-  const res = await responsePromise;
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    throw new Error(body?.Message || body?.message || `Request failed (${res.status})`);
-  }
+  const body = await responsePromise;
   return body;
 }
 
@@ -92,14 +88,12 @@ export function listPostingPeriods() {
 }
 
 export async function listBranches() {
-  const res = await apiFetch(`${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/administration/branches?pageIndex=0&pageSize=1000`);
-  const body = await res.json().catch(() => ({}));
+  const body = await apiFetch(`${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/administration/branches?pageIndex=0&pageSize=1000`);
   const page = body?.data ?? body?.Data ?? body;
   return page?.pageCollection || page?.PageCollection || (Array.isArray(page) ? page : []);
 }
 
 export async function listDepartments() {
-  const res = await apiFetch(`${BASE}/api/humanresource/departments`);
-  const body = await res.json().catch(() => []);
+  const body = await apiFetch(`${BASE}/api/humanresource/departments`);
   return Array.isArray(body) ? body : Array.isArray(body?.data) ? body.data : [];
 }

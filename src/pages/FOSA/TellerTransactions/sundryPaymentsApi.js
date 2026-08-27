@@ -1,4 +1,4 @@
-import { apiFetch } from "@/lib/api";
+import { apiJson } from "@/lib/api";
 
 // Client for WebApplication1's SundryPaymentsController
 // (Areas/FrontOffice/Controllers/SundryPaymentsController.cs),
@@ -24,11 +24,7 @@ const CREDIT_BATCHES_BASE = `${FIN_BASE}/api/accounts/creditbatches`;
 // serialize as { Message }, capital M — same as CashDepositController's
 // requestsApi.js.
 export async function createSundryPayment(request) {
-  const res = await apiFetch(SUNDRY_PAYMENTS_BASE, { method: "POST", body: JSON.stringify(request) });
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok || body.success === false) {
-    throw new Error(body?.Message || body?.message || `Request failed (${res.status})`);
-  }
+  const body = await apiJson(SUNDRY_PAYMENTS_BASE, { method: "POST", body: JSON.stringify(request) });
   return body?.data ?? body;
 }
 
@@ -42,10 +38,6 @@ export async function listCreditBatchEntriesByType(creditBatchType, { startDate,
   const params = new URLSearchParams({ text, pageIndex: String(pageIndex), pageSize: String(pageSize) });
   if (startDate) params.set("startDate", startDate);
   if (endDate) params.set("endDate", endDate);
-  const res = await apiFetch(`${CREDIT_BATCHES_BASE}/entries/type/${creditBatchType}?${params.toString()}`);
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok || body.success === false) {
-    throw new Error(body?.message || body?.Message || `Request failed (${res.status})`);
-  }
+  const body = await apiJson(`${CREDIT_BATCHES_BASE}/entries/type/${creditBatchType}?${params.toString()}`);
   return body?.data ?? body;
 }

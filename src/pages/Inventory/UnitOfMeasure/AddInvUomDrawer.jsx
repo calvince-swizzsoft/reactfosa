@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Swal from "sweetalert2";
+import { apiErrorMessage, apiJson } from "@/lib/api";
 
 export default function AddInvUomDrawer({ open, onClose, onSuccess }) {
   const [formData, setFormData] = useState({
@@ -17,19 +18,16 @@ export default function AddInvUomDrawer({ open, onClose, onSuccess }) {
     setLoading(true);
 
     try {
-      const res = await fetch(
+      await apiJson(
         `${import.meta.env.VITE_APP_INV_URL}/api/unit-of-measure`,
         {
           method: "POST",
           headers: {
-            "Content-Type": "application/json",
             "ngrok-skip-browser-warning": "true",
           },
           body: JSON.stringify(formData),
         }
       );
-
-      if (!res.ok) throw new Error("Failed to add UOM");
 
       Swal.fire("Success", "Unit of Measure added successfully!", "success");
 
@@ -38,8 +36,7 @@ export default function AddInvUomDrawer({ open, onClose, onSuccess }) {
       if (onSuccess) onSuccess();
       onClose();
     } catch (err) {
-      console.error(err);
-      Swal.fire("Error", "Failed to add UOM.", "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to add the unit of measure."), "error");
     } finally {
       setLoading(false);
     }

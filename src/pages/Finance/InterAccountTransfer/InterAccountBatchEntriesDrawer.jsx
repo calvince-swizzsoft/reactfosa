@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Button } from "flowbite-react";
 import Swal from "sweetalert2";
+import { apiErrorMessage, apiJson } from "@/lib/api";
 
 const API_BASE = `${import.meta.env.VITE_APP_FIN_URL}/api/values`;
 
@@ -18,19 +19,15 @@ export default function InterAccountBatchEntriesDrawer({
         const fetchEntries = async () => {
             setLoading(true);
             try {
-                const res = await fetch(
+                const json = await apiJson(
                     //`${API_BASE}/FindInterTransferBatchesEntries?batchId=${batchId}`
                     `${API_BASE}/FindInterTransferBatchesEntries?batchId=${batchId}`
                 );
 
-                if (!res.ok) {
-                    throw new Error("Failed to fetch");
-                }
-
-                const json = await res.json();
                 setBatch(json); // ✅ OBJECT, not array
             } catch (err) {
-                Swal.fire("Error", "Failed to load batch entries", "error");
+                setBatch(null);
+                Swal.fire("Error", apiErrorMessage(err, "Unable to load batch entries."), "error");
             } finally {
                 setLoading(false);
             }

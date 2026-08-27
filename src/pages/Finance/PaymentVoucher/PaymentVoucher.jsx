@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import Swal from "sweetalert2";
 import NotFoundImage from "/assets/scopefinding.png";
+import { apiErrorMessage, apiJson } from "@/lib/api";
 
 export default function PaymentVoucher() {
   const [payments, setPayments] = useState([]);
@@ -24,13 +25,16 @@ export default function PaymentVoucher() {
   const [addDrawerOpen, setAddDrawerOpen] = useState(false);
 
   const fetchPayments = () => {
-    fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/values/GetPayments`)
-      .then((res) => res.json())
+    apiJson(`${import.meta.env.VITE_APP_FIN_URL}/api/values/GetPayments`)
       .then((data) => {
         setPayments(data.Data || []);
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch((error) => {
+        setPayments([]);
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load payment vouchers."), "error");
+        setLoading(false);
+      });
   };
 
 
@@ -53,19 +57,16 @@ export default function PaymentVoucher() {
     }).then(async (result) => {
       if (result.isConfirmed) {
         try {
-          const res = await fetch(
+          await apiJson(
             `${import.meta.env.VITE_APP_PRO_URL}/api/values/DeletePayment/${id}`,
             {
               method: "DELETE"
             }
           );
-          if (!res.ok) throw new Error("Failed to delete payment");
-
           Swal.fire("Deleted!", "Payment voucher has been deleted.", "success");
           fetchPayments();
         } catch (err) {
-          console.error(err);
-          Swal.fire("Error!", "Failed to delete voucher.", "error");
+          Swal.fire("Error!", apiErrorMessage(err, "Unable to delete the payment voucher."), "error");
         }
       }
     });

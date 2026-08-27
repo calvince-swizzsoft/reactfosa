@@ -16,9 +16,10 @@ import {
 } from "react-icons/fa";
 
 import NotFoundImage from "/assets/scopefinding.png";
+import Swal from "sweetalert2";
 import AddCompanies from "./AddCompanies";
 import EditCompanies from "./EditCompanies";
-import { apiFetch } from "@/lib/api";
+import { apiErrorMessage, apiJson } from "@/lib/api";
 
 const FIN_BASE = `${import.meta.env.VITE_APP_MEMBERSHIP_URL}`;
 const COMPANY_BASE = `${FIN_BASE}/api/administration/companies`;
@@ -62,13 +63,12 @@ export default function Companies() {
                 pageSize: String(pageSize),
                 text: searchQuery,
             });
-            const res = await apiFetch(`${COMPANY_BASE}?${params.toString()}`);
-            const json = await res.json();
+            const json = await apiJson(`${COMPANY_BASE}?${params.toString()}`, {}, { fallbackMessage: "Failed to load companies." });
             const payload = json?.data ?? json?.Data ?? {};
             setCompanies(normalizeList(json));
             setItemsCount(payload.itemsCount ?? payload.ItemsCount ?? 0);
         } catch (err) {
-            console.error("Fetch Companies Error:", err);
+            Swal.fire("Error", apiErrorMessage(err, "Unable to load companies."), "error");
             setCompanies([]);
             setItemsCount(0);
         } finally {

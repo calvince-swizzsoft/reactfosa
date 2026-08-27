@@ -8,6 +8,7 @@ import NotFoundImage from "/assets/scopefinding.png";
 import { FaExchangeAlt, FaEdit, FaPlus, FaChevronLeft, FaChevronRight } from "react-icons/fa";
 import BankLinkageForm from "./BankLinkageForm";
 import { listBankLinkages, updateBankLinkage } from "./api";
+import { apiErrorMessage } from "@/lib/api";
 
 function EditBankLinkageDrawer({ open, onClose, onSuccess, item }) {
   const [form, setForm] = useState(null);
@@ -42,7 +43,7 @@ function EditBankLinkageDrawer({ open, onClose, onSuccess, item }) {
       onSuccess();
       onClose();
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to update the bank linkage."), "error");
     } finally {
       setLoading(false);
     }
@@ -92,7 +93,11 @@ export default function BankLinkages() {
         setItems(page?.pageCollection || page?.PageCollection || []);
         setItemsCount(page?.itemsCount || page?.ItemsCount || 0);
       })
-      .catch(() => { setItems([]); setItemsCount(0); })
+      .catch((error) => {
+        setItems([]);
+        setItemsCount(0);
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load bank linkages."), "error");
+      })
       .finally(() => setLoading(false));
   };
 

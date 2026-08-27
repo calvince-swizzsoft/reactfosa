@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/select";
 import Swal from "sweetalert2";
 import { FaExchangeAlt } from "react-icons/fa";
-import { apiFetch, normalizeList } from "@/lib/api";
+import { apiErrorMessage, apiJson, normalizeList } from "@/lib/api";
 import { TreasuryTransactionType } from "../lib/frontOfficeEnums";
 import DenominationCountFields, { emptyDenominationCounts, sumDenominations, toDenominationSubtotals } from "../lib/DenominationCountFields";
 
@@ -63,32 +63,32 @@ export default function CashManagement() {
   useEffect(() => {
     setLoadingData(true);
     Promise.all([
-      apiFetch(`${FIN_BASE}/api/administration/branches`).then((r) => r.json()),
+      apiJson(`${FIN_BASE}/api/administration/branches`),
       // TellerController/TreasurysController.Index are both genuinely
       // paged now (default pageSize 20) — these are picker dropdowns, not
       // paginated lists, so ask for a page big enough to not silently drop
       // options past the 20th teller/treasury.
-      apiFetch(`${FIN_BASE}/api/frontoffice/tellers?pageSize=1000`).then((r) => r.json()),
+      apiJson(`${FIN_BASE}/api/frontoffice/tellers?pageSize=1000`),
       // Treasury master data moved to Areas/Accounts
       // (docs/api/treasury-api-spec.md) — api/frontoffice/treasurys no
       // longer resolves at all, that controller was removed/merged.
-      apiFetch(`${FIN_BASE}/api/accounts/treasurys?pageSize=1000`).then((r) => r.json()),
-      // ValuesController.getBankWithLinkages — the right source for this
-      // picker since it's the only endpoint that enriches BankLinkageDTO
-      // rows with live balance/display fields (bank-linkage-api-spec.md
-      // §4: bankLinkageBalance/address/city/etc. aren't populated by the
-      // plain api/accounts/banklinkages CRUD controller). Confirmed
-      // directly against the controller source: each row is a
-      // BankLinkageDTO with a real, distinct `BankId` field — that's what
-      // gets submitted below, NOT the row's own `Id` (the linkage's own
-      // id) — see the picker's key/value binding.
-      apiFetch(`${FIN_BASE}/api/values/getBankWithLinkages`).then((r) => r.json()),
+      apiJson(`${FIN_BASE}/api/accounts/treasurys?pageSize=1000`),
+      // The active BankLinkageController enriches the unpaged `all`
+      // response with bank details and live G/L balances. Submit BankId,
+      // not the linkage row's own Id — see the picker binding below.
+      apiJson(`${FIN_BASE}/api/accounts/banklinkages/all`),
     ]).then(([branchData, tellerData, treasuryData, bankData]) => {
       setBranches(normalizeList(branchData));
       setTellers(normalizeList(tellerData));
       setTreasuries(normalizeList(treasuryData));
       setBanks(normalizeList(bankData));
-    }).catch(() => { }).finally(() => setLoadingData(false));
+    }).catch((error) => {
+      setBranches([]);
+      setTellers([]);
+      setTreasuries([]);
+      setBanks([]);
+      Swal.fire("Error", apiErrorMessage(error, "Unable to load treasury transaction options."), "error");
+    }).finally(() => setLoadingData(false));
   }, []);
 
   const handleCountChange = (key, value) => setCounts((p) => ({ ...p, [key]: value }));
@@ -139,18 +139,16 @@ export default function CashManagement() {
 
     setLoading(true);
     try {
-      const res = await apiFetch(CASH_MANAGEMENT_BASE, {
+      const data = await apiJson(CASH_MANAGEMENT_BASE, {
         method: "POST",
         body: JSON.stringify(payload),
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || data.success === false) throw new Error(data.message || "Transaction failed");
 
       Swal.fire("Success", data.message || "Cash movement posted successfully", "success");
       setCounts(emptyDenominationCounts);
       setReference("");
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to post the cash movement."), "error");
     } finally {
       setLoading(false);
     }

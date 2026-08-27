@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Swal from "sweetalert2";
+import { apiErrorMessage, apiJson, normalizeList } from "@/lib/api";
 
 export default function AddInvItemDrawer({ open, onClose, onSuccess }) {
   const [formData, setFormData] = useState({
@@ -34,21 +35,24 @@ export default function AddInvItemDrawer({ open, onClose, onSuccess }) {
     const fetchData = async () => {
       try {
         const [catRes, uomRes, locRes] = await Promise.all([
-          fetch(`${import.meta.env.VITE_APP_INV_URL}/api/categories`, {
+          apiJson(`${import.meta.env.VITE_APP_INV_URL}/api/categories`, {
             headers: { "ngrok-skip-browser-warning": "true" },
-          }).then((r) => r.json()),
-          fetch(`${import.meta.env.VITE_APP_INV_URL}/api/unit-of-measure`, {
+          }),
+          apiJson(`${import.meta.env.VITE_APP_INV_URL}/api/unit-of-measure`, {
             headers: { "ngrok-skip-browser-warning": "true" },
-          }).then((r) => r.json()),
-          fetch(`${import.meta.env.VITE_APP_INV_URL}/api/locations`, {
+          }),
+          apiJson(`${import.meta.env.VITE_APP_INV_URL}/api/locations`, {
             headers: { "ngrok-skip-browser-warning": "true" },
-          }).then((r) => r.json()),
+          }),
         ]);
-        setCategories(catRes.data || []);
-        setUoms(uomRes.data || []);
-        setLocations(locRes.data || []);
+        setCategories(normalizeList(catRes));
+        setUoms(normalizeList(uomRes));
+        setLocations(normalizeList(locRes));
       } catch (err) {
-        console.error("Failed fetching dropdowns", err);
+        setCategories([]);
+        setUoms([]);
+        setLocations([]);
+        Swal.fire("Error", apiErrorMessage(err, "Unable to load item options."), "error");
       }
     };
     if (open) fetchData();
@@ -58,18 +62,14 @@ export default function AddInvItemDrawer({ open, onClose, onSuccess }) {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await fetch(`${import.meta.env.VITE_APP_INV_URL}/api/items`, {
+      const response = await apiJson(`${import.meta.env.VITE_APP_INV_URL}/api/items`, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
           "ngrok-skip-browser-warning": "true",
         },
         body: JSON.stringify(formData),
       });
-      const response = await res.json();
-      console.log('yes', response);
-      if (!res.ok) throw new Error( response.message || "Failed to add item");
-      response.success && Swal.fire("Success", response.message, "success");
+      if (response?.success) Swal.fire("Success", response.message, "success");
       setFormData({
         itemId: "",
         itemNo: "",
@@ -86,8 +86,7 @@ export default function AddInvItemDrawer({ open, onClose, onSuccess }) {
       if (onSuccess) onSuccess();
       onClose();
     } catch (err) {
-      console.error(err);
-      Swal.fire("Error", response.message || "Failed to add item.", "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to add the inventory item."), "error");
     } finally {
       setLoading(false);
     }

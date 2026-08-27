@@ -1,4 +1,4 @@
-import { apiFetch } from "@/lib/api";
+import { apiJson } from "@/lib/api";
 
 // Client for WebApplication1's CustomerReceiptsController
 // (Controllers/CustomerReceiptsController.cs, base
@@ -16,10 +16,6 @@ const CUSTOMER_RECEIPTS_BASE = `${FIN_BASE}/api/frontoffice/customerreceipts`;
 // CustomerReceiptRequest C# class. Plain BadRequest(string) failures
 // serialize as { Message }, capital M.
 export async function createCustomerReceipt(request) {
-  const res = await apiFetch(CUSTOMER_RECEIPTS_BASE, { method: "POST", body: JSON.stringify(request) });
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok || body.success === false) {
-    throw new Error(body?.Message || body?.message || `Request failed (${res.status})`);
-  }
+  const body = await apiJson(CUSTOMER_RECEIPTS_BASE, { method: "POST", body: JSON.stringify(request) });
   return body?.data ?? body;
 }

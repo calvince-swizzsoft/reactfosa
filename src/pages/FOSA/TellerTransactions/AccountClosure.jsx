@@ -17,6 +17,7 @@ import {
 import { createSundryPayment } from "./sundryPaymentsApi";
 import { AccountClosureRequestStatus, AccountClosureActionOption, GeneralTransactionType } from "../lib/frontOfficeEnums";
 import StatusStepper from "../lib/StatusStepper";
+import { apiErrorMessage } from "@/lib/api";
 
 // api/frontoffice/accountclosures — docs/api/frontoffice-api-spec.md §10.
 const MODULE_NAVIGATION_ITEM_CODE = 25014;
@@ -81,7 +82,7 @@ async function promptPayout(request) {
     });
     Swal.fire("Success", "Refund payout posted", "success");
   } catch (err) {
-    Swal.fire("Error", err.message, "error");
+    Swal.fire("Error", apiErrorMessage(err, "Unable to post the refund payout."), "error");
   }
 }
 
@@ -94,7 +95,10 @@ function AccountClosureDetailDrawer({ id, onClose, onChanged }) {
   const fetchOne = () => {
     if (!id) return;
     setLoading(true);
-    getAccountClosure(id).then(setRequest).catch(() => setRequest(null)).finally(() => setLoading(false));
+    getAccountClosure(id).then(setRequest).catch((error) => {
+      setRequest(null);
+      Swal.fire("Error", apiErrorMessage(error, "Unable to load the account-closure request."), "error");
+    }).finally(() => setLoading(false));
   };
 
   useEffect(() => { fetchOne(); setRemarks(""); }, [id]);
@@ -146,7 +150,7 @@ function AccountClosureDetailDrawer({ id, onClose, onChanged }) {
       }
       fetchOne();
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", apiErrorMessage(err, `Unable to ${label.toLowerCase()} the account-closure request.`), "error");
     } finally {
       setSubmitting(false);
     }
@@ -226,7 +230,11 @@ export default function AccountClosure() {
         setItems(page?.pageCollection || page?.PageCollection || []);
         setItemsCount(page?.itemsCount || page?.ItemsCount || 0);
       })
-      .catch(() => { setItems([]); setItemsCount(0); })
+      .catch((error) => {
+        setItems([]);
+        setItemsCount(0);
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load account-closure requests."), "error");
+      })
       .finally(() => setLoading(false));
   };
 

@@ -1,4 +1,4 @@
-import { apiFetch, normalizeList } from "@/lib/api";
+import { apiJson as apiFetch, normalizeList } from "@/lib/api";
 
 // Client for WebApplication1's PackageTypeController
 // (Areas/Control/Controllers/PackageTypeController.cs). NavigationMenu.cs
@@ -10,11 +10,7 @@ const BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 export const PACKAGE_TYPES_BASE = `${BASE}/api/control/packagetypes`;
 
 async function unwrapJson(responsePromise) {
-  const res = await responsePromise;
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok || body?.success === false) {
-    throw new Error(body?.message || body?.Message || `Request failed (${res.status})`);
-  }
+  const body = await responsePromise;
   return body?.data ?? body;
 }
 

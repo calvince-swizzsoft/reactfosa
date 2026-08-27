@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/select";
 import { FaBook } from "react-icons/fa";
 import Swal from "sweetalert2";
-import { apiFetch, normalizeList } from "@/lib/api";
+import { apiErrorMessage, apiJson, normalizeList } from "@/lib/api";
 import { createChequeBook } from "./api";
 import { ChequeBookType } from "../lib/chequeBookEnums";
 
@@ -62,10 +62,12 @@ export default function CreateChequeBook() {
 
   useEffect(() => {
     setLoadingData(true);
-    apiFetch(`${BASE}/api/registry/customers`)
-      .then((r) => r.json())
+    apiJson(`${BASE}/api/registry/customers`)
       .then((d) => setCustomers(normalizeList(d)))
-      .catch(() => setCustomers([]))
+      .catch((error) => {
+        setCustomers([]);
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load customers."), "error");
+      })
       .finally(() => setLoadingData(false));
   }, []);
 
@@ -75,10 +77,12 @@ export default function CreateChequeBook() {
     setForm((p) => ({ ...p, CustomerAccountId: "" }));
     if (!customerId) return;
     setLoadingAccounts(true);
-    apiFetch(`${BASE}/api/accounts/customer-accounts/${customerId}/accounts`)
-      .then((r) => r.json())
+    apiJson(`${BASE}/api/accounts/customer-accounts/${customerId}/accounts`)
       .then((d) => setAccounts(normalizeList(d)))
-      .catch(() => setAccounts([]))
+      .catch((error) => {
+        setAccounts([]);
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load customer accounts."), "error");
+      })
       .finally(() => setLoadingAccounts(false));
   };
 
@@ -115,7 +119,7 @@ export default function CreateChequeBook() {
       setSelectedCustomerId("");
       setAccounts([]);
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to create the cheque book."), "error");
     } finally {
       setLoading(false);
     }

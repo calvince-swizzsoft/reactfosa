@@ -1,4 +1,4 @@
-import { apiFetch, normalizeList } from "@/lib/api";
+import { apiJson as apiFetch, normalizeList } from "@/lib/api";
 
 // Client for WebApplication1's ExpensePayableController
 // (Controllers/ExpensePayableController.cs — not under an Areas/ folder,
@@ -20,11 +20,7 @@ const FIN_BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 const EXPENSE_PAYABLES_BASE = `${FIN_BASE}/api/frontoffice/expensepayables`;
 
 async function unwrap(responsePromise) {
-  const res = await responsePromise;
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok || body.success === false) {
-    throw new Error(body?.message || body?.Message || `Request failed (${res.status})`);
-  }
+  const body = await responsePromise;
   return body?.data ?? body;
 }
 

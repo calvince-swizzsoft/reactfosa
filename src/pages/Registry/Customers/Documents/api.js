@@ -1,4 +1,4 @@
-import { apiFetch, normalizeList } from "@/lib/api";
+import { ApiError, apiErrorFromResponse, apiFetch, apiJson, normalizeList } from "@/lib/api";
 
 // Client for WebApplication1's CustomerDocumentController
 // (Areas/Registry/Controllers/CustomerDocumentController.cs). Browse/Create/
@@ -15,11 +15,7 @@ const DOCUMENTS_BASE = `${BASE}/api/registry/customerdocuments`;
 const CUSTOMERS_BASE = `${BASE}/api/registry/customer`;
 
 async function unwrapJson(responsePromise) {
-  const res = await responsePromise;
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok || body?.success === false) {
-    throw new Error(body?.message || body?.Message || `Request failed (${res.status})`);
-  }
+  const body = await responsePromise;
   return body?.data ?? body;
 }
 
@@ -27,7 +23,7 @@ async function unwrapJson(responsePromise) {
 export async function listDocuments({ text = "", pageIndex = 0, pageSize = 20 } = {}) {
   const params = new URLSearchParams({ pageIndex: String(pageIndex), pageSize: String(pageSize) });
   if (text.trim()) params.set("text", text.trim());
-  const page = await unwrapJson(apiFetch(`${DOCUMENTS_BASE}/browse?${params.toString()}`));
+  const page = await unwrapJson(apiJson(`${DOCUMENTS_BASE}/browse?${params.toString()}`));
   return {
     items: normalizeList(page?.PageCollection ?? page?.pageCollection ?? page),
     itemsCount: Number(page?.ItemsCount ?? page?.itemsCount ?? 0),
@@ -37,9 +33,7 @@ export async function listDocuments({ text = "", pageIndex = 0, pageSize = 20 } 
 /** GET api/registry/customer — the same paged search the Customers list page uses, reused for the create form's customer lookup. */
 export async function searchCustomers({ text = "", customerFilter = 2, pageIndex = 0, pageSize = 20 } = {}) {
   const params = new URLSearchParams({ pageIndex: String(pageIndex), pageSize: String(pageSize), text, customerFilter: String(customerFilter) });
-  const res = await apiFetch(`${CUSTOMERS_BASE}?${params.toString()}`);
-  if (!res.ok) throw new Error("Could not search customers");
-  const body = await res.json();
+  const body = await apiJson(`${CUSTOMERS_BASE}?${params.toString()}`);
   const page = body?.data ?? body?.Data ?? body;
   return {
     items: normalizeList(page?.PageCollection ?? page?.pageCollection ?? page),
@@ -58,12 +52,12 @@ export function uploadDocument({ file, customerId, type, fileTitle, fileDescript
   formData.append("Type", String(type));
   formData.append("FileTitle", fileTitle || "");
   formData.append("FileDescription", fileDescription || "");
-  return unwrapJson(apiFetch(DOCUMENTS_BASE, { method: "POST", body: formData }));
+  return unwrapJson(apiJson(DOCUMENTS_BASE, { method: "POST", body: formData }));
 }
 
 /** PUT /{id} — Title/Description/Type/Customer reassignment only, never the attached file. */
 export function updateDocument(id, { customerId, type, fileTitle, fileDescription }) {
-  return unwrapJson(apiFetch(`${DOCUMENTS_BASE}/${id}`, {
+  return unwrapJson(apiJson(`${DOCUMENTS_BASE}/${id}`, {
     method: "PUT",
     body: JSON.stringify({ Id: id, CustomerId: customerId, Type: type, FileTitle: fileTitle, FileDescription: fileDescription }),
   }));
@@ -71,18 +65,28 @@ export function updateDocument(id, { customerId, type, fileTitle, fileDescriptio
 
 /** GET /{id}/download — raw bytes, requires the Authorization header, so fetched as a blob and saved manually. */
 export async function downloadDocument(id, suggestedFileName) {
-  const res = await apiFetch(`${DOCUMENTS_BASE}/${id}/download`);
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(text || "Failed to download document");
+  try {
+    const res = await apiFetch(`${DOCUMENTS_BASE}/${id}/download`);
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw apiErrorFromResponse(res, text, "Unable to download the document.");
+    }
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = suggestedFileName || "document";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    throw new ApiError({
+      status: 0,
+      code: "NETWORK_ERROR",
+      message: "The server could not be reached. Check your connection and try again.",
+      cause: error,
+    });
   }
-  const blob = await res.blob();
-  const url = window.URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = suggestedFileName || "document";
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  window.URL.revokeObjectURL(url);
 }

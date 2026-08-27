@@ -13,6 +13,7 @@ import {
   FaBook, FaPlus, FaChevronLeft, FaChevronRight, FaEdit, FaListUl, FaSearch,
 } from "react-icons/fa";
 import { listChequeBooks, updateChequeBook, matchVoucher } from "./api";
+import { apiErrorMessage } from "@/lib/api";
 import { ChequeBookType } from "../lib/chequeBookEnums";
 
 // Areas/Accounts/Controllers/ChequeBookController.cs — docs/api/chequebook-api-spec.md.
@@ -63,7 +64,7 @@ function EditChequeBookDrawer({ open, onClose, onSuccess, item }) {
       onSuccess();
       onClose();
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to update the cheque book."), "error");
     } finally {
       setLoading(false);
     }
@@ -154,7 +155,7 @@ function MatchVoucherModal({ open, onClose }) {
       const data = await matchVoucher({ chequeBookType: Number(chequeBookType), voucherNumber: Number(voucherNumber), chequeBookReference: chequeBookReference.trim() });
       setResults(Array.isArray(data) ? data : []);
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to match the voucher."), "error");
     } finally {
       setLoading(false);
     }
@@ -230,7 +231,11 @@ export default function ChequeBooks() {
         setItems(page?.pageCollection || page?.PageCollection || []);
         setItemsCount(page?.itemsCount || page?.ItemsCount || 0);
       })
-      .catch(() => { setItems([]); setItemsCount(0); })
+      .catch((error) => {
+        setItems([]);
+        setItemsCount(0);
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load cheque books."), "error");
+      })
       .finally(() => setLoading(false));
   };
 

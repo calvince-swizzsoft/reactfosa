@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/select";
 import { FaFileInvoiceDollar } from "react-icons/fa";
 import Swal from "sweetalert2";
-import { apiFetch, normalizeList } from "@/lib/api";
+import { apiErrorMessage, apiJson, normalizeList } from "@/lib/api";
 import { createExpensePayable } from "../expensePayablesApi";
 import { ExpensePayableType } from "../../lib/frontOfficeEnums";
 
@@ -48,12 +48,16 @@ export default function CreateExpensePayable() {
   useEffect(() => {
     setLoadingData(true);
     Promise.all([
-      apiFetch(`${FIN_BASE}/api/administration/branches`).then((r) => r.json()),
-      apiFetch(`${FIN_BASE}/api/accounts/chartofaccounts?pageSize=1000`).then((r) => r.json()),
+      apiJson(`${FIN_BASE}/api/administration/branches`),
+      apiJson(`${FIN_BASE}/api/accounts/chartofaccounts?pageSize=1000`),
     ]).then(([branchData, coaData]) => {
       setBranches(normalizeList(branchData));
       setChartOfAccounts(normalizeList(coaData));
-    }).catch(() => { }).finally(() => setLoadingData(false));
+    }).catch((error) => {
+      setBranches([]);
+      setChartOfAccounts([]);
+      Swal.fire("Error", apiErrorMessage(error, "Unable to load expense-payable options."), "error");
+    }).finally(() => setLoadingData(false));
   }, []);
 
   const handleChange = (field, value) => setForm((p) => ({ ...p, [field]: value }));
@@ -78,7 +82,7 @@ export default function CreateExpensePayable() {
       Swal.fire("Success", "Expense payable created — add entry lines from the list before verifying.", "success");
       navigate("/FrontOffice/ExpensePayables");
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to create the expense payable."), "error");
     } finally {
       setLoading(false);
     }

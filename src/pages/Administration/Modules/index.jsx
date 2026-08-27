@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { apiErrorMessage, apiJson } from "@/lib/api";
 
 const normalizeRoleName = (role) => role?.roleName || role?.RoleName || role?.name || role?.Name || role;
 
@@ -110,17 +111,12 @@ export default function AdministrationModules() {
     const fetchModules = async () => {
       setLoading(true);
       try {
-        const response = await fetch(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/modules`);
-        const data = await response.json().catch(() => []);
-
-        if (!response.ok) {
-          throw new Error(data?.message || "Failed to load modules");
-        }
+        const data = await apiJson(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/modules`, {}, { fallbackMessage: "Failed to load modules." });
 
         const moduleList = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
         setRawModules(moduleList);
       } catch (error) {
-        Swal.fire("Error", error.message || "Unable to load modules.", "error");
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load modules."), "error");
         setRawModules([]);
       } finally {
         setLoading(false);
@@ -130,17 +126,12 @@ export default function AdministrationModules() {
     const fetchRoles = async () => {
       setRolesLoading(true);
       try {
-        const response = await fetch(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/roles`);
-        const data = await response.json().catch(() => ({}));
-
-        if (!response.ok) {
-          throw new Error(data?.message || "Failed to load roles");
-        }
+        const data = await apiJson(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/roles`, {}, { fallbackMessage: "Failed to load roles." });
 
         const roleList = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
         setRoles(roleList.map(normalizeRoleName).filter(Boolean));
       } catch (error) {
-        Swal.fire("Error", error.message || "Unable to load roles.", "error");
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load roles."), "error");
       } finally {
         setRolesLoading(false);
       }
@@ -166,14 +157,7 @@ export default function AdministrationModules() {
         // someone else's access — so it hits the dedicated admin/reporting query
         // instead (`role-grants`), which takes a role name as plain lookup data,
         // same trust level as add-to-role/remove-from-role already have.
-        const response = await fetch(
-          `${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/modules/role-grants?role=${encodeURIComponent(selectedRole)}`
-        );
-        const data = await response.json().catch(() => ({}));
-
-        if (!response.ok) {
-          throw new Error(data?.message || "Failed to load this role's current access");
-        }
+        const data = await apiJson(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/modules/role-grants?role=${encodeURIComponent(selectedRole)}`, {}, { fallbackMessage: "Failed to load this role's current access." });
 
         const itemList = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
         // Each row is a NavigationItemInRoleDTO: its own `Id` is the role-assignment
@@ -181,7 +165,7 @@ export default function AdministrationModules() {
         const ids = itemList.map((item) => item?.NavigationItemId ?? item?.navigationItemId).filter(Boolean);
         setAssignedIds(new Set(ids.map(String)));
       } catch (error) {
-        Swal.fire("Error", error.message || "Unable to load current access for this role.", "error");
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load current access for this role."), "error");
         setAssignedIds(new Set());
       } finally {
         setAssignedLoading(false);
@@ -199,16 +183,10 @@ export default function AdministrationModules() {
 
     try {
       const endpoint = nextChecked ? "add-to-role" : "remove-from-role";
-      const response = await fetch(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/modules/${endpoint}`, {
+      await apiJson(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/modules/${endpoint}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ NavigationItemId: [node.Id], RoleName: selectedRole }),
-      });
-      const data = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        throw new Error(data?.message || `Failed to ${nextChecked ? "grant" : "revoke"} access to "${node.Description}"`);
-      }
+      }, { fallbackMessage: `Failed to ${nextChecked ? "grant" : "revoke"} access to "${node.Description}".` });
 
       setAssignedIds((prev) => {
         const next = new Set(prev);
@@ -216,7 +194,7 @@ export default function AdministrationModules() {
         return next;
       });
     } catch (error) {
-      Swal.fire("Error", error.message || "Unable to update role access.", "error");
+      Swal.fire("Error", apiErrorMessage(error, "Unable to update role access."), "error");
     } finally {
       setSavingIds((prev) => {
         const next = new Set(prev);

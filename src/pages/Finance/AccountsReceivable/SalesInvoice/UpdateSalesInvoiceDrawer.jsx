@@ -14,6 +14,7 @@ import {
 import Swal from "sweetalert2";
 import { FaTrash, FaChevronDown, FaChevronUp } from "react-icons/fa";
 import { IoIosArrowDropleftCircle } from "react-icons/io";
+import { apiErrorMessage, apiJson } from "@/lib/api";
 
 export default function UpdateSalesInvoiceDrawer({ open, onClose, onSuccess, invoice }) {
   const [formData, setFormData] = useState({
@@ -67,21 +68,20 @@ export default function UpdateSalesInvoiceDrawer({ open, onClose, onSuccess, inv
 
   // Fetch invoice types + chart of accounts
   useEffect(() => {
-    fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/values/GetPurchaseInvoiceEntryTypes`, {
+    apiJson(`${import.meta.env.VITE_APP_FIN_URL}/api/values/GetPurchaseInvoiceEntryTypes`, {
       headers: { "ngrok-skip-browser-warning": "true" },
     })
-      .then((r) => r.json())
       .then((data) => setInvoiceTypes(Array.isArray(data) ? data : data.Data || data))
       .catch((err) => {
-        console.error("Error fetching invoice types:", err);
         setInvoiceTypes([]);
+        Swal.fire("Error", apiErrorMessage(err, "Unable to load invoice types."), "error");
       });
 
     listAllChartOfAccounts()
       .then(setChartOfAccounts)
       .catch((err) => {
-        console.error("Error fetching chart of accounts:", err);
         setChartOfAccounts([]);
+        Swal.fire("Error", apiErrorMessage(err, "Unable to load chart accounts."), "error");
       });
   }, []);
 
@@ -135,7 +135,7 @@ export default function UpdateSalesInvoiceDrawer({ open, onClose, onSuccess, inv
     setLoading(true);
 
     try {
-      const res = await fetch(
+      const data = await apiJson(
         `${import.meta.env.VITE_APP_FIN_URL}/api/values/UpdateSalesInvoice`,
         {
           method: "PUT",
@@ -147,15 +147,11 @@ export default function UpdateSalesInvoiceDrawer({ open, onClose, onSuccess, inv
         }
       );
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.message || "Failed to update sales invoice");
-
       Swal.fire("Success", data?.message || "Invoice updated successfully", "success");
       if (onSuccess) onSuccess();
       onClose();
     } catch (err) {
-      console.error(err);
-      Swal.fire("Error", err?.message || "Update failed", "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to update the sales invoice."), "error");
     } finally {
       setLoading(false);
     }

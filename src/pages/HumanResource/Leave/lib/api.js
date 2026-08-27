@@ -1,4 +1,4 @@
-import { apiFetch } from "@/lib/api";
+import { apiJson as apiFetch } from "@/lib/api";
 
 // Client for WebApplication1's new LeaveApplicationsController/
 // LeaveTypesController (Areas/HumanResource/Controllers/, added
@@ -18,11 +18,7 @@ const LEAVE_TYPES_BASE = `${BASE}/api/humanresource/leavetypes`;
 const EMPLOYEES_BASE = `${BASE}/api/humanresource/employees`;
 
 async function unwrapJson(responsePromise) {
-  const res = await responsePromise;
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    throw new Error(body?.Message || body?.message || `Request failed (${res.status})`);
-  }
+  const body = await responsePromise;
   return body;
 }
 
@@ -86,7 +82,6 @@ export function updateLeaveType(id, payload) {
 
 /** GET api/humanresource/employees — unpaged, for the employee picker (same endpoint HumanResource/Documents/api.js already uses). */
 export async function listEmployees() {
-  const res = await apiFetch(EMPLOYEES_BASE);
-  const body = await res.json().catch(() => []);
+  const body = await apiFetch(EMPLOYEES_BASE);
   return Array.isArray(body) ? body : [];
 }

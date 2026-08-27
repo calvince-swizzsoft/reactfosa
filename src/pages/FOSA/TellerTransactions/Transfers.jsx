@@ -12,7 +12,7 @@ import {
 import { FaEllipsisV, FaCheckCircle, FaTimesCircle, FaPaperPlane, FaExchangeAlt } from "react-icons/fa";
 import Swal from "sweetalert2";
 import NotFoundImage from "/assets/scopefinding.png";
-import { apiFetch, normalizeList } from "@/lib/api";
+import { apiErrorMessage, apiJson, normalizeList } from "@/lib/api";
 import DenominationCountFields, {
   emptyDenominationCounts,
   sumDenominations,
@@ -116,22 +116,18 @@ function AddCashTransferDrawer({ open, onClose, onSuccess }) {
         TellerCashBalanceStatusValue: Number(form.TellerCashBalanceStatus),
         ...toDenominationSubtotals(counts),
       };
-      const res = await apiFetch(`${BASE}/api/frontoffice/transfers/cash`, {
+      const data = await apiJson(`${BASE}/api/frontoffice/transfers/cash`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.message || "Failed to create cash transfer");
-      data.success === false
-        ? Swal.fire("Error", data.message || "Cash transfer creation failed", "error")
-        : Swal.fire("Success", data.message || "Cash transfer created successfully", "success");
+      Swal.fire("Success", data?.message || "Cash transfer created successfully", "success");
       setForm(emptyCashForm);
       setCounts(emptyDenominationCounts);
       onSuccess();
       onClose();
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to create the cash transfer."), "error");
     } finally {
       setLoading(false);
     }
@@ -232,10 +228,12 @@ function CashTransferPanel() {
     setLoading(true);
     // TransfersController.GetCashTransferRequests returns the array bare
     // (no { success, message, data } envelope, unlike most of this API).
-    apiFetch(`${BASE}/api/frontoffice/transfers/cash`)
-      .then((r) => r.json())
+    apiJson(`${BASE}/api/frontoffice/transfers/cash`)
       .then((d) => setTransfers(Array.isArray(d) ? d : []))
-      .catch(() => setTransfers([]))
+      .catch((error) => {
+        setTransfers([]);
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load cash transfers."), "error");
+      })
       .finally(() => setLoading(false));
   };
 
@@ -251,7 +249,7 @@ function CashTransferPanel() {
     });
     if (!confirm.isConfirmed) return;
     try {
-      const res = await apiFetch(`${BASE}/api/frontoffice/transfers/cash/acknowledge?option=2`, {
+      const data = await apiJson(`${BASE}/api/frontoffice/transfers/cash/acknowledge?option=2`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -263,16 +261,10 @@ function CashTransferPanel() {
           TellerCashBalanceStatusValue: item.TellerCashBalanceStatusValue,
         }),
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error("Acknowledgement failed");
-      if (data.success === false) {
-        Swal.fire("Error", data.message, "error");
-      } else {
-        Swal.fire("Acknowledged!", data.message, "success");
-      }
+      Swal.fire("Acknowledged!", data?.message || "Transfer acknowledged.", "success");
       fetchTransfers();
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to acknowledge the transfer."), "error");
     }
   };
 
@@ -286,7 +278,7 @@ function CashTransferPanel() {
     });
     if (!confirm.isConfirmed) return;
     try {
-      const res = await apiFetch(`${BASE}/api/frontoffice/transfers/cash/acknowledge?option=3`, {
+      await apiJson(`${BASE}/api/frontoffice/transfers/cash/acknowledge?option=3`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -298,11 +290,10 @@ function CashTransferPanel() {
           TellerCashBalanceStatusValue: item.TellerCashBalanceStatusValue,
         }),
       });
-      if (!res.ok) throw new Error("Rejection failed");
       Swal.fire("Rejected!", "Transfer has been rejected.", "success");
       fetchTransfers();
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to reject the transfer."), "error");
     }
   };
 
@@ -316,14 +307,13 @@ function CashTransferPanel() {
     });
     if (!confirm.isConfirmed) return;
     try {
-      const res = await apiFetch(`${BASE}/api/frontoffice/transfers/cash/utilize?request=${id}`, {
+      await apiJson(`${BASE}/api/frontoffice/transfers/cash/utilize?request=${id}`, {
         method: "POST",
       });
-      if (!res.ok) throw new Error("Utilization failed");
       Swal.fire("Utilized!", "Transfer has been utilized.", "success");
       fetchTransfers();
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to utilize the transfer."), "error");
     }
   };
 
@@ -474,10 +464,12 @@ function ChequeTransferPanel() {
     setSelected([]);
     // ChequesController.Index (GET /api/frontoffice/cheques) is paged and
     // enveloped ({ success, message, data: PageCollectionInfo }).
-    apiFetch(`${BASE}/api/frontoffice/cheques?pageSize=1000`)
-      .then((r) => r.json())
+    apiJson(`${BASE}/api/frontoffice/cheques?pageSize=1000`)
       .then((d) => setCheques(normalizeList(d)))
-      .catch(() => setCheques([]))
+      .catch((error) => {
+        setCheques([]);
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load transferable cheques."), "error");
+      })
       .finally(() => setLoading(false));
   };
 
@@ -537,22 +529,16 @@ function ChequeTransferPanel() {
         .filter(Boolean)
         .map((c) => ({ Id: c.Id }));
 
-      const res = await apiFetch(`${BASE}/api/frontoffice/transfers/cheques`, {
+      const data = await apiJson(`${BASE}/api/frontoffice/transfers/cheques`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      const data = await res.json().catch(() => ({}));
-
-      if (!res.ok) throw new Error(data.message || "Transfer failed");
-
-      data.success === false
-        ? Swal.fire("Error", data.message || "Transfer failed", "error")
-        : Swal.fire("Success", data.message || "Cheques transferred successfully", "success");
+      Swal.fire("Success", data?.message || "Cheques transferred successfully", "success");
 
       fetchCheques();
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to transfer the selected cheques."), "error");
     } finally {
       setTransferring(false);
     }

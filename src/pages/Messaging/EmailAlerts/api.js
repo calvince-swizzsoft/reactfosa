@@ -1,4 +1,4 @@
-import { apiFetch } from "@/lib/api";
+import { apiJson as apiFetch } from "@/lib/api";
 
 const FIN_BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 const BASE = `${FIN_BASE}/api/messaging/emailalerts`;
@@ -24,13 +24,7 @@ export const QueuePriority = {
 };
 
 async function unwrap(responsePromise) {
-  const response = await responsePromise;
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok || body.success === false) {
-    const error = new Error(body.message || "Request failed");
-    error.status = response.status;
-    throw error;
-  }
+  const body = await responsePromise;
   return body.data;
 }
 

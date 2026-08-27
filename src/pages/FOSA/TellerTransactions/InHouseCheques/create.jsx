@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/select";
 import { FaMoneyCheck, FaPlus, FaTrash } from "react-icons/fa";
 import Swal from "sweetalert2";
-import { apiFetch, normalizeList } from "@/lib/api";
+import { apiErrorMessage, apiJson, normalizeList } from "@/lib/api";
 import { createInHouseCheques } from "../inHouseChequesApi";
 import { InHouseChequeFunding } from "../../lib/frontOfficeEnums";
 
@@ -48,16 +48,22 @@ export default function CreateInHouseCheques() {
   useEffect(() => {
     setLoadingData(true);
     Promise.all([
-      apiFetch(`${FIN_BASE}/api/administration/branches`).then((r) => r.json()),
-      apiFetch(`${FIN_BASE}/api/accounts/chequetypes/all`).then((r) => r.json()),
-      apiFetch(`${FIN_BASE}/api/accounts/chartofaccounts?pageSize=1000`).then((r) => r.json()),
-      apiFetch(`${FIN_BASE}/api/registry/customers`).then((r) => r.json()),
+      apiJson(`${FIN_BASE}/api/administration/branches`),
+      apiJson(`${FIN_BASE}/api/accounts/chequetypes/all`),
+      apiJson(`${FIN_BASE}/api/accounts/chartofaccounts?pageSize=1000`),
+      apiJson(`${FIN_BASE}/api/registry/customers`),
     ]).then(([branchData, ctData, coaData, custData]) => {
       setBranches(normalizeList(branchData));
       setChequeTypes(normalizeList(ctData));
       setChartOfAccounts(normalizeList(coaData));
       setCustomers(normalizeList(custData));
-    }).catch(() => { }).finally(() => setLoadingData(false));
+    }).catch((error) => {
+      setBranches([]);
+      setChequeTypes([]);
+      setChartOfAccounts([]);
+      setCustomers([]);
+      Swal.fire("Error", apiErrorMessage(error, "Unable to load in-house cheque options."), "error");
+    }).finally(() => setLoadingData(false));
   }, []);
 
   const updateRow = (index, patch) => {
@@ -71,10 +77,12 @@ export default function CreateInHouseCheques() {
   const handleCustomerChange = (index, customerId) => {
     updateRow(index, { _customerId: customerId, DebitCustomerAccountId: "", _accounts: [], _loadingAccounts: true });
     if (!customerId) { updateRow(index, { _loadingAccounts: false }); return; }
-    apiFetch(`${FIN_BASE}/api/accounts/customer-accounts/${customerId}/accounts`)
-      .then((r) => r.json())
+    apiJson(`${FIN_BASE}/api/accounts/customer-accounts/${customerId}/accounts`)
       .then((d) => updateRow(index, { _accounts: normalizeList(d), _loadingAccounts: false }))
-      .catch(() => updateRow(index, { _accounts: [], _loadingAccounts: false }));
+      .catch((error) => {
+        updateRow(index, { _accounts: [], _loadingAccounts: false });
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load customer accounts."), "error");
+      });
   };
 
   const addRow = () => setRows((prev) => [...prev, emptyRow()]);
@@ -110,7 +118,7 @@ export default function CreateInHouseCheques() {
       Swal.fire("Success", "Cheque(s) submitted successfully", "success");
       navigate("/FrontOffice/InHouseCheques");
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to submit the in-house cheques."), "error");
     } finally {
       setLoading(false);
     }

@@ -17,6 +17,7 @@ import Swal from "sweetalert2";
 import NotFoundImage from "/assets/scopefinding.png";
 import AddCreditBatchDrawer from "./AddCreditBatchDrawer";
 import CreditBatchEntriesDrawer from "./CreditBatchEntriesDrawer";
+import { apiErrorMessage, apiJson } from "@/lib/api";
 
 
 export default function Creditbatches() {
@@ -45,18 +46,20 @@ export default function Creditbatches() {
     };
 
     const fetchCreditBatches = () => {
-        fetch(
+        apiJson(
             `${import.meta.env.VITE_APP_FIN_URL}/api/values/creditbatches`,
             // {
             //     headers: { "ngrok-skip-browser-warning": "true" },
             // }
         )
-            .then((res) => res.json())
             .then((data) => {
                 setBatches(data || []);
-                setLoading(false);
             })
-            .catch(() => setLoading(false));
+            .catch((error) => {
+                setBatches([]);
+                Swal.fire("Error", apiErrorMessage(error, "Unable to load credit batches."), "error");
+            })
+            .finally(() => setLoading(false));
     };
 
     useEffect(() => {
@@ -71,7 +74,7 @@ export default function Creditbatches() {
             const formData = new FormData();
             formData.append("file", file); // key must match backend expectation
 
-            const res = await fetch(
+            const data = await apiJson(
                 `${import.meta.env.VITE_APP_FIN_URL}/api/values/creditbatch/${batchId}/import`,
                 {
                     method: "POST",
@@ -83,8 +86,6 @@ export default function Creditbatches() {
             );
 
 
-            const data = await res.json().catch(() => ({}));
-            console.log(data);
             if (data.MismatchCount >= 1) {
                 Swal.fire("Error", "found more customer account matches by personal file", "error");
             } else {
@@ -95,13 +96,8 @@ export default function Creditbatches() {
                 );
             }
 
-            if (!res.ok) {
-                throw new Error(data?.message || "Failed to upload file");
-            }
-
-
         } catch (err) {
-            Swal.fire("Error", err.message, "error");
+            Swal.fire("Error", apiErrorMessage(err, "Unable to import the credit-batch file."), "error");
         }
     };
 
@@ -128,7 +124,7 @@ export default function Creditbatches() {
                 didOpen: () => Swal.showLoading(),
             });
 
-            const res = await fetch(
+            await apiJson(
                 `${import.meta.env.VITE_APP_FIN_URL}/api/values/creditbatch/${batchId}/post`,
                 {
                     method: "POST",
@@ -138,16 +134,10 @@ export default function Creditbatches() {
                 }
             );
 
-            const data = await res.json().catch(() => ({}));
-            if (!res.ok) {
-                throw new Error(data?.message || "Failed to post batch");
-            }
-
-            console.log(data);
             Swal.fire("Success", "Credit batch posted successfully", "success");
             fetchCreditBatches(); // refresh status
         } catch (err) {
-            Swal.fire("Error", err.message, "error");
+            Swal.fire("Error", apiErrorMessage(err, "Unable to post the credit batch."), "error");
         }
     };
 

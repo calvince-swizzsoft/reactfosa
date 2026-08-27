@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import Swal from "sweetalert2";
 import NotFoundImage from "/assets/scopefinding.png";
 import { FaPlus, FaChevronLeft, FaChevronRight } from "react-icons/fa";
-import { apiFetch, normalizeList } from "@/lib/api";
+import { apiErrorMessage, apiJson, normalizeList } from "@/lib/api";
 import {
   listChartOfAccounts, getChartOfAccount, getChartOfAccountTree, updateChartOfAccount,
 } from "./api";
@@ -38,7 +38,10 @@ function EditChartOfAccountDrawer({ open, onClose, onSuccess, accountId, parentO
         PostAutomaticallyOnly: !!dto.PostAutomaticallyOnly,
         IsLocked: !!dto.IsLocked,
       }))
-      .catch(() => setForm(null))
+      .catch((error) => {
+        setForm(null);
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load the chart account."), "error");
+      })
       .finally(() => setLoadingItem(false));
   }, [open, accountId]);
 
@@ -59,7 +62,7 @@ function EditChartOfAccountDrawer({ open, onClose, onSuccess, accountId, parentO
       onSuccess();
       onClose();
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to update the chart account."), "error");
     } finally {
       setLoading(false);
     }
@@ -124,7 +127,10 @@ export default function ChartOfAccounts() {
     // view (chartofaccount-api-spec.md §3.3).
     getChartOfAccountTree()
       .then((data) => setTreeItems(Array.isArray(data) ? data : []))
-      .catch(() => setTreeItems([]))
+      .catch((error) => {
+        setTreeItems([]);
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load the chart-of-accounts tree."), "error");
+      })
       .finally(() => setLoadingTree(false));
   };
 
@@ -137,7 +143,11 @@ export default function ChartOfAccounts() {
         setSearchItems(page?.pageCollection || page?.PageCollection || []);
         setItemsCount(page?.itemsCount || page?.ItemsCount || 0);
       })
-      .catch(() => { setSearchItems([]); setItemsCount(0); })
+      .catch((error) => {
+        setSearchItems([]);
+        setItemsCount(0);
+        Swal.fire("Error", apiErrorMessage(error, "Unable to search chart accounts."), "error");
+      })
       .finally(() => setLoadingSearch(false));
   };
 
@@ -145,10 +155,12 @@ export default function ChartOfAccounts() {
 
   useEffect(() => {
     setLoadingLists(true);
-    apiFetch(`${FIN_BASE}/api/accounts/costcenters?pageSize=1000`)
-      .then((r) => r.json())
+    apiJson(`${FIN_BASE}/api/accounts/costcenters?pageSize=1000`)
       .then((costCenterData) => setCostCenters(normalizeList(costCenterData)))
-      .catch(() => { })
+      .catch((error) => {
+        setCostCenters([]);
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load cost centers."), "error");
+      })
       .finally(() => setLoadingLists(false));
   }, []);
 

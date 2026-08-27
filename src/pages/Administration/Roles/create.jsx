@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Swal from "sweetalert2";
+import { apiErrorMessage, apiJson } from "@/lib/api";
 
 export default function CreateRole() {
   const [roleName, setRoleName] = useState("");
@@ -21,26 +22,15 @@ export default function CreateRole() {
     setLoading(true);
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/roles`, {
+      const data = await apiJson(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/roles`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
         body: JSON.stringify({ name: trimmedName }),
-        
-      });
-
-      const data = await response.json().catch(() => ({}));
-      console.log(data);
-
-      if (!response.ok) {
-        throw new Error(data?.message || "Failed to create role");
-      }
+      }, { fallbackMessage: "Failed to create role." });
 
       Swal.fire("Success", data?.message || `Role "${trimmedName}" created successfully.`, "success");
       setRoleName("");
     } catch (error) {
-      Swal.fire("Error", error.message || "Unable to create role.", "error");
+      Swal.fire("Error", apiErrorMessage(error, "Unable to create role."), "error");
     } finally {
       setLoading(false);
     }

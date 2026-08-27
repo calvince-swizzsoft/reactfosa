@@ -1,4 +1,4 @@
-import { apiFetch, normalizeList } from "@/lib/api";
+import { apiFetch, apiJson, normalizeList } from "@/lib/api";
 
 // Client functions for WebApplication1's CashDepositController
 // (Areas/FrontOffice/Controllers/CashDepositController.cs), base
@@ -41,15 +41,7 @@ const FIN_BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 const REQUESTS_BASE = `${FIN_BASE}/api/frontoffice/requests`;
 
 async function unwrap(responsePromise) {
-  const res = await responsePromise;
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    // Plain BadRequest(string) on this controller serializes as
-    // { Message } (capital M), not the usual { message } envelope.
-    const err = new Error(body?.Message || body?.message || `Request failed (${res.status})`);
-    err.status = res.status;
-    throw err;
-  }
+  const body = await responsePromise;
   return body;
 }
 
@@ -67,7 +59,7 @@ export async function listRequests({ type, status, text = "", startDate, endDate
   if (status !== undefined && status !== null) params.set("status", String(status));
   if (startDate) params.set("startDate", startDate);
   if (endDate) params.set("endDate", endDate);
-  const body = await unwrap(apiFetch(`${REQUESTS_BASE}?${params.toString()}`));
+  const body = await unwrap(apiJson(`${REQUESTS_BASE}?${params.toString()}`));
   return body?.data ?? body;
 }
 
@@ -100,7 +92,7 @@ export async function createTransaction(model) {
  * it as a plain method parameter. 400 if the request isn't Authorized yet.
  */
 export async function postAuthorizedRequest(id) {
-  const body = await unwrap(apiFetch(`${REQUESTS_BASE}/post?id=${id}`, { method: "POST" }));
+  const body = await unwrap(apiJson(`${REQUESTS_BASE}/post?id=${id}`, { method: "POST" }));
   return body?.data ?? body;
 }
 

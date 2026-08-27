@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search } from "lucide-react";
+import Swal from "sweetalert2";
+import { apiErrorMessage, apiJson } from "@/lib/api";
 
 export default function CustomerSelectModal({ open, onClose, onSelect }) {
   const [search, setSearch] = useState("");
@@ -13,10 +15,12 @@ export default function CustomerSelectModal({ open, onClose, onSelect }) {
     if (!open) return;
     setSearch("");
     setLoading(true);
-    fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/administration/customers`)
-      .then((res) => res.json())
+    apiJson(`${import.meta.env.VITE_APP_FIN_URL}/api/administration/customers`)
       .then((d) => setCustomers(d.success ? d.data : []))
-      .catch((err) => console.error("Failed to load members", err))
+      .catch((error) => {
+        setCustomers([]);
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load members."), "error");
+      })
       .finally(() => setLoading(false));
   }, [open]);
 

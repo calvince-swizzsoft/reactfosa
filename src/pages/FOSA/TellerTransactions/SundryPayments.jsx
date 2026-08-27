@@ -6,7 +6,7 @@ import Swal from "sweetalert2";
 import {
   FaHandHoldingUsd, FaPaperPlane, FaSearch, FaChevronDown, FaTimes, FaSpinner,
 } from "react-icons/fa";
-import { apiFetch, normalizeList } from "@/lib/api";
+import { apiErrorMessage, apiJson, normalizeList } from "@/lib/api";
 import { createSundryPayment, listCreditBatchEntriesByType } from "./sundryPaymentsApi";
 import { listAccountClosures } from "./accountClosuresApi";
 import {
@@ -45,10 +45,12 @@ function AccountPickerModal({ onSelect, onClose }) {
   const [query, setQuery] = useState("");
 
   useEffect(() => {
-    apiFetch(`${FIN_BASE}/api/accounts/chartofaccounts?pageSize=1000`)
-      .then((r) => r.json())
+    apiJson(`${FIN_BASE}/api/accounts/chartofaccounts?pageSize=1000`)
       .then((d) => setAccounts(normalizeList(d)))
-      .catch(() => setAccounts([]))
+      .catch((error) => {
+        setAccounts([]);
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load chart accounts."), "error");
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -142,7 +144,7 @@ function ManualEntryPanel({ transactionType, title, hint, onPosted }) {
       onPosted(journal);
       setForm(emptyManualForm);
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to post the sundry payment."), "error");
     } finally {
       setLoading(false);
     }
@@ -203,7 +205,10 @@ function AccountClosurePickPanel({ onPosted }) {
     setLoading(true);
     listAccountClosures({ status: AccountClosureRequestStatus.Audited, pageSize: 100 })
       .then((page) => setRequests(page?.pageCollection || page?.PageCollection || []))
-      .catch(() => setRequests([]))
+      .catch((error) => {
+        setRequests([]);
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load account-closure requests."), "error");
+      })
       .finally(() => setLoading(false));
   };
 
@@ -231,7 +236,7 @@ function AccountClosurePickPanel({ onPosted }) {
       setDescription("");
       fetchQueue();
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to post the account-closure payment."), "error");
     } finally {
       setSubmitting(false);
     }
@@ -315,7 +320,10 @@ function CashPickupPickPanel({ onPosted }) {
         // actually still payable (Posted ones were already picked up).
         setEntries(all.filter((e) => e.Status === BatchEntryStatus.Pending));
       })
-      .catch(() => setEntries([]))
+      .catch((error) => {
+        setEntries([]);
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load cash-pickup entries."), "error");
+      })
       .finally(() => setLoading(false));
   };
 
@@ -349,7 +357,7 @@ function CashPickupPickPanel({ onPosted }) {
       setDescription("");
       fetchQueue();
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to post the cash pickup."), "error");
     } finally {
       setSubmitting(false);
     }

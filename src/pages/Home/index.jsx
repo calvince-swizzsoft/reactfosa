@@ -6,7 +6,7 @@ import {
 } from "react-icons/fa";
 import { useAuth } from "@/context/AuthContext";
 import { useModuleTree } from "@/context/ModuleTreeContext";
-import { apiFetch, normalizeList } from "@/lib/api";
+import { apiJson, normalizeList } from "@/lib/api";
 import { findFirstBuiltPath, isPathGranted } from "@/lib/moduleTree";
 import { moduleRouteMap } from "@/lib/moduleRouteMap";
 import { getIconForModule } from "@/lib/faIconMap";
@@ -31,9 +31,11 @@ const itemsCountOf = (page) =>
 
 async function fetchCustomerCount() {
   const params = new URLSearchParams({ pageIndex: "0", pageSize: "1", text: "", customerFilter: "2" });
-  const response = await apiFetch(`${FIN_BASE}/api/registry/customer?${params.toString()}`);
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error("Failed to load customer count");
+  const body = await apiJson(
+    `${FIN_BASE}/api/registry/customer?${params.toString()}`,
+    {},
+    { fallbackMessage: "Failed to load customer count." },
+  );
   return itemsCountOf(body?.data ?? body?.Data ?? body);
 }
 
@@ -53,9 +55,11 @@ async function fetchPendingApprovalsCount(roles) {
     pageIndex: "0",
     pageSize: "1000",
   });
-  const response = await apiFetch(`${ADMIN_URL}/api/administration/workflows/items/mine?${params.toString()}`);
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data?.message || "Failed to load approvals");
+  const data = await apiJson(
+    `${ADMIN_URL}/api/administration/workflows/items/mine?${params.toString()}`,
+    {},
+    { fallbackMessage: "Failed to load approvals." },
+  );
 
   const list = normalizeList(data).map(normalizeWorkflowItem);
   return list.filter(
@@ -260,8 +264,13 @@ export default function Home() {
 
   if (treeLoading) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center p-6 text-sm text-gray-500">
-        Loading your workspace...
+      <div className="bg-white m-8 px-8 py-8 shadow-2xl rounded-lg" aria-label="Preparing dashboard">
+        <div className="h-12 animate-pulse rounded-2xl bg-indigo-200" />
+        <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+          {Array.from({ length: 8 }).map((_, index) => (
+            <div key={index} className="h-28 animate-pulse rounded-lg bg-gray-100 shadow" />
+          ))}
+        </div>
       </div>
     );
   }

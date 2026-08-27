@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FaHandPaper } from "react-icons/fa";
 import Swal from "sweetalert2";
-import { apiFetch, normalizeList } from "@/lib/api";
+import { apiErrorMessage, apiJson, normalizeList } from "@/lib/api";
 import { createUnpayReason } from "./api";
 import PickerList from "../lib/PickerList";
 
@@ -35,10 +35,12 @@ export default function CreateUnpayReason() {
 
   useEffect(() => {
     setLoadingCommissions(true);
-    apiFetch(`${BASE}/api/accounts/commissions`)
-      .then((r) => r.json())
+    apiJson(`${BASE}/api/accounts/commissions`)
       .then((d) => setCommissions(normalizeList(d)))
-      .catch(() => setCommissions([]))
+      .catch((error) => {
+        setCommissions([]);
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load commissions."), "error");
+      })
       .finally(() => setLoadingCommissions(false));
   }, []);
 
@@ -70,7 +72,7 @@ export default function CreateUnpayReason() {
       setForm(emptyForm);
       setSelectedCommissionIds(new Set());
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to create the unpay reason."), "error");
     } finally {
       setLoading(false);
     }

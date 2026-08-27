@@ -6,6 +6,7 @@ import Swal from "sweetalert2";
 import { FaHandHoldingUsd, FaPlus, FaSearch } from "react-icons/fa";
 import NotFoundImage from "/assets/scopefinding.png";
 import { listLoanProductsPaged } from "./api";
+import { apiErrorMessage } from "@/lib/api";
 
 // api/accounts/loanproducts — docs/api/loan-product-api-spec.md. A
 // different, Accounts-module LoanProduct concept from the legacy loan API
@@ -27,7 +28,10 @@ export default function LoanProducts() {
         setItems(page?.pageCollection || page?.PageCollection || []);
         setItemsCount(page?.itemsCount ?? page?.ItemsCount ?? 0);
       })
-      .catch(() => setItems([]))
+      .catch((error) => {
+        setItems([]);
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load loan products."), "error");
+      })
       .finally(() => setLoading(false));
   };
 

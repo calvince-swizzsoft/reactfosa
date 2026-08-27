@@ -1,4 +1,4 @@
-import { apiFetch, normalizeList } from "@/lib/api";
+import { apiJson as apiFetch, normalizeList } from "@/lib/api";
 
 // Client for WebApplication1's InHouseController
 // (Controllers/InHouseController.cs), base api/frontoffice/inhousecheques,
@@ -13,11 +13,7 @@ const FIN_BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 const IN_HOUSE_CHEQUES_BASE = `${FIN_BASE}/api/frontoffice/inhousecheques`;
 
 async function unwrap(responsePromise) {
-  const res = await responsePromise;
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok || body.success === false) {
-    throw new Error(body?.message || body?.Message || `Request failed (${res.status})`);
-  }
+  const body = await responsePromise;
   return body?.data ?? body;
 }
 

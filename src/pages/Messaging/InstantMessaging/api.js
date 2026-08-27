@@ -1,11 +1,9 @@
-import { apiFetch } from "@/lib/api";
+import { apiJson as apiFetch } from "@/lib/api";
 
 const BASE = `${import.meta.env.VITE_APP_FIN_URL}/api/messaging/instant-messages`;
 
 async function read(responsePromise) {
-  const response = await responsePromise;
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok || payload?.success === false) throw new Error(payload?.message || `Request failed (${response.status})`);
+  const payload = await responsePromise;
   return payload?.data ?? payload?.Data ?? payload;
 }
 

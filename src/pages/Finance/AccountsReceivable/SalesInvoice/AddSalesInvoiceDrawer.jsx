@@ -14,6 +14,7 @@ import {
 import Swal from "sweetalert2";
 import { FaTrash, FaChevronDown, FaChevronUp } from "react-icons/fa";
 import { IoIosArrowDropleftCircle } from "react-icons/io";
+import { apiErrorMessage, apiJson } from "@/lib/api";
 
 export default function AddSalesInvoiceDrawer({ open, onClose, onSuccess }) {
   const [formData, setFormData] = useState({
@@ -84,7 +85,7 @@ export default function AddSalesInvoiceDrawer({ open, onClose, onSuccess }) {
     setLoading(true);
 
     try {
-      const res = await fetch(
+      await apiJson(
         `${import.meta.env.VITE_APP_FIN_URL}/api/values/AddSalesInvoice`,
         {
           method: "POST",
@@ -95,10 +96,6 @@ export default function AddSalesInvoiceDrawer({ open, onClose, onSuccess }) {
           body: JSON.stringify(formData),
         }
       );
-
-      const data = await res.json();
-      if (!res.ok || !data.success)
-        throw new Error(data.message || "Failed to add sales invoice");
 
       Swal.fire("Success", data.message, "success");
 
@@ -126,8 +123,7 @@ export default function AddSalesInvoiceDrawer({ open, onClose, onSuccess }) {
       if (onSuccess) onSuccess();
       onClose();
     } catch (err) {
-      console.error(err);
-      Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to add the sales invoice."), "error");
     } finally {
       setLoading(false);
     }
@@ -141,19 +137,21 @@ export default function AddSalesInvoiceDrawer({ open, onClose, onSuccess }) {
 
   useEffect(() => {
     // Fetch Sales Invoice Types
-    fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/values/GetPurchaseInvoiceEntryTypes`, {
+    apiJson(`${import.meta.env.VITE_APP_FIN_URL}/api/values/GetPurchaseInvoiceEntryTypes`, {
       headers: { "ngrok-skip-browser-warning": "true" },
     })
-      .then((res) => res.json())
       .then((data) => setInvoiceTypes(data))
-      .catch((err) => console.error("Error fetching invoice types:", err));
+      .catch((error) => {
+        setInvoiceTypes([]);
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load invoice types."), "error");
+      });
 
     // Fetch Chart of Accounts
     listAllChartOfAccounts()
       .then(setChartOfAccounts)
       .catch((err) => {
-        console.error("Error fetching chart of accounts:", err);
         setChartOfAccounts([]);
+        Swal.fire("Error", apiErrorMessage(err, "Unable to load chart accounts."), "error");
       });
   }, []);
 
