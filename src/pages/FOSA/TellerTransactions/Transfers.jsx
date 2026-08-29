@@ -4,9 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
-import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { FaEllipsisV, FaCheckCircle, FaTimesCircle, FaPaperPlane, FaExchangeAlt } from "react-icons/fa";
@@ -39,13 +36,6 @@ const BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 
 /* ══════════════════════════ Cash Transfer ══════════════════════════ */
 
-// TellerCashBalanceStatus enum: Balanced=0x5000(20480), Shortage=20481, Excess=20482
-const BALANCE_STATUS_OPTIONS = [
-  { value: 20480, label: "Balanced" },
-  { value: 20481, label: "Shortage" },
-  { value: 20482, label: "Excess" },
-];
-
 function SkeletonRow() {
   return (
     <div className="grid grid-cols-10 gap-2 items-center bg-white px-4 py-3 rounded-lg shadow border animate-pulse">
@@ -62,10 +52,8 @@ function SkeletonRow() {
 }
 
 const emptyCashForm = {
-  TotalDebits: "",
-  TotalCredits: "",
-  OpeningBalance: "0",
-  TellerCashBalanceStatus: "20480",
+  Reference: "",
+  TotalAmount: "",
 };
 
 function FieldGroup({ label, children }) {
@@ -81,10 +69,19 @@ function AddCashTransferDrawer({ open, onClose, onSuccess }) {
   const [form, setForm] = useState(emptyCashForm);
   const [counts, setCounts] = useState(emptyDenominationCounts);
   const [loading, setLoading] = useState(false);
+  const [context, setContext] = useState(null);
+  const [tallyMode, setTallyMode] = useState("count");
 
   const handleChange = (field, value) => setForm((p) => ({ ...p, [field]: value }));
   const handleCountChange = (key, value) => setCounts((p) => ({ ...p, [key]: value }));
-  const amount = sumDenominations(counts);
+  const amount = tallyMode === "count" ? sumDenominations(counts) : Number(form.TotalAmount || 0);
+
+  useEffect(() => {
+    if (!open) return;
+    apiJson(`${BASE}/api/frontoffice/transfers/cheques`)
+      .then(setContext)
+      .catch((error) => Swal.fire("Teller Context Unavailable", apiErrorMessage(error, "Unable to load today's teller totals."), "error"));
+  }, [open]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -98,8 +95,8 @@ function AddCashTransferDrawer({ open, onClose, onSuccess }) {
       // regardless of what's sent (TransfersController.Create) — not a
       // client-supplied field.
       const payload = {
-        TotalDebits: Number(form.TotalDebits),
-        TotalCredits: Number(form.TotalCredits),
+        Reference: form.Reference.trim(),
+        TallyByTotal: tallyMode === "total",
         // Amount is derived from the counted denominations, not entered
         // separately — the server now requires the 11 Denomination*Value
         // fields to reconcile exactly against Amount
@@ -107,14 +104,7 @@ function AddCashTransferDrawer({ open, onClose, onSuccess }) {
         // guarantees that by construction instead of risking a 400 from a
         // teller-entered figure that doesn't match their count.
         Amount: amount,
-        OpeningBalance: String(form.OpeningBalance),
-        // TellerCashBalanceStatus (no suffix) is a read-only computed
-        // description string on the real CashTransferRequestDTO — it has
-        // no setter, so sending it here is silently discarded.
-        // TellerCashBalanceStatusValue (int) is the actual settable field,
-        // confirmed against the real DTO source.
-        TellerCashBalanceStatusValue: Number(form.TellerCashBalanceStatus),
-        ...toDenominationSubtotals(counts),
+        ...(tallyMode === "count" ? toDenominationSubtotals(counts) : {}),
       };
       const data = await apiJson(`${BASE}/api/frontoffice/transfers/cash`, {
         method: "POST",
@@ -153,47 +143,14 @@ function AddCashTransferDrawer({ open, onClose, onSuccess }) {
             </div>
             <form onSubmit={handleSubmit} className="p-4 space-y-4">
               <FieldGroup label="Count the Cash Being Transferred">
-                <DenominationCountFields counts={counts} onChange={handleCountChange} />
+                <div className="flex gap-2 mb-3"><button type="button" onClick={() => setTallyMode("count")} className={`px-3 py-1.5 rounded-md text-xs font-semibold ${tallyMode === "count" ? "bg-indigo-600 text-white" : "bg-gray-100 text-gray-600"}`}>Tally by Count</button><button type="button" onClick={() => setTallyMode("total")} className={`px-3 py-1.5 rounded-md text-xs font-semibold ${tallyMode === "total" ? "bg-indigo-600 text-white" : "bg-gray-100 text-gray-600"}`}>Tally by Total</button></div>
+                {tallyMode === "count" ? <DenominationCountFields counts={counts} onChange={handleCountChange} /> : <Input type="number" min="0.01" step="0.01" value={form.TotalAmount} onChange={(e) => handleChange("TotalAmount", e.target.value)} placeholder="0.00" />}
               </FieldGroup>
-              <FieldGroup label="Total Debits">
-                <Input
-                  type="number"
-                  value={form.TotalDebits}
-                  onChange={(e) => handleChange("TotalDebits", e.target.value)}
-                  placeholder="300"
-                  required
-                />
-              </FieldGroup>
-              <FieldGroup label="Total Credits">
-                <Input
-                  type="number"
-                  value={form.TotalCredits}
-                  onChange={(e) => handleChange("TotalCredits", e.target.value)}
-                  placeholder="400"
-                  required
-                />
-              </FieldGroup>
-              <FieldGroup label="Opening Balance">
-                <Input
-                  type="number"
-                  value={form.OpeningBalance}
-                  onChange={(e) => handleChange("OpeningBalance", e.target.value)}
-                  placeholder="0"
-                />
-              </FieldGroup>
-              <FieldGroup label="Balance Status">
-                <Select
-                  value={String(form.TellerCashBalanceStatus)}
-                  onValueChange={(v) => handleChange("TellerCashBalanceStatus", v)}
-                >
-                  <SelectTrigger><SelectValue placeholder="Select status" /></SelectTrigger>
-                  <SelectContent>
-                    {BALANCE_STATUS_OPTIONS.map((s) => (
-                      <SelectItem key={s.value} value={String(s.value)}>{s.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </FieldGroup>
+              <Button type="button" onClick={() => { setCounts(emptyDenominationCounts); handleChange("TotalAmount", ""); }} className="bg-gray-600 hover:bg-gray-700">Reset</Button>
+              <FieldGroup label="Reference"><Input value={form.Reference} onChange={(e) => handleChange("Reference", e.target.value)} required placeholder="Transfer reference" /></FieldGroup>
+              <div className="rounded-lg bg-gray-50 border p-3 grid grid-cols-2 gap-2 text-sm">
+                {[['Transaction Type', context?.TransactionTypeDescription || 'Teller to Treasury'], ['Opening Balance', context?.OpeningBalance], ['Total Receipts', context?.TotalDebits], ['Total Payments', context?.TotalCredits], ['Expected Cash', context?.BookBalance], ['Cheques Pending Transfer', context?.UntransferredChequesValue], ['Closing Balance', context?.ClosingBalance]].map(([label, value]) => <div key={label}><span className="block text-xs text-gray-400">{label}</span><span className="font-semibold text-gray-700">{typeof value === 'number' ? value.toLocaleString(undefined, { minimumFractionDigits: 2 }) : value ?? '—'}</span></div>)}
+              </div>
               <Button type="submit" disabled={loading} className="w-full bg-indigo-600 hover:bg-indigo-700">
                 {loading ? "Saving..." : "Submit Cash Transfer"}
               </Button>
@@ -238,64 +195,6 @@ function CashTransferPanel() {
   };
 
   useEffect(() => { fetchTransfers(); }, []);
-
-  const handleAcknowledge = async (item) => {
-    const confirm = await Swal.fire({
-      title: "Acknowledge Transfer?",
-      icon: "question",
-      showCancelButton: true,
-      confirmButtonColor: "#4f46e5",
-      confirmButtonText: "Acknowledge",
-    });
-    if (!confirm.isConfirmed) return;
-    try {
-      const data = await apiJson(`${BASE}/api/frontoffice/transfers/cash/acknowledge?option=2`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          Id: item.Id,
-          TotalDebits: item.TotalDebits ?? 0,
-          TotalCredits: item.TotalCredits ?? 0,
-          Amount: item.Amount,
-          OpeningBalance: item.OpeningBalance ?? 0,
-          TellerCashBalanceStatusValue: item.TellerCashBalanceStatusValue,
-        }),
-      });
-      Swal.fire("Acknowledged!", data?.message || "Transfer acknowledged.", "success");
-      fetchTransfers();
-    } catch (err) {
-      Swal.fire("Error", apiErrorMessage(err, "Unable to acknowledge the transfer."), "error");
-    }
-  };
-
-  const handleReject = async (item) => {
-    const confirm = await Swal.fire({
-      title: "Reject Transfer?",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#dc2626",
-      confirmButtonText: "Reject",
-    });
-    if (!confirm.isConfirmed) return;
-    try {
-      await apiJson(`${BASE}/api/frontoffice/transfers/cash/acknowledge?option=3`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          Id: item.Id,
-          TotalDebits: item.TotalDebits ?? 0,
-          TotalCredits: item.TotalCredits ?? 0,
-          Amount: item.Amount,
-          OpeningBalance: item.OpeningBalance ?? 0,
-          TellerCashBalanceStatusValue: item.TellerCashBalanceStatusValue,
-        }),
-      });
-      Swal.fire("Rejected!", "Transfer has been rejected.", "success");
-      fetchTransfers();
-    } catch (err) {
-      Swal.fire("Error", apiErrorMessage(err, "Unable to reject the transfer."), "error");
-    }
-  };
 
   const handleUtilize = async (id) => {
     const confirm = await Swal.fire({
@@ -394,23 +293,7 @@ function CashTransferPanel() {
                     {t.AcknowledgedDate ? new Date(t.AcknowledgedDate).toLocaleString() : "—"}
                   </span>
                   <div className="col-span-1 flex justify-end">
-                    {activeTab === "Pending" && (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <FaEllipsisV className="text-gray-500" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleAcknowledge(t)}>
-                            <FaCheckCircle className="mr-2 text-green-600" /> Acknowledge
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleReject(t)}>
-                            <FaTimesCircle className="mr-2 text-red-600" /> Reject
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    )}
+                    {activeTab === "Pending" && <span className="text-xs text-gray-400">Awaiting Cash Management</span>}
                     {activeTab === "Acknowledged" && (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>

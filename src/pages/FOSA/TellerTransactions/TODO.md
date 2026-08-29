@@ -174,9 +174,10 @@ Not done / known gaps:
 ## Denomination capture — backend now enforces reconciliation
 (`WebApplication1/Areas/FrontOffice/DENOMINATION-CAPTURE-FRONTEND-GUIDE.md`)
 
-`CashManagementController`, `EndOfDayController`, and `TransfersController`
-(cash transfer requests) now all **require** the 11 `Denomination*Value`
-fields to sum exactly to the transaction total, `400`ing otherwise —
+`CashManagementController` and `EndOfDayController` require the 11
+`Denomination*Value` fields to sum exactly to the transaction total.
+Cash transfer requests require this reconciliation in Tally-by-Count mode;
+Tally-by-Total deliberately carries no invented denomination breakdown —
 `CashTransferRequestDTO` didn't carry these fields at all when
 `EndOfDay.jsx`/`CashTransfer.jsx` were first built (confirmed by reading the
 DTO source directly at the time); a later backend change added them and
@@ -197,10 +198,58 @@ made them mandatory.
   (`ClosingBalance`) — reconciliation is guaranteed by construction, the
   two numbers can never actually disagree. Same story for `CashManagement.jsx`
   (`TotalValue`), see `FOSA/TreasuryTransactions/TODO.md`.
-- **`CashTransfer.jsx`'s create drawer used to have a free-typed `Amount`
-  input with no denomination entry at all.** Replaced the input with a
-  `DenominationCountFields` block and derive `Amount` from its sum, same
-  pattern as the other two screens — deliberately not a separately-entered
-  `Amount` with a live "diff vs. count" check (the guide's more generic
-  recommendation for a case where the total is independently constrained),
-  since nothing here actually fixes `Amount` independently of the count.
+- **The cash-transfer drawer now supports both documented tally modes.**
+  Tally-by-Count derives `Amount` from `DenominationCountFields`; Tally-by-
+  Total sends the entered amount with `TallyByTotal: true` and does not
+  fabricate a denomination mix.
+
+## TODO — Teller Daily Report
+
+The AppService/domain layers already provide most of the primitives needed
+for a Teller Daily Report, but there is no canonical consolidated report
+contract yet.
+
+Existing reusable support:
+
+- `TellerAppService.FetchTellerBalances()` calculates today's opening
+  balance, total credits, total debits, current/book balance, closing
+  balance, and transaction count from the teller cash G/L account.
+- `IFiscalCountAppService` supports date-range and transaction-code queries
+  for teller transfers, treasury movements, End of Day, references, users,
+  and denomination breakdowns.
+- `ICashTransferRequestAppService` supports employee/date/status queries for
+  the request and acknowledgement workflow.
+- `IFiscalCountAppService.IsEndOfDayExecuted()` identifies whether the
+  teller's daily close was recorded.
+- Journal-entry services already calculate brought-forward/carried-forward
+  balances and credit/debit totals.
+
+Build a canonical Application-layer query such as:
+
+```csharp
+TellerDailyReportDTO GetTellerDailyReport(
+    Guid tellerId,
+    DateTime businessDate,
+    ServiceHeader serviceHeader);
+```
+
+The DTO should contain teller/branch identity, business date, opening
+balance, receipts, payments, transfers in/out, expected closing balance,
+physical denomination count, shortage/excess, End-of-Day state, and detailed
+movements with journal references. The reconciliation should be:
+
+```text
+opening + receipts - payments + transfers in - transfers out
+        +/- adjustments = expected closing balance
+```
+
+Known gaps to address in that AppService implementation:
+
+- `FetchTellerBalances()` is hard-coded to `DateTime.Today`/`DateTime.Now`;
+  add a business-date overload for reproducible historical reports.
+- Fiscal counts do not consistently carry a direct `TellerId`; attribution
+  currently relies on the teller G/L account or `CreatedBy` in some flows.
+- Cash-transfer requests, fiscal counts, and journals need one durable,
+  immutable correlation identifier for an audit-grade movement trail.
+- Add report-level completeness/reconciliation checks rather than composing
+  these independent sources in an API controller or browser.

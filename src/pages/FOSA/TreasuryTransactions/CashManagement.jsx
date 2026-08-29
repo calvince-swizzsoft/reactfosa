@@ -7,6 +7,7 @@ import {
 } from "@/components/ui/select";
 import Swal from "sweetalert2";
 import { FaExchangeAlt } from "react-icons/fa";
+import { FaCheckCircle, FaTimesCircle } from "react-icons/fa";
 import { apiErrorMessage, apiJson, normalizeList } from "@/lib/api";
 import { TreasuryTransactionType } from "../lib/frontOfficeEnums";
 import DenominationCountFields, { emptyDenominationCounts, sumDenominations, toDenominationSubtotals } from "../lib/DenominationCountFields";
@@ -51,6 +52,9 @@ export default function CashManagement() {
   const [banks, setBanks] = useState([]);
   const [loadingData, setLoadingData] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [movementOpen, setMovementOpen] = useState(false);
+  const [actionableTransfers, setActionableTransfers] = useState([]);
+  const [loadingTransfers, setLoadingTransfers] = useState(true);
 
   const [branchId, setBranchId] = useState("");
   const [transactionType, setTransactionType] = useState(TreasuryTransactionType.TreasuryToTeller);
@@ -89,6 +93,45 @@ export default function CashManagement() {
       Swal.fire("Error", apiErrorMessage(error, "Unable to load treasury transaction options."), "error");
     }).finally(() => setLoadingData(false));
   }, []);
+
+  const loadActionableTransfers = () => {
+    setLoadingTransfers(true);
+    apiJson(`${FIN_BASE}/api/frontoffice/transfers/cash/actionable`)
+      .then((data) => setActionableTransfers(normalizeList(data)))
+      .catch((error) => {
+        setActionableTransfers([]);
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load actionable cash transfers."), "error");
+      })
+      .finally(() => setLoadingTransfers(false));
+  };
+
+  useEffect(() => { loadActionableTransfers(); }, []);
+
+  const actionTransfer = async (transfer, option) => {
+    const rejecting = option === 3;
+    const result = await Swal.fire({
+      title: rejecting ? "Reject cash transfer?" : "Acknowledge cash transfer?",
+      input: "text",
+      inputLabel: "Remarks",
+      inputPlaceholder: rejecting ? "Reason for rejection" : "Optional remarks",
+      inputValidator: (value) => rejecting && !value?.trim() ? "A rejection reason is required." : undefined,
+      icon: rejecting ? "warning" : "question",
+      showCancelButton: true,
+      confirmButtonColor: rejecting ? "#dc2626" : "#4f46e5",
+      confirmButtonText: rejecting ? "Reject" : "Acknowledge",
+    });
+    if (!result.isConfirmed) return;
+    try {
+      await apiJson(`${FIN_BASE}/api/frontoffice/transfers/cash/acknowledge?option=${option}`, {
+        method: "POST",
+        body: JSON.stringify({ Id: transfer.Id, Remarks: result.value || "" }),
+      });
+      Swal.fire("Success", rejecting ? "Transfer rejected." : "Transfer acknowledged.", "success");
+      loadActionableTransfers();
+    } catch (error) {
+      Swal.fire("Error", apiErrorMessage(error, "Unable to action the cash transfer."), "error");
+    }
+  };
 
   const handleCountChange = (key, value) => setCounts((p) => ({ ...p, [key]: value }));
   const totalValue = sumDenominations(counts);
@@ -146,6 +189,7 @@ export default function CashManagement() {
       Swal.fire("Success", data.message || "Cash movement posted successfully", "success");
       setCounts(emptyDenominationCounts);
       setReference("");
+      setMovementOpen(false);
     } catch (err) {
       Swal.fire("Error", apiErrorMessage(err, "Unable to post the cash movement."), "error");
     } finally {
@@ -154,14 +198,58 @@ export default function CashManagement() {
   };
 
   return (
-    <div className="bg-white m-8 px-8 py-8 shadow-2xl rounded-lg relative max-w-2xl mx-auto">
+    <div className="bg-white m-8 px-8 py-8 shadow-2xl rounded-lg relative max-w-6xl mx-auto">
       <div className="flex justify-between items-center mb-6 bg-indigo-800 px-6 py-3 rounded-2xl">
         <h2 className="text-xl font-bold text-white flex items-center gap-2">
           <FaExchangeAlt /> Treasury Cash Movement
         </h2>
+        <Button onClick={() => setMovementOpen(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white">
+          New Treasury Transaction
+        </Button>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <section className="mb-8">
+        <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-400 mb-3">Actionable teller cash transfers</h3>
+        <div className="bg-gray-200 p-4 rounded-sm">
+          <div className="grid grid-cols-12 gap-4 bg-gray-700 text-gray-100 font-semibold p-3 rounded-lg mb-4 text-sm">
+            <span className="col-span-3">Teller</span>
+            <span className="col-span-3">Reference</span>
+            <span className="col-span-2">Amount</span>
+            <span className="col-span-2">Created</span>
+            <span className="col-span-2 text-right">Actions</span>
+          </div>
+          {loadingTransfers ? (
+            <div className="bg-gray-50 rounded-lg p-5 animate-pulse"><div className="h-4 bg-gray-300 rounded w-2/3" /></div>
+          ) : actionableTransfers.length === 0 ? (
+            <p className="py-8 text-center text-sm text-gray-400">No teller cash transfers currently require action.</p>
+          ) : (
+            <div className="space-y-2">
+              {actionableTransfers.map((transfer) => (
+                <div key={transfer.Id} className="grid grid-cols-12 gap-4 items-center bg-white rounded-lg shadow-lg border p-4 hover:shadow-xl transition-all text-sm">
+                  <span className="col-span-3 text-gray-700">{transfer.EmployeeCustomerFullName || transfer.CreatedBy || "Teller"}</span>
+                  <span className="col-span-3 font-mono text-xs text-gray-500">{transfer.Reference || "—"}</span>
+                  <span className="col-span-2 font-semibold text-indigo-700">{Number(transfer.Amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                  <span className="col-span-2 text-xs text-gray-500">{transfer.CreatedDate ? new Date(transfer.CreatedDate).toLocaleString() : "—"}</span>
+                  <span className="col-span-2 flex justify-end gap-2">
+                    <Button size="sm" onClick={() => actionTransfer(transfer, 2)} className="bg-indigo-600 hover:bg-indigo-700"><FaCheckCircle className="mr-1" /> Accept</Button>
+                    <Button size="sm" onClick={() => actionTransfer(transfer, 3)} className="bg-red-600 hover:bg-red-700"><FaTimesCircle className="mr-1" /> Reject</Button>
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {movementOpen && (
+        <div className="fixed inset-0 z-50 flex justify-end bg-black/40" onMouseDown={() => setMovementOpen(false)}>
+          <aside className="h-full w-full max-w-2xl bg-white shadow-2xl flex flex-col" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="m-2 rounded-2xl bg-indigo-600 px-6 py-4 flex items-center justify-between shrink-0">
+              <h3 className="text-lg font-bold text-white flex items-center gap-2"><FaExchangeAlt /> Treasury Transaction</h3>
+              <Button type="button" variant="outline" onClick={() => setMovementOpen(false)} className="border-white text-white hover:text-indigo-700">Close</Button>
+            </div>
+            <form onSubmit={handleSubmit} className="flex flex-1 min-h-0 flex-col">
+              <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
         <div className="grid grid-cols-2 gap-4">
           <FieldGroup label="Your Branch">
             <Select value={branchId ? String(branchId) : ""} onValueChange={setBranchId} disabled={loadingData}>
@@ -227,11 +315,16 @@ export default function CashManagement() {
           <Label className="text-sm font-semibold text-gray-700 mb-2 block">Denomination Count</Label>
           <DenominationCountFields counts={counts} onChange={handleCountChange} />
         </div>
-
-        <Button type="submit" disabled={loading || loadingData} className="w-full bg-indigo-600 hover:bg-indigo-700">
-          {loading ? "Submitting..." : "Submit Movement"}
-        </Button>
-      </form>
+              </div>
+              <div className="shrink-0 border-t bg-white p-4">
+                <Button type="submit" disabled={loading || loadingData} className="w-full bg-indigo-600 hover:bg-indigo-700">
+                  {loading ? "Submitting..." : "Submit Movement"}
+                </Button>
+              </div>
+            </form>
+          </aside>
+        </div>
+      )}
     </div>
   );
 }
