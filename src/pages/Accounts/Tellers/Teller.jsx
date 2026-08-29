@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import AddTellerDrawer from "./AddTellerDrawer";
 import {
-  FaChevronDown, FaChevronUp, FaMoneyCheckAlt, FaChevronLeft, FaChevronRight,
+  FaChevronDown, FaChevronUp, FaMoneyCheckAlt, FaChevronLeft, FaChevronRight, FaEdit,
 } from "react-icons/fa";
 import NotFoundImage from "/assets/scopefinding.png";
 import { apiFetch, normalizeList } from "@/lib/api";
@@ -16,6 +16,7 @@ export default function Tellers() {
   const [loading, setLoading] = useState(true);
   const [expandedTeller, setExpandedTeller] = useState(null);
   const [addDrawerOpen, setAddDrawerOpen] = useState(false);
+  const [selectedTeller, setSelectedTeller] = useState(null);
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize] = useState(20);
   const [itemsCount, setItemsCount] = useState(0);
@@ -52,7 +53,7 @@ export default function Tellers() {
         <h2 className="text-xl font-bold text-white flex items-center gap-2">
           <FaMoneyCheckAlt /> Tellers
         </h2>
-        <Button onClick={() => setAddDrawerOpen(true)} className="bg-indigo-500 hover:bg-indigo-600">
+        <Button onClick={() => { setSelectedTeller(null); setAddDrawerOpen(true); }} className="bg-indigo-500 hover:bg-indigo-600">
           + New Teller
         </Button>
       </div>
@@ -102,6 +103,14 @@ export default function Tellers() {
                     </span>
                   </span>
                   <div className="col-span-2 flex justify-end items-center gap-2">
+                    <Button
+                      size="sm"
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs"
+                      onClick={() => { setSelectedTeller(teller); setAddDrawerOpen(true); }}
+                      aria-label={`Edit ${teller.Description}`}
+                    >
+                      <FaEdit className="mr-1" /> Edit
+                    </Button>
                     <Button
                       size="sm"
                       variant="outline"
@@ -173,8 +182,9 @@ export default function Tellers() {
 
       <AddTellerDrawer
         open={addDrawerOpen}
-        onClose={() => setAddDrawerOpen(false)}
+        onClose={() => { setAddDrawerOpen(false); setSelectedTeller(null); }}
         onSuccess={fetchTellers}
+        teller={selectedTeller}
       />
     </div>
   );

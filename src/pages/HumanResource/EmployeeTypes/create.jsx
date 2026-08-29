@@ -8,16 +8,16 @@ import {
 } from "@/components/ui/select";
 import { FaUserTag } from "react-icons/fa";
 import Swal from "sweetalert2";
-import { apiFetch } from "@/lib/api";
+import { apiErrorMessage, apiJson } from "@/lib/api";
 import { listAllChartOfAccounts } from "@/pages/Accounts/ChartOfAccounts/api";
+import FieldHelp from "@/pages/Accounts/SavingsProducts/FieldHelp";
 
 const BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 
 const categoryOptions = [
   { value: 1, label: "Full-Time" },
   { value: 2, label: "Part-Time" },
-  { value: 3, label: "Contract" },
-  { value: 4, label: "Intern" },
+  { value: 4, label: "Contract" },
 ];
 
 const emptyForm = { ChartOfAccountId: "", Description: "", IsLocked: false, Category: "" };
@@ -31,7 +31,7 @@ export default function CreateEmployeeType() {
   useEffect(() => {
     setLoadingData(true);
     listAllChartOfAccounts()
-      .then(setCoaList)
+      .then((accounts) => setCoaList(accounts.filter((account) => Number(account.AccountCategory) === 4097 && !account.IsLocked)))
       .catch(() => setCoaList([]))
       .finally(() => setLoadingData(false));
   }, []);
@@ -40,19 +40,25 @@ export default function CreateEmployeeType() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!form.ChartOfAccountId) {
+      Swal.fire("Missing Field", "Select the chart of account used by this employee type.", "warning");
+      return;
+    }
+    if (!form.Category) {
+      Swal.fire("Missing Field", "Select an employee category.", "warning");
+      return;
+    }
     setLoading(true);
     try {
-      const payload = { ...form, Category: parseInt(form.Category) || 1 };
-      const res = await apiFetch(`${BASE}/api/humanresource/employeetypes`, {
+      const payload = { ...form, Description: form.Description.trim(), Category: Number(form.Category) };
+      await apiJson(`${BASE}/api/humanresource/employeetypes`, {
         method: "POST",
         body: JSON.stringify(payload),
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.message || "Failed to create employee type");
       Swal.fire("Success", "Employee Type created successfully", "success");
       setForm(emptyForm);
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", apiErrorMessage(err, "Failed to create employee type."), "error");
     } finally {
       setLoading(false);
     }
@@ -78,9 +84,12 @@ export default function CreateEmployeeType() {
 
         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider pt-1">Chart of Accounts</p>
         <div>
-          <Label>Chart of Account</Label>
+          <div className="flex items-center gap-1.5">
+            <Label>Payroll Control Account</Label>
+            <FieldHelp text="The postable G/L account that will serve as the payroll clearing account for earnings, deductions, loan or investment deductions, and net pay for employees of this type. Only active detail accounts are available." />
+          </div>
           <Select value={form.ChartOfAccountId} onValueChange={(v) => handleChange("ChartOfAccountId", v)} disabled={loadingData}>
-            <SelectTrigger><SelectValue placeholder={loadingData ? "Loading..." : "Select Account"} /></SelectTrigger>
+            <SelectTrigger><SelectValue placeholder={loadingData ? "Loading..." : "Select payroll control account"} /></SelectTrigger>
             <SelectContent className="max-h-60 overflow-y-auto">
               {coaList.map((a) => (
                 <SelectItem key={a.Id} value={a.Id}>

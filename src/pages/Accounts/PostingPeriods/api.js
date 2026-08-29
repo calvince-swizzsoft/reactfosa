@@ -29,10 +29,10 @@ export function createPostingPeriod({ description, startDate, endDate }) {
   }));
 }
 
-export function updatePostingPeriod(id, { description, startDate, endDate, isLocked }) {
+export function updatePostingPeriod(id, { description, startDate, endDate, isLocked, isActive }) {
   return unwrapJson(apiJson(`${POSTING_PERIODS_BASE}/${id}`, {
     method: "PUT",
-    body: JSON.stringify({ Id: id, Description: description, DurationStartDate: startDate, DurationEndDate: endDate, IsLocked: isLocked }),
+    body: JSON.stringify({ Id: id, Description: description, DurationStartDate: startDate, DurationEndDate: endDate, IsLocked: isLocked, IsActive: isActive }),
   }));
 }
 

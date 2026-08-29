@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { apiFetch } from "@/lib/api";
 import { apiErrorMessage, readApiResponse } from "@/lib/api-errors";
+import FieldHelp from "@/pages/Accounts/SavingsProducts/FieldHelp";
 
 const BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 const CUSTOMER_URL = `${BASE}/api/registry/customer`;
@@ -33,9 +34,68 @@ const pick = (item, ...keys) => keys.map((key) => item?.[key]).find((v) => v !==
 const list = (body) => { const data = body?.data ?? body?.Data ?? body; return Array.isArray(data) ? data : data?.PageCollection ?? data?.pageCollection ?? []; };
 const nameOf = (item) => pick(item, "FullName", "fullName") || `${pick(item, "IndividualFirstName", "individualFirstName") || ""} ${pick(item, "IndividualLastName", "individualLastName") || ""}`.trim();
 const iso = (date) => date ? new Date(date).toISOString() : null;
+const EMAIL_PATTERN = /^\w+([-+.']\w+)*@\w+([-.]\w+)*\.\w+([-.]\w+)*$/;
+const MOBILE_PATTERN = /^\+[0-9]{7,15}$/;
 
-function Field({ label, required, children }) {
-  return <div><Label className="text-sm font-semibold text-gray-700">{label}{required && <span className="text-red-600"> *</span>}</Label>{children}</div>;
+function customerValidationErrors(form, partners, corporationMembers) {
+  const errors = [];
+  let tab = "particulars";
+  const text = (value) => String(value ?? "").trim();
+
+  if (!form.branchId) errors.push("Branch is required.");
+  if (!form.stationId) errors.push("Station is required.");
+
+  if (form.type === 0) {
+    if (!text(form.individualFirstName)) errors.push("First name is required.");
+    if (!text(form.individualLastName)) errors.push("Last name is required.");
+    if (!text(form.individualIdentityCardNumber)) errors.push("Identity card number is required.");
+    if (!form.individualBirthDate) {
+      errors.push("Birth date is required.");
+    } else {
+      const birthDate = new Date(form.individualBirthDate);
+      const adultThreshold = new Date();
+      adultThreshold.setFullYear(adultThreshold.getFullYear() - 18);
+      if (birthDate > adultThreshold) errors.push("The minimum required membership age is 18 years.");
+    }
+    if (form.individualEmploymentDate && new Date(form.individualEmploymentDate) > new Date()) {
+      errors.push("Employment date cannot be in the future.");
+    }
+  } else {
+    if (!text(form.nonIndividualDescription)) errors.push(`${TYPES.find(([id]) => id === form.type)?.[1] || "Customer"} name is required.`);
+    if (!text(form.nonIndividualRegistrationNumber)) errors.push("Registration number is required.");
+    if (!form.nonIndividualDateEstablished) {
+      errors.push("Date established is required.");
+    } else if (new Date(form.nonIndividualDateEstablished) > new Date()) {
+      errors.push("Date established cannot be in the future.");
+    }
+  }
+
+  if (form.type === 1 && !partners.length) errors.push("Add at least one partnership member.");
+  if (form.type === 2 && !corporationMembers.length) errors.push("Add at least one corporation member.");
+
+  const email = text(form.addressEmail);
+  const mobile = text(form.addressMobileLine);
+  if (email && !EMAIL_PATTERN.test(email)) {
+    errors.push("Invalid customer email address.");
+    tab = "address";
+  }
+  if (mobile && !MOBILE_PATTERN.test(mobile)) {
+    errors.push("Customer mobile number must start with + and contain 7 to 15 digits.");
+    tab = "address";
+  }
+
+  partners.forEach((partner, index) => {
+    const partnerEmail = text(partner.addressEmail);
+    const partnerMobile = text(partner.addressMobileLine);
+    if (partnerEmail && !EMAIL_PATTERN.test(partnerEmail)) errors.push(`Partnership member ${index + 1} has an invalid email address.`);
+    if (partnerMobile && !MOBILE_PATTERN.test(partnerMobile)) errors.push(`Partnership member ${index + 1} mobile number must start with + and contain 7 to 15 digits.`);
+  });
+
+  return { errors, tab };
+}
+
+function Field({ label, required, help, children }) {
+  return <div><div className="flex items-center gap-1"><Label className="text-sm font-semibold text-gray-700">{label}{required && <span className="text-red-600"> *</span>}</Label><FieldHelp label={label}>{help}</FieldHelp></div>{children}</div>;
 }
 function EnumSelect({ value, options, onChange }) {
   return <Select value={String(value)} onValueChange={(v) => onChange(Number(v))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{options.map(([id, label]) => <SelectItem key={id} value={String(id)}>{label}</SelectItem>)}</SelectContent></Select>;
@@ -70,14 +130,9 @@ export default function CreateCustomerDrawer({ open, onClose, onSuccess }) {
     setForm(emptyForm); setTab("particulars"); setSelectedDebits([]); setSelectedInvestments([]); setSelectedSavings([]);
     setImages({}); setPartners([]); setCorporationMembers([]); setReferees([]); setResults([]); setSearch("");
     setLoadingData(true);
-    Promise.all([
-      apiFetch(`${BASE}/api/administration/branches`).then((r) => r.json()),
-      apiFetch(`${BASE}/api/registry/station?pageIndex=0&pageSize=1000&text=`).then((r) => r.json()),
-      apiFetch(`${CUSTOMER_URL}/registration/debit-types`).then((r) => r.json()),
-      apiFetch(`${BASE}/api/accounts/investmentsproducts`).then((r) => r.json()),
-      apiFetch(`${BASE}/api/accounts/savingsproducts`).then((r) => r.json()),
-    ]).then(([b, st, d, i, s]) => { setBranches(list(b)); setStations(list(st)); setDebits(list(d)); setInvestments(list(i)); setSavings(list(s)); })
-      .catch((error) => Swal.fire("Unable to load registration options", apiErrorMessage(error), "error"))
+    const sources = [["branches", `${BASE}/api/administration/branches`, setBranches], ["stations", `${BASE}/api/registry/station?pageIndex=0&pageSize=1000&text=`, setStations], ["debit types", `${CUSTOMER_URL}/registration/debit-types`, setDebits], ["investment products", `${BASE}/api/accounts/investmentsproducts`, setInvestments], ["savings products", `${BASE}/api/accounts/savingsproducts`, setSavings]];
+    Promise.allSettled(sources.map(async ([, url, setter]) => { const response = await apiFetch(url); const body = await readApiResponse(response); setter(list(body)); }))
+      .then((results) => { const failed = results.map((result, index) => result.status === "rejected" ? sources[index][0] : null).filter(Boolean); if (failed.length) Swal.fire("Some options could not be loaded", `Unavailable: ${failed.join(", ")}. Other registration sections remain usable.`, "warning"); })
       .finally(() => setLoadingData(false));
   }, [open]);
 
@@ -104,16 +159,13 @@ export default function CreateCustomerDrawer({ open, onClose, onSuccess }) {
     const setter = target === "corporation" ? setCorporationMembers : setReferees;
     setter((items) => items.some((entry) => entry.customerId === id) ? items : [...items, item]);
   };
-  const validationError = () => {
-    if (!form.branchId || !form.stationId) return "Branch and station are required.";
-    if (form.type === 0 && (!form.individualFirstName.trim() || !form.individualLastName.trim() || !form.individualIdentityCardNumber.trim() || !form.individualBirthDate)) return "First name, last name, identity card number, and birth date are required.";
-    if (form.type !== 0 && (!form.nonIndividualDescription.trim() || !form.nonIndividualRegistrationNumber.trim() || !form.nonIndividualDateEstablished)) return "Name, registration number, and date established are required.";
-    if (form.type === 1 && !partners.length) return "Add at least one partnership member.";
-    if (form.type === 2 && !corporationMembers.length) return "Add at least one corporation member.";
-    return null;
-  };
   const submit = async (event) => {
-    event.preventDefault(); const issue = validationError(); if (issue) return Swal.fire("Missing fields", issue, "warning");
+    event.preventDefault();
+    const validation = customerValidationErrors(form, partners, corporationMembers);
+    if (validation.errors.length) {
+      setTab(validation.tab);
+      return Swal.fire({ title: "Check Customer Details", html: `<div style="text-align:left">${validation.errors.map((message) => `<div>• ${message}</div>`).join("")}</div>`, icon: "warning" });
+    }
     setLoading(true);
     try {
       const now = new Date().toISOString();
@@ -122,7 +174,8 @@ export default function CreateCustomerDrawer({ open, onClose, onSuccess }) {
         customer, additionalDebitTypes: selectedDebits.map((id) => ({ id })), additionalInvestmentProducts: selectedInvestments.map((id) => ({ id })), additionalSavingsProducts: selectedSavings.map((id) => ({ id })),
         partnershipMembers: partners.map(({ key, ...member }) => member), corporationMembers: corporationMembers.map((member) => ({ customerId: member.customerId, remarks: member.remarks, signatory: member.signatory })), referees: referees.map((member) => ({ witnessId: member.customerId, remarks: member.remarks })), moduleNavigationItemCode: 21007,
       }) });
-      const body = await readApiResponse(response, { fallbackMessage: "Customer registration failed." }); await Swal.fire("Customer registered", body.message || `${typeLabel} customer created successfully.`, "success"); onSuccess?.(); onClose();
+      const body = await readApiResponse(response, { fallbackMessage: "Customer registration failed." });
+      await Swal.fire(body.warning ? "Registered with warning" : "Customer registered", body.message || `${typeLabel} customer created successfully.`, body.warning ? "warning" : "success"); onSuccess?.(); onClose();
     } catch (error) { Swal.fire("Registration failed", apiErrorMessage(error), "error"); } finally { setLoading(false); }
   };
 
@@ -139,9 +192,9 @@ export default function CreateCustomerDrawer({ open, onClose, onSuccess }) {
         {tab === "address" && <div className="grid grid-cols-2 gap-4">{[["addressAddressLine1", "Address Line 1"], ["addressAddressLine2", "Address Line 2"], ["addressStreet", "Street"], ["addressCity", "City"], ["addressPostalCode", "Postal Code"], ["addressEmail", "Email"], ["addressMobileLine", "Mobile (+country code)"], ["addressLandLine", "Land Line"]].map(([key, label]) => <Field key={key} label={label}><Input type={key === "addressEmail" ? "email" : "text"} value={form[key]} onChange={(e) => change(key, e.target.value)} /></Field>)}</div>}
         {tab === "referees" && <div className="space-y-4"><p className="text-sm text-gray-500">Add existing registered customers as referees.</p><Lookup target="referee" /><MemberRows items={referees} setter={setReferees} /></div>}
         {tab === "images" && <div className="grid grid-cols-2 gap-4">{IMAGE_FIELDS.map(([field, label]) => <div key={field} className="border rounded-lg p-4"><Label className="font-semibold">{label}</Label>{images[field] ? <img src={images[field].preview} alt={label} className="h-36 w-full object-contain bg-gray-100 mt-2" /> : <div className="h-36 bg-gray-100 mt-2 flex items-center justify-center"><FaCamera className="text-3xl text-gray-400" /></div>}<Input className="mt-3" type="file" accept="image/*" capture="environment" onChange={(e) => readImage(field, e.target.files?.[0])} /><small className="text-gray-400">Camera, scanner output, JPG or PNG; max 5 MB.</small></div>)}</div>}
-        {tab === "debits" && <Options items={debits} selected={selectedDebits} toggle={(id) => toggle(setSelectedDebits, id)} empty="No debit types configured." />}
-        {tab === "investments" && <Options items={investments} selected={selectedInvestments} toggle={(id) => toggle(setSelectedInvestments, id)} empty="No investment products configured." />}
-        {tab === "savings" && <Options items={savings} selected={selectedSavings} toggle={(id) => toggle(setSelectedSavings, id)} empty="No savings products configured." />}
+        {tab === "debits" && <div><div className="mb-3 flex items-center gap-1 text-sm font-semibold text-gray-700">Additional debit types <FieldHelp label="Debit Types">Recurring or automatic charge instructions made available to the customer. Company-mandatory debit types are attached automatically; selections here are additional.</FieldHelp></div><Options items={debits} selected={selectedDebits} toggle={(id) => toggle(setSelectedDebits, id)} empty="No debit types configured." /></div>}
+        {tab === "investments" && <div><div className="mb-3 flex items-center gap-1 text-sm font-semibold text-gray-700">Additional investment products <FieldHelp label="Investment Products">Investment accounts to open or make available during registration. Mandatory company products are attached automatically.</FieldHelp></div><Options items={investments} selected={selectedInvestments} toggle={(id) => toggle(setSelectedInvestments, id)} empty="No investment products configured." /></div>}
+        {tab === "savings" && <div><div className="mb-3 flex items-center gap-1 text-sm font-semibold text-gray-700">Additional savings products <FieldHelp label="Savings Products">Savings accounts to open or make available during registration. Mandatory company products are attached automatically.</FieldHelp></div><Options items={savings} selected={selectedSavings} toggle={(id) => toggle(setSelectedSavings, id)} empty="No savings products configured." /></div>}
       </main></div><div className="px-5 py-3 border-t bg-gray-50 flex justify-between shrink-0"><div className="flex gap-4"><label className="flex gap-2"><input type="checkbox" checked={form.isLocked} onChange={(e) => change("isLocked", e.target.checked)} />Locked</label><label className="flex gap-2"><input type="checkbox" checked={form.inhibitGuaranteeing} onChange={(e) => change("inhibitGuaranteeing", e.target.checked)} />Inhibit guaranteeing</label></div><Button type="submit" disabled={loading || loadingData} className="bg-indigo-600 hover:bg-indigo-700">{loading ? "Registering..." : `Register ${typeLabel}`}</Button></div>
     </form>
   </motion.div></>}</AnimatePresence>;

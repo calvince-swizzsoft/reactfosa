@@ -153,3 +153,38 @@ export const emptyCompanyForm = {
   isLocked: false,
   ...Object.fromEntries(allToggleKeys.map((key) => [key, false])),
 };
+
+const REQUIRED_COMPANY_FIELDS = [
+  ["description", "Name"],
+  ["registrationNumber", "Registration Number"],
+  ["personalIdentificationNumber", "P.I.N Number"],
+  ["addressAddressLine1", "Address Line 1"],
+  ["addressPostalCode", "Postal Code"],
+  ["addressCity", "City"],
+  ["addressEmail", "E-mail"],
+  ["addressLandLine", "Land Line"],
+  ["addressMobileLine", "Mobile Line"],
+];
+
+export function validateCompany(form) {
+  const errors = REQUIRED_COMPANY_FIELDS
+    .filter(([key]) => !String(form[key] ?? "").trim())
+    .map(([, label]) => `${label} is required.`);
+  const email = String(form.addressEmail ?? "").trim();
+  const mobile = String(form.addressMobileLine ?? "").trim();
+
+  if (email && !/^\w+([-+.']\w+)*@\w+([-.]\w+)*\.\w+([-.]\w+)*$/.test(email)) {
+    errors.push("Invalid email address.");
+  }
+  if (mobile && !/^\+[0-9]{7,15}$/.test(mobile)) {
+    errors.push("The mobile number should start with a plus sign, followed by the country code and national number.");
+  }
+
+  return errors;
+}
+
+export function companyValidationTab(errors) {
+  return errors.some((message) => /Address|Postal|City|E-mail|Land Line|mobile/i.test(message))
+    ? "address"
+    : "profile";
+}

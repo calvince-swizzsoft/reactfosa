@@ -13,6 +13,7 @@ import AppraisalFactorRows from "./lib/AppraisalFactorRows";
 import DynamicChargeRows from "./lib/DynamicChargeRows";
 import AuxiliaryConditionRows from "./lib/AuxiliaryConditionRows";
 import DeductibleRows from "./lib/DeductibleRows";
+import FieldHelp from "../SavingsProducts/FieldHelp";
 import {
   LOAN_PRODUCT_SECTION_OPTIONS, LOAN_PRODUCT_CATEGORY_OPTIONS, INTEREST_CALCULATION_MODE_OPTIONS,
   INTEREST_CHARGE_MODE_OPTIONS, INTEREST_RECOVERY_MODE_OPTIONS, PAYMENT_FREQUENCY_PER_YEAR_OPTIONS,
@@ -25,6 +26,57 @@ import {
 
 const FIN_BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 
+const FIELD_HELP = {
+  Section: "Classifies the product by the operating section that owns and processes the loan.",
+  Category: "Groups the product by lending duration/category for downstream appraisal and reporting.",
+  "Annual Percentage Rate": "The annual interest rate used by the selected calculation mode when generating loan interest and repayment schedules.",
+  "Calculation Mode": "Determines whether interest is calculated on a reducing balance, straight-line basis, amortized basis, or as fixed interest.",
+  "Charge Mode": "Controls whether interest is charged upfront or periodically during the loan term.",
+  "Recovery Mode": "Controls whether charged interest is recovered upfront or through periodic repayments.",
+  "Term (Months)": "The standard repayment duration used when scheduling this product.",
+  "Payment Frequency Per Year": "The number of scheduled repayments in a year, such as 12 for monthly or 52 for weekly.",
+  "Minimum Principal Amount": "The smallest principal amount that may be registered under this product.",
+  "Maximum Principal Amount": "The largest principal amount that may be registered under this product.",
+  "Minimum Chargeable Interest Amount": "The minimum interest amount the product may charge when the calculated interest would otherwise be lower.",
+  "Payment Due Date": "Places each scheduled instalment at the beginning or end of its repayment period.",
+  "Grace Period (Days)": "The configured number of days allowed before normal repayment or arrears treatment begins.",
+  "Consecutive Income (months)": "The number of consecutive income periods considered when assessing income eligibility.",
+  "Investments Multiplier": "Multiplies eligible investment balances when determining investment-based loan entitlement.",
+  "Minimum Guarantors": "The minimum number of guarantors required when the product uses guarantor security.",
+  "Maximum Guarantees": "Limits how many guarantees may be attached under the product's guarantee rules.",
+  "Minimum Membership Period (Months)": "The membership duration a customer must complete before qualifying for this product.",
+  "Maximum Self-Guarantee Eligible %": "Caps the percentage of the required security that the borrower may provide through self-guarantee.",
+  "Guarantor Security Mode": "Selects whether guarantor capacity is evaluated using income or investment balances.",
+  "Reject if member has balance?": "Rejects registration when the member already has an outstanding balance for the applicable product rules.",
+  "Enforce security rules?": "Requires the configured guarantor and security conditions to be satisfied during appraisal.",
+  "Allow self-guarantee?": "Allows the borrower to secure part of the loan personally, subject to the maximum eligible percentage.",
+  "Microcredit?": "Marks the product for the microcredit lending workflow and related processing rules.",
+  "Exclude outstanding loans on max entitlement?": "Excludes existing outstanding loans from the maximum-entitlement calculation when enabled.",
+  "Consider investments balance for income-based appraisal?": "Allows investment balances to contribute when the system calculates income-based eligibility.",
+  "Enforce system appraisal recommendation?": "Prevents processing from disregarding the system-generated appraisal recommendation.",
+  "Bypass verification on approve?": "Allows the configured loan flow to proceed without the normal verification/audit stage. Use only where governance permits.",
+  "Create standing order on loan verification?": "Automatically creates the recovery standing order when the loan passes verification.",
+  "Charge clearance fee?": "Applies the configured clearance fee when the relevant loan-clearing operation occurs.",
+  "Track arrears?": "Enables arrears tracking for missed or underpaid scheduled amounts.",
+  "Charge arrears fee?": "Allows configured arrears charges to be applied when the account falls into arrears.",
+  "Disburse micro loan less deductions?": "Pays out a microloan net of applicable deductions instead of disbursing the gross approved amount.",
+  "Throttle scheduled arrears recovery?": "Limits scheduled arrears recovery according to the system's throttling rules rather than recovering without that constraint.",
+  "Standing Order Trigger": "Selects the event that creates or activates standing-order recovery for this product.",
+  "Payout Recovery Mode": "Determines how recoveries are handled when a payout is processed.",
+  "Payout Recovery %": "The percentage of a qualifying payout directed to recovery under the selected payout mode.",
+  "Aggregate Check-Off Recovery Mode": "Determines how aggregate check-off receipts are allocated against the loan.",
+  "Rounding Type": "Controls how calculated repayment and recovery amounts are rounded.",
+  "Recovery Priority": "Sets this product's order when available funds must be shared across multiple recoveries.",
+  Type: "Selects whether the minimum take-home requirement is expressed as a percentage or a fixed amount.",
+  Percentage: "The minimum percentage of income that must remain after proposed loan deductions.",
+  "Fixed Amount": "The minimum fixed amount that must remain after proposed loan deductions.",
+  "Principal G/L Account": "The control account that carries the outstanding loan principal in the general ledger.",
+  "Interest Received G/L Account": "The income account credited when loan interest is received.",
+  "Interest Receivable G/L Account": "The asset account used for interest that has been charged but not yet collected.",
+  "Interest Charged G/L Account": "The account used when recognizing interest charged by this loan product.",
+  "Lock product?": "Prevents this product from being selected for new operational activity until an administrator unlocks it.",
+};
+
 function Section({ title, children }) {
   return (
     <div className="space-y-4 border-t border-gray-100 pt-6 first:border-t-0 first:pt-0">
@@ -34,10 +86,14 @@ function Section({ title, children }) {
   );
 }
 
-function FieldGroup({ label, children, full }) {
+function FieldGroup({ label, help, children, full }) {
+  const guidance = help ?? FIELD_HELP[label];
   return (
     <div className={full ? "col-span-2" : ""}>
-      <Label className="text-sm font-semibold text-gray-700">{label}</Label>
+      <div className="flex items-center gap-1">
+        <Label className="text-sm font-semibold text-gray-700">{label}</Label>
+        {guidance && <FieldHelp label={label}>{guidance}</FieldHelp>}
+      </div>
       {children}
     </div>
   );
@@ -53,17 +109,23 @@ function EnumSelect({ options, value, onChange }) {
 
 function CheckboxField({ label, checked, onChange }) {
   return (
-    <label className="flex items-center gap-2 text-sm text-gray-700">
-      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="w-4 h-4 accent-indigo-600" />
-      {label}
-    </label>
+    <div className="flex items-center gap-1 text-sm text-gray-700">
+      <label className="flex items-center gap-2">
+        <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="w-4 h-4 accent-indigo-600" />
+        {label}
+      </label>
+      {FIELD_HELP[label] && <FieldHelp label={label}>{FIELD_HELP[label]}</FieldHelp>}
+    </div>
   );
 }
 
 function PickerField({ label, value, placeholder, onClick }) {
   return (
     <div>
-      <Label className="text-sm font-semibold text-gray-700 mb-1 block">{label}</Label>
+      <div className="flex items-center gap-1 mb-1">
+        <Label className="text-sm font-semibold text-gray-700">{label}</Label>
+        {FIELD_HELP[label] && <FieldHelp label={label}>{FIELD_HELP[label]}</FieldHelp>}
+      </div>
       <button
         type="button"
         onClick={onClick}
@@ -121,6 +183,7 @@ const emptyForm = {
   TakeHomePercentage: 0,
   TakeHomeFixedAmount: 0,
   Priority: 0,
+  IsLocked: false,
   ChartOfAccountId: "", ChartOfAccountLabel: "",
   InterestReceivedChartOfAccountId: "", InterestReceivedChartOfAccountLabel: "",
   InterestReceivableChartOfAccountId: "", InterestReceivableChartOfAccountLabel: "",
@@ -161,8 +224,42 @@ export default function CreateLoanProduct() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.Description || !form.ChartOfAccountId || !form.InterestReceivedChartOfAccountId || !form.InterestReceivableChartOfAccountId) {
-      Swal.fire("Missing Fields", "Name and the Principal/Interest Received/Interest Receivable G/L accounts are required.", "warning");
+    const errors = [];
+    if (!form.Description?.trim()) errors.push("Name is required.");
+    if (!form.ChartOfAccountId) errors.push("Principal G/L Account is required.");
+    if (!form.InterestReceivedChartOfAccountId) errors.push("Interest Received G/L Account is required.");
+    if (!form.InterestReceivableChartOfAccountId) errors.push("Interest Receivable G/L Account is required.");
+    if (!form.InterestChargedChartOfAccountId) errors.push("Interest Charged G/L Account is required.");
+    const accountIds = [form.ChartOfAccountId, form.InterestReceivedChartOfAccountId, form.InterestReceivableChartOfAccountId, form.InterestChargedChartOfAccountId].filter(Boolean);
+    if (new Set(accountIds).size !== accountIds.length) errors.push("Principal and interest G/L accounts must be distinct.");
+    if (form.LoanInterestAnnualPercentageRate < 0 || form.LoanInterestAnnualPercentageRate > 100) errors.push("Annual Percentage Rate must be between 0% and 100%.");
+    if (form.LoanRegistrationTermInMonths <= 0) errors.push("Term must be greater than zero.");
+    if (form.LoanRegistrationMinimumAmount < 0) errors.push("Minimum Principal Amount cannot be negative.");
+    if (form.LoanRegistrationMaximumAmount <= 0) errors.push("Maximum Principal Amount must be greater than zero.");
+    if (form.LoanRegistrationMaximumAmount < form.LoanRegistrationMinimumAmount) errors.push("Maximum Principal Amount cannot be lower than Minimum Principal Amount.");
+    if (form.LoanRegistrationMinimumInterestAmount < 0) errors.push("Minimum Chargeable Interest Amount cannot be negative.");
+    if (form.LoanRegistrationConsecutiveIncome < 0 || form.LoanRegistrationInvestmentsMultiplier < 0 || form.LoanRegistrationMinimumGuarantors < 0 || form.LoanRegistrationGracePeriod < 0 || form.LoanRegistrationMinimumMembershipPeriod < 0) errors.push("Eligibility periods, multipliers, guarantors, and grace periods cannot be negative.");
+    if (form.LoanRegistrationMaximumGuarantees <= 0) errors.push("Maximum Guarantees must be greater than zero.");
+    if (form.LoanRegistrationSecurityRequired && form.LoanRegistrationMinimumGuarantors <= 0 && !form.LoanRegistrationAllowSelfGuarantee) errors.push("Security requires at least one guarantor unless self-guarantee is allowed.");
+    if (form.LoanRegistrationPayoutRecoveryPercentage < 0 || form.LoanRegistrationPayoutRecoveryPercentage > 100) errors.push("Payout Recovery Percentage must be between 0% and 100%.");
+    if (form.LoanRegistrationMaximumSelfGuaranteeEligiblePercentage < 0 || form.LoanRegistrationMaximumSelfGuaranteeEligiblePercentage > 100) errors.push("Maximum Self-Guarantee Eligible Percentage must be between 0% and 100%.");
+    if (form.LoanRegistrationAllowSelfGuarantee && form.LoanRegistrationMaximumSelfGuaranteeEligiblePercentage <= 0) errors.push("Set a positive self-guarantee percentage when self-guarantee is allowed.");
+    if (form.TakeHomeType === ChargeType.Percentage && (form.TakeHomePercentage < 0 || form.TakeHomePercentage > 100)) errors.push("Take-Home Percentage must be between 0% and 100%.");
+    if (form.TakeHomeType === ChargeType.FixedAmount && form.TakeHomeFixedAmount < 0) errors.push("Take-Home Fixed Amount cannot be negative.");
+    if (form.Priority < 0 || form.Priority > 3) errors.push("Recovery Priority must be between 0 and 3.");
+    const rangesOverlap = (rows) => rows
+      .map((row) => [Number(row.RangeLowerLimit), Number(row.RangeUpperLimit)])
+      .sort((left, right) => left[0] - right[0])
+      .some((range, index, sorted) => index > 0 && range[0] <= sorted[index - 1][1]);
+    if (loanCycles.some((row) => row.RangeLowerLimit < 0 || row.RangeUpperLimit < row.RangeLowerLimit)) errors.push("Every loan-cycle band needs a valid non-negative range.");
+    if (rangesOverlap(loanCycles)) errors.push("Loan-cycle bands cannot overlap.");
+    if (appraisalFactors.some((row) => row.RangeLowerLimit < 0 || row.RangeUpperLimit < row.RangeLowerLimit || row.LoaneeMultiplier < 0 || row.GuarantorMultiplier < 0)) errors.push("Every appraisal-factor band needs a valid range and non-negative multipliers.");
+    if (rangesOverlap(appraisalFactors)) errors.push("Appraisal-factor bands cannot overlap.");
+    if (auxiliaryConditions.some((row) => !row.TargetLoanProductId || !row.Condition || row.MaximumEligiblePercentage < 0 || row.MaximumEligiblePercentage > 100)) errors.push("Every auxiliary condition needs a target product, at least one condition, and a percentage between 0% and 100%.");
+    if (deductibles.some((row) => !row.Description?.trim() || !row.CustomerAccountTypeTargetProductId || row.ChargePercentage < 0 || row.ChargePercentage > 100 || row.ChargeFixedAmount < 0)) errors.push("Every deductible needs a name, target product, and valid non-negative charge.");
+    if (dynamicCharges.some((row) => !(row.Id ?? row.id))) errors.push("Every dynamic-charge row must reference an existing charge.");
+    if (errors.length) {
+      Swal.fire({ icon: "warning", title: "Review Loan Product", html: `<div style="text-align:left">${errors.map((message) => `<div>• ${message}</div>`).join("")}</div>` });
       return;
     }
     setLoading(true);
@@ -293,6 +390,7 @@ export default function CreateLoanProduct() {
             <CheckboxField label="Charge arrears fee?" checked={form.LoanRegistrationChargeArrearsFee} onChange={set("LoanRegistrationChargeArrearsFee")} />
             <CheckboxField label="Disburse micro loan less deductions?" checked={form.LoanRegistrationDisburseMicroLoanLessDeductions} onChange={set("LoanRegistrationDisburseMicroLoanLessDeductions")} />
             <CheckboxField label="Throttle scheduled arrears recovery?" checked={form.LoanRegistrationThrottleScheduledArrearsRecovery} onChange={set("LoanRegistrationThrottleScheduledArrearsRecovery")} />
+            <CheckboxField label="Lock product?" checked={form.IsLocked} onChange={set("IsLocked")} />
           </div>
         </Section>
 
@@ -313,7 +411,7 @@ export default function CreateLoanProduct() {
             <EnumSelect options={ROUNDING_TYPE_OPTIONS} value={form.LoanRegistrationRoundingType} onChange={set("LoanRegistrationRoundingType")} />
           </FieldGroup>
           <FieldGroup label="Recovery Priority">
-            <Input type="number" value={form.Priority} onChange={(e) => set("Priority")(Number(e.target.value))} />
+            <Input type="number" min="0" max="3" value={form.Priority} onChange={(e) => set("Priority")(Number(e.target.value))} />
           </FieldGroup>
         </Section>
 

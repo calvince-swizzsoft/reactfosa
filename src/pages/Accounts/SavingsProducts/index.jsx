@@ -14,6 +14,9 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { listAllChartOfAccounts } from "@/pages/Accounts/ChartOfAccounts/api";
+import { apiErrorMessage, apiJson, normalizeList } from "@/lib/api";
+import { savingsProductPayload, savingsProductValidationAlert, validateSavingsProduct } from "./validation";
+import FieldHelp from "./FieldHelp";
 
 const BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 
@@ -34,10 +37,13 @@ const emptyForm = {
   IsDefault: false,
 };
 
-function FieldGroup({ label, children }) {
+function FieldGroup({ label, help, children }) {
   return (
     <div>
-      <Label>{label}</Label>
+      <div className="flex items-center gap-1">
+        <Label className="text-sm font-semibold text-gray-700">{label}</Label>
+        <FieldHelp label={label}>{help}</FieldHelp>
+      </div>
       {children}
     </div>
   );
@@ -47,6 +53,9 @@ function NumInput({ field, value, onChange, placeholder }) {
   return (
     <Input
       type="number"
+      min="0"
+      step="any"
+      required
       value={value}
       onChange={(e) => onChange(field, e.target.value)}
       placeholder={placeholder || ""}
@@ -95,11 +104,11 @@ function DrawerShell({ open, onClose, title, children }) {
             onClick={onClose}
           />
           <motion.div
-            className="fixed top-5 right-3 w-[480px] bg-white shadow-xl z-50 flex flex-col rounded-2xl p-3 max-h-[95vh] overflow-y-auto"
+            className="fixed top-5 right-3 w-[520px] bg-white shadow-xl z-50 flex flex-col rounded-2xl p-3 h-[95vh]"
             initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
           >
-            <div className="p-4 flex justify-between items-center bg-indigo-600 rounded-2xl m-2">
+            <div className="shrink-0 p-4 flex justify-between items-center bg-indigo-600 rounded-2xl m-2">
               <h2 className="font-bold text-lg text-white">{title}</h2>
               <Button variant="outline" size="sm" onClick={onClose}>Close</Button>
             </div>
@@ -118,55 +127,69 @@ function SavingsProductForm({ form, setForm, coaList, loading, loadingData, subm
   };
 
   return (
-    <form onSubmit={onSubmit} className="p-4 space-y-4">
-      <FieldGroup label="Description">
+    <form onSubmit={onSubmit} className="flex min-h-0 flex-1 flex-col">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <FieldGroup label="Description" help="The name shown on member accounts, transaction screens, and reports.">
         <Input value={form.Description} onChange={(e) => handleChange("Description", e.target.value)} required placeholder="e.g. ORDINARY SAVINGS" />
       </FieldGroup>
       <div className="grid grid-cols-2 gap-3">
-        <FieldGroup label="Max Allowed Withdrawal">
+        <FieldGroup label="Max Allowed Withdrawal" help="Largest permitted single withdrawal. Must be greater than zero.">
           <NumInput field="MaximumAllowedWithdrawal" value={form.MaximumAllowedWithdrawal} onChange={handleChange} />
         </FieldGroup>
-        <FieldGroup label="Max Allowed Deposit">
+        <FieldGroup label="Max Allowed Deposit" help="Largest permitted single deposit. Must be greater than zero.">
           <NumInput field="MaximumAllowedDeposit" value={form.MaximumAllowedDeposit} onChange={handleChange} />
         </FieldGroup>
-        <FieldGroup label="Minimum Balance">
+        <FieldGroup label="Minimum Balance" help="Protected balance expected to remain after withdrawals.">
           <NumInput field="MinimumBalance" value={form.MinimumBalance} onChange={handleChange} />
         </FieldGroup>
-        <FieldGroup label="Operating Balance">
+        <FieldGroup label="Operating Balance" help="Normal operating target; cannot be below minimum. Currently stored but not transaction-enforced.">
           <NumInput field="OperatingBalance" value={form.OperatingBalance} onChange={handleChange} />
         </FieldGroup>
-        <FieldGroup label="Withdrawal Notice Amount">
+        <FieldGroup label="Withdrawal Notice Amount" help="Withdrawals above this require notice or may attract a without-notice charge.">
           <NumInput field="WithdrawalNoticeAmount" value={form.WithdrawalNoticeAmount} onChange={handleChange} />
         </FieldGroup>
-        <FieldGroup label="Withdrawal Notice Period (days)">
+        <FieldGroup label="Withdrawal Notice Period (days)" help="Business days before a future withdrawal notice matures.">
           <NumInput field="WithdrawalNoticePeriod" value={form.WithdrawalNoticePeriod} onChange={handleChange} />
         </FieldGroup>
-        <FieldGroup label="Withdrawal Interval (days)">
+        <FieldGroup label="Withdrawal Interval (days)" help="Minimum days between withdrawals; early withdrawal may attract a charge.">
           <NumInput field="WithdrawalInterval" value={form.WithdrawalInterval} onChange={handleChange} />
         </FieldGroup>
-        <FieldGroup label="Annual Percentage Yield (%)">
+        <FieldGroup label="Annual Percentage Yield (%)" help="Displayed annual return rate, from 0% to 100%; not currently used for automatic accrual.">
           <NumInput field="AnnualPercentageYield" value={form.AnnualPercentageYield} onChange={handleChange} />
         </FieldGroup>
-        <FieldGroup label="Priority">
+        <FieldGroup label="Recovery Priority" help="Recovery category: 0 Loans, 1 Investments, 2 Savings, or 3 Direct Debits.">
           <NumInput field="Priority" value={form.Priority} onChange={handleChange} />
         </FieldGroup>
       </div>
-      <FieldGroup label="Chart of Account">
+      <FieldGroup label="Chart of Account" help="Required G/L control account used for this product's financial postings.">
         <CoaSelect coaList={coaList} value={form.ChartOfAccountId} nameFallback={form.ChartOfAccountName} onChange={handleChange} disabled={loadingData} />
       </FieldGroup>
-      <div className="flex items-center gap-4">
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input type="checkbox" checked={form.IsMandatory} onChange={(e) => handleChange("IsMandatory", e.target.checked)} className="w-4 h-4 accent-indigo-600" />
-          <span className="text-sm font-medium">Is Mandatory</span>
-        </label>
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input type="checkbox" checked={form.IsDefault} onChange={(e) => handleChange("IsDefault", e.target.checked)} className="w-4 h-4 accent-indigo-600" />
-          <span className="text-sm font-medium">Is Default</span>
-        </label>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <div className="flex items-center gap-1">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={form.IsMandatory} onChange={(e) => handleChange("IsMandatory", e.target.checked)} className="w-4 h-4 accent-indigo-600" />
+              <span className="text-sm font-medium">Is Mandatory</span>
+            </label>
+            <FieldHelp label="Is Mandatory">Marks this product for automatic member-account attachment.</FieldHelp>
+          </div>
+        </div>
+        <div>
+          <div className="flex items-center gap-1">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={form.IsDefault} onChange={(e) => handleChange("IsDefault", e.target.checked)} className="w-4 h-4 accent-indigo-600" />
+              <span className="text-sm font-medium">Is Default</span>
+            </label>
+            <FieldHelp label="Is Default">Primary fallback product. Only one product should be default.</FieldHelp>
+          </div>
+        </div>
       </div>
-      <Button type="submit" disabled={loading || loadingData} className="w-full bg-indigo-600 hover:bg-indigo-700">
-        {loading ? "Saving..." : submitLabel}
-      </Button>
+      </div>
+      <div className="shrink-0 border-t border-gray-200 bg-white p-4">
+        <Button type="submit" disabled={loading || loadingData} className="w-full bg-indigo-600 hover:bg-indigo-700">
+          {loading ? "Saving..." : submitLabel}
+        </Button>
+      </div>
     </form>
   );
 }
@@ -210,39 +233,27 @@ function EditSavingsProductDrawer({ open, onClose, onSuccess, item }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const validationErrors = validateSavingsProduct(form);
+    if (validationErrors.length) {
+      Swal.fire(savingsProductValidationAlert(validationErrors));
+      return;
+    }
     setLoading(true);
     try {
       const payload = {
-        ...form,
+        ...savingsProductPayload(form),
         Id: item.Id,
-        Description: form.Description,
-        //ChartOfAccountId: form.ChartOfAccountId,
-        //ChartOfAccountName: form.ChartOfAccountName,
-        ChartOfAccountId: item.ChartOfAccountId,
-        ChartOfAccountName: item.ChartOfAccountName,
-        MaximumAllowedWithdrawal: Number(form.MaximumAllowedWithdrawal),
-        MaximumAllowedDeposit: Number(form.MaximumAllowedDeposit),
-        MinimumBalance: Number(form.MinimumBalance),
-        OperatingBalance: Number(form.OperatingBalance),
-        WithdrawalNoticeAmount: Number(form.WithdrawalNoticeAmount),
-        WithdrawalNoticePeriod: Number(form.WithdrawalNoticePeriod),
-        WithdrawalInterval: Number(form.WithdrawalInterval),
-        AnnualPercentageYield: Number(form.AnnualPercentageYield),
-        Priority: Number(form.Priority),
       };
       console.log("[EditSavingsProductDrawer] PUT payload:", payload);
-      const res = await fetch(`${BASE}/api/accounts/savingsproducts`, {
+      await apiJson(`${BASE}/api/accounts/savingsproducts`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.message || "Failed to update savings product");
+      }, { fallbackMessage: "Unable to update the savings product." });
       Swal.fire("Success", "Savings product updated successfully", "success");
       onSuccess();
       onClose();
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", apiErrorMessage(err, "Unable to update the savings product."), "error");
     } finally {
       setLoading(false);
     }
@@ -262,21 +273,14 @@ export default function SavingsProducts() {
 
   const fetchItems = () => {
     setLoading(true);
-    fetch(`${BASE}/api/accounts/savingsproducts`)
-      .then((r) => r.json())
-      .then((d) => {
-        const normalized = Array.isArray(d)
-          ? d
-          : Array.isArray(d?.Data)
-            ? d.Data
-            : Array.isArray(d?.data)
-              ? d.data
-              : [];
-        console.log("[SavingsProducts] raw list response:", d);
-        console.log("[SavingsProducts] normalized items:", normalized);
-        setItems(normalized);
+    apiJson(`${BASE}/api/accounts/savingsproducts`, {}, { fallbackMessage: "Unable to load savings products." })
+      .then((body) => {
+        setItems(normalizeList(body));
       })
-      .catch(() => setItems([]))
+      .catch((error) => {
+        setItems([]);
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load savings products."), "error");
+      })
       .finally(() => setLoading(false));
   };
 
@@ -288,12 +292,11 @@ export default function SavingsProducts() {
     Swal.fire({ title: "Delete Savings Product?", icon: "warning", showCancelButton: true, confirmButtonColor: "#dc2626", confirmButtonText: "Delete" }).then(async (r) => {
       if (r.isConfirmed) {
         try {
-          const res = await fetch(`${BASE}/api/accounts/savingsproducts/${id}`, { method: "DELETE" });
-          if (!res.ok) throw new Error("Failed to delete");
+          await apiJson(`${BASE}/api/accounts/savingsproducts/${id}`, { method: "DELETE" }, { fallbackMessage: "Unable to delete the savings product." });
           setItems((prev) => prev.filter((x) => x.Id !== id));
           Swal.fire("Deleted!", "Savings product removed.", "success");
         } catch (err) {
-          Swal.fire("Error", err.message, "error");
+          Swal.fire("Error", apiErrorMessage(err, "Unable to delete the savings product."), "error");
         }
       }
     });

@@ -1,8 +1,9 @@
 // src/components/Navbar.jsx
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { FiSearch, FiBell, FiHelpCircle } from "react-icons/fi";
+import { FiBell, FiHelpCircle } from "react-icons/fi";
 import { useAuth } from "@/context/AuthContext";
+import GlobalSearch from "./GlobalSearch";
 
 export default function Navbar() {
   const { logout } = useAuth();
@@ -23,13 +24,8 @@ export default function Navbar() {
       </div>
 
       {/* Middle: Search Bar */}
-      <div className="flex items-center bg-indigo-700 px-2 py-1 rounded-md w-1/3">
-        <FiSearch className="text-gray-100 mr-2" />
-        <input
-          type="text"
-          placeholder="Search... "
-          className="bg-transparent outline-none text-sm flex-1 placeholder-gray-400 text-white"
-        />
+      <div className="mx-4 flex flex-1 justify-center">
+        <GlobalSearch />
       </div>
 
       {/* Right: Actions */}

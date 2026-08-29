@@ -84,6 +84,14 @@ export default function CustomerAccountDrawer({ open, onClose, onSuccess }) {
       return;
     }
 
+    const selectedProduct = mode === "single"
+      ? products.find((product) => String(product.Id) === String(productId))
+      : null;
+    if (mode === "single" && (!selectedProduct || Number(selectedProduct.Code) <= 0)) {
+      Swal.fire("Invalid Product", "The selected product does not have a valid product code. Review its configuration before creating an account.", "warning");
+      return;
+    }
+
     setLoading(true);
     try {
       let res;
@@ -95,6 +103,10 @@ export default function CustomerAccountDrawer({ open, onClose, onSuccess }) {
             CustomerId: customerId,
             BranchId: branchId,
             CustomerAccountTypeTargetProductId: productId,
+            // Included for compatibility and useful request diagnostics. The
+            // AppService resolves and overwrites these values from productId.
+            CustomerAccountTypeProductCode: selectedProduct.ProductType === "Savings" ? 1 : 3,
+            CustomerAccountTypeTargetProductCode: Number(selectedProduct.Code),
           }),
         });
       } else {

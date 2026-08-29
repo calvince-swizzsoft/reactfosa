@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Swal from "sweetalert2";
 import NotFoundImage from "/assets/scopefinding.png";
-import { FaPlus, FaChevronLeft, FaChevronRight } from "react-icons/fa";
+import { FaPlus, FaChevronLeft, FaChevronRight, FaSitemap } from "react-icons/fa";
 import { apiErrorMessage, apiJson, normalizeList } from "@/lib/api";
 import {
   listChartOfAccounts, getChartOfAccount, getChartOfAccountTree, updateChartOfAccount,
@@ -181,16 +181,14 @@ export default function ChartOfAccounts() {
   };
 
   const hasNextPage = itemsCount ? (pageIndex + 1) * pageSize < itemsCount : searchItems.length === pageSize;
+  const totalPages = Math.max(1, Math.ceil(itemsCount / pageSize));
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-3 gap-3">
-        <Input
-          value={search}
-          onChange={handleSearchChange}
-          placeholder="Search accounts by name..."
-          className="max-w-xs"
-        />
+    <div className="bg-white m-8 px-8 py-8 shadow-2xl rounded-lg relative">
+      <div className="flex justify-between items-center mb-6 bg-indigo-800 px-6 py-3 rounded-2xl">
+        <h2 className="text-xl font-bold text-white flex items-center gap-2">
+          <FaSitemap /> Chart of Accounts
+        </h2>
         <Link
           to="/Accounts/ChartOfAccounts/create"
           className="inline-flex items-center gap-2 rounded-md bg-indigo-600 hover:bg-indigo-700 px-4 py-2 text-sm font-medium text-white"
@@ -199,17 +197,31 @@ export default function ChartOfAccounts() {
         </Link>
       </div>
 
-      <div className="grid grid-cols-12 gap-2 bg-gray-700 text-gray-100 font-semibold p-3 rounded-lg mb-3">
-        <span className="col-span-2">Code</span>
-        <span className="col-span-6">Description</span>
-        <span className="col-span-2">Type</span>
-        <span className="col-span-2">Category</span>
+      <div className="flex flex-wrap justify-between items-center mb-4 gap-3">
+        <Input
+          value={search}
+          onChange={handleSearchChange}
+          placeholder="Search accounts by name..."
+          className="max-w-xs"
+        />
       </div>
 
-      {isSearching ? (
+      <div className="bg-gray-200 p-4 rounded-sm">
+        <div className="grid grid-cols-12 gap-4 bg-gray-700 text-gray-100 font-semibold p-3 rounded-lg mb-4">
+          <span className="col-span-2">Code</span>
+          <span className="col-span-6">Description</span>
+          <span className="col-span-2">Type</span>
+          <span className="col-span-2">Category</span>
+        </div>
+
+        {isSearching ? (
         loadingSearch ? (
           <div className="space-y-2 animate-pulse">
-            {[1, 2, 3].map((i) => <div key={i} className="h-12 bg-gray-100 rounded-lg" />)}
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="grid grid-cols-12 gap-2 bg-gray-50 p-6 rounded">
+                {Array.from({ length: 12 }).map((_, j) => <div key={j} className="h-4 bg-gray-200 rounded" />)}
+              </div>
+            ))}
           </div>
         ) : searchItems.length > 0 ? (
           <div className="space-y-2">
@@ -217,7 +229,7 @@ export default function ChartOfAccounts() {
               <button
                 key={item.Id}
                 onClick={() => setEditAccountId(item.Id)}
-                className="w-full text-left grid grid-cols-12 gap-2 items-center bg-white px-4 py-3 rounded-lg shadow border hover:border-indigo-400 transition-all"
+                className="w-full text-left grid grid-cols-12 gap-2 items-center bg-white px-6 py-4 rounded-lg shadow-lg border hover:shadow-xl hover:border-indigo-400 transition-all"
               >
                 <span className="col-span-2 font-mono text-sm text-gray-600">{item.AccountCode}</span>
                 <span className="col-span-6 font-medium text-indigo-700">{item.AccountName}</span>
@@ -227,14 +239,18 @@ export default function ChartOfAccounts() {
             ))}
           </div>
         ) : (
-          <div className="text-center mt-4">
-            <img src={NotFoundImage} alt="Not Found" className="mx-auto w-32 h-auto" />
-            <p className="text-gray-400 mt-2">No accounts match your search.</p>
+          <div className="text-gray-500 text-center mt-4">
+            <img src={NotFoundImage} alt="Not Found" className="mx-auto w-42" />
+            <p className="font-medium text-gray-400">No accounts match your search.</p>
           </div>
         )
       ) : loadingTree ? (
         <div className="space-y-2 animate-pulse">
-          {[1, 2, 3, 4].map((i) => <div key={i} className="h-12 bg-gray-100 rounded-lg" />)}
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="grid grid-cols-12 gap-2 bg-gray-50 p-6 rounded">
+              {Array.from({ length: 12 }).map((_, j) => <div key={j} className="h-4 bg-gray-200 rounded" />)}
+            </div>
+          ))}
         </div>
       ) : treeItems.length > 0 ? (
         <div className="space-y-2">
@@ -242,7 +258,7 @@ export default function ChartOfAccounts() {
             <button
               key={item.Id}
               onClick={() => setEditAccountId(item.Id)}
-              className="w-full text-left grid grid-cols-12 gap-2 items-center bg-white px-4 py-3 rounded-lg shadow border hover:border-indigo-400 transition-all"
+              className="w-full text-left grid grid-cols-12 gap-2 items-center bg-white px-6 py-4 rounded-lg shadow-lg border hover:shadow-xl hover:border-indigo-400 transition-all"
               style={{ marginLeft: `${(item.Depth || 0) * 20}px`, width: `calc(100% - ${(item.Depth || 0) * 20}px)` }}
             >
               <span className="col-span-2 font-mono text-sm text-gray-600">{item.Code}</span>
@@ -256,23 +272,24 @@ export default function ChartOfAccounts() {
           ))}
         </div>
       ) : (
-        <div className="text-center mt-4">
-          <img src={NotFoundImage} alt="Not Found" className="mx-auto w-32 h-auto" />
-          <p className="text-gray-400 mt-2">No chart of accounts found.</p>
+        <div className="text-gray-500 text-center mt-4">
+          <img src={NotFoundImage} alt="Not Found" className="mx-auto w-42" />
+          <p className="font-medium text-gray-400">No chart of accounts found.</p>
         </div>
       )}
 
-      {isSearching && (
-        <div className="flex justify-center items-center mt-4">
-          <Button type="button" size="sm" disabled={pageIndex === 0} onClick={() => setPageIndex((p) => Math.max(0, p - 1))} className="flex items-center gap-1 m-2">
-            <FaChevronLeft /> Prev
-          </Button>
-          <span>Page {pageIndex + 1}</span>
-          <Button type="button" size="sm" disabled={!hasNextPage} onClick={() => setPageIndex((p) => p + 1)} className="flex items-center gap-1 m-2">
-            Next <FaChevronRight />
-          </Button>
-        </div>
-      )}
+        {isSearching && (
+          <div className="flex justify-center items-center mt-4">
+            <Button type="button" size="sm" disabled={pageIndex === 0} onClick={() => setPageIndex((p) => Math.max(0, p - 1))} className="flex items-center gap-1 m-2">
+              <FaChevronLeft /> Prev
+            </Button>
+            <span>Page {pageIndex + 1} of {totalPages}</span>
+            <Button type="button" size="sm" disabled={!hasNextPage} onClick={() => setPageIndex((p) => p + 1)} className="flex items-center gap-1 m-2">
+              Next <FaChevronRight />
+            </Button>
+          </div>
+        )}
+      </div>
 
       <EditChartOfAccountDrawer
         open={!!editAccountId}

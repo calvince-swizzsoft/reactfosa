@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Swal from "sweetalert2";
-import { apiErrorMessage, apiJson, normalizeList } from "@/lib/api";
+import { apiErrorMessage, apiJson } from "@/lib/api";
+import { normalizeBranchOptions } from "../branchOptions";
 
 export default function EditLocation({ open, onClose, data, refresh }) {
   const [loading, setLoading] = useState(false);
@@ -30,10 +31,8 @@ export default function EditLocation({ open, onClose, data, refresh }) {
   useEffect(() => {
     const fetchBranches = async () => {
       try {
-        const json = await apiJson(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/branches`);
-        // GET / now returns PageCollectionInfo<BranchDTO> (paged), not a
-        // bare array.
-        setBranches(normalizeList(json));
+        const json = await apiJson(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/branches/all`);
+        setBranches(normalizeBranchOptions(json));
       } catch (err) {
         setBranches([]);
         Swal.fire("Error", apiErrorMessage(err, "Unable to load branches."), "error");
@@ -101,9 +100,9 @@ export default function EditLocation({ open, onClose, data, refresh }) {
                       onChange={(e) => update("BranchId", e.target.value)}
                     >
                       <option value="">Select Branch</option>
-                      {branches.map((b) => (
-                        <option key={b.Id} value={b.Id}>
-                          {b.Description}
+                      {branches.map((branch) => (
+                        <option key={branch.id} value={branch.id}>
+                          {branch.name}
                         </option>
                       ))}
                     </select>

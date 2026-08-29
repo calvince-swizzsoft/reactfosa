@@ -22,7 +22,7 @@ export const LEAVE_STATUS_BADGE_CLASS = {
 };
 
 // LeaveUnitTypes — Application.MainBoundedContext.DTO's LeaveType.UnitType
-export const LEAVE_UNIT_TYPE_LABEL = { 0: "Unknown", 1: "Weekly", 2: "Monthly", 3: "Yearly" };
+export const LEAVE_UNIT_TYPE_LABEL = { 1: "Weekly", 2: "Monthly", 3: "Yearly" };
 
 // LeaveTypeTargetGender
-export const LEAVE_TARGET_GENDER_LABEL = { 0: "Unknown", 1: "Male", 2: "Female", 3: "Non-Binary" };
+export const LEAVE_TARGET_GENDER_LABEL = { 0: "All genders", 1: "Male", 2: "Female", 3: "Non-Binary" };

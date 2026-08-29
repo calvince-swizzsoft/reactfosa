@@ -9,12 +9,13 @@ import {
 } from "@/components/ui/select";
 import Swal from "sweetalert2";
 import NotFoundImage from "/assets/scopefinding.png";
-import { FaEllipsisV, FaEdit, FaPlus, FaChevronLeft, FaChevronRight } from "react-icons/fa";
+import { FaEllipsisV, FaEdit, FaPlus, FaChevronLeft, FaChevronRight, FaUniversity } from "react-icons/fa";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { apiFetch, normalizeList } from "@/lib/api";
 import { listAllChartOfAccounts } from "@/pages/Accounts/ChartOfAccounts/api";
+import { treasuryValidationMessage } from "./validation";
 
 const BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 // Treasury master data lives under Areas/Accounts now, not Areas/FrontOffice
@@ -113,10 +114,10 @@ function TreasuryForm({ form, setForm, branches, coaList, loading, loadingData, 
       </FieldGroup>
       <div className="grid grid-cols-2 gap-3">
         <FieldGroup label="Range Lower Limit">
-          <Input type="number" value={form.RangeLowerLimit} onChange={(e) => handleChange("RangeLowerLimit", e.target.value)} placeholder="50000" />
+          <Input type="number" min="0" step="0.01" required value={form.RangeLowerLimit} onChange={(e) => handleChange("RangeLowerLimit", e.target.value)} placeholder="50000" />
         </FieldGroup>
         <FieldGroup label="Range Upper Limit">
-          <Input type="number" value={form.RangeUpperLimit} onChange={(e) => handleChange("RangeUpperLimit", e.target.value)} placeholder="100000" />
+          <Input type="number" min="0" step="0.01" required value={form.RangeUpperLimit} onChange={(e) => handleChange("RangeUpperLimit", e.target.value)} placeholder="100000" />
         </FieldGroup>
       </div>
       <Button type="submit" disabled={loading || loadingData} className="w-full bg-indigo-600 hover:bg-indigo-700">
@@ -161,10 +162,17 @@ function EditTreasuryDrawer({ open, onClose, onSuccess, item }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const validationMessage = treasuryValidationMessage(form);
+    if (validationMessage) {
+      Swal.fire("Check Treasury Details", validationMessage, "warning");
+      return;
+    }
+
     setLoading(true);
     try {
       const payload = {
         ...form,
+        Description: form.Description.trim(),
         RangeLowerLimit: Number(form.RangeLowerLimit),
         RangeUpperLimit: Number(form.RangeUpperLimit),
       };
@@ -222,14 +230,18 @@ export default function Treasuries() {
   }, [pageIndex]);
 
   const hasNextPage = itemsCount ? (pageIndex + 1) * pageSize < itemsCount : items.length === pageSize;
+  const totalPages = Math.max(1, Math.ceil(itemsCount / pageSize));
 
   // No delete action here — TreasurysController has no DELETE route at all
   // (confirmed against the real controller source: only GET/GET{id}/POST/
   // PUT exist). The old delete button always 404'd/405'd.
 
   return (
-    <div>
-      <div className="flex justify-end mb-3">
+    <div className="bg-white m-8 px-8 py-8 shadow-2xl rounded-lg relative">
+      <div className="flex justify-between items-center mb-6 bg-indigo-800 px-6 py-3 rounded-2xl">
+        <h2 className="text-xl font-bold text-white flex items-center gap-2">
+          <FaUniversity /> Treasuries
+        </h2>
         <Link
           to="/Accounts/Treasuries/create"
           className="inline-flex items-center gap-2 rounded-md bg-indigo-600 hover:bg-indigo-700 px-4 py-2 text-sm font-medium text-white"
@@ -238,23 +250,28 @@ export default function Treasuries() {
         </Link>
       </div>
 
-      <div className="grid grid-cols-12 gap-2 bg-gray-700 text-gray-100 font-semibold p-3 rounded-lg mb-3">
-        <span className="col-span-3">Description</span>
-        <span className="col-span-3">Branch</span>
-        <span className="col-span-2">Lower Limit</span>
-        <span className="col-span-2">Upper Limit</span>
-        <span className="col-span-1">Status</span>
-        <span className="col-span-1 text-right">Actions</span>
-      </div>
-
-      {loading ? (
-        <div className="space-y-2 animate-pulse">
-          {[1, 2, 3].map((i) => <div key={i} className="h-12 bg-gray-100 rounded-lg" />)}
+      <div className="bg-gray-200 p-4 rounded-sm">
+        <div className="grid grid-cols-12 gap-4 bg-gray-700 text-gray-100 font-semibold p-3 rounded-lg mb-4">
+          <span className="col-span-3">Description</span>
+          <span className="col-span-3">Branch</span>
+          <span className="col-span-2">Lower Limit</span>
+          <span className="col-span-2">Upper Limit</span>
+          <span className="col-span-1">Status</span>
+          <span className="col-span-1 text-right">Actions</span>
         </div>
-      ) : items.length > 0 ? (
-        <div className="space-y-2">
-          {items.map((item) => (
-            <div key={item.Id} className="grid grid-cols-12 gap-2 items-center bg-white px-4 py-3 rounded-lg shadow border">
+
+        {loading ? (
+          <div className="space-y-2 animate-pulse">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="grid grid-cols-12 gap-2 bg-gray-50 p-6 rounded">
+                {Array.from({ length: 12 }).map((_, j) => <div key={j} className="h-4 bg-gray-200 rounded" />)}
+              </div>
+            ))}
+          </div>
+        ) : items.length > 0 ? (
+          <div className="space-y-2">
+            {items.map((item) => (
+              <div key={item.Id} className="grid grid-cols-12 gap-2 items-center bg-white px-6 py-4 rounded-lg shadow-lg border hover:shadow-xl transition-all">
               <span className="col-span-3 font-medium text-indigo-700">{item.Description}</span>
               <span className="col-span-3 text-sm text-gray-600">{item.BranchDescription || item.BranchName || "—"}</span>
               <span className="col-span-2 text-sm text-gray-600">{item.RangeLowerLimit?.toLocaleString() ?? "—"}</span>
@@ -276,36 +293,37 @@ export default function Treasuries() {
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="text-center mt-4">
-          <img src={NotFoundImage} alt="Not Found" className="mx-auto w-32 h-auto" />
-          <p className="text-gray-400 mt-2">No treasuries found.</p>
-        </div>
-      )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-gray-500 text-center mt-4">
+            <img src={NotFoundImage} alt="Not Found" className="mx-auto w-42" />
+            <p className="font-medium text-gray-400">No treasuries found.</p>
+          </div>
+        )}
 
-      <div className="flex justify-center items-center mt-4">
-        <Button
-          type="button"
-          size="sm"
-          disabled={pageIndex === 0}
-          onClick={() => setPageIndex((p) => Math.max(0, p - 1))}
-          className="flex items-center gap-1 m-2"
-        >
-          <FaChevronLeft /> Prev
-        </Button>
-        <span>Page {pageIndex + 1}</span>
-        <Button
-          type="button"
-          size="sm"
-          disabled={!hasNextPage}
-          onClick={() => setPageIndex((p) => p + 1)}
-          className="flex items-center gap-1 m-2"
-        >
-          Next <FaChevronRight />
-        </Button>
+        <div className="flex justify-center items-center mt-4">
+          <Button
+            type="button"
+            size="sm"
+            disabled={pageIndex === 0}
+            onClick={() => setPageIndex((p) => Math.max(0, p - 1))}
+            className="flex items-center gap-1 m-2"
+          >
+            <FaChevronLeft /> Prev
+          </Button>
+          <span>Page {pageIndex + 1} of {totalPages}</span>
+          <Button
+            type="button"
+            size="sm"
+            disabled={!hasNextPage}
+            onClick={() => setPageIndex((p) => p + 1)}
+            className="flex items-center gap-1 m-2"
+          >
+            Next <FaChevronRight />
+          </Button>
+        </div>
       </div>
 
       <EditTreasuryDrawer open={!!editItem} onClose={() => setEditItem(null)} onSuccess={fetchItems} item={editItem} />

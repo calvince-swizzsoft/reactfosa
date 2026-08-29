@@ -10,8 +10,9 @@ import {
 import Swal from "sweetalert2";
 import NotFoundImage from "/assets/scopefinding.png";
 import { FaEdit, FaPlus, FaUserTag } from "react-icons/fa";
-import { apiFetch, normalizeList } from "@/lib/api";
+import { apiErrorMessage, apiFetch, apiJson, normalizeList } from "@/lib/api";
 import { listAllChartOfAccounts } from "@/pages/Accounts/ChartOfAccounts/api";
+import FieldHelp from "@/pages/Accounts/SavingsProducts/FieldHelp";
 
 // Areas/HumanResource/Controllers/EmployeeTypesController.cs — GET/POST/PUT
 // only, no DELETE route and no paging/text-filter support (Index() returns
@@ -24,16 +25,15 @@ const EMPLOYEE_TYPES_BASE = `${BASE}/api/humanresource/employeetypes`;
 const categoryOptions = [
   { value: 1, label: "Full-Time" },
   { value: 2, label: "Part-Time" },
-  { value: 3, label: "Contract" },
-  { value: 4, label: "Intern" },
+  { value: 4, label: "Contract" },
 ];
 
 const emptyForm = { ChartOfAccountId: "", Description: "", IsLocked: false, Category: "" };
 
-function FieldGroup({ label, children }) {
+function FieldGroup({ label, help, children }) {
   return (
     <div>
-      <Label className="text-sm font-semibold text-gray-700">{label}</Label>
+      <div className="flex items-center gap-1.5"><Label className="text-sm font-semibold text-gray-700">{label}</Label>{help && <FieldHelp text={help} />}</div>
       {children}
     </div>
   );
@@ -48,9 +48,9 @@ function EmployeeTypeForm({ form, setForm, coaList, loading, loadingData, submit
         <Input value={form.Description} onChange={(e) => handleChange("Description", e.target.value)} required placeholder="e.g. FOSA" />
       </FieldGroup>
       <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider pt-1">Chart of Accounts</p>
-      <FieldGroup label="Chart of Account">
+      <FieldGroup label="Payroll Control Account" help="The active detail G/L account that serves as the payroll clearing account for earnings, deductions, loan or investment deductions, and net pay.">
         <Select value={form.ChartOfAccountId} onValueChange={(v) => handleChange("ChartOfAccountId", v)} disabled={loadingData}>
-          <SelectTrigger><SelectValue placeholder={loadingData ? "Loading..." : "Select Account"} /></SelectTrigger>
+          <SelectTrigger><SelectValue placeholder={loadingData ? "Loading..." : "Select payroll control account"} /></SelectTrigger>
           <SelectContent className="max-h-60 overflow-y-auto">
             {coaList.map((a) => (
               <SelectItem key={a.Id} value={a.Id}>
@@ -91,7 +91,7 @@ function EditEmployeeTypeDrawer({ open, onClose, onSuccess, item }) {
     if (!open) return;
     setLoadingData(true);
     listAllChartOfAccounts()
-      .then(setCoaList)
+      .then((accounts) => setCoaList(accounts.filter((account) => Number(account.AccountCategory) === 4097 && !account.IsLocked)))
       .catch(() => setCoaList([]))
       .finally(() => setLoadingData(false));
   }, [open]);
@@ -109,20 +109,22 @@ function EditEmployeeTypeDrawer({ open, onClose, onSuccess, item }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!form.ChartOfAccountId || !form.Category) {
+      Swal.fire("Missing Field", "Select a payroll control account and employee category.", "warning");
+      return;
+    }
     setLoading(true);
     try {
-      const payload = { ...form, Id: item.Id, Category: parseInt(form.Category) || 1 };
-      const res = await apiFetch(`${EMPLOYEE_TYPES_BASE}/${item.Id}`, {
+      const payload = { ...form, Id: item.Id, Description: form.Description.trim(), Category: Number(form.Category) };
+      await apiJson(`${EMPLOYEE_TYPES_BASE}/${item.Id}`, {
         method: "PUT",
         body: JSON.stringify(payload),
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.message || "Failed to update employee type");
       Swal.fire("Success", "Employee Type updated successfully", "success");
       onSuccess();
       onClose();
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", apiErrorMessage(err, "Failed to update employee type."), "error");
     } finally {
       setLoading(false);
     }

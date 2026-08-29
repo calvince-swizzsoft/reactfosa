@@ -3,8 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Swal from "sweetalert2";
 import NotFoundImage from "/assets/scopefinding.png";
-import { FaCheck, FaTimes, FaChevronLeft, FaChevronRight, FaThumbsUp } from "react-icons/fa";
-import { listLeaveApplications, authorizeLeaveApplication } from "../lib/api";
+import { FaCheck, FaTimes, FaChevronLeft, FaChevronRight, FaThumbsUp, FaExclamationTriangle } from "react-icons/fa";
+import { listLeaveApplications, authorizeLeaveApplication, getLeaveApprovalReadiness } from "../lib/api";
 import { LeaveApplicationStatus } from "../lib/enums";
 
 const formatDate = (iso) => {
@@ -36,6 +36,7 @@ export default function LeaveApprovalList() {
   const [pageSize] = useState(20);
   const [itemsCount, setItemsCount] = useState(0);
   const [actingIds, setActingIds] = useState(new Set());
+  const [readiness, setReadiness] = useState(null);
 
   const fetchItems = () => {
     setLoading(true);
@@ -50,6 +51,7 @@ export default function LeaveApprovalList() {
 
   useEffect(() => {
     fetchItems();
+    getLeaveApprovalReadiness().then(setReadiness).catch(() => setReadiness(null));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search, pageIndex]);
 
@@ -83,6 +85,13 @@ export default function LeaveApprovalList() {
           <FaThumbsUp /> Leave Approvals
         </h2>
       </div>
+
+      {readiness && !(readiness.HasEligibleApprover ?? readiness.hasEligibleApprover) && (readiness.PendingApplications ?? readiness.pendingApplications) > 0 ? (
+        <div role="alert" className="mb-4 flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800">
+          <FaExclamationTriangle className="mt-0.5 shrink-0" />
+          <span>There are pending leave applications, but no active employee user currently has Leave Approval permission. An administrator must assign that permission before these requests can be processed.</span>
+        </div>
+      ) : null}
 
       <div className="flex flex-wrap justify-between items-center mb-4 gap-3">
         <Input

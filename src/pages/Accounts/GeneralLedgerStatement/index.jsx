@@ -46,8 +46,12 @@ const lastMonthIso = () => {
   return d.toISOString().slice(0, 10);
 };
 
-export default function GeneralLedgerStatement() {
-  const [mode, setMode] = useState("byAccount");
+export default function GeneralLedgerStatement({
+  initialMode = "byAccount",
+  title = "General Ledger Statement",
+  showModeSelector = true,
+}) {
+  const [mode, setMode] = useState(initialMode);
 
   const [coaList, setCoaList] = useState([]);
   const [loadingCoa, setLoadingCoa] = useState(false);
@@ -65,6 +69,10 @@ export default function GeneralLedgerStatement() {
   const [loadingLines, setLoadingLines] = useState(false);
   const [lines, setLines] = useState([]);
   const [itemsCount, setItemsCount] = useState(0);
+
+  useEffect(() => {
+    setMode(initialMode);
+  }, [initialMode]);
 
   useEffect(() => {
     setLoadingCoa(true);
@@ -131,25 +139,27 @@ export default function GeneralLedgerStatement() {
     <div className="bg-white m-8 px-8 py-8 shadow-2xl rounded-lg relative">
       <div className="flex justify-between items-center mb-6 bg-indigo-800 px-6 py-3 rounded-2xl">
         <h2 className="text-xl font-bold text-white flex items-center gap-2">
-          <FaBookOpen /> General Ledger Statement
+          <FaBookOpen /> {title}
         </h2>
       </div>
 
-      <div className="flex gap-2 mb-4">
-        {MODES.map((m) => (
-          <button
-            key={m.id}
-            type="button"
-            onClick={() => setMode(m.id)}
-            className={`px-4 py-2 rounded-md text-sm font-semibold transition-colors ${mode === m.id
-              ? "bg-indigo-600 text-white"
-              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-              }`}
-          >
-            {m.label}
-          </button>
-        ))}
-      </div>
+      {showModeSelector && (
+        <div className="flex gap-2 mb-4">
+          {MODES.map((m) => (
+            <button
+              key={m.id}
+              type="button"
+              onClick={() => setMode(m.id)}
+              className={`px-4 py-2 rounded-md text-sm font-semibold transition-colors ${mode === m.id
+                ? "bg-indigo-600 text-white"
+                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
+            >
+              {m.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {mode !== "browse" && (
         <div className="mb-4 max-w-md">

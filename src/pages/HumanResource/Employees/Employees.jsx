@@ -14,6 +14,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import NotFoundImage from "/assets/scopefinding.png";
+import Swal from "sweetalert2";
+import { apiErrorMessage, apiJson, normalizeList } from "@/lib/api";
 
 export default function Employees() {
   const navigate = useNavigate();
@@ -22,13 +24,16 @@ export default function Employees() {
   const [addDrawerOpen, setAddDrawerOpen] = useState(false);
 
   const fetchEmployees = () => {
-    fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/humanresource/employees`)
-      .then((res) => res.json())
+    setLoading(true);
+    return apiJson(`${import.meta.env.VITE_APP_FIN_URL}/api/humanresource/employees`)
       .then((data) => {
-        setEmployees(Array.isArray(data) ? data : []);
-        setLoading(false);
+        setEmployees(normalizeList(data));
       })
-      .catch(() => setLoading(false));
+      .catch((error) => {
+        setEmployees([]);
+        Swal.fire("Unable to Load Employees", apiErrorMessage(error, "The employee list could not be loaded."), "error");
+      })
+      .finally(() => setLoading(false));
   };
 
 

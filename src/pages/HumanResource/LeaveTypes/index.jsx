@@ -12,13 +12,14 @@ import NotFoundImage from "/assets/scopefinding.png";
 import { FaEdit, FaPlus, FaChevronLeft, FaChevronRight, FaUmbrellaBeach } from "react-icons/fa";
 import { listLeaveTypes, updateLeaveType } from "../Leave/lib/api";
 import { LEAVE_UNIT_TYPE_LABEL, LEAVE_TARGET_GENDER_LABEL } from "../Leave/lib/enums";
+import FieldHelp from "@/pages/Accounts/SavingsProducts/FieldHelp";
 
-const emptyForm = { Description: "", Entitlement: 0, TargetGender: 0, UnitType: 0, IsAccrued: false, ExcludeHolidays: false, ExcludeWeekends: false };
+const emptyForm = { Description: "", Entitlement: 1, TargetGender: 0, UnitType: 3, IsAccrued: false, ExcludeHolidays: false, ExcludeWeekends: false, IsLocked: false };
 
-function FieldGroup({ label, children }) {
+function FieldGroup({ label, help, children }) {
   return (
     <div>
-      <Label className="text-sm font-semibold text-gray-700">{label}</Label>
+      <div className="flex items-center gap-1"><Label className="text-sm font-semibold text-gray-700">{label}</Label>{help && <FieldHelp label={label}>{help}</FieldHelp>}</div>
       {children}
     </div>
   );
@@ -33,11 +34,11 @@ function LeaveTypeForm({ form, setForm, loading, submitLabel, onSubmit }) {
         <Input value={form.Description} onChange={(e) => set("Description", e.target.value)} required placeholder="e.g. Annual Leave" />
       </FieldGroup>
 
-      <FieldGroup label="Entitlement (Days)">
-        <Input type="number" min="0" value={form.Entitlement} onChange={(e) => set("Entitlement", Number(e.target.value))} required />
+      <FieldGroup label="Entitlement (Days)" help="The number of leave days granted in each selected entitlement cycle.">
+        <Input type="number" min="1" value={form.Entitlement} onChange={(e) => set("Entitlement", Number(e.target.value))} required />
       </FieldGroup>
 
-      <FieldGroup label="Unit Type">
+      <FieldGroup label="Unit Type" help="Determines whether entitlement is granted weekly, monthly, or yearly.">
         <Select value={String(form.UnitType)} onValueChange={(v) => set("UnitType", Number(v))}>
           <SelectTrigger><SelectValue /></SelectTrigger>
           <SelectContent>
@@ -48,7 +49,7 @@ function LeaveTypeForm({ form, setForm, loading, submitLabel, onSubmit }) {
         </Select>
       </FieldGroup>
 
-      <FieldGroup label="Target Gender">
+      <FieldGroup label="Target Gender" help="Restricts this leave type to eligible employees. Choose All genders for a general policy.">
         <Select value={String(form.TargetGender)} onValueChange={(v) => set("TargetGender", Number(v))}>
           <SelectTrigger><SelectValue /></SelectTrigger>
           <SelectContent>
@@ -70,6 +71,11 @@ function LeaveTypeForm({ form, setForm, loading, submitLabel, onSubmit }) {
       <div className="flex items-center gap-2">
         <input type="checkbox" id="leavetype-excludeweekends" checked={form.ExcludeWeekends} onChange={(e) => set("ExcludeWeekends", e.target.checked)} className="w-4 h-4 accent-indigo-600" />
         <Label htmlFor="leavetype-excludeweekends">Exclude Weekends?</Label>
+      </div>
+      <div className="flex items-center gap-2">
+        <input type="checkbox" id="leavetype-locked" checked={form.IsLocked} onChange={(e) => set("IsLocked", e.target.checked)} className="w-4 h-4 accent-indigo-600" />
+        <Label htmlFor="leavetype-locked">Locked</Label>
+        <FieldHelp label="Locked leave type">Locked leave types remain in history but cannot be selected for new or edited leave applications.</FieldHelp>
       </div>
 
       <Button type="submit" disabled={loading} className="w-full bg-indigo-600 hover:bg-indigo-700">
@@ -93,6 +99,7 @@ function EditLeaveTypeDrawer({ open, onClose, onSuccess, item }) {
         IsAccrued: item.IsAccrued || false,
         ExcludeHolidays: item.ExcludeHolidays || false,
         ExcludeWeekends: item.ExcludeWeekends || false,
+        IsLocked: Boolean(item.IsLocked),
       });
     }
   }, [item]);
@@ -192,10 +199,11 @@ export default function LeaveTypes() {
 
       <div className="bg-gray-200 p-4 rounded-sm">
         <div className="grid grid-cols-12 gap-4 bg-gray-700 text-gray-100 font-semibold p-3 rounded-lg mb-4">
-          <span className="col-span-4">Description</span>
+          <span className="col-span-3">Description</span>
           <span className="col-span-2">Entitlement</span>
           <span className="col-span-2">Unit Type</span>
           <span className="col-span-2">Target Gender</span>
+          <span className="col-span-1">Status</span>
           <span className="col-span-2 text-right">Actions</span>
         </div>
 
@@ -214,10 +222,11 @@ export default function LeaveTypes() {
             {items.map((item) => (
               <div key={item.Id} className="bg-white rounded-lg shadow-lg border">
                 <div className="grid grid-cols-12 gap-2 items-center py-4 px-6 hover:shadow-xl transition-all">
-                  <span className="col-span-4 font-medium text-indigo-700">{item.Description}</span>
+                  <span className="col-span-3 font-medium text-indigo-700">{item.Description}</span>
                   <span className="col-span-2 text-sm text-gray-700">{item.Entitlement} days</span>
                   <span className="col-span-2 text-sm text-gray-600">{item.UnitTypeDescription || LEAVE_UNIT_TYPE_LABEL[item.UnitType] || "—"}</span>
                   <span className="col-span-2 text-sm text-gray-600">{item.TargetGenderDescription || LEAVE_TARGET_GENDER_LABEL[item.TargetGender] || "—"}</span>
+                  <span className="col-span-1"><span className={`px-2 py-1 rounded text-xs font-semibold ${item.IsLocked ? "bg-red-100 text-red-600" : "bg-green-100 text-green-600"}`}>{item.IsLocked ? "Locked" : "Active"}</span></span>
                   <div className="col-span-2 flex justify-end">
                     <Button size="sm" variant="outline" onClick={() => setEditItem(item)} className="flex items-center gap-1">
                       <FaEdit className="text-indigo-600" /> Edit

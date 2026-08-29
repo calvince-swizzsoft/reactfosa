@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Swal from "sweetalert2";
 import { apiErrorMessage, apiJson } from "@/lib/api";
+import { showBranchValidationErrors, validateBranch } from "./branchFormValidation";
 
 const FIN_BASE = `${import.meta.env.VITE_APP_MEMBERSHIP_URL}`;
 const BRANCH_BASE = `${FIN_BASE}/api/administration/branches`;
@@ -52,12 +53,9 @@ export default function AddBranch({ open, onClose, refresh }) {
     }, [open]);
 
     const handleSubmit = async () => {
-        if (!form.description) {
-            Swal.fire("Missing Field", "Description is required.", "warning");
-            return;
-        }
-        if (!form.companyId) {
-            Swal.fire("Missing Field", "A branch with no company is meaningless — select one.", "warning");
+        const validationErrors = validateBranch(form);
+        if (validationErrors.length) {
+            Swal.fire(showBranchValidationErrors(validationErrors));
             return;
         }
         setLoading(true);

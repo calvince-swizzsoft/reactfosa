@@ -8,6 +8,7 @@ import NotFoundImage from "/assets/scopefinding.png";
 import { FaEdit, FaPlus, FaChevronLeft, FaChevronRight, FaCalendarCheck } from "react-icons/fa";
 import { listPostingPeriods, createPostingPeriod, updatePostingPeriod } from "./api";
 import { apiErrorMessage } from "@/lib/api";
+import FieldHelp from "../SavingsProducts/FieldHelp";
 
 function FieldGroup({ label, children }) {
   return (
@@ -30,6 +31,7 @@ function PostingPeriodDrawer({ open, onClose, onSuccess, item }) {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [isLocked, setIsLocked] = useState(false);
+  const [isActive, setIsActive] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -38,11 +40,13 @@ function PostingPeriodDrawer({ open, onClose, onSuccess, item }) {
       setStartDate(toDateInput(item.DurationStartDate));
       setEndDate(toDateInput(item.DurationEndDate));
       setIsLocked(Boolean(item.IsLocked));
+      setIsActive(Boolean(item.IsActive));
     } else {
       setDescription("");
       setStartDate("");
       setEndDate("");
       setIsLocked(false);
+      setIsActive(false);
     }
   }, [item, open]);
 
@@ -59,7 +63,21 @@ function PostingPeriodDrawer({ open, onClose, onSuccess, item }) {
     setSaving(true);
     try {
       if (item) {
-        await updatePostingPeriod(item.Id, { description, startDate, endDate, isLocked });
+        if (isActive && !item.IsActive) {
+          const confirmation = await Swal.fire({
+            title: "Activate this posting period?",
+            text: "It will become the current posting period and any other active period will be made inactive.",
+            icon: "warning",
+            showCancelButton: true,
+            confirmButtonText: "Activate and update",
+            confirmButtonColor: "#4f46e5",
+          });
+          if (!confirmation.isConfirmed) {
+            setSaving(false);
+            return;
+          }
+        }
+        await updatePostingPeriod(item.Id, { description, startDate, endDate, isLocked, isActive });
       } else {
         await createPostingPeriod({ description, startDate, endDate });
       }
@@ -101,9 +119,26 @@ function PostingPeriodDrawer({ open, onClose, onSuccess, item }) {
               </FieldGroup>
 
               {item && (
-                <label className="flex items-center gap-2 text-sm text-gray-700">
-                  <input type="checkbox" className="w-4 h-4 accent-indigo-600" checked={isLocked} onChange={(e) => setIsLocked(e.target.checked)} disabled={item?.IsClosed} /> Locked
-                </label>
+                <div className="space-y-3">
+                  <label className="flex items-center gap-2 text-sm text-gray-700">
+                    <input type="checkbox" className="w-4 h-4 accent-indigo-600" checked={isLocked} onChange={(e) => setIsLocked(e.target.checked)} disabled={item?.IsClosed} /> Locked
+                  </label>
+                  <div className="flex items-center gap-2 text-sm text-gray-700">
+                    <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4 accent-indigo-600"
+                      checked={isActive}
+                      onChange={(e) => setIsActive(e.target.checked)}
+                      disabled={item?.IsClosed || item?.IsActive}
+                    />
+                    <span>Set as active posting period</span>
+                    </label>
+                    <FieldHelp label="Active posting period">
+                      Only one period can be active. Activating this period replaces the current active period used by operational postings.
+                    </FieldHelp>
+                  </div>
+                </div>
               )}
 
               <Button type="submit" disabled={saving || item?.IsClosed} className="w-full bg-indigo-600 hover:bg-indigo-700">

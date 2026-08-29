@@ -3,11 +3,13 @@ import { Button } from "@/components/ui/button";
 import NotFoundImage from "/assets/scopefinding.png";
 import { FaEdit, FaSearch, FaUserPlus, FaBell, FaUsers } from "react-icons/fa";
 import { apiFetch } from "@/lib/api";
+import { readApiResponse } from "@/lib/api-errors";
 import CreateCustomerDrawer from "./create";
 import EditCustomerDrawer from "./edit";
 import AlertPreferencesDrawer from "./AlertPreferencesDrawer";
 import NextOfKinDrawer from "./NextOfKinDrawer";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import Swal from "sweetalert2";
 
 const BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 
@@ -36,6 +38,7 @@ export default function Customers() {
   const [alertPrefsCustomer, setAlertPrefsCustomer] = useState(null);
   const [nextOfKinCustomer, setNextOfKinCustomer] = useState(null);
   const [canEdit, setCanEdit] = useState(false);
+  const [editAccessResolved, setEditAccessResolved] = useState(false);
   const [search, setSearch] = useState("");
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState(2);
@@ -62,7 +65,7 @@ export default function Customers() {
   };
 
   useEffect(() => {
-    apiFetch(`${BASE}/api/registry/customer/edit-access`).then((r) => r.json()).then((body) => setCanEdit(Boolean(body?.data?.canEdit ?? body?.Data?.CanEdit))).catch(() => setCanEdit(false));
+    apiFetch(`${BASE}/api/registry/customer/edit-access`).then((response) => readApiResponse(response, { fallbackMessage: "Could not resolve customer-edit access." })).then((body) => setCanEdit(Boolean(body?.data?.canEdit ?? body?.Data?.CanEdit))).catch(() => setCanEdit(false)).finally(() => setEditAccessResolved(true));
   }, []);
 
   useEffect(() => {
@@ -81,6 +84,12 @@ export default function Customers() {
     item.NonIndividualDescription ||
     item.Description ||
     "—";
+
+  const editCustomer = (item) => {
+    if (!editAccessResolved) return Swal.fire("Checking Access", "Customer edit access is still being resolved. Try again in a moment.", "info");
+    if (!canEdit) return Swal.fire("Customer Editing Permission Required", "Your current role cannot edit customers. Assign the Customer Editing permission under Administration → Role Permission Types, then try again.", "info");
+    setEditingId(item.Id ?? item.id);
+  };
 
   return (
     <div className="bg-white m-8 px-8 py-8 shadow-2xl rounded-lg relative">
@@ -144,7 +153,7 @@ export default function Customers() {
                   <span className="col-span-2 text-right flex justify-end gap-1">
                     <Button size="sm" variant="outline" onClick={() => setNextOfKinCustomer(item)} title="Next of kin"><FaUsers /></Button>
                     <Button size="sm" variant="outline" onClick={() => setAlertPrefsCustomer(item)} title="Alert preferences"><FaBell /></Button>
-                    {canEdit && <Button size="sm" variant="outline" onClick={() => setEditingId(item.Id ?? item.id)} title="Edit customer"><FaEdit /></Button>}
+                    <Button size="sm" variant="outline" onClick={() => editCustomer(item)} title="Edit customer"><FaEdit /></Button>
                   </span>
                 </div>
               </div>

@@ -11,7 +11,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import Swal from "sweetalert2";
-import { apiFetch, normalizeList } from "@/lib/api";
+import { apiErrorMessage, apiJson, normalizeList } from "@/lib/api";
+import { FaSearch } from "react-icons/fa";
+import CustomerLookupModal from "@/pages/Registry/Customers/Documents/CustomerLookupModal";
 
 const defaultFormData = {
   CustomerId: "",
@@ -63,8 +65,10 @@ function LookupSelect({ field, label, items, placeholder, formData, onChange, di
       <Select value={formData[field]} onValueChange={(v) => onChange(field, v)} disabled={disabled}>
         <SelectTrigger><SelectValue placeholder={disabled ? "Loading..." : placeholder} /></SelectTrigger>
         <SelectContent className="max-h-60 overflow-y-auto">
-          {items.map((i) => (
-            <SelectItem key={i.Id} value={i.Id}>{i.Description}</SelectItem>
+          {items.length === 0 ? (
+            <SelectItem value={`__none-${field}`} disabled>No options available</SelectItem>
+          ) : items.map((i) => (
+            <SelectItem key={i.Id} value={String(i.Id)}>{i.Description}</SelectItem>
           ))}
         </SelectContent>
       </Select>
@@ -77,7 +81,8 @@ export default function AddEmployeeDrawer({ open, onClose, onSuccess }) {
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(false);
 
-  const [customers, setCustomers] = useState([]);
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [customerPickerOpen, setCustomerPickerOpen] = useState(false);
   const [branches, setBranches] = useState([]);
   const [designations, setDesignations] = useState([]);
   const [departments, setDepartments] = useState([]);
@@ -87,31 +92,44 @@ export default function AddEmployeeDrawer({ open, onClose, onSuccess }) {
     setFormData((prev) => ({ ...prev, [field]: value }));
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      setCustomerPickerOpen(false);
+      return;
+    }
     setLoadingData(true);
-    Promise.all([
-      fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/registry/customers`).then((r) => r.json()),
-      apiFetch(`${import.meta.env.VITE_APP_FIN_URL}/api/administration/branches`).then((r) => r.json()),
-      fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/humanresource/designations`).then((r) => r.json()),
-      fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/humanresource/departments`).then((r) => r.json()),
-      fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/humanresource/employeetypes`).then((r) => r.json()),
-    ]).then(([custData, branchData, desigData, deptData, empTypeData]) => {
-      const list = custData.success ? custData.data : [];
-      setCustomers(list.map((c) => ({
-        Id: c.Id,
-        Description: `${c.IndividualFirstName ?? ""} ${c.IndividualLastName ?? ""}`.trim() || c.Id,
-      })));
-      // GET / now returns PageCollectionInfo<BranchDTO> (paged), not a
-      // bare array.
-      setBranches(normalizeList(branchData));
-      setDesignations(Array.isArray(desigData) ? desigData : []);
-      setDepartments(Array.isArray(deptData) ? deptData : []);
-      setEmployeeTypes(Array.isArray(empTypeData) ? empTypeData : []);
-    }).catch(() => { }).finally(() => setLoadingData(false));
+    const lookupRequests = [
+      apiJson(`${import.meta.env.VITE_APP_FIN_URL}/api/administration/branches?pageSize=1000`),
+      apiJson(`${import.meta.env.VITE_APP_FIN_URL}/api/humanresource/designations`),
+      apiJson(`${import.meta.env.VITE_APP_FIN_URL}/api/humanresource/departments`),
+      apiJson(`${import.meta.env.VITE_APP_FIN_URL}/api/humanresource/employeetypes`),
+    ];
+    const lookupLabels = ["branches", "designations", "departments", "employee types"];
+
+    Promise.allSettled(lookupRequests).then((results) => {
+      const setters = [setBranches, setDesignations, setDepartments, setEmployeeTypes];
+      const failures = [];
+
+      results.forEach((result, index) => {
+        if (result.status === "fulfilled") {
+          setters[index](normalizeList(result.value));
+        } else {
+          setters[index]([]);
+          failures.push(`${lookupLabels[index]}: ${apiErrorMessage(result.reason, "request failed")}`);
+        }
+      });
+
+      if (failures.length > 0) {
+        Swal.fire("Some employee options could not be loaded", failures.join("\n"), "error");
+      }
+    }).finally(() => setLoadingData(false));
   }, [open]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!formData.CustomerId) {
+      Swal.fire("Missing Field", "Search for and select a customer.", "warning");
+      return;
+    }
     setLoading(true);
     try {
       const payload = {
@@ -125,21 +143,23 @@ export default function AddEmployeeDrawer({ open, onClose, onSuccess }) {
         BloodGroup: parseInt(formData.BloodGroup) || 0,
       };
 
-      const res = await fetch(`${import.meta.env.VITE_APP_FIN_URL}/api/humanresource/employees`, {
+      const created = await apiJson(`${import.meta.env.VITE_APP_FIN_URL}/api/humanresource/employees`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.message || "Failed to create employee");
+      const employee = created?.data ?? created;
+      const businessError = employee?.errormassage ?? employee?.ErrorMessageResult;
+      if (businessError) throw new Error(businessError);
+      if (!employee?.Id && !employee?.id) throw new Error("The API did not return the created employee.");
 
-      Swal.fire("Success", "Employee created successfully", "success");
+      await Swal.fire("Success", "Employee created successfully", "success");
       setFormData(defaultFormData);
-      if (onSuccess) onSuccess();
+      setSelectedCustomer(null);
+      if (onSuccess) await onSuccess();
       onClose();
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", apiErrorMessage(err, "Failed to create employee."), "error");
     } finally {
       setLoading(false);
     }
@@ -169,7 +189,16 @@ export default function AddEmployeeDrawer({ open, onClose, onSuccess }) {
 
             <div className="p-3 overflow-y-auto">
               <form onSubmit={handleSubmit} className="space-y-4">
-                <LookupSelect field="CustomerId" label="Customer" items={customers} placeholder="Select Customer" {...fp} disabled={loadingData} />
+                <Field label="Customer">
+                  <Button type="button" variant="outline" onClick={() => setCustomerPickerOpen(true)} className="w-full justify-between font-normal" disabled={loadingData}>
+                    <span className={selectedCustomer ? "text-gray-900" : "text-gray-500"}>
+                      {selectedCustomer
+                        ? ([selectedCustomer.IndividualFirstName, selectedCustomer.IndividualLastName].filter(Boolean).join(" ") || selectedCustomer.NonIndividualDescription || selectedCustomer.Description || selectedCustomer.Id)
+                        : "Search and select customer"}
+                    </span>
+                    <FaSearch className="text-gray-400" />
+                  </Button>
+                </Field>
                 <LookupSelect field="BranchId" label="Branch" items={branches} placeholder="Select Branch" {...fp} disabled={loadingData} />
                 <LookupSelect field="DesignationId" label="Designation" items={designations} placeholder="Select Designation" {...fp} disabled={loadingData} />
                 <LookupSelect field="DepartmentId" label="Department" items={departments} placeholder="Select Department" {...fp} disabled={loadingData} />
@@ -200,6 +229,15 @@ export default function AddEmployeeDrawer({ open, onClose, onSuccess }) {
             </div>
           </motion.div>
         </>
+      )}
+      {customerPickerOpen && (
+        <CustomerLookupModal
+          onSelect={(customer) => {
+            setSelectedCustomer(customer);
+            handleChange("CustomerId", customer.Id ?? customer.id);
+          }}
+          onClose={() => setCustomerPickerOpen(false)}
+        />
       )}
     </AnimatePresence>
   );

@@ -39,8 +39,11 @@ function EditLeaveApplicationDrawer({ open, onClose, onSuccess, item }) {
     if (!open) return;
     setLoadingData(true);
     listLeaveTypes({ pageSize: 200 })
-      .then((page) => setLeaveTypes(page?.PageCollection || page?.pageCollection || []))
-      .catch(() => setLeaveTypes([]))
+      .then((page) => setLeaveTypes((page?.PageCollection || page?.pageCollection || []).filter((leaveType) => !leaveType.IsLocked)))
+      .catch((error) => {
+        setLeaveTypes([]);
+        Swal.fire("Unable to Load Leave Types", error.message, "error");
+      })
       .finally(() => setLoadingData(false));
   }, [open]);
 
@@ -139,7 +142,11 @@ export default function LeaveApplicationList() {
         setItems(page?.PageCollection || page?.pageCollection || []);
         setItemsCount(page?.ItemsCount || page?.itemsCount || 0);
       })
-      .catch(() => { setItems([]); setItemsCount(0); })
+      .catch((error) => {
+        setItems([]);
+        setItemsCount(0);
+        Swal.fire("Unable to Load Leave Applications", error.message, "error");
+      })
       .finally(() => setLoading(false));
   };
 
@@ -162,16 +169,11 @@ export default function LeaveApplicationList() {
           <h2 className="text-xl font-bold text-white flex items-center gap-2">
             <FaClipboardList /> Leave Applications
           </h2>
-          <Link to="/HumanResource/LeaveTypes" className="flex items-center gap-1 text-sm text-indigo-200 hover:text-white">
-            <FaCog /> Manage Leave Types
-          </Link>
         </div>
-        <Link
-          to="/HumanResource/Leave/Application/create"
-          className="inline-flex items-center gap-2 rounded-md bg-indigo-600 hover:bg-indigo-700 px-4 py-2 text-sm font-medium text-white"
-        >
-          <FaPlus /> Apply for Leave
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link to="/HumanResource/LeaveTypes" className="inline-flex items-center gap-2 rounded-md border border-indigo-300 bg-white px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-50"><FaCog /> Leave Configuration</Link>
+          <Link to="/HumanResource/Leave/Application/create" className="inline-flex items-center gap-2 rounded-md bg-indigo-600 hover:bg-indigo-700 px-4 py-2 text-sm font-medium text-white"><FaPlus /> Apply for Leave</Link>
+        </div>
       </div>
 
       <div className="flex flex-wrap justify-between items-center mb-4 gap-3">

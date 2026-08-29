@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { FaUserShield, FaPlus, FaEllipsisV, FaKey } from "react-icons/fa";
+import { FaUserShield, FaPlus, FaEllipsisV, FaKey, FaEnvelope } from "react-icons/fa";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,6 +31,7 @@ export default function AdministrationUsers() {
   const [branches, setBranches] = useState([]);
   const [branchesLoading, setBranchesLoading] = useState(false);
   const [resettingUserNames, setResettingUserNames] = useState(new Set());
+  const [confirmingUserNames, setConfirmingUserNames] = useState(new Set());
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -119,7 +120,6 @@ export default function AdministrationUsers() {
       BranchId: user?.BranchId || user?.branchId || "",
       twoFactorEnabled: Boolean(user?.twoFactorEnabled ?? user?.TwoFactorEnabled),
       lockoutEnabled: Boolean(user?.lockoutEnabled ?? user?.LockoutEnabled),
-      emailConfirmed: Boolean(user?.emailConfirmed ?? user?.EmailConfirmed),
       createdDate: user?.createdDate || user?.CreatedDate || "",
     });
 
@@ -152,8 +152,15 @@ export default function AdministrationUsers() {
       const data = await apiJson(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/users`, {
         method: "PUT",
         body: JSON.stringify({
-          ...selectedUser,
-          ...editForm,
+          UserName: editForm.userName,
+          FirstName: editForm.firstName,
+          OtherNames: editForm.otherNames,
+          Email: editForm.email,
+          PhoneNumber: editForm.phoneNumber,
+          EmployeeId: selectedUser.EmployeeId || selectedUser.employeeId || null,
+          CustomerId: selectedUser.CustomerId || selectedUser.customerId || null,
+          TwoFactorEnabled: Boolean(editForm.twoFactorEnabled),
+          LockoutEnabled: Boolean(editForm.lockoutEnabled),
           BranchId: editForm.BranchId || null,
         }),
       }, { fallbackMessage: "Failed to update user." });
@@ -266,6 +273,20 @@ export default function AdministrationUsers() {
     }
   };
 
+  const handleResendConfirmation = async (user) => {
+    const userName = getValue(user, ["userName", "UserName", "name", "Name"]);
+    if (!userName || userName === "—") return;
+    setConfirmingUserNames((previous) => new Set(previous).add(userName));
+    try {
+      const data = await apiJson(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/users/${encodeURIComponent(userName)}/resend-email-confirmation`, { method: "POST" }, { fallbackMessage: "Failed to resend the confirmation email." });
+      Swal.fire("Confirmation Queued", data?.message || "A new confirmation link has been queued.", "success");
+    } catch (error) {
+      Swal.fire("Unable to Resend Confirmation", apiErrorMessage(error), "error");
+    } finally {
+      setConfirmingUserNames((previous) => { const next = new Set(previous); next.delete(userName); return next; });
+    }
+  };
+
   const availableRoles = roles
     .map(normalizeRoleName)
     .filter((roleName) => !userRoles.includes(roleName));
@@ -344,6 +365,9 @@ export default function AdministrationUsers() {
                         <DropdownMenuItem onClick={() => openEditDrawer(user)}>
                           Edit
                         </DropdownMenuItem>
+                        {!Boolean(user.emailConfirmed ?? user.EmailConfirmed) && <DropdownMenuItem onClick={() => handleResendConfirmation(user)} disabled={confirmingUserNames.has(getValue(user, ["userName", "UserName", "name", "Name"]))}>
+                          <FaEnvelope className="mr-2 h-3.5 w-3.5" /> {confirmingUserNames.has(getValue(user, ["userName", "UserName", "name", "Name"])) ? "Queuing..." : "Resend Confirmation"}
+                        </DropdownMenuItem>}
                         <DropdownMenuItem
                           onClick={() => handleResetPassword(user)}
                           disabled={resettingUserNames.has(getValue(user, ["userName", "UserName", "name", "Name"]))}
@@ -432,18 +456,14 @@ export default function AdministrationUsers() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-3 pt-1">
+                  <div className="grid grid-cols-2 gap-3 pt-1">
                     <div className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white p-3">
                       <input id="twoFactor" type="checkbox" checked={editForm.twoFactorEnabled || false} onChange={(e) => handleDrawerChange("twoFactorEnabled", e.target.checked)} className="w-4 h-4 accent-indigo-600" />
                       <Label htmlFor="twoFactor">2FA Enabled</Label>
                     </div>
                     <div className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white p-3">
                       <input id="lockout" type="checkbox" checked={editForm.lockoutEnabled || false} onChange={(e) => handleDrawerChange("lockoutEnabled", e.target.checked)} className="w-4 h-4 accent-indigo-600" />
-                      <Label htmlFor="lockout">Lock User?</Label>
-                    </div>
-                    <div className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white p-3">
-                      <input id="emailConfirmed" type="checkbox" checked={editForm.emailConfirmed || false} onChange={(e) => handleDrawerChange("emailConfirmed", e.target.checked)} className="w-4 h-4 accent-indigo-600" />
-                      <Label htmlFor="emailConfirmed">Email Confirmed</Label>
+                      <Label htmlFor="lockout">Allow Automatic Lockout</Label>
                     </div>
                   </div>
 

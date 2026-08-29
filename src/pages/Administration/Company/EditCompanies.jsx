@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import Swal from "sweetalert2";
 import { apiErrorMessage, apiJson } from "@/lib/api";
-import { TABS, emptyCompanyForm } from "./companyFormConfig";
+import { TABS, companyValidationTab, emptyCompanyForm, validateCompany } from "./companyFormConfig";
 import CompanyFormFields from "./CompanyFormFields";
 
 const FIN_BASE = `${import.meta.env.VITE_APP_MEMBERSHIP_URL}`;
@@ -140,6 +140,17 @@ export default function EditCompanies({ open, onClose, data, refresh }) {
   };
 
   const handleUpdate = async () => {
+    const validationErrors = validateCompany(form);
+    if (validationErrors.length) {
+      setActiveTab(companyValidationTab(validationErrors));
+      Swal.fire({
+        title: "Check Company Details",
+        html: `<div style="text-align:left">${validationErrors.map((message) => `<div>• ${message}</div>`).join("")}</div>`,
+        icon: "warning",
+      });
+      return;
+    }
+
     setLoading(true);
     try {
       const payload = {

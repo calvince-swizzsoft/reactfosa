@@ -40,6 +40,10 @@ export function getLeaveBalance(employeeId, leaveTypeId) {
   return unwrapJson(apiFetch(`${LEAVE_APPLICATIONS_BASE}/balance?${params.toString()}`));
 }
 
+export function getLeaveApprovalReadiness() {
+  return unwrapJson(apiFetch(`${LEAVE_APPLICATIONS_BASE}/approval-readiness`));
+}
+
 export function createLeaveApplication(payload) {
   return unwrapJson(apiFetch(LEAVE_APPLICATIONS_BASE, { method: "POST", body: JSON.stringify(payload) }));
 }

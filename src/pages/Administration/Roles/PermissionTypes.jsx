@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { FaChevronDown, FaSearch, FaTimes, FaTrash } from "react-icons/fa";
+import { FaChevronDown, FaSearch, FaShieldAlt, FaTimes, FaTrash, FaUsersCog } from "react-icons/fa";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -7,7 +7,8 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import Swal from "sweetalert2";
-import { apiErrorMessage, apiJson, normalizeList } from "@/lib/api";
+import { apiErrorMessage, apiJson } from "@/lib/api";
+import { normalizeBranchOptions } from "../branchOptions";
 
 const normalizeRoleName = (role) => role?.roleName || role?.RoleName || role?.name || role?.Name || role;
 
@@ -98,12 +99,8 @@ export default function AdministrationPermissionTypes() {
     const fetchBranches = async () => {
       setBranchesLoading(true);
       try {
-        const data = await apiJson(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/branches`, {}, { fallbackMessage: "Failed to load branches." });
-
-        // GET / now returns PageCollectionInfo<BranchDTO> (paged), not a
-        // bare array — the old Array.isArray(data?.data) check silently
-        // returned [] once that shape landed, breaking this dropdown.
-        setBranches(normalizeList(data));
+        const data = await apiJson(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/branches/all`, {}, { fallbackMessage: "Failed to load branches." });
+        setBranches(normalizeBranchOptions(data));
       } catch (error) {
         Swal.fire("Error", apiErrorMessage(error, "Unable to load branches."), "error");
       } finally {
@@ -152,7 +149,7 @@ export default function AdministrationPermissionTypes() {
 
   const branchDescriptionById = useMemo(() => {
     const map = new Map();
-    branches.forEach((b) => map.set(String(b.Id), b.Description));
+    branches.forEach((branch) => map.set(String(branch.id), branch.name));
     return map;
   }, [branches]);
 
@@ -280,18 +277,21 @@ export default function AdministrationPermissionTypes() {
 
   return (
     <div className="min-h-screen bg-slate-100 p-6 md:p-10">
-      <div className="mx-auto max-w-4xl rounded-2xl bg-white p-8 shadow-xl">
-        <div className="mb-6">
+      <div className="mx-auto max-w-6xl rounded-2xl bg-white p-8 shadow-xl">
+        <div className="mb-6 flex items-start gap-3">
+          <div className="mt-0.5 rounded-xl bg-indigo-50 p-3 text-indigo-600"><FaShieldAlt className="text-xl" /></div>
+          <div>
           <h2 className="text-2xl font-semibold text-slate-800">Permission Types</h2>
           <p className="mt-2 text-sm text-slate-500">
             Map a system permission type to one or more roles, with a branch and approval requirements per role.
           </p>
+          </div>
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="permissionTypeSearch">Permission Type</Label>
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <Label htmlFor="permissionTypeSearch" className="text-xs font-semibold uppercase tracking-wider text-slate-500">Select permission type</Label>
           <div ref={permissionPickerRef} className="relative">
-            <div className="relative">
+            <div className="relative mt-2">
               <FaSearch className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400" />
               <input
                 id="permissionTypeSearch"
@@ -375,14 +375,27 @@ export default function AdministrationPermissionTypes() {
               </div>
             )}
           </div>
-          <p className="text-xs text-slate-500">Search by workflow area, action, FOSA, or BOSA.</p>
+          <p className="mt-2 text-xs text-slate-500">Search by workflow area, action, FOSA, or BOSA.</p>
         </div>
 
         {selectedPermissionType && (
           <>
+            <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3">
+              <div className="flex items-center gap-3">
+                <FaUsersCog className="text-indigo-600" />
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-indigo-500">Managing permission</p>
+                  <p className="font-semibold text-indigo-900">{selectedPermissionType}</p>
+                </div>
+              </div>
+              <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-indigo-700 shadow-sm">
+                {assignedRows.length} {assignedRows.length === 1 ? "mapped role" : "mapped roles"}
+              </span>
+            </div>
+
             <div className="mt-6">
               <div className="flex items-center justify-between">
-                <Label className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-slate-400">
                   Mapped Roles
                 </Label>
                 {assignedLoading && <span className="text-xs text-slate-400">Loading current mappings...</span>}
@@ -400,10 +413,16 @@ export default function AdministrationPermissionTypes() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200">
-                    {assignedRows.length > 0 ? (
+                    {assignedLoading ? (
+                      Array.from({ length: 3 }).map((_, index) => (
+                        <tr key={index} className="animate-pulse">
+                          <td colSpan={5} className="px-4 py-3"><div className="h-4 rounded bg-slate-100" /></td>
+                        </tr>
+                      ))
+                    ) : assignedRows.length > 0 ? (
                       assignedRows.map((row) => (
-                        <tr key={row.roleName}>
-                          <td className="px-4 py-2.5 text-sm text-slate-700">{row.roleName}</td>
+                        <tr key={row.roleName} className="transition-colors hover:bg-slate-50">
+                          <td className="px-4 py-2.5 text-sm font-medium text-slate-800">{row.roleName}</td>
                           <td className="px-4 py-2.5 text-sm text-slate-700">
                             {row.branchDescription || branchDescriptionById.get(String(row.branchId)) || "—"}
                           </td>
@@ -425,7 +444,7 @@ export default function AdministrationPermissionTypes() {
                     ) : (
                       <tr>
                         <td colSpan={5} className="px-4 py-3 text-sm text-slate-500">
-                          {assignedLoading ? "Loading..." : "No roles mapped to this permission type yet."}
+                          No roles mapped to this permission type yet. Use the form below to add the first mapping.
                         </td>
                       </tr>
                     )}
@@ -434,10 +453,11 @@ export default function AdministrationPermissionTypes() {
               </div>
             </div>
 
-            <div className="mt-6 rounded-xl border border-slate-200 p-4">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+            <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-5">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-slate-500">
                 Add Role Mapping
               </Label>
+              <p className="mt-1 text-sm text-slate-500">Assign a role and branch, then define its approval count and sequence.</p>
 
               {availableRoles.length === 0 && !rolesLoading ? (
                 <p className="mt-2 text-sm text-slate-500">All roles are already mapped to this permission type.</p>
@@ -445,7 +465,7 @@ export default function AdministrationPermissionTypes() {
                 <>
                   <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div className="space-y-2">
-                      <Label htmlFor="addRole">Role</Label>
+                      <Label htmlFor="addRole" className="text-sm font-semibold text-slate-700">Role</Label>
                       <Select value={addForm.roleName} onValueChange={(v) => updateAddForm("roleName", v)}>
                         <SelectTrigger id="addRole">
                           <SelectValue placeholder={rolesLoading ? "Loading roles..." : "Select a role"} />
@@ -459,21 +479,21 @@ export default function AdministrationPermissionTypes() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="addBranch">Branch</Label>
+                      <Label htmlFor="addBranch" className="text-sm font-semibold text-slate-700">Branch</Label>
                       <Select value={addForm.branchId} onValueChange={(v) => updateAddForm("branchId", v)}>
                         <SelectTrigger id="addBranch">
                           <SelectValue placeholder={branchesLoading ? "Loading branches..." : "Select a branch"} />
                         </SelectTrigger>
                         <SelectContent>
                           {branches.map((branch) => (
-                            <SelectItem key={branch.Id} value={String(branch.Id)}>{branch.Description}</SelectItem>
+                            <SelectItem key={branch.id} value={String(branch.id)}>{branch.name}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="requiredApprovers">Required Approvers</Label>
+                      <Label htmlFor="requiredApprovers" className="text-sm font-semibold text-slate-700">Required Approvers</Label>
                       <Input
                         id="requiredApprovers"
                         type="number"
@@ -485,7 +505,7 @@ export default function AdministrationPermissionTypes() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="approvalPriority">Approval Priority</Label>
+                      <Label htmlFor="approvalPriority" className="text-sm font-semibold text-slate-700">Approval Priority</Label>
                       <Input
                         id="approvalPriority"
                         type="number"
@@ -511,6 +531,14 @@ export default function AdministrationPermissionTypes() {
               )}
             </div>
           </>
+        )}
+
+        {!selectedPermissionType && !permissionTypesLoading && (
+          <div className="mt-6 rounded-xl border border-dashed border-slate-300 px-6 py-12 text-center">
+            <FaShieldAlt className="mx-auto text-3xl text-slate-300" />
+            <p className="mt-3 font-medium text-slate-700">Select a permission type to manage its role mappings</p>
+            <p className="mt-1 text-sm text-slate-500">Existing assignments and the add-mapping form will appear here.</p>
+          </div>
         )}
       </div>
     </div>

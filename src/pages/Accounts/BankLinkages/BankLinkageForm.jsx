@@ -9,14 +9,18 @@ import { apiErrorMessage, apiJson, normalizeList } from "@/lib/api";
 import Swal from "sweetalert2";
 import { listAllBanks } from "../../Administration/Banks/api";
 import { listChartOfAccounts } from "../ChartOfAccounts/api";
+import FieldHelp from "../SavingsProducts/FieldHelp";
 
 const FIN_BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 const COST_CENTERS_BASE = `${FIN_BASE}/api/accounts/costcenters`;
 
-function FieldGroup({ label, children }) {
+function FieldGroup({ label, help, children }) {
   return (
     <div>
-      <Label>{label}</Label>
+      <div className="flex items-center gap-1">
+        <Label className="text-sm font-semibold text-gray-700">{label}</Label>
+        <FieldHelp label={label}>{help}</FieldHelp>
+      </div>
       {children}
     </div>
   );
@@ -80,7 +84,7 @@ export default function BankLinkageForm({ form, setForm, loading, submitLabel, o
 
   return (
     <form onSubmit={onSubmit} className="space-y-4">
-      <FieldGroup label="Bank">
+      <FieldGroup label="Bank" help="The financial institution that owns the external bank account represented by this linkage.">
         <Select value={form.BankId} onValueChange={handleBankChange} disabled={loadingData}>
           <SelectTrigger><SelectValue placeholder={loadingData ? "Loading..." : "Select bank"} /></SelectTrigger>
           <SelectContent className="max-h-60 overflow-y-auto">
@@ -90,16 +94,16 @@ export default function BankLinkageForm({ form, setForm, loading, submitLabel, o
       </FieldGroup>
 
       <div className="grid grid-cols-2 gap-4">
-        <FieldGroup label="Bank Account Number">
+        <FieldGroup label="Bank Account Number" help="The external account number held at the selected bank. It identifies the real bank account being linked.">
           <Input value={form.BankAccountNumber} onChange={(e) => handleChange("BankAccountNumber", e.target.value)} required />
         </FieldGroup>
-        <FieldGroup label="Bank's Branch Name">
+        <FieldGroup label="Bank's Branch Name" help="The external bank's own branch name, such as Westlands. This is not one of your organisation's branches.">
           {/* The external bank's own branch — not one of our own branches. */}
           <Input value={form.BankBranchName} onChange={(e) => handleChange("BankBranchName", e.target.value)} required placeholder="e.g. Westlands" />
         </FieldGroup>
       </div>
 
-      <FieldGroup label="Our Branch">
+      <FieldGroup label="Our Branch" help="The organisation branch that owns and operates this bank linkage. Transactions use this branch for operational context.">
         <Select value={form.BranchId} onValueChange={handleBranchChange} disabled={loadingData}>
           <SelectTrigger><SelectValue placeholder={loadingData ? "Loading..." : "Select branch"} /></SelectTrigger>
           <SelectContent className="max-h-60 overflow-y-auto">
@@ -108,7 +112,7 @@ export default function BankLinkageForm({ form, setForm, loading, submitLabel, o
         </Select>
       </FieldGroup>
 
-      <FieldGroup label="Chart of Account (postable G/L account this linkage moves cash against)">
+      <FieldGroup label="Chart of Account" help="The postable G/L control account against which deposits, withdrawals, reconciliation, and other bank movements are recorded.">
         <Select value={form.ChartOfAccountId} onValueChange={handleChartOfAccountChange} disabled={loadingData}>
           <SelectTrigger><SelectValue placeholder={loadingData ? "Loading..." : "Select account"} /></SelectTrigger>
           <SelectContent className="max-h-60 overflow-y-auto">
@@ -119,7 +123,7 @@ export default function BankLinkageForm({ form, setForm, loading, submitLabel, o
         </Select>
       </FieldGroup>
 
-      <FieldGroup label="Cost Center (optional)">
+      <FieldGroup label="Cost Center (optional)" help="Optional reporting and allocation dimension associated with the linkage's G/L account.">
         <Select value={form.ChartOfAccountCostCenterId || ""} onValueChange={(v) => handleChange("ChartOfAccountCostCenterId", v)} disabled={loadingData}>
           <SelectTrigger><SelectValue placeholder={loadingData ? "Loading..." : "None"} /></SelectTrigger>
           <SelectContent className="max-h-60 overflow-y-auto">
@@ -128,19 +132,22 @@ export default function BankLinkageForm({ form, setForm, loading, submitLabel, o
         </Select>
       </FieldGroup>
 
-      <FieldGroup label="Remarks">
+      <FieldGroup label="Remarks" help="Optional internal description or operational note for identifying this linkage.">
         <Input value={form.Remarks} onChange={(e) => handleChange("Remarks", e.target.value)} placeholder="Optional" />
       </FieldGroup>
 
-      <div className="flex items-center gap-2">
-        <input
-          type="checkbox"
-          id="banklinkage-locked"
-          checked={form.IsLocked}
-          onChange={(e) => handleChange("IsLocked", e.target.checked)}
-          className="w-4 h-4 accent-indigo-600"
-        />
-        <Label htmlFor="banklinkage-locked">Is Locked?</Label>
+      <div className="flex items-center gap-1">
+        <label htmlFor="banklinkage-locked" className="flex items-center gap-2 cursor-pointer text-sm font-medium text-gray-700">
+          <input
+            type="checkbox"
+            id="banklinkage-locked"
+            checked={form.IsLocked}
+            onChange={(e) => handleChange("IsLocked", e.target.checked)}
+            className="w-4 h-4 accent-indigo-600"
+          />
+          Is Locked?
+        </label>
+        <FieldHelp label="Is Locked">Marks the linkage inactive so it should not be available for new operational bank transactions.</FieldHelp>
       </div>
 
       <Button type="submit" disabled={loading || loadingData} className="w-full bg-indigo-600 hover:bg-indigo-700">

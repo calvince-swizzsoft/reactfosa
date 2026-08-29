@@ -10,13 +10,14 @@ import { FaUmbrellaBeach } from "react-icons/fa";
 import Swal from "sweetalert2";
 import { createLeaveType } from "../Leave/lib/api";
 import { LEAVE_UNIT_TYPE_LABEL, LEAVE_TARGET_GENDER_LABEL } from "../Leave/lib/enums";
+import FieldHelp from "@/pages/Accounts/SavingsProducts/FieldHelp";
 
-const emptyForm = { Description: "", Entitlement: 0, TargetGender: 0, UnitType: 0, IsAccrued: false, ExcludeHolidays: false, ExcludeWeekends: false };
+const emptyForm = { Description: "", Entitlement: 1, TargetGender: 0, UnitType: 3, IsAccrued: false, ExcludeHolidays: false, ExcludeWeekends: false, IsLocked: false };
 
-function FieldGroup({ label, children }) {
+function FieldGroup({ label, help, children }) {
   return (
     <div>
-      <Label className="text-sm font-semibold text-gray-700">{label}</Label>
+      <div className="flex items-center gap-1"><Label className="text-sm font-semibold text-gray-700">{label}</Label>{help && <FieldHelp label={label}>{help}</FieldHelp>}</div>
       {children}
     </div>
   );
@@ -59,11 +60,11 @@ export default function CreateLeaveType() {
           <Input value={form.Description} onChange={(e) => set("Description", e.target.value)} required placeholder="e.g. Annual Leave" />
         </FieldGroup>
 
-        <FieldGroup label="Entitlement (Days)">
-          <Input type="number" min="0" value={form.Entitlement} onChange={(e) => set("Entitlement", Number(e.target.value))} required />
+        <FieldGroup label="Entitlement (Days)" help="The number of leave days granted in each selected entitlement cycle.">
+          <Input type="number" min="1" value={form.Entitlement} onChange={(e) => set("Entitlement", Number(e.target.value))} required />
         </FieldGroup>
 
-        <FieldGroup label="Unit Type">
+        <FieldGroup label="Unit Type" help="Determines whether entitlement is granted weekly, monthly, or yearly.">
           <Select value={String(form.UnitType)} onValueChange={(v) => set("UnitType", Number(v))}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -74,7 +75,7 @@ export default function CreateLeaveType() {
           </Select>
         </FieldGroup>
 
-        <FieldGroup label="Target Gender">
+        <FieldGroup label="Target Gender" help="Restricts this leave type to eligible employees. Choose All genders for a general policy.">
           <Select value={String(form.TargetGender)} onValueChange={(v) => set("TargetGender", Number(v))}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -96,6 +97,11 @@ export default function CreateLeaveType() {
         <div className="flex items-center gap-2">
           <input type="checkbox" id="leavetype-excludeweekends" checked={form.ExcludeWeekends} onChange={(e) => set("ExcludeWeekends", e.target.checked)} className="w-4 h-4 accent-indigo-600" />
           <Label htmlFor="leavetype-excludeweekends">Exclude Weekends?</Label>
+        </div>
+        <div className="flex items-center gap-2">
+          <input type="checkbox" id="leavetype-locked" checked={form.IsLocked} onChange={(e) => set("IsLocked", e.target.checked)} className="w-4 h-4 accent-indigo-600" />
+          <Label htmlFor="leavetype-locked">Create as locked</Label>
+          <FieldHelp label="Locked leave type">Locked leave types remain available for configuration but cannot be used in leave applications.</FieldHelp>
         </div>
 
         <Button type="submit" disabled={loading} className="bg-indigo-600 hover:bg-indigo-700">

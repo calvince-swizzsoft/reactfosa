@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,8 +42,15 @@ export default function CreateLeaveApplication() {
       listEmployees(),
       listLeaveTypes({ pageSize: 200 }).then((page) => page?.PageCollection || page?.pageCollection || []),
     ])
-      .then(([emps, types]) => { setEmployees(emps); setLeaveTypes(types); })
-      .catch(() => { setEmployees([]); setLeaveTypes([]); })
+      .then(([emps, types]) => {
+        setEmployees(emps.filter((employee) => !employee.IsLocked));
+        setLeaveTypes(types.filter((leaveType) => !leaveType.IsLocked));
+      })
+      .catch((error) => {
+        setEmployees([]);
+        setLeaveTypes([]);
+        Swal.fire("Unable to Load Leave Options", error.message, "error");
+      })
       .finally(() => setLoadingData(false));
   }, []);
 
@@ -58,6 +65,15 @@ export default function CreateLeaveApplication() {
       .catch(() => setBalance(null))
       .finally(() => setLoadingBalance(false));
   }, [employeeId, leaveTypeId]);
+
+  const selectedEmployee = useMemo(() => employees.find((employee) => employee.Id === employeeId), [employees, employeeId]);
+  const eligibleLeaveTypes = useMemo(() => leaveTypes.filter((leaveType) =>
+    !leaveType.TargetGender || Number(leaveType.TargetGender) === Number(selectedEmployee?.CustomerIndividualGender)
+  ), [leaveTypes, selectedEmployee]);
+
+  useEffect(() => {
+    if (leaveTypeId && !eligibleLeaveTypes.some((leaveType) => leaveType.Id === leaveTypeId)) setLeaveTypeId("");
+  }, [eligibleLeaveTypes, leaveTypeId]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -107,7 +123,7 @@ export default function CreateLeaveApplication() {
           <Select value={leaveTypeId} onValueChange={setLeaveTypeId} disabled={loadingData}>
             <SelectTrigger><SelectValue placeholder={loadingData ? "Loading..." : "Select Leave Type"} /></SelectTrigger>
             <SelectContent className="max-h-60 overflow-y-auto">
-              {leaveTypes.map((lt) => (
+              {eligibleLeaveTypes.map((lt) => (
                 <SelectItem key={lt.Id} value={lt.Id}>{lt.Description} ({lt.Entitlement} days)</SelectItem>
               ))}
             </SelectContent>

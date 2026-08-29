@@ -19,7 +19,7 @@ const CASH_MANAGEMENT_BASE = `${FIN_BASE}/api/frontoffice/cashmanagement`;
 // - `branchId` on the body is the SOURCE branch — the server resolves
 //   "your" treasury from it (FindTreasuryByBranchId), it is not a picker
 //   for an arbitrary branch.
-// - `id` on the body is overloaded: it holds the *counterparty* Bank's id
+// - `id` on the body is overloaded: it holds the counterparty Bank Linkage id
 //   for BankToTreasury/TreasuryToBank, or the destination Treasury's id
 //   for TreasuryToTreasury. TreasuryToTeller uses a real dedicated
 //   `tellerId` field instead.
@@ -56,7 +56,7 @@ export default function CashManagement() {
   const [transactionType, setTransactionType] = useState(TreasuryTransactionType.TreasuryToTeller);
   const [tellerId, setTellerId] = useState("");
   const [destinationTreasuryId, setDestinationTreasuryId] = useState("");
-  const [bankId, setBankId] = useState("");
+  const [bankLinkageId, setBankLinkageId] = useState("");
   const [reference, setReference] = useState("");
   const [counts, setCounts] = useState(emptyDenominationCounts);
 
@@ -74,8 +74,7 @@ export default function CashManagement() {
       // longer resolves at all, that controller was removed/merged.
       apiJson(`${FIN_BASE}/api/accounts/treasurys?pageSize=1000`),
       // The active BankLinkageController enriches the unpaged `all`
-      // response with bank details and live G/L balances. Submit BankId,
-      // not the linkage row's own Id — see the picker binding below.
+      // response with bank details and live G/L balances.
       apiJson(`${FIN_BASE}/api/accounts/banklinkages/all`),
     ]).then(([branchData, tellerData, treasuryData, bankData]) => {
       setBranches(normalizeList(branchData));
@@ -112,7 +111,7 @@ export default function CashManagement() {
       Swal.fire("Missing Field", "Select a destination treasury.", "warning");
       return;
     }
-    if ((transactionType === TreasuryTransactionType.BankToTreasury || transactionType === TreasuryTransactionType.TreasuryToBank) && !bankId) {
+    if ((transactionType === TreasuryTransactionType.BankToTreasury || transactionType === TreasuryTransactionType.TreasuryToBank) && !bankLinkageId) {
       Swal.fire("Missing Field", "Select a bank.", "warning");
       return;
     }
@@ -128,7 +127,7 @@ export default function CashManagement() {
       Id: transactionType === TreasuryTransactionType.TreasuryToTreasury
         ? destinationTreasuryId
         : (transactionType === TreasuryTransactionType.BankToTreasury || transactionType === TreasuryTransactionType.TreasuryToBank)
-          ? bankId
+          ? bankLinkageId
           : undefined,
       DestinationBranchId: transactionType === TreasuryTransactionType.TreasuryToTreasury ? destinationTreasury?.BranchId : undefined,
       // Server reconciles these 11 fields as a plain sum against TotalValue
@@ -206,14 +205,14 @@ export default function CashManagement() {
 
           {(transactionType === TreasuryTransactionType.BankToTreasury || transactionType === TreasuryTransactionType.TreasuryToBank) && (
             <FieldGroup label="Bank">
-              <Select value={bankId ? String(bankId) : ""} onValueChange={setBankId} disabled={loadingData}>
+              <Select value={bankLinkageId ? String(bankLinkageId) : ""} onValueChange={setBankLinkageId} disabled={loadingData}>
                 <SelectTrigger><SelectValue placeholder={loadingData ? "Loading..." : "Select Bank"} /></SelectTrigger>
                 <SelectContent className="max-h-60 overflow-y-auto">
-                  {/* CashManagementController.Create resolves the raw Bank
-                      by fiscalCountDTO.Id, so this must submit the
-                      linkage's BankId (the real FK), not the linkage
-                      row's own Id. */}
-                  {banks.map((b) => <SelectItem key={String(b.BankId)} value={String(b.BankId)}>{b.BankName || b.Description}</SelectItem>)}
+                  {banks.map((b) => (
+                    <SelectItem key={String(b.Id)} value={String(b.Id)}>
+                      {b.BankName || b.Description}{b.BankAccountNumber ? ` — ${b.BankAccountNumber}` : ""}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </FieldGroup>

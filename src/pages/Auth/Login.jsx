@@ -95,6 +95,21 @@ export default function Login() {
       Swal.fire("Passwords Do Not Match", "Confirm the same new password in both fields.", "warning");
       return;
     }
+    const passwordProblems = [
+      passwordForm.NewPassword.length < 6 && "at least 6 characters",
+      !/[A-Z]/.test(passwordForm.NewPassword) && "an uppercase letter",
+      !/[a-z]/.test(passwordForm.NewPassword) && "a lowercase letter",
+      !/\d/.test(passwordForm.NewPassword) && "a number",
+      !/[^A-Za-z0-9]/.test(passwordForm.NewPassword) && "a symbol",
+    ].filter(Boolean);
+    if (passwordProblems.length) {
+      Swal.fire(
+        "Password Requirements",
+        `Your new password still needs ${passwordProblems.join(", ")}.`,
+        "warning",
+      );
+      return;
+    }
 
     setLoading(true);
     try {

@@ -219,6 +219,12 @@ export const moduleRouteMap = {
   23023: "/Accounts/ChequeTypes",         // Cheque Types (ControllerName: ChequeType) — was unmapped entirely; list/create/edit all built
   23028: "/Accounts/UnpayReasons",        // Unpay Reasons (ControllerName: UnpayReason) — real, documented controller (docs/api/unpayreason-api-spec.md); was previously unmapped, with FOSA/TellerTransactions/UnpayReasons.jsx calling an undocumented /api/unpay endpoint instead of this one
   23029: "/Accounts/FixedDepositTypes",   // Fixed Deposit Types (ControllerName: FixedDepositType) — controller was built 2026-08-16 (previously didn't exist at all, zero rows in swiftFin_FixedDepositTypes); closes the FixedDepositTypeId picker gap noted in FOSA/TellerTransactions/TODO.md
+  // Operations (23002) > Transactions Journal (23031). Both journal views
+  // use the GeneralLedgerStatement API, whose controller delegates all
+  // querying to IJournalEntryAppService. Separate routes preserve the two
+  // distinct navigation leaves and open the screen in the documented mode.
+  23032: "/Accounts/TransactionJournals/System",    // System (ControllerName: TransactionJournals)
+  23033: "/Accounts/TransactionJournals/GLAccount", // G/L Account (ControllerName: TransactionJournals)
   23034: "/Accounts/PostingPeriodClosing", // Operations > Transactions Journal > Posting Period Closing (ControllerName: ClosingPostingPeriod) — same IPostingPeriodAppService as 23019, but ClosePostingPeriod is a real irreversible financial operation (posts fiscal-period-closing journals), not a CRUD action, so it's a separate screen
   // Operations (23002) > Recurring Procedures (23035)
   23039: "/Accounts/StandingOrders/Execution", // Standing Order Execution (ControllerName: SatndingOrderExecution — real backend typo, admin/ops only)
@@ -239,6 +245,16 @@ export const moduleRouteMap = {
   // not an oversight.
   23053: "/Accounts/AlternateChannels/Register",   // Register (ControllerName: Register)
   23054: "/Accounts/AlternateChannels/Management", // Management (ControllerName: AlternatechannelManagement)
+  // Operations (23002) > Bank Reconciliation (23060). One shared resource
+  // screen exposes the four documented workflow views, backed canonically by
+  // IBankReconciliationPeriodAppService through the Web API controller.
+  23061: "/Accounts/BankReconciliation/Periods",
+  23062: "/Accounts/BankReconciliation/Processing",
+  23063: "/Accounts/BankReconciliation/Closing",
+  23064: "/Accounts/BankReconciliation/Catalogue",
+  // Operations (23002) > Budget Management (23065).
+  23066: "/Accounts/BudgetManagement/Periods",       // Periods (ControllerName: Budget, ActionName: Index)
+  23067: "/Accounts/BudgetManagement/Appropriation", // Appropriation (ControllerName: Budget, ActionName: Create)
   // Batch Procedures (23068) — stage-level gating only, the 27 per-type
   // child codes (70-78/80-88/90-98) are commented out in NavigationMenu.cs,
   // see Areas/Accounts/BATCH-PROCEDURES-CONCEPTS.md §1.1. One shared shell
@@ -276,7 +292,7 @@ export const moduleRouteMap = {
   // ── Front-Office (0x000061A8 = 25000) ────────────────────────────
   // Operations (25001) > Treasury (25002)
   25003: "/FrontOffice/CashManagement",   // Cash Management (ControllerName: CashManagement)
-  // 25004 "Authorizations" (ControllerName: CashWithdrawalRequest) has no screen of its own yet — not mapped
+  25004: "/FrontOffice/CashWithdrawalRequests", // Cash Withdrawal Requests (ControllerName: CashWithdrawalRequest) — create/browse/authorize/reject lifecycle
   25015: "/FrontOffice/FiscalCounts",     // Fiscal Counts (ControllerName: FiscalCount) — read-only catalogue, docs/api/frontoffice-api-spec.md §16; lives in FOSA/TreasuryTransactions/
   // Operations (25001) > Teller (25005)
   25006: "/FrontOffice/SavingsReceiptsPayments", // Savings Receipts/Payments (ControllerName: CashDeposit) — the ONLY real nav entry for the whole teller transaction cycle (deposit/withdrawal/cheque deposit/payment voucher are one screen server-side)
@@ -331,4 +347,7 @@ export const moduleRouteMap = {
   30003: "/Control/Suppliers",            // Suppliers (ControllerName: Supplier)
   30004: "/Control/AssetTypes",           // Asset Types (ControllerName: AssetTypes)
   30006: "/Control/PackageTypes",         // Package Types (ControllerName: PackageType)
+  31003: "/MicroCredit/Officers",
+  31004: "/MicroCredit/Groups",
+  31005: "/MicroCredit/Apportionment",
 };

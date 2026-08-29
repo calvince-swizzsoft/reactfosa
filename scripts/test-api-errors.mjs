@@ -44,4 +44,23 @@ const internalError = apiErrorFromResponse(response(500, null), {}, null);
 assert.equal(internalError.message, "An unexpected error occurred.");
 assert.equal(apiErrorMessage(new ApiError({ message: "Failed.", correlationId: "abc-123" })), "Failed.\nReference: abc-123");
 
+const plainTextError = apiErrorFromResponse(response(400, null), "Customer must have an account.");
+assert.equal(plainTextError.message, "Customer must have an account.");
+
+const problemDetailsError = apiErrorFromResponse(response(400, null), {
+  title: "Validation failed",
+  detail: "The selected customer cannot be linked yet.",
+});
+assert.equal(problemDetailsError.message, "The selected customer cannot be linked yet.");
+
+const modelStateError = apiErrorFromResponse(response(400, null), {
+  errors: { BranchId: ["The selected branch does not exist."], CustomerId: ["The customer is required."] },
+});
+assert.equal(modelStateError.message, "The selected branch does not exist.\nThe customer is required.");
+
+const nestedError = apiErrorFromResponse(response(400, null), {
+  error: { message: "The customer must have at least one account before being linked." },
+});
+assert.equal(nestedError.message, "The customer must have at least one account before being linked.");
+
 console.log("All frontend API error-handling tests passed.");

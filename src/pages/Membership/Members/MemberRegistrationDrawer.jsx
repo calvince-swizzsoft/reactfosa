@@ -22,7 +22,7 @@ const initialCustomerState = {
     stationId:                          "",
     companyId:                          "",
     branchId:                           "",
-    type:                               "1",
+    type:                               "0",
     serialNumber:                       0,
     personalIdentificationNumber:       "",
     individualType:                     1,
@@ -39,6 +39,10 @@ const initialCustomerState = {
     individualEmploymentDesignation:    "",
     individualEmploymentTermsOfService: "",
     individualEmploymentDate:           "",
+    nonIndividualDescription:            "",
+    nonIndividualRegistrationNumber:     "",
+    nonIndividualRegistrationSerialNumber: "",
+    nonIndividualDateEstablished:        "",
     addressAddressLine1:                "",
     addressAddressLine2:                "",
     addressStreet:                      "",
@@ -414,12 +418,16 @@ export default function MemberRegistrationDrawer({ open, onClose, refresh }) {
 
     // ── Submit ────────────────────────────────────────────────────────────────
     const handleSubmit = async () => {
-        if (!customer.individualFirstName || !customer.individualLastName) {
+        if (Number(customer.type) === 0 && (!customer.individualFirstName || !customer.individualLastName)) {
             Swal.fire("Error", "First name and last name are required", "error");
             return;
         }
-        if (!customer.individualIdentityCardNumber) {
+        if (Number(customer.type) === 0 && !customer.individualIdentityCardNumber) {
             Swal.fire("Error", "ID/Passport number is required", "error");
+            return;
+        }
+        if (Number(customer.type) !== 0 && (!customer.nonIndividualDescription?.trim() || !customer.nonIndividualRegistrationNumber?.trim() || !customer.nonIndividualDateEstablished)) {
+            Swal.fire("Error", "Organisation/group name, registration number, and date established are required", "error");
             return;
         }
         if (idExists) {
@@ -703,12 +711,19 @@ export default function MemberRegistrationDrawer({ open, onClose, refresh }) {
                                                     className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                                                 >
                                                     <option value="">Select Member Type</option>
-                                                    <option value="1">Individual</option>
-                                                    <option value="2">Partnership</option>
-                                                    <option value="3">Corporation</option>
-                                                    <option value="4">MicroCredit</option>
+                                                    <option value="0">Individual</option>
+                                                    <option value="1">Partnership</option>
+                                                    <option value="2">Corporation</option>
+                                                    <option value="3">MicroCredit</option>
                                                 </select>
                                             </div>
+
+                                            {Number(customer.type) !== 0 && <>
+                                                <div><Label>Organisation / Group Name *</Label><Input value={customer.nonIndividualDescription || ""} onChange={(e) => update("nonIndividualDescription", e.target.value)} /></div>
+                                                <div><Label>Registration Number *</Label><Input value={customer.nonIndividualRegistrationNumber || ""} onChange={(e) => update("nonIndividualRegistrationNumber", e.target.value)} /></div>
+                                                <div><Label>Registration Serial Number</Label><Input value={customer.nonIndividualRegistrationSerialNumber || ""} onChange={(e) => update("nonIndividualRegistrationSerialNumber", e.target.value)} /></div>
+                                                <div><Label>Date Established *</Label><Input type="date" value={customer.nonIndividualDateEstablished || ""} onChange={(e) => update("nonIndividualDateEstablished", e.target.value)} /></div>
+                                            </>}
 
                                             <div>
                                                 <Label>Surname *</Label>

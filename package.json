@@ -9,6 +9,8 @@
     "lint": "eslint .",
     "preview": "node node_modules/vite/bin/vite.js preview",
     "test:api-errors": "node scripts/test-api-errors.mjs",
+    "test:savings-product-validation": "node scripts/test-savings-product-validation.mjs",
+    "test:investment-product-validation": "node scripts/test-investment-product-validation.mjs",
     "audit:webapp1-errors": "node scripts/audit-webapp1-errors.mjs",
     "test:loan-e2e": "node --dns-result-order=ipv4first scripts/e2e/loan-pipeline.mjs",
     "test:loan-e2e:preflight": "node --dns-result-order=ipv4first scripts/e2e/loan-pipeline.mjs preflight"

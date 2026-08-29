@@ -8,6 +8,8 @@ import Swal from "sweetalert2";
 import NotFoundImage from "/assets/scopefinding.png";
 import { FaEdit, FaPlus, FaIdBadge } from "react-icons/fa";
 import { apiFetch, normalizeList } from "@/lib/api";
+import FieldHelp from "@/pages/Accounts/SavingsProducts/FieldHelp";
+import TransactionThresholdEditor, { normalizeThresholds, validateThresholds } from "./TransactionThresholdEditor";
 
 // Areas/HumanResource/Controllers/DesignationsController.cs — GET/POST/PUT
 // only, no DELETE route and no paging/text-filter support (Index() returns
@@ -17,12 +19,12 @@ import { apiFetch, normalizeList } from "@/lib/api";
 const BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 const DESIGNATIONS_BASE = `${BASE}/api/humanresource/designations`;
 
-const emptyForm = { Description: "", TransactionThresholds: "", IsLocked: false };
+const emptyForm = { Description: "", TransactionThresholds: [], IsLocked: false };
 
-function FieldGroup({ label, children }) {
+function FieldGroup({ label, help, children }) {
   return (
     <div>
-      <Label className="text-sm font-semibold text-gray-700">{label}</Label>
+      <div className="flex items-center gap-1.5"><Label className="text-sm font-semibold text-gray-700">{label}</Label>{help && <FieldHelp text={help} />}</div>
       {children}
     </div>
   );
@@ -31,15 +33,13 @@ function FieldGroup({ label, children }) {
 function DesignationForm({ form, setForm, loading, submitLabel, onSubmit }) {
   return (
     <form onSubmit={onSubmit} className="p-4 space-y-4">
-      <FieldGroup label="Description">
+      <FieldGroup label="Description" help="The job designation assigned to employees. Its threshold collection defines their transaction authority.">
         <Input value={form.Description} onChange={(e) => setForm((p) => ({ ...p, Description: e.target.value }))} required placeholder="e.g. Teller" />
       </FieldGroup>
-      <FieldGroup label="Transaction Thresholds">
-        <Input value={form.TransactionThresholds} onChange={(e) => setForm((p) => ({ ...p, TransactionThresholds: e.target.value }))} placeholder="Enter GUID or value" />
-      </FieldGroup>
+      <TransactionThresholdEditor value={form.TransactionThresholds} onChange={(TransactionThresholds) => setForm((p) => ({ ...p, TransactionThresholds }))} disabled={loading} />
       <div className="flex items-center gap-2">
         <input type="checkbox" id="desig-locked" checked={form.IsLocked} onChange={(e) => setForm((p) => ({ ...p, IsLocked: e.target.checked }))} className="w-4 h-4 accent-indigo-600" />
-        <Label htmlFor="desig-locked">Is Locked?</Label>
+        <Label htmlFor="desig-locked" className="flex items-center gap-1.5">Is Locked?<FieldHelp text="Marks this designation unavailable for operational authority. Reassign its employees before locking it." /></Label>
       </div>
       <Button type="submit" disabled={loading} className="w-full bg-indigo-600 hover:bg-indigo-700">
         {loading ? "Saving..." : submitLabel}
@@ -56,19 +56,28 @@ function EditDesignationDrawer({ open, onClose, onSuccess, item }) {
     if (item) {
       setForm({
         Description: item.Description || "",
-        TransactionThresholds: item.TransactionThresholds || "",
+        TransactionThresholds: [],
         IsLocked: item.IsLocked || false,
       });
+      apiFetch(`${DESIGNATIONS_BASE}/${item.Id}/transaction-thresholds`)
+        .then((response) => response.json())
+        .then((body) => setForm((current) => ({ ...current, TransactionThresholds: normalizeList(body) })))
+        .catch(() => setForm((current) => ({ ...current, TransactionThresholds: [] })));
     }
   }, [item]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const thresholdError = validateThresholds(form.TransactionThresholds);
+    if (thresholdError) {
+      Swal.fire("Check transaction thresholds", thresholdError, "warning");
+      return;
+    }
     setLoading(true);
     try {
       const res = await apiFetch(`${DESIGNATIONS_BASE}/${item.Id}`, {
         method: "PUT",
-        body: JSON.stringify({ ...form, Id: item.Id }),
+        body: JSON.stringify({ ...form, Id: item.Id, TransactionThresholds: normalizeThresholds(form.TransactionThresholds) }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.message || "Failed to update designation");
@@ -148,7 +157,7 @@ export default function Designations() {
       <div className="bg-gray-200 p-4 rounded-sm">
         <div className="grid grid-cols-12 gap-4 bg-gray-700 text-gray-100 font-semibold p-3 rounded-lg mb-4">
           <span className="col-span-5">Description</span>
-          <span className="col-span-3">Type</span>
+          <span className="col-span-3">Transaction authority</span>
           <span className="col-span-2">Status</span>
           <span className="col-span-2 text-right">Actions</span>
         </div>
@@ -169,7 +178,17 @@ export default function Designations() {
               <div key={item.Id} className="bg-white rounded-lg shadow-lg border">
                 <div className="grid grid-cols-12 gap-2 items-center py-4 px-6 hover:shadow-xl transition-all">
                   <span className="col-span-5 font-medium text-indigo-700">{item.Description}</span>
-                  <span className="col-span-3 text-sm text-gray-600">{item.TypeDescription || "—"}</span>
+                  <span className="col-span-3 text-sm text-gray-600">
+                    {Array.isArray(item.TransactionThresholds) && item.TransactionThresholds.length > 0 ? (
+                      <span className="flex flex-col gap-1">
+                        {item.TransactionThresholds.map((threshold) => (
+                          <span key={threshold.Id || threshold.Type} className="rounded bg-indigo-50 px-2 py-1 text-xs text-indigo-800">
+                            {threshold.TypeDescription || `Transaction ${threshold.Type}`}: {Number(threshold.Threshold || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
+                        ))}
+                      </span>
+                    ) : "No transaction authority"}
+                  </span>
                   <span className="col-span-2">
                     <span className={`px-2 py-1 rounded text-xs font-semibold ${item.IsLocked ? "bg-red-100 text-red-600" : "bg-green-100 text-green-600"}`}>
                       {item.IsLocked ? "Locked" : "Active"}

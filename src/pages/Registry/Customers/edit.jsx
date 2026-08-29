@@ -5,13 +5,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { apiFetch } from "@/lib/api";
+import { apiErrorMessage, readApiResponse } from "@/lib/api-errors";
+import FieldHelp from "@/pages/Accounts/SavingsProducts/FieldHelp";
 
 const BASE = `${import.meta.env.VITE_APP_FIN_URL}/api/registry/customer`;
 const read = (value, name) => value?.[name] ?? value?.[name[0].toLowerCase() + name.slice(1)] ?? "";
 const dateValue = (value) => value ? String(value).slice(0, 10) : "";
 
-function Field({ label, children }) {
-  return <div><Label className="text-sm font-semibold text-gray-700">{label}</Label>{children}</div>;
+function Field({ label, help, children }) {
+  return <div><div className="flex items-center gap-1"><Label className="text-sm font-semibold text-gray-700">{label}</Label><FieldHelp label={label}>{help}</FieldHelp></div>{children}</div>;
 }
 
 export default function EditCustomerDrawer({ customerId, open, onClose, onSuccess }) {
@@ -23,10 +25,9 @@ export default function EditCustomerDrawer({ customerId, open, onClose, onSucces
     if (!open || !customerId) return;
     setLoading(true);
     apiFetch(`${BASE}/${customerId}`).then(async (response) => {
-      const body = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(body.message || "Could not load customer");
+      const body = await readApiResponse(response, { fallbackMessage: "Could not load customer." });
       setCustomer(body?.data?.customer ?? body?.Data?.Customer ?? body?.data?.Customer ?? null);
-    }).catch((error) => Swal.fire("Error", error.message, "error")).finally(() => setLoading(false));
+    }).catch((error) => Swal.fire("Unable to Load Customer", apiErrorMessage(error), "error")).finally(() => setLoading(false));
   }, [open, customerId]);
 
   const change = (name, value) => setCustomer((current) => {
@@ -36,6 +37,10 @@ export default function EditCustomerDrawer({ customerId, open, onClose, onSucces
   });
   const submit = async (event) => {
     event.preventDefault();
+    const email = String(read(customer, "AddressEmail") || "").trim();
+    const mobile = String(read(customer, "AddressMobileLine") || "").trim();
+    if (email && !/^\w+([-+.']\w+)*@\w+([-.]\w+)*\.\w+([-.]\w+)*$/.test(email)) return Swal.fire("Invalid Email", "Enter a valid customer email address.", "warning");
+    if (mobile && !/^\+[0-9]{7,15}$/.test(mobile)) return Swal.fire("Invalid Mobile Number", "Use international format, beginning with + and followed by 7 to 15 digits.", "warning");
     setSaving(true);
     try {
       const payload = { ...customer };
@@ -44,11 +49,10 @@ export default function EditCustomerDrawer({ customerId, open, onClose, onSucces
       const response = await apiFetch(`${BASE}/${customerId}`, {
         method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
       });
-      const body = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(body.message || "Could not submit customer edit");
+      const body = await readApiResponse(response, { fallbackMessage: "Could not submit customer edit." });
       await Swal.fire("Submitted", body.message || "Customer edit submitted successfully", "success");
       onSuccess(); onClose();
-    } catch (error) { Swal.fire("Error", error.message, "error"); }
+    } catch (error) { Swal.fire("Unable to Update Customer", apiErrorMessage(error), "error"); }
     finally { setSaving(false); }
   };
 
@@ -68,8 +72,8 @@ export default function EditCustomerDrawer({ customerId, open, onClose, onSucces
           <Field label="Payroll Numbers"><Input value={read(customer, "IndividualPayrollNumbers")} onChange={(e) => change("IndividualPayrollNumbers", e.target.value)} /></Field>
           <Field label="Birth Date"><Input type="date" value={dateValue(read(customer, "IndividualBirthDate"))} onChange={(e) => change("IndividualBirthDate", e.target.value || null)} /></Field>
           <Field label="Employment Designation"><Input value={read(customer, "IndividualEmploymentDesignation")} onChange={(e) => change("IndividualEmploymentDesignation", e.target.value)} /></Field>
-          <Field label="Email"><Input type="email" value={read(customer, "AddressEmail")} onChange={(e) => change("AddressEmail", e.target.value)} /></Field>
-          <Field label="Mobile"><Input value={read(customer, "AddressMobileLine")} onChange={(e) => change("AddressMobileLine", e.target.value)} /></Field>
+          <Field label="Email" help="The customer's primary email address. Account alerts configured for email delivery are sent to this address."><Input type="email" value={read(customer, "AddressEmail")} onChange={(e) => change("AddressEmail", e.target.value)} /></Field>
+          <Field label="Mobile" help="The customer's primary mobile number in international format. SMS alerts use this number."><Input value={read(customer, "AddressMobileLine")} onChange={(e) => change("AddressMobileLine", e.target.value)} /></Field>
           <Field label="Address Line 1"><Input value={read(customer, "AddressAddressLine1")} onChange={(e) => change("AddressAddressLine1", e.target.value)} /></Field>
           <Field label="City"><Input value={read(customer, "AddressCity")} onChange={(e) => change("AddressCity", e.target.value)} /></Field>
           <Field label="Reference 1"><Input value={read(customer, "Reference1")} onChange={(e) => change("Reference1", e.target.value)} /></Field>

@@ -10,6 +10,7 @@ import { FaVault } from "react-icons/fa6";
 import Swal from "sweetalert2";
 import { apiFetch, normalizeList } from "@/lib/api";
 import { listAllChartOfAccounts } from "@/pages/Accounts/ChartOfAccounts/api";
+import { treasuryValidationMessage } from "./validation";
 
 const BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 // Treasury master data moved to Areas/Accounts (docs/api/treasury-api-spec.md)
@@ -58,6 +59,12 @@ export default function CreateTreasury() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const validationMessage = treasuryValidationMessage(form);
+    if (validationMessage) {
+      Swal.fire("Check Treasury Details", validationMessage, "warning");
+      return;
+    }
+
     setLoading(true);
     try {
       // BranchDescription isn't persisted (server populates it on read from
@@ -67,6 +74,7 @@ export default function CreateTreasury() {
       const selectedBranch = branches.find((b) => b.Id === form.BranchId);
       const payload = {
         ...form,
+        Description: form.Description.trim(),
         BranchDescription: selectedBranch?.Description || "",
         RangeLowerLimit: Number(form.RangeLowerLimit),
         RangeUpperLimit: Number(form.RangeUpperLimit),
@@ -129,10 +137,10 @@ export default function CreateTreasury() {
 
         <div className="grid grid-cols-2 gap-3">
           <FieldGroup label="Range Lower Limit">
-            <Input type="number" value={form.RangeLowerLimit} onChange={(e) => handleChange("RangeLowerLimit", e.target.value)} placeholder="50000" />
+            <Input type="number" min="0" step="0.01" required value={form.RangeLowerLimit} onChange={(e) => handleChange("RangeLowerLimit", e.target.value)} placeholder="50000" />
           </FieldGroup>
           <FieldGroup label="Range Upper Limit">
-            <Input type="number" value={form.RangeUpperLimit} onChange={(e) => handleChange("RangeUpperLimit", e.target.value)} placeholder="100000" />
+            <Input type="number" min="0" step="0.01" required value={form.RangeUpperLimit} onChange={(e) => handleChange("RangeUpperLimit", e.target.value)} placeholder="100000" />
           </FieldGroup>
         </div>
 

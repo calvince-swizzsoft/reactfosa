@@ -95,7 +95,7 @@ export default function MemberEditDrawer({ open, onClose, refresh, member }) {
                 Id: member.id || "",
                 StationId: member.stationId || "",
                 BranchId: member.branchId || "",
-                Type: member.type || "",
+                Type: member.type ?? "",
                 SerialNumber: member.serialNumber || "",
                 PersonalIdentificationNumber: member.pin || member.PersonalIdentificationNumber || "",
                 IndividualType: member.individualType || 1,
@@ -114,10 +114,10 @@ export default function MemberEditDrawer({ open, onClose, refresh, member }) {
                 IndividualEmploymentTermsOfService: member.employmentTerms?.toString() || "",
                 IndividualEmploymentDate: member.employmentDate ? new Date(member.employmentDate).toISOString().split('T')[0] : "",
                 IndividualClassification: member.classification?.toString() || "",
-                NonIndividualDescription: "",
-                NonIndividualRegistrationNumber: "",
-                NonIndividualRegistrationSerialNumber: "",
-                NonIndividualDateEstablished: "",
+                NonIndividualDescription: member.nonIndividualDescription || "",
+                NonIndividualRegistrationNumber: member.nonIndividualRegistrationNumber || "",
+                NonIndividualRegistrationSerialNumber: member.nonIndividualRegistrationSerialNumber || "",
+                NonIndividualDateEstablished: member.nonIndividualDateEstablished?.split("T")[0] || "",
                 AddressAddressLine1: member.address?.addressLine1 || "",
                 AddressAddressLine2: member.address?.addressLine2 || "",
                 AddressStreet: member.address?.street || "",
@@ -255,7 +255,7 @@ export default function MemberEditDrawer({ open, onClose, refresh, member }) {
                 Id: customer.Id,
                 StationId: customer.StationId,
                 BranchId: customer.BranchId,
-                Type: parseInt(customer.Type) || 1,
+                Type: Number(customer.Type),
                 SerialNumber: customer.SerialNumber,
                 PersonalIdentificationNumber: customer.PersonalIdentificationNumber,
                 IndividualType: parseInt(customer.IndividualType) || 1,
@@ -565,12 +565,19 @@ export default function MemberEditDrawer({ open, onClose, refresh, member }) {
                                                     className="w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                                                 >
                                                     <option value="">Select Type</option>
-                                                    <option value="1">Individual</option>
-                                                    <option value="2">Partnership</option>
-                                                    <option value="3">Corporation</option>
-                                                    <option value="4">MicroCredit</option>
+                                                    <option value="0">Individual</option>
+                                                    <option value="1">Partnership</option>
+                                                    <option value="2">Corporation</option>
+                                                    <option value="3">MicroCredit</option>
                                                 </select>
                                             </div>
+
+                                            {Number(customer.Type) !== 0 && <>
+                                                <div><Label>Organisation / Group Name</Label><Input value={customer.NonIndividualDescription} onChange={(e) => updateCustomer("NonIndividualDescription", e.target.value)} /></div>
+                                                <div><Label>Registration Number</Label><Input value={customer.NonIndividualRegistrationNumber} onChange={(e) => updateCustomer("NonIndividualRegistrationNumber", e.target.value)} /></div>
+                                                <div><Label>Registration Serial Number</Label><Input value={customer.NonIndividualRegistrationSerialNumber} onChange={(e) => updateCustomer("NonIndividualRegistrationSerialNumber", e.target.value)} /></div>
+                                                <div><Label>Date Established</Label><Input type="date" value={customer.NonIndividualDateEstablished} onChange={(e) => updateCustomer("NonIndividualDateEstablished", e.target.value)} /></div>
+                                            </>}
 
                                             <div>
                                                 <Label>Surname</Label>

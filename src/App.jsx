@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-d
 import Layout from "./components/Layout";
 import RequireAuth from "./components/RequireAuth";
 import PlaceholderModule from "./pages/PlaceholderModule";
+import { Officers as MicroCreditOfficers, Groups as MicroCreditGroups, Apportionment as MicroCreditApportionment } from "./pages/MicroCredit/Pages.jsx";
 import { AuthProvider } from "./context/AuthContext";
 import { ModuleTreeProvider } from "./context/ModuleTreeContext";
 
@@ -22,6 +23,7 @@ import Home from "./pages/Home";
 import Settings from "./pages/Settings";
 import Leaves from "./pages/Payroll/Leave";
 import Login from "./pages/Auth/Login";
+import ConfirmEmail from "./pages/Auth/ConfirmEmail";
 import Procureone from "./pages/Procurement/procureone";
 import Procuretwo from "./pages/Procurement/procuretwo";
 import Payroll from "./pages/Payroll/Payroll.jsx";
@@ -207,6 +209,8 @@ import CreateTreasury from "./pages/Accounts/Treasuries/create.jsx";
 import CostCenters from "./pages/Accounts/CostCenters/index.jsx";
 import PostingPeriods from "./pages/Accounts/PostingPeriods/index.jsx";
 import PostingPeriodClosing from "./pages/Accounts/PostingPeriodClosing/index.jsx";
+import BankReconciliation from "./pages/Accounts/BankReconciliation/index.jsx";
+import BudgetManagement from "./pages/Accounts/BudgetManagement/index.jsx";
 import ChequeTypes from "./pages/Accounts/ChequeTypes/index.jsx";
 import CreateChequeType from "./pages/Accounts/ChequeTypes/create.jsx";
 import Commissions from "./pages/Accounts/Commissions/index.jsx";
@@ -222,6 +226,7 @@ import CreateChartOfAccount from "./pages/Accounts/ChartOfAccounts/create.jsx";
 import ChartOfAccountMappings from "./pages/Accounts/ChartOfAccounts/Mappings.jsx";
 import CashManagement from "./pages/FOSA/TreasuryTransactions/CashManagement.jsx";
 import FiscalCounts from "./pages/FOSA/TreasuryTransactions/FiscalCounts.jsx";
+import CashWithdrawalRequests from "./pages/FOSA/TreasuryTransactions/CashWithdrawalRequests.jsx";
 import SavingsReceiptsPayments from "./pages/FOSA/TellerTransactions/SavingsReceiptsPayments.jsx";
 import EndOfDay from "./pages/FOSA/TellerTransactions/EndOfDay.jsx";
 import Cheques from "./pages/FOSA/TellerTransactions/Cheques.jsx";
@@ -255,6 +260,7 @@ export default function App() {
 
           {/* Login route WITHOUT Layout */}
           <Route path="/login" element={<Login />} />
+          <Route path="/confirm-email" element={<ConfirmEmail />} />
 
           {/* All other routes require authentication and get the Layout */}
           <Route element={<RequireAuth />}>
@@ -469,6 +475,10 @@ export default function App() {
           <Route path="HumanResource/EmployeeTypes/create" element={<CreateEmployeeType />} />
 
           {/**Accounts */}
+          <Route path="MicroCredit/Officers" element={<MicroCreditOfficers />} />
+          <Route path="MicroCredit/Groups" element={<MicroCreditGroups />} />
+          <Route path="MicroCredit/Apportionment" element={<MicroCreditApportionment />} />
+
           <Route path="Accounts/InvestmentProducts" element={<InvestmentProducts />} />
           <Route path="Accounts/InvestmentProducts/create" element={<CreateInvestmentProduct />} />
           <Route path="Accounts/SavingsProducts" element={<SavingsProducts />} />
@@ -484,7 +494,15 @@ export default function App() {
           <Route path="Accounts/BankLinkages/create" element={<CreateBankLinkage />} />
           <Route path="Accounts/CostCenters" element={<CostCenters />} />
           <Route path="Accounts/PostingPeriods" element={<PostingPeriods />} />
+          <Route path="Accounts/TransactionJournals/System" element={<GeneralLedgerStatement initialMode="browse" title="System Transaction Journals" showModeSelector={false} />} />
+          <Route path="Accounts/TransactionJournals/GLAccount" element={<GeneralLedgerStatement initialMode="byAccount" title="G/L Account Transaction Journal" showModeSelector={false} />} />
           <Route path="Accounts/PostingPeriodClosing" element={<PostingPeriodClosing />} />
+          <Route path="Accounts/BankReconciliation/Periods" element={<BankReconciliation mode="periods" />} />
+          <Route path="Accounts/BankReconciliation/Processing" element={<BankReconciliation mode="processing" />} />
+          <Route path="Accounts/BankReconciliation/Closing" element={<BankReconciliation mode="closing" />} />
+          <Route path="Accounts/BankReconciliation/Catalogue" element={<BankReconciliation mode="catalogue" />} />
+          <Route path="Accounts/BudgetManagement/Periods" element={<BudgetManagement mode="periods" />} />
+          <Route path="Accounts/BudgetManagement/Appropriation" element={<BudgetManagement mode="appropriation" />} />
           <Route path="Accounts/ChequeTypes" element={<ChequeTypes />} />
           <Route path="Accounts/ChequeTypes/create" element={<CreateChequeType />} />
           <Route path="Accounts/Commissions" element={<Commissions />} />
@@ -506,6 +524,7 @@ export default function App() {
               other module this session before its code arrived). */}
           <Route path="FrontOffice/CashManagement" element={<CashManagement />} />
           <Route path="FrontOffice/FiscalCounts" element={<FiscalCounts />} />
+          <Route path="FrontOffice/CashWithdrawalRequests" element={<CashWithdrawalRequests />} />
           <Route path="FrontOffice/SavingsReceiptsPayments" element={<SavingsReceiptsPayments />} />
           <Route path="FrontOffice/EndOfDay" element={<EndOfDay />} />
           <Route path="FrontOffice/Cheques" element={<Cheques />} />

@@ -36,16 +36,66 @@ function nonEmptyString(value) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
+function collectValidationMessages(value, messages = []) {
+  if (typeof value === "string") {
+    const message = nonEmptyString(value);
+    if (message) messages.push(message);
+    return messages;
+  }
+
+  if (Array.isArray(value)) {
+    value.forEach((item) => collectValidationMessages(item, messages));
+    return messages;
+  }
+
+  if (value && typeof value === "object") {
+    Object.values(value).forEach((item) => collectValidationMessages(item, messages));
+  }
+
+  return messages;
+}
+
+function responseMessage(body) {
+  if (typeof body === "string") return nonEmptyString(body);
+  if (!body || typeof body !== "object") return null;
+
+  // Preserve the server's explanation across the response formats used by
+  // Web API, ASP.NET Problem Details, and older controller envelopes.
+  const direct =
+    nonEmptyString(body.message) ||
+    nonEmptyString(body.Message) ||
+    nonEmptyString(body.detail) ||
+    nonEmptyString(body.Detail) ||
+    nonEmptyString(body.title) ||
+    nonEmptyString(body.Title) ||
+    nonEmptyString(body.error_description) ||
+    nonEmptyString(body.errorDescription) ||
+    nonEmptyString(body.error);
+  if (direct) return direct;
+
+  const nestedError = body.error || body.Error;
+  if (nestedError && typeof nestedError === "object") {
+    const nested = responseMessage(nestedError);
+    if (nested) return nested;
+  }
+
+  const validationErrors =
+    body.validationErrors || body.ValidationErrors || body.errors || body.Errors || body.ModelState;
+  const validationMessages = [...new Set(collectValidationMessages(validationErrors))];
+  return validationMessages.length ? validationMessages.join("\n") : null;
+}
+
 export function apiErrorFromResponse(response, body, fallbackMessage) {
   const payload = body && typeof body === "object" ? body : {};
   const status = response?.status || 0;
+  const validationErrors =
+    payload.validationErrors || payload.ValidationErrors || payload.errors || payload.Errors || payload.ModelState || null;
 
   return new ApiError({
     status,
     code: nonEmptyString(payload.code) || nonEmptyString(payload.Code) || "REQUEST_FAILED",
     message:
-      nonEmptyString(payload.message) ||
-      nonEmptyString(payload.Message) ||
+      responseMessage(body) ||
       nonEmptyString(fallbackMessage) ||
       DEFAULT_MESSAGES[status] ||
       (status >= 500 ? "An unexpected error occurred." : "The request could not be completed."),
@@ -53,7 +103,7 @@ export function apiErrorFromResponse(response, body, fallbackMessage) {
       nonEmptyString(payload.correlationId) ||
       nonEmptyString(payload.CorrelationId) ||
       nonEmptyString(response?.headers?.get?.("X-Correlation-ID")),
-    validationErrors: payload.validationErrors || payload.ValidationErrors || null,
+    validationErrors,
   });
 }
 

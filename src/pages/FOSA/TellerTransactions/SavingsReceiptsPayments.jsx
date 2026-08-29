@@ -2,22 +2,26 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { motion, AnimatePresence } from "framer-motion";
 import Swal from "sweetalert2";
 import NotFoundImage from "/assets/scopefinding.png";
-import { FaMoneyBillWave, FaPlus, FaPaperPlane, FaChevronLeft, FaChevronRight } from "react-icons/fa";
+import { FaMoneyBillWave, FaPlus, FaPaperPlane, FaChevronLeft, FaChevronRight, FaInfoCircle, FaSearch, FaUndo } from "react-icons/fa";
 import { apiErrorMessage, apiJson, normalizeList } from "@/lib/api";
 import { listRequests, createTransaction, postAuthorizedRequest } from "./requestsApi";
 import { FrontOfficeTransactionType, CashWithdrawalCategory } from "../lib/frontOfficeEnums";
 import ReceiptModal from "../lib/ReceiptModal";
+import CustomerLookupModal from "@/pages/Registry/Customers/Documents/CustomerLookupModal";
+import DenominationCountFields, { emptyDenominationCounts, sumDenominations } from "../lib/DenominationCountFields";
 
 // Savings Receipts/Payments — the app's one real nav item for the whole
 // teller transaction cycle (NavigationMenu.cs: ControllerName "CashDeposit",
 // Description "Savings Receipts/Payments"). One screen, one
-// POST/GET api/frontoffice/requests endpoint, four FrontOfficeTransactionType
+// POST api/frontoffice/requests and GET api/frontoffice/requests/queue,
+// four FrontOfficeTransactionType
 // values discriminated by `Type` — per
 // WebApplication1/Areas/FrontOffice/SAVINGS-RECEIPTS-PAYMENTS-FLOW.md and
 // -FORM-LAYOUT.md. Replaces the 4 separate pages Phase 1 built
@@ -52,10 +56,13 @@ const TYPE_FILTERS = [
   { id: "withdrawal", label: "Withdrawals" },
 ];
 
-function FieldGroup({ label, children }) {
+function FieldGroup({ label, help, children }) {
   return (
     <div>
-      <Label className="text-sm font-semibold text-gray-700">{label}</Label>
+      <div className="flex items-center gap-1.5 mb-1">
+        <Label className="text-sm font-semibold text-gray-700">{label}</Label>
+        {help && <Popover><PopoverTrigger asChild><button type="button" aria-label={`Information about ${label}`} className="text-gray-400 hover:text-indigo-600 rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500"><FaInfoCircle className="text-xs" /></button></PopoverTrigger><PopoverContent className="w-72 text-sm text-gray-600">{help}</PopoverContent></Popover>}
+      </div>
       {children}
     </div>
   );
@@ -63,7 +70,6 @@ function FieldGroup({ label, children }) {
 
 const emptyForm = {
   Type: FrontOfficeTransactionType.CashDeposit,
-  BranchId: "",
   CreditCustomerAccountId: "",
   TotalValue: "",
   Remarks: "",
@@ -77,37 +83,43 @@ const emptyForm = {
   // Group 3 — Payment Voucher only
   Payee: "",
   VoucherReference: "",
+  ChequeBookId: "",
+  PaymentVoucherId: "",
 };
 
 function CreateTransactionDrawer({ open, onClose, onSuccess, onDialog }) {
   const [form, setForm] = useState(emptyForm);
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(false);
-  const [customers, setCustomers] = useState([]);
-  const [branches, setBranches] = useState([]);
-  const [selectedCustomerId, setSelectedCustomerId] = useState("");
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [customerPickerOpen, setCustomerPickerOpen] = useState(false);
   const [accounts, setAccounts] = useState([]);
   const [loadingAccounts, setLoadingAccounts] = useState(false);
   const [chequeTypes, setChequeTypes] = useState([]);
   const [loadingChequeTypes, setLoadingChequeTypes] = useState(false);
+  const [chequeBooks, setChequeBooks] = useState([]);
+  const [paymentVouchers, setPaymentVouchers] = useState([]);
+  const [loadingVouchers, setLoadingVouchers] = useState(false);
+  const [operatorContext, setOperatorContext] = useState(null);
+  const [tallyMode, setTallyMode] = useState("total");
+  const [denominations, setDenominations] = useState(emptyDenominationCounts);
 
   useEffect(() => {
     if (!open) return;
     setForm(emptyForm);
-    setSelectedCustomerId("");
+    setSelectedCustomer(null);
     setAccounts([]);
     setChequeTypes([]);
+    setChequeBooks([]);
+    setPaymentVouchers([]);
+    setDenominations(emptyDenominationCounts);
+    setTallyMode("total");
     setLoadingData(true);
-    Promise.all([
-      apiJson(`${FIN_BASE}/api/registry/customers`),
-      apiJson(`${FIN_BASE}/api/administration/branches`),
-    ]).then(([customerData, branchData]) => {
-      setCustomers(normalizeList(customerData));
-      setBranches(normalizeList(branchData));
+    apiJson(`${FIN_BASE}/api/frontoffice/requests/context`).then((response) => {
+      setOperatorContext(response?.data ?? response?.Data ?? null);
     }).catch((error) => {
-      setCustomers([]);
-      setBranches([]);
-      Swal.fire("Error", apiErrorMessage(error, "Unable to load transaction options."), "error");
+      setOperatorContext(null);
+      Swal.fire("Teller Context Unavailable", apiErrorMessage(error, "Your teller and branch context could not be resolved."), "error");
     }).finally(() => setLoadingData(false));
   }, [open]);
 
@@ -130,8 +142,9 @@ function CreateTransactionDrawer({ open, onClose, onSuccess, onDialog }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, isChequeDeposit]);
 
-  const handleCustomerChange = (customerId) => {
-    setSelectedCustomerId(customerId);
+  const handleCustomerChange = (customer) => {
+    const customerId = customer?.Id ?? customer?.id;
+    setSelectedCustomer(customer);
     setAccounts([]);
     setForm((p) => ({ ...p, CreditCustomerAccountId: "" }));
     if (!customerId) return;
@@ -147,20 +160,55 @@ function CreateTransactionDrawer({ open, onClose, onSuccess, onDialog }) {
 
   const handleChange = (field, value) => setForm((p) => ({ ...p, [field]: value }));
 
+  const selectedAccount = accounts.find((account) => String(account.Id) === String(form.CreditCustomerAccountId));
+  const selectedCustomerName = selectedCustomer
+    ? ([selectedCustomer.IndividualFirstName, selectedCustomer.IndividualLastName].filter(Boolean).join(" ") || selectedCustomer.NonIndividualDescription || selectedCustomer.Description)
+    : "";
+
+  const handleDenominationChange = (key, value) => {
+    setDenominations((previous) => {
+      const next = { ...previous, [key]: value };
+      setForm((current) => ({ ...current, TotalValue: String(sumDenominations(next)) }));
+      return next;
+    });
+  };
+
   const isPaymentVoucher = form.Type === FrontOfficeTransactionType.CashWithdrawalPaymentVoucher;
+
+  useEffect(() => {
+    if (!open || !isPaymentVoucher || !form.CreditCustomerAccountId) return;
+    apiJson(`${FIN_BASE}/api/accounts/chequebooks/all`)
+      .then((response) => setChequeBooks(normalizeList(response).filter((book) => String(book.CustomerAccountId) === String(form.CreditCustomerAccountId) && book.IsActive && !book.IsLocked)))
+      .catch((error) => { setChequeBooks([]); Swal.fire("Unable to Load Cheque Books", apiErrorMessage(error, "The customer's active cheque books could not be loaded."), "error"); });
+  }, [open, isPaymentVoucher, form.CreditCustomerAccountId]);
+
+  const handleChequeBookChange = (chequeBookId) => {
+    handleChange("ChequeBookId", chequeBookId);
+    handleChange("PaymentVoucherId", "");
+    setPaymentVouchers([]);
+    setLoadingVouchers(true);
+    apiJson(`${FIN_BASE}/api/accounts/chequebooks/${chequeBookId}/vouchers?pageIndex=0&pageSize=100`)
+      .then((response) => setPaymentVouchers(normalizeList(response).filter((voucher) => Number(voucher.Status) === 0)))
+      .catch((error) => Swal.fire("Unable to Load Vouchers", apiErrorMessage(error, "Available payment vouchers could not be loaded."), "error"))
+      .finally(() => setLoadingVouchers(false));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.BranchId || !form.CreditCustomerAccountId || !form.TotalValue) {
-      Swal.fire("Missing Fields", "Branch, account, and amount are required.", "warning");
+    if (!operatorContext || operatorContext.isLocked) {
+      Swal.fire("Teller Unavailable", operatorContext?.isLocked ? "Your teller is locked and cannot post transactions." : "Your teller context could not be resolved.", "warning");
       return;
     }
-    if (isChequeDeposit && (!form.ChequeNumber || !form.Drawer || !form.DrawerBank || !form.DrawerBankBranch)) {
-      Swal.fire("Missing Fields", "Cheque number, drawer, drawer bank, and drawer bank branch are required.", "warning");
+    if (!form.CreditCustomerAccountId || !form.TotalValue || Number(form.TotalValue) <= 0) {
+      Swal.fire("Missing Fields", "Select an account and enter an amount greater than zero.", "warning");
       return;
     }
-    if (isPaymentVoucher && (!form.Payee || !form.VoucherReference)) {
-      Swal.fire("Missing Fields", "Payee and voucher reference are required.", "warning");
+    if (isChequeDeposit && (!/^\d{6}$/.test(form.ChequeNumber) || !form.Drawer.trim() || !form.DrawerBank.trim() || !form.DrawerBankBranch.trim() || !form.ChequeType || !form.WriteDate)) {
+      Swal.fire("Cheque Details Required", "Enter a six-digit cheque number, drawer, bank, bank branch, cheque type, and write date.", "warning");
+      return;
+    }
+    if (isPaymentVoucher && (!form.ChequeBookId || !form.PaymentVoucherId || !form.Payee.trim() || !form.VoucherReference.trim() || !form.WriteDate)) {
+      Swal.fire("Payment Voucher Details Required", "Select a cheque book and active voucher, then enter its payee, reference, and write date.", "warning");
       return;
     }
 
@@ -171,7 +219,6 @@ function CreateTransactionDrawer({ open, onClose, onSuccess, onDialog }) {
       // confirmed against CashDepositController.Create's actual lookup.
       const payload = {
         Type: form.Type,
-        BranchId: form.BranchId,
         CreditCustomerAccountId: form.CreditCustomerAccountId,
         TotalValue: Number(form.TotalValue),
         Remarks: form.Remarks,
@@ -203,6 +250,8 @@ function CreateTransactionDrawer({ open, onClose, onSuccess, onDialog }) {
         // voucher branch dereferences PaymentVoucher.Reference/.Payee
         // directly, so omitting this object would NPE server-side.
         payload.PaymentVoucher = {
+          Id: form.PaymentVoucherId,
+          ChequeBookId: form.ChequeBookId,
           Payee: form.Payee,
           Reference: form.VoucherReference,
           Amount: Number(form.TotalValue),
@@ -249,61 +298,53 @@ function CreateTransactionDrawer({ open, onClose, onSuccess, onDialog }) {
                 onSubmit/Enter-to-submit still cover the whole thing. */}
             <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
             <div className="p-4 space-y-4 overflow-y-auto flex-1 min-h-0">
-              <FieldGroup label="Transaction Type">
-                <Select value={String(form.Type)} onValueChange={(v) => handleChange("Type", Number(v))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {TYPE_OPTIONS.map((o) => (
-                      <SelectItem key={o.value} value={String(o.value)}>{o.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className={`rounded-lg border px-4 py-3 ${operatorContext?.isLocked ? "bg-red-50 border-red-200" : "bg-indigo-50 border-indigo-100"}`}>
+                <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">Signed-in teller context</p>
+                <div className="flex justify-between gap-3 mt-1 text-sm"><span className="font-semibold text-gray-800">{loadingData ? "Resolving..." : operatorContext?.tellerDescription || "Unavailable"}</span><span className="text-gray-600">{operatorContext?.branchDescription || "Branch unavailable"}</span></div>
+                {operatorContext?.isLocked && <p className="text-xs font-semibold text-red-600 mt-1">This teller is locked. Transactions are disabled.</p>}
+              </div>
+
+              <FieldGroup label="Transaction Type" help="Choose the operation before selecting its details. The server applies the product limits, teller controls, charges, and approval rules for that operation.">
+                <div className="grid grid-cols-2 gap-2">
+                  {TYPE_OPTIONS.map((option) => <button key={option.value} type="button" onClick={() => handleChange("Type", option.value)} className={`rounded-lg border px-3 py-2 text-sm font-semibold transition-all ${form.Type === option.value ? "bg-indigo-600 border-indigo-600 text-white shadow" : "bg-white border-gray-200 text-gray-600 hover:bg-indigo-50 hover:border-indigo-200"}`}>{option.label}</button>)}
+                </div>
               </FieldGroup>
 
-              <FieldGroup label="Customer">
-                <Select value={selectedCustomerId ? String(selectedCustomerId) : ""} onValueChange={handleCustomerChange} disabled={loadingData}>
-                  <SelectTrigger><SelectValue placeholder={loadingData ? "Loading..." : "Search & select customer"} /></SelectTrigger>
-                  <SelectContent className="max-h-60 overflow-y-auto">
-                    {customers.map((c) => {
-                      const name = [c.IndividualFirstName, c.IndividualLastName].filter(Boolean).join(" ")
-                        || c.NonIndividualDescription || c.Description || `Customer ${c.Id}`;
-                      return <SelectItem key={String(c.Id)} value={String(c.Id)}>{name}</SelectItem>;
-                    })}
-                  </SelectContent>
-                </Select>
+              <FieldGroup label="Customer" help="Search the full customer registry by name, identity, payroll or organisation details. Results are fetched from the server as you search.">
+                <Button type="button" onClick={() => setCustomerPickerOpen(true)} className="w-full justify-start bg-white text-gray-700 border hover:bg-indigo-50"><FaSearch className="mr-2 text-indigo-600" />{selectedCustomerName || "Search & select customer"}</Button>
               </FieldGroup>
 
-              <FieldGroup label={loadingAccounts ? "Loading accounts..." : "Customer Account"}>
-                <Select value={form.CreditCustomerAccountId ? String(form.CreditCustomerAccountId) : ""} onValueChange={(v) => handleChange("CreditCustomerAccountId", v)} disabled={loadingAccounts || !selectedCustomerId}>
-                  <SelectTrigger><SelectValue placeholder={loadingAccounts ? "Loading..." : !selectedCustomerId ? "Select a customer first" : "Select account"} /></SelectTrigger>
+              <FieldGroup label={loadingAccounts ? "Loading accounts..." : "Customer Account"} help="Select the savings, investment or loan account affected by this transaction. The API derives the correct debit and credit side from the transaction type.">
+                <Select value={form.CreditCustomerAccountId ? String(form.CreditCustomerAccountId) : ""} onValueChange={(v) => handleChange("CreditCustomerAccountId", v)} disabled={loadingAccounts || !selectedCustomer}>
+                  <SelectTrigger><SelectValue placeholder={loadingAccounts ? "Loading..." : !selectedCustomer ? "Select a customer first" : "Select account"} /></SelectTrigger>
                   <SelectContent className="max-h-60 overflow-y-auto">
                     {accounts.map((a) => (
-                      <SelectItem key={String(a.Id)} value={String(a.Id)}>{a.CustomerAccountTypeTargetProductDescription || a.FullAccountNumber || a.Id}</SelectItem>
+                      <SelectItem key={String(a.Id)} value={String(a.Id)}>{a.FullAccountNumber || a.CustomerAccountFullAccountNumber || a.CustomerAccountTypeTargetProductDescription || a.Id}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </FieldGroup>
 
-              <FieldGroup label="Branch">
-                <Select value={form.BranchId ? String(form.BranchId) : ""} onValueChange={(v) => handleChange("BranchId", v)} disabled={loadingData}>
-                  <SelectTrigger><SelectValue placeholder={loadingData ? "Loading..." : "Select Branch"} /></SelectTrigger>
-                  <SelectContent className="max-h-60 overflow-y-auto">
-                    {branches.map((b) => <SelectItem key={String(b.Id)} value={String(b.Id)}>{b.Description}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </FieldGroup>
+              {selectedAccount && <div className="grid grid-cols-2 gap-2 rounded-lg bg-gray-50 border p-3 text-sm">
+                <div><span className="block text-xs text-gray-400">Product</span><span className="font-medium text-gray-700">{selectedAccount.CustomerAccountTypeTargetProductDescription || "—"}</span></div>
+                <div><span className="block text-xs text-gray-400">Status</span><span className="font-medium text-gray-700">{selectedAccount.StatusDescription || selectedAccount.CustomerAccountStatusDescription || "—"}</span></div>
+                <div><span className="block text-xs text-gray-400">Book Balance</span><span className="font-semibold text-indigo-700">{Number(selectedAccount.BookBalance || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                <div><span className="block text-xs text-gray-400">Available Balance</span><span className="font-semibold text-indigo-700">{Number(selectedAccount.AvailableBalance || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+              </div>}
 
-              <FieldGroup label="Amount">
-                <Input type="number" value={form.TotalValue} onChange={(e) => handleChange("TotalValue", e.target.value)} required placeholder="1000" />
+              {form.Type === FrontOfficeTransactionType.CashDeposit && <FieldGroup label="Cash Tally" help="Tally by total when the cash is already counted, or tally by count to enter the number of notes and coins. The counted total becomes the transaction amount."><div className="flex gap-2 mb-3"><button type="button" onClick={() => setTallyMode("total")} className={`px-3 py-1.5 rounded-md text-xs font-semibold ${tallyMode === "total" ? "bg-indigo-600 text-white" : "bg-gray-100 text-gray-600"}`}>Tally by Total</button><button type="button" onClick={() => setTallyMode("count")} className={`px-3 py-1.5 rounded-md text-xs font-semibold ${tallyMode === "count" ? "bg-indigo-600 text-white" : "bg-gray-100 text-gray-600"}`}>Tally by Count</button></div>{tallyMode === "count" && <><DenominationCountFields counts={denominations} onChange={handleDenominationChange} /><Button type="button" size="sm" onClick={() => { setDenominations(emptyDenominationCounts); handleChange("TotalValue", ""); }} className="mt-2 bg-gray-600 hover:bg-gray-700"><FaUndo className="mr-2" /> Reset Count</Button></>}</FieldGroup>}
+
+              <FieldGroup label="Amount" help="For withdrawals, the API evaluates the product withdrawal limit, minimum balance, charges, account balance and teller cash availability. Transactions requiring authority are queued instead of posted.">
+                <Input type="number" min="0.01" step="0.01" value={form.TotalValue} onChange={(e) => handleChange("TotalValue", e.target.value)} required placeholder="0.00" readOnly={form.Type === FrontOfficeTransactionType.CashDeposit && tallyMode === "count"} />
               </FieldGroup>
 
               {isChequeDeposit && (
                 <div className="grid grid-cols-2 gap-4 border-t pt-4">
                   <FieldGroup label="Cheque Number">
-                    <Input value={form.ChequeNumber} onChange={(e) => handleChange("ChequeNumber", e.target.value)} required placeholder="e.g. 000482" />
+                    <Input inputMode="numeric" maxLength={6} value={form.ChequeNumber} onChange={(e) => handleChange("ChequeNumber", e.target.value.replace(/\D/g, "").slice(0, 6))} required placeholder="e.g. 000482" />
                   </FieldGroup>
                   <FieldGroup label="Write Date">
-                    <Input type="date" value={form.WriteDate} onChange={(e) => handleChange("WriteDate", e.target.value)} />
+                    <Input type="date" max={new Date().toISOString().slice(0, 10)} value={form.WriteDate} onChange={(e) => handleChange("WriteDate", e.target.value)} />
                   </FieldGroup>
                   <FieldGroup label="Drawer (Cheque Owner)">
                     <Input value={form.Drawer} onChange={(e) => handleChange("Drawer", e.target.value)} required placeholder="e.g. John Doe" />
@@ -327,8 +368,20 @@ function CreateTransactionDrawer({ open, onClose, onSuccess, onDialog }) {
 
               {isPaymentVoucher && (
                 <div className="grid grid-cols-2 gap-4 border-t pt-4">
+                  <FieldGroup label="Cheque Book" help="Only active, unlocked cheque books issued against the selected customer account are available.">
+                    <Select value={form.ChequeBookId} onValueChange={handleChequeBookChange}>
+                      <SelectTrigger><SelectValue placeholder="Select cheque book" /></SelectTrigger>
+                      <SelectContent className="max-h-60 overflow-y-auto">{chequeBooks.map((book) => <SelectItem key={String(book.Id)} value={String(book.Id)}>{book.Reference || book.PaddedSerialNumber || book.Id}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </FieldGroup>
+                  <FieldGroup label="Voucher Number" help="Only unused active voucher leaves from the selected cheque book can be presented for payment.">
+                    <Select value={form.PaymentVoucherId} onValueChange={(value) => handleChange("PaymentVoucherId", value)} disabled={!form.ChequeBookId || loadingVouchers}>
+                      <SelectTrigger><SelectValue placeholder={loadingVouchers ? "Loading vouchers..." : "Select voucher"} /></SelectTrigger>
+                      <SelectContent className="max-h-60 overflow-y-auto">{paymentVouchers.map((voucher) => <SelectItem key={String(voucher.Id)} value={String(voucher.Id)}>{voucher.PaddedVoucherNumber || voucher.VoucherNumber || voucher.Id}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </FieldGroup>
                   <FieldGroup label="Write Date">
-                    <Input type="date" value={form.WriteDate} onChange={(e) => handleChange("WriteDate", e.target.value)} />
+                    <Input type="date" max={new Date().toISOString().slice(0, 10)} value={form.WriteDate} onChange={(e) => handleChange("WriteDate", e.target.value)} />
                   </FieldGroup>
                   <FieldGroup label="Payee">
                     <Input value={form.Payee} onChange={(e) => handleChange("Payee", e.target.value)} required placeholder="e.g. Jane Doe" />
@@ -339,13 +392,13 @@ function CreateTransactionDrawer({ open, onClose, onSuccess, onDialog }) {
                 </div>
               )}
 
-              <FieldGroup label="Remarks">
+              <FieldGroup label="Remarks" help="Add useful transaction context such as a student name, admission number, voucher purpose, or depositor details. This is retained with the transaction request.">
                 <Input value={form.Remarks} onChange={(e) => handleChange("Remarks", e.target.value)} placeholder="Optional" />
               </FieldGroup>
             </div>
 
             <div className="p-4 pt-3 border-t shrink-0">
-              <Button type="submit" disabled={loading || loadingData} className="w-full bg-indigo-600 hover:bg-indigo-700">
+              <Button type="submit" disabled={loading || loadingData || !operatorContext || operatorContext.isLocked} className="w-full bg-indigo-600 hover:bg-indigo-700">
                 {loading ? "Submitting..." : "Submit Transaction"}
               </Button>
             </div>
@@ -353,6 +406,7 @@ function CreateTransactionDrawer({ open, onClose, onSuccess, onDialog }) {
           </motion.div>
         </>
       )}
+      {customerPickerOpen && <CustomerLookupModal onSelect={handleCustomerChange} onClose={() => setCustomerPickerOpen(false)} />}
     </AnimatePresence>
   );
 }
@@ -378,13 +432,16 @@ export default function SavingsReceiptsPayments() {
   const [postingIds, setPostingIds] = useState(new Set());
   const [receiptJournal, setReceiptJournal] = useState(null);
   const [receiptIsChequeDeposit, setReceiptIsChequeDeposit] = useState(false);
+  const [search, setSearch] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
 
   const fetchItems = () => {
     setLoading(true);
     // No `type` — merged deposit+withdrawal queue (form-layout doc). The
     // type filter below is applied client-side against this same page,
     // no second request needed.
-    listRequests({ status: STATUS[activeTab], pageIndex, pageSize })
+    listRequests({ status: STATUS[activeTab], text: search.trim(), startDate, endDate, pageIndex, pageSize })
       .then((page) => {
         setItems(page?.pageCollection || page?.PageCollection || []);
         setItemsCount(page?.itemsCount || page?.ItemsCount || 0);
@@ -403,6 +460,7 @@ export default function SavingsReceiptsPayments() {
   }, [activeTab, pageIndex, pageSize]);
 
   const changeTab = (id) => { setActiveTab(id); setPageIndex(0); };
+  const applyFilters = (event) => { event.preventDefault(); if (pageIndex === 0) fetchItems(); else setPageIndex(0); };
 
   const visibleItems = items.filter((item) => {
     if (typeFilter === "deposit") return item.TransactionType === FrontOfficeTransactionType.CashDeposit;
@@ -473,6 +531,13 @@ export default function SavingsReceiptsPayments() {
           ))}
         </div>
       </div>
+
+      <form onSubmit={applyFilters} className="grid grid-cols-1 md:grid-cols-12 gap-3 mb-4">
+        <div className="relative md:col-span-6"><FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs" /><Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search customer details..." className="pl-8" /></div>
+        <Input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} className="md:col-span-2" aria-label="Start date" />
+        <Input type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} className="md:col-span-2" aria-label="End date" />
+        <Button type="submit" className="md:col-span-2 bg-indigo-600 hover:bg-indigo-700">Filter Queue</Button>
+      </form>
 
       <div className="bg-gray-200 p-4 rounded-sm">
         <div className="grid grid-cols-12 gap-4 bg-gray-700 text-gray-100 font-semibold p-3 rounded-lg mb-4">

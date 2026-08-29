@@ -17,7 +17,7 @@ import { apiFetch, apiJson, normalizeList } from "@/lib/api";
 // - Create()'s response on the "requires authorization" path nests the
 //   dialog payload under `data` (dialog/cashTransactionRequestId/
 //   transactionCategory/...), not top-level.
-// - GET / with `type` omitted now returns the deposit+withdrawal queues
+// - GET /queue with `type` omitted returns the deposit+withdrawal queues
 //   MERGED into one page, sorted by CreatedDate descending, paged as a
 //   combined set (fixed server-side — used to come back empty). Each row
 //   keeps its own native DTO shape (CashDepositRequestDTO or
@@ -46,7 +46,7 @@ async function unwrap(responsePromise) {
 }
 
 /**
- * GET / — paged request queue. `type` is optional — omit it for the merged
+ * GET /queue — paged request queue. `type` is optional — omit it for the merged
  * deposit+withdrawal queue (see module note above), or pass 1/2 to scope to
  * a single source. `status` should be passed explicitly per tab (server
  * defaults to Pending if omitted, which silently hides every other tab's
@@ -59,7 +59,7 @@ export async function listRequests({ type, status, text = "", startDate, endDate
   if (status !== undefined && status !== null) params.set("status", String(status));
   if (startDate) params.set("startDate", startDate);
   if (endDate) params.set("endDate", endDate);
-  const body = await unwrap(apiJson(`${REQUESTS_BASE}?${params.toString()}`));
+  const body = await unwrap(apiJson(`${REQUESTS_BASE}/queue?${params.toString()}`));
   return body?.data ?? body;
 }
 
