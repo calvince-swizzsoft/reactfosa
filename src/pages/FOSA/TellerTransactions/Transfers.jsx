@@ -3,10 +3,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { FaEllipsisV, FaCheckCircle, FaTimesCircle, FaPaperPlane, FaExchangeAlt } from "react-icons/fa";
+import { FaEllipsisV, FaCheckCircle, FaTimesCircle, FaPaperPlane, FaExchangeAlt, FaInfoCircle } from "react-icons/fa";
 import Swal from "sweetalert2";
 import NotFoundImage from "/assets/scopefinding.png";
 import { apiErrorMessage, apiJson, normalizeList } from "@/lib/api";
@@ -38,13 +39,12 @@ const BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 
 function SkeletonRow() {
   return (
-    <div className="grid grid-cols-10 gap-2 items-center bg-white px-4 py-3 rounded-lg shadow border animate-pulse">
-      <div className="col-span-3"><div className="h-3 bg-gray-200 rounded w-44" /></div>
+    <div className="grid grid-cols-12 gap-2 items-center bg-white px-4 py-3 rounded-lg shadow border animate-pulse">
+      <div className="col-span-2"><div className="h-3 bg-gray-200 rounded w-24" /></div>
+      <div className="col-span-2"><div className="h-3 bg-gray-200 rounded w-28" /></div>
       <div className="col-span-2"><div className="h-4 bg-indigo-100 rounded w-20" /></div>
-      <div className="col-span-2 flex flex-col gap-1">
-        <div className="h-4 bg-gray-200 rounded w-24" />
-        <div className="h-3 bg-gray-100 rounded w-16" />
-      </div>
+      <div className="col-span-2"><div className="h-3 bg-gray-200 rounded w-28" /></div>
+      <div className="col-span-1"><div className="h-3 bg-gray-200 rounded w-16" /></div>
       <div className="col-span-2"><div className="h-3 bg-gray-200 rounded w-28" /></div>
       <div className="col-span-1"><div className="h-8 w-8 bg-gray-100 rounded" /></div>
     </div>
@@ -53,7 +53,6 @@ function SkeletonRow() {
 
 const emptyCashForm = {
   Reference: "",
-  TotalAmount: "",
 };
 
 function FieldGroup({ label, children }) {
@@ -70,11 +69,10 @@ function AddCashTransferDrawer({ open, onClose, onSuccess }) {
   const [counts, setCounts] = useState(emptyDenominationCounts);
   const [loading, setLoading] = useState(false);
   const [context, setContext] = useState(null);
-  const [tallyMode, setTallyMode] = useState("count");
 
   const handleChange = (field, value) => setForm((p) => ({ ...p, [field]: value }));
   const handleCountChange = (key, value) => setCounts((p) => ({ ...p, [key]: value }));
-  const amount = tallyMode === "count" ? sumDenominations(counts) : Number(form.TotalAmount || 0);
+  const amount = sumDenominations(counts);
 
   useEffect(() => {
     if (!open) return;
@@ -96,7 +94,7 @@ function AddCashTransferDrawer({ open, onClose, onSuccess }) {
       // client-supplied field.
       const payload = {
         Reference: form.Reference.trim(),
-        TallyByTotal: tallyMode === "total",
+        TallyByTotal: false,
         // Amount is derived from the counted denominations, not entered
         // separately — the server now requires the 11 Denomination*Value
         // fields to reconcile exactly against Amount
@@ -104,7 +102,7 @@ function AddCashTransferDrawer({ open, onClose, onSuccess }) {
         // guarantees that by construction instead of risking a 400 from a
         // teller-entered figure that doesn't match their count.
         Amount: amount,
-        ...(tallyMode === "count" ? toDenominationSubtotals(counts) : {}),
+        ...toDenominationSubtotals(counts),
       };
       const data = await apiJson(`${BASE}/api/frontoffice/transfers/cash`, {
         method: "POST",
@@ -143,10 +141,9 @@ function AddCashTransferDrawer({ open, onClose, onSuccess }) {
             </div>
             <form onSubmit={handleSubmit} className="p-4 space-y-4">
               <FieldGroup label="Count the Cash Being Transferred">
-                <div className="flex gap-2 mb-3"><button type="button" onClick={() => setTallyMode("count")} className={`px-3 py-1.5 rounded-md text-xs font-semibold ${tallyMode === "count" ? "bg-indigo-600 text-white" : "bg-gray-100 text-gray-600"}`}>Tally by Count</button><button type="button" onClick={() => setTallyMode("total")} className={`px-3 py-1.5 rounded-md text-xs font-semibold ${tallyMode === "total" ? "bg-indigo-600 text-white" : "bg-gray-100 text-gray-600"}`}>Tally by Total</button></div>
-                {tallyMode === "count" ? <DenominationCountFields counts={counts} onChange={handleCountChange} /> : <Input type="number" min="0.01" step="0.01" value={form.TotalAmount} onChange={(e) => handleChange("TotalAmount", e.target.value)} placeholder="0.00" />}
+                <DenominationCountFields counts={counts} onChange={handleCountChange} />
               </FieldGroup>
-              <Button type="button" onClick={() => { setCounts(emptyDenominationCounts); handleChange("TotalAmount", ""); }} className="bg-gray-600 hover:bg-gray-700">Reset</Button>
+              <Button type="button" onClick={() => setCounts(emptyDenominationCounts)} className="bg-gray-600 hover:bg-gray-700">Reset</Button>
               <FieldGroup label="Reference"><Input value={form.Reference} onChange={(e) => handleChange("Reference", e.target.value)} required placeholder="Transfer reference" /></FieldGroup>
               <div className="rounded-lg bg-gray-50 border p-3 grid grid-cols-2 gap-2 text-sm">
                 {[['Transaction Type', context?.TransactionTypeDescription || 'Teller to Treasury'], ['Opening Balance', context?.OpeningBalance], ['Total Receipts', context?.TotalDebits], ['Total Payments', context?.TotalCredits], ['Expected Cash', context?.BookBalance], ['Cheques Pending Transfer', context?.UntransferredChequesValue], ['Closing Balance', context?.ClosingBalance]].map(([label, value]) => <div key={label}><span className="block text-xs text-gray-400">{label}</span><span className="font-semibold text-gray-700">{typeof value === 'number' ? value.toLocaleString(undefined, { minimumFractionDigits: 2 }) : value ?? '—'}</span></div>)}
@@ -198,18 +195,19 @@ function CashTransferPanel() {
 
   const handleUtilize = async (id) => {
     const confirm = await Swal.fire({
-      title: "Utilize Transfer?",
+      title: "Post Teller Cash Transfer?",
+      text: "This will credit the teller cash G/L, debit the branch treasury G/L, and mark the request as utilized.",
       icon: "question",
       showCancelButton: true,
       confirmButtonColor: "#4f46e5",
-      confirmButtonText: "Utilize",
+      confirmButtonText: "Post Transfer",
     });
     if (!confirm.isConfirmed) return;
     try {
       await apiJson(`${BASE}/api/frontoffice/transfers/cash/utilize?request=${id}`, {
         method: "POST",
       });
-      Swal.fire("Utilized!", "Transfer has been utilized.", "success");
+      Swal.fire("Transfer Posted", "The teller-to-treasury journal was posted successfully.", "success");
       fetchTransfers();
     } catch (err) {
       Swal.fire("Error", apiErrorMessage(err, "Unable to utilize the transfer."), "error");
@@ -261,10 +259,12 @@ function CashTransferPanel() {
       </div>
 
       <div className="bg-gray-200 p-4 rounded-sm">
-        <div className="grid grid-cols-10 gap-4 bg-gray-700 text-gray-100 font-semibold p-3 rounded-lg mb-4 text-sm">
-          <span className="col-span-3">Transfer ID</span>
+        <div className="grid grid-cols-12 gap-4 bg-gray-700 text-gray-100 font-semibold p-3 rounded-lg mb-4 text-sm">
+          <span className="col-span-2">Teller</span>
+          <span className="col-span-2">Reference</span>
           <span className="col-span-2">Amount</span>
-          <span className="col-span-2">Acknowledged By</span>
+          <span className="col-span-2">Created</span>
+          <span className="col-span-1">Acknowledged By</span>
           <span className="col-span-2">Acknowledged Date</span>
           <span className="col-span-1 text-right">
             {activeTab === "Pending" || activeTab === "Acknowledged" ? "Actions" : ""}
@@ -279,14 +279,20 @@ function CashTransferPanel() {
           <div className="space-y-2">
             {filteredTransfers.map((t) => (
               <div key={t.Id} className="bg-white rounded-lg shadow-lg border">
-                <div className="grid grid-cols-10 gap-2 items-center py-4 px-6 hover:shadow-xl transition-all text-sm">
-                  <span className="col-span-3 font-mono text-xs text-gray-500 truncate" title={t.Id}>
-                    {t.Id}
+                <div className="grid grid-cols-12 gap-2 items-center py-4 px-6 hover:shadow-xl transition-all text-sm">
+                  <span className="col-span-2 text-gray-700 truncate" title={t.TellerDescription}>
+                    {t.TellerDescription || "—"}
+                  </span>
+                  <span className="col-span-2 font-mono text-xs text-gray-500 truncate" title={t.Reference}>
+                    {t.Reference || "—"}
                   </span>
                   <span className="col-span-2 font-semibold text-indigo-700">
                     {t.Amount != null ? t.Amount.toLocaleString(undefined, { minimumFractionDigits: 2 }) : "—"}
                   </span>
-                  <div className="col-span-2">
+                  <span className="col-span-2 text-xs text-gray-500">
+                    {t.CreatedDate ? new Date(t.CreatedDate).toLocaleString() : "—"}
+                  </span>
+                  <div className="col-span-1">
                     <p className="text-gray-700 text-xs font-medium">{t.AcknowledgedBy || "—"}</p>
                   </div>
                   <span className="col-span-2 text-xs text-gray-400">
@@ -431,6 +437,20 @@ function ChequeTransferPanel() {
 
   return (
     <>
+      <div className="mb-4 flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+        <Popover>
+          <PopoverTrigger asChild>
+            <button type="button" aria-label="How cheque transfer affects till reconciliation" className="mt-0.5 text-blue-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded-full">
+              <FaInfoCircle />
+            </button>
+          </PopoverTrigger>
+          <PopoverContent className="w-80 text-sm text-gray-700">
+            A deposited cheque remains part of your teller till position until it is transferred. Transfer every held cheque before completing till and transaction reconciliation; the transfer moves its value from the teller cash G/L to External Cheques in Hand.
+          </PopoverContent>
+        </Popover>
+        <span><strong>Reconciliation:</strong> transfer all pending cheques before you complete your till count.</span>
+      </div>
+
       <div className="flex justify-between items-center mb-4">
         <div className="flex gap-1 border-b border-gray-200">
           {CHEQUE_STATUS_TABS.map((tab) => {

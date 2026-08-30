@@ -9,7 +9,7 @@ const resultsFile = new URL("./FRONT-OFFICE-LATEST.md", import.meta.url);
 const state = fs.existsSync(stateFile) ? JSON.parse(fs.readFileSync(stateFile, "utf8")) : {};
 let token = "";
 const results = [];
-const stages = ["preflight", "fixtures", "bind-teller", "start-day", "cash-deposit", "cash-withdrawal", "cheque-deposit", "payment-voucher", "cheque-transfer", "cash-transfer", "end-of-day", "assertions"];
+const stages = ["preflight", "fixtures", "bind-teller", "start-day", "cash-deposit", "cash-withdrawal", "cheque-deposit", "payment-voucher", "cheque-transfer", "cheque-bank", "cheque-clear", "cash-transfer", "end-of-day", "assertions"];
 const env = {
   username: process.env.FRONT_OFFICE_E2E_USERNAME || "e2e.loan.operator",
   password: process.env.FRONT_OFFICE_E2E_PASSWORD || "SwiftE2E!Run2026",
@@ -80,6 +80,10 @@ const handlers = {
     if (!state.teller) fail("No unlocked teller fixture exists");
     const banks = list(await ok("/api/values/getBankWithLinkages")); state.bankId = banks[0]?.BankId || banks[0]?.bankId;
     if (!state.bankId) fail("No bank linkage fixture exists"); save();
+    const linkages = list(await ok("/api/accounts/banklinkages/all")); state.bankLinkageId = id(linkages[0]);
+    if (!state.bankLinkageId) fail("No bank linkage fixture exists for cheque banking");
+    const chequeTypes = list(await ok("/api/accounts/chequetypes/all")); state.chequeTypeId = id(chequeTypes[0]);
+    if (!state.chequeTypeId) fail("No cheque type fixture exists"); save();
   },
   async "bind-teller"() {
     let mine = await currentTeller(); if (mine) { state.teller = mine; save(); return; }
@@ -107,7 +111,7 @@ const handlers = {
     if (!id(journal)) fail("Cash withdrawal returned no journal", JSON.stringify(journal)); state.withdrawal = { amount, journalId: id(journal) }; save();
   },
   async "cheque-deposit"() {
-    const amount = 200; const number = `E2E-${Date.now()}`; const writeDate = new Date(Date.now() - 30 * 86400000).toISOString(); const journal = await ok("/api/frontoffice/requests", { method: "POST", body: { Type: 3, BranchId: env.branchId, CreditCustomerAccountId: env.customerAccountId, TotalValue: amount, Reference: number, Drawer: "E2E Drawer", DrawerBank: "E2E Bank", DrawerBankBranch: "E2E Branch", ChequeType: null, WriteDate: writeDate, Remarks: "Front Office E2E cheque deposit", Teller: {} } });
+    const amount = 200; const number = String(Date.now()).slice(-6); const writeDate = new Date().toISOString(); const journal = await ok("/api/frontoffice/requests", { method: "POST", body: { Type: 3, BranchId: env.branchId, CreditCustomerAccountId: env.customerAccountId, TotalValue: amount, Reference: number, Drawer: "E2E Drawer", DrawerBank: "E2E Bank", DrawerBankBranch: "E2E Branch", ChequeType: state.chequeTypeId, WriteDate: writeDate, Remarks: "Front Office E2E cheque deposit", Teller: {} } });
     if (!id(journal)) fail("Cheque deposit returned no journal", JSON.stringify(journal)); state.cheque = { amount, number, journalId: id(journal) }; save();
   },
   async "payment-voucher"() {
@@ -129,6 +133,16 @@ const handlers = {
     if (!selected.length) fail("Deposited cheque was not available for transfer", JSON.stringify({ summary, number: state.cheque?.number }));
     await ok("/api/frontoffice/transfers/cheques", { method: "POST", body: selected.map((cheque) => ({ Id: id(cheque) })) }); state.cheque.transferred = true; save();
   },
+  async "cheque-bank"() {
+    const cheques = list(await ok("/api/frontoffice/cheques?text=&pageIndex=0&pageSize=1000")); const cheque = cheques.find((x) => (x.Number || x.number) === state.cheque?.number);
+    if (!cheque || !(cheque.IsTransferred ?? cheque.isTransferred)) fail("Cheque is not ready for banking");
+    await ok("/api/frontoffice/cheques/bank", { method: "POST", body: { selectedChequeIds: [id(cheque)], bankLinkageDTO: { Id: state.bankLinkageId }, ModuleNavigationItemCode: 25011 } }); state.cheque.banked = true; save();
+  },
+  async "cheque-clear"() {
+    const cheques = list(await ok("/api/frontoffice/cheques?text=&pageIndex=0&pageSize=1000")); const cheque = cheques.find((x) => (x.Number || x.number) === state.cheque?.number);
+    if (!cheque || !(cheque.IsBanked ?? cheque.isBanked)) fail("Cheque is not ready for clearance");
+    await ok("/api/frontoffice/cheques/clear", { method: "POST", body: { selectedChequeIds: [id(cheque)], clearingOption: 1, ModuleNavigationItemCode: 25011 } }); state.cheque.cleared = true; save();
+  },
   async "cash-transfer"() {
     const amount = 100; await ok("/api/frontoffice/transfers/cash", { method: "POST", body: { Amount: amount, OpeningBalance: "0", TotalDebits: 0, TotalCredits: 0, TellerCashBalanceStatusValue: 20480, Reference: `CT-E2E-${Date.now()}`, ...denomination(amount) } });
     const requests = await ok("/api/frontoffice/transfers/cash"); if (!Array.isArray(requests)) fail("Cash transfer list did not return a collection"); state.cashTransferCreated = true; save();
@@ -141,7 +155,7 @@ const handlers = {
     const account = await ok(`/api/accounts/customer-accounts/${env.customerAccountId}`); const book = Number(account.BookBalance || 0);
     if (!Number.isFinite(book)) fail("Final customer account balance is invalid");
     const chequePage = list(await ok("/api/frontoffice/cheques?text=&pageIndex=0&pageSize=1000")); const cheque = chequePage.find((x) => (x.Number || x.number) === state.cheque?.number);
-    if (!cheque || !(cheque.IsTransferred ?? cheque.isTransferred)) fail("Cheque transfer was not persisted"); state.accountAfter = { book, available: Number(account.AvailableBalance || 0) }; save();
+    if (!cheque || !(cheque.IsTransferred ?? cheque.isTransferred) || !(cheque.IsBanked ?? cheque.isBanked) || !(cheque.IsCleared ?? cheque.isCleared)) fail("Full cheque lifecycle was not persisted"); state.accountAfter = { book, available: Number(account.AvailableBalance || 0) }; save();
   },
 };
 

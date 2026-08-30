@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaSearch } from "react-icons/fa";
+import { AnimatePresence, motion } from "framer-motion";
 import Swal from "sweetalert2";
+import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
 import { apiErrorMessage, apiJson, normalizeList } from "@/lib/api";
 import {
@@ -42,6 +44,83 @@ const MIN_DATE = "0001-01-01T00:00:00";
 const MAX_DATE = "9999-12-31T23:59:59";
 const MAX_PAGE_SIZE = 1000; // this page has no pager UI, so ask for everything in one page
 
+const valueOf = (record, name) => record?.[name] ?? record?.[name[0].toLowerCase() + name.slice(1)];
+const GUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const requestRemarks = (record) => {
+  const remarks = String(valueOf(record, "Remarks") ?? "").trim();
+  return GUID_PATTERN.test(remarks) ? "Created from a teller transaction (legacy record)" : remarks;
+};
+
+function DetailField({ label, value }) {
+  return (
+    <div className="min-w-0 rounded-lg bg-slate-50 p-3">
+      <span className="block text-xs font-semibold uppercase tracking-wider text-slate-400">{label}</span>
+      <span className="mt-1 block break-words text-sm text-slate-700">{value || value === 0 ? value : "—"}</span>
+    </div>
+  );
+}
+
+function ApprovalRecordDrawer({ item, onClose, onDecision, isActing }) {
+  const [record, setRecord] = useState(null);
+  const [recordType, setRecordType] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!item?.id) return;
+    setLoading(true);
+    setRecord(null);
+    apiJson(`${ADMIN_URL}/api/administration/workflows/items/${item.id}/record`, {}, {
+      fallbackMessage: "Failed to load the record related to this approval.",
+    }).then((response) => {
+      setRecord(response?.data ?? response?.Data ?? null);
+      setRecordType(response?.recordType ?? response?.RecordType ?? item.workflowSystemPermissionTypeDescription);
+    }).catch((error) => {
+      Swal.fire("Error", apiErrorMessage(error, "Unable to load the related record."), "error");
+      onClose();
+    }).finally(() => setLoading(false));
+    // The item id is the request identity. Depending on the inline onClose
+    // callback would re-fetch on every parent render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [item?.id]);
+
+  const amount = valueOf(record, "Amount");
+  const createdDate = valueOf(record, "CreatedDate");
+
+  return (
+    <AnimatePresence>
+      {item && <>
+        <motion.div className="fixed inset-0 z-40 bg-black" initial={{ opacity: 0 }} animate={{ opacity: 0.4 }} exit={{ opacity: 0 }} onClick={onClose} />
+        <motion.div className="fixed bottom-3 right-3 top-3 z-50 flex w-full max-w-2xl flex-col rounded-2xl bg-white p-3 shadow-xl" initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", stiffness: 300, damping: 30 }}>
+          <div className="m-2 flex shrink-0 items-center justify-between rounded-2xl bg-indigo-600 px-4 py-3">
+            <div><h2 className="text-lg font-bold text-white">Review approval record</h2><p className="text-xs text-indigo-100">{recordType || "Related record"}</p></div>
+            <Button variant="outline" size="sm" onClick={onClose}>Close</Button>
+          </div>
+          <div className="flex-1 overflow-y-auto p-3">
+            {loading ? <p className="p-6 text-sm text-slate-500">Loading record details...</p> : record ? (
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <DetailField label="Customer" value={valueOf(record, "CustomerAccountCustomerFullName") || valueOf(record, "CustomerName")} />
+                <DetailField label="Customer account" value={valueOf(record, "CustomerAccountFullAccountNumber")} />
+                <DetailField label="Amount" value={amount == null ? "—" : Number(amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} />
+                <DetailField label="Savings product" value={valueOf(record, "CustomerAccountCustomerAccountTypeTargetProductDescription")} />
+                <DetailField label="Branch" value={valueOf(record, "BranchDescription")} />
+                <DetailField label="Transaction type" value={valueOf(record, "TransactionTypeDescription")} />
+                <DetailField label="Request status" value={valueOf(record, "StatusDescription")} />
+                <DetailField label="Created by" value={valueOf(record, "CreatedBy")} />
+                <DetailField label="Created date" value={createdDate ? new Date(createdDate).toLocaleString() : "—"} />
+                <DetailField label="Request remarks" value={requestRemarks(record)} />
+              </div>
+            ) : <p className="p-6 text-sm text-slate-500">The related record could not be loaded.</p>}
+          </div>
+          <div className="flex shrink-0 justify-end gap-2 border-t border-slate-200 p-3">
+            <button type="button" disabled={!record || isActing} onClick={() => onDecision(item, "reject")} className="rounded-md border border-red-200 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-50">Reject</button>
+            <button type="button" disabled={!record || isActing} onClick={() => onDecision(item, "approve")} className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50">Approve</button>
+          </div>
+        </motion.div>
+      </>}
+    </AnimatePresence>
+  );
+}
+
 async function promptDecision(item, decision) {
   const isApprove = decision === "approve";
 
@@ -77,6 +156,7 @@ export default function ApprovalRequests() {
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [actingIds, setActingIds] = useState(new Set());
+  const [reviewingItem, setReviewingItem] = useState(null);
 
   const myRoleSet = useMemo(
     () => new Set((roles || []).map((r) => String(r).toLowerCase())),
@@ -168,6 +248,7 @@ export default function ApprovalRequests() {
       }, { fallbackMessage: `Failed to ${decision} this item.` });
 
       setTasks((prev) => prev.filter((t) => t.id !== item.id));
+      setReviewingItem(null);
       Swal.fire("Success", data?.message || `Item ${decision === "approve" ? "approved" : "rejected"}.`, "success");
     } catch (error) {
       Swal.fire("Error", apiErrorMessage(error, `Unable to ${decision} this item.`), "error");
@@ -277,20 +358,20 @@ export default function ApprovalRequests() {
                             <button
                               type="button"
                               disabled={isActing}
-                              onClick={() => handleDecision(item, "approve")}
+                              onClick={() => setReviewingItem(item)}
                               className="rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
                             >
-                              Approve
+                              Review
                             </button>
                           )}
-                          <button
+                          {isFinalLoanStage && <button
                             type="button"
                             disabled={isActing}
                             onClick={() => handleDecision(item, "reject")}
                             className="rounded-md border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
                           >
                             Reject
-                          </button>
+                          </button>}
                         </div>
                       </td>
                     </tr>
@@ -307,6 +388,7 @@ export default function ApprovalRequests() {
           </table>
         </div>
       </div>
+      <ApprovalRecordDrawer item={reviewingItem} onClose={() => setReviewingItem(null)} onDecision={handleDecision} isActing={reviewingItem ? actingIds.has(reviewingItem.id) : false} />
     </div>
   );
 }

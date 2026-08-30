@@ -52,14 +52,18 @@ export default function CreateTreasury() {
       // bare array.
       setBranches(normalizeList(branchData));
       setCoaList(accounts);
-    }).catch(() => { }).finally(() => setLoadingData(false));
+    }).catch((error) => {
+      setBranches([]);
+      setCoaList([]);
+      Swal.fire("Unable to Load Treasury Options", error.message || "Branches and G/L accounts could not be loaded.", "error");
+    }).finally(() => setLoadingData(false));
   }, []);
 
   const handleChange = (field, value) => setForm((p) => ({ ...p, [field]: value }));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const validationMessage = treasuryValidationMessage(form);
+    const validationMessage = treasuryValidationMessage(form, { branches, chartOfAccounts: coaList });
     if (validationMessage) {
       Swal.fire("Check Treasury Details", validationMessage, "warning");
       return;
@@ -67,15 +71,9 @@ export default function CreateTreasury() {
 
     setLoading(true);
     try {
-      // BranchDescription isn't persisted (server populates it on read from
-      // BranchId), but the one-treasury-per-branch 409 message interpolates
-      // whatever BranchDescription the client sent, before any server-side
-      // branch lookup — send it purely so that error reads correctly.
-      const selectedBranch = branches.find((b) => b.Id === form.BranchId);
       const payload = {
         ...form,
         Description: form.Description.trim(),
-        BranchDescription: selectedBranch?.Description || "",
         RangeLowerLimit: Number(form.RangeLowerLimit),
         RangeUpperLimit: Number(form.RangeUpperLimit),
       };
@@ -108,7 +106,7 @@ export default function CreateTreasury() {
 
       <form onSubmit={handleSubmit} className="max-w-xl space-y-4">
         <FieldGroup label="Description">
-          <Input value={form.Description} onChange={(e) => handleChange("Description", e.target.value)} required placeholder="e.g. Main Treasury" />
+          <Input value={form.Description} onChange={(e) => handleChange("Description", e.target.value)} required maxLength={256} placeholder="e.g. Main Treasury" />
         </FieldGroup>
 
         <FieldGroup label="Branch">

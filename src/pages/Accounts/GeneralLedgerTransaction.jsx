@@ -162,29 +162,34 @@ export const formatStatementDate = (iso) => {
 // live GET .../mini payload) — this used to read all-lowercase field names,
 // which meant every cell silently rendered blank/"—" even on a successful,
 // non-empty response.
-export function StatementRow({ line, showGlAccount = false }) {
+export function StatementRow({ line, showGlAccount = false, showContraAccount = false, showBalance = true }) {
   return (
-    <div className="grid grid-cols-12 gap-2 items-center py-3 px-4 text-sm border-b last:border-b-0">
-      <span className="col-span-2 text-gray-600">{formatStatementDate(line.JournalValueDate || line.JournalCreatedDate)}</span>
-      <div className={`${showGlAccount ? "col-span-3" : "col-span-4"} min-w-0`}>
-        <p className="text-gray-700 truncate" title={line.JournalPrimaryDescription || ""}>{line.JournalPrimaryDescription || "—"}</p>
+    <div className="grid grid-cols-12 gap-2 items-center py-3 px-4 text-xs leading-4 border-b last:border-b-0 [&>*]:min-w-0">
+      <span className={`${showGlAccount ? "col-span-1" : "col-span-2"} break-words text-gray-600`}>{formatStatementDate(line.JournalValueDate || line.JournalCreatedDate)}</span>
+      <div className={`${showGlAccount ? "col-span-2" : "col-span-4"} min-w-0`}>
+        <p className="whitespace-normal break-words text-gray-700" title={line.JournalPrimaryDescription || ""}>{line.JournalPrimaryDescription || "—"}</p>
         {line.JournalSecondaryDescription && (
-          <p className="text-xs text-gray-400 truncate" title={line.JournalSecondaryDescription}>{line.JournalSecondaryDescription}</p>
+          <p className="whitespace-normal break-words text-[11px] leading-4 text-gray-400" title={line.JournalSecondaryDescription}>{line.JournalSecondaryDescription}</p>
         )}
       </div>
       {showGlAccount && (
-        <div className="col-span-2">
-          <p className="text-gray-700">{line.GLAccountName || "—"}</p>
-          {line.CustomerFullName && <p className="text-xs text-gray-400">{line.CustomerFullName}</p>}
+        <div className="col-span-2 min-w-0">
+          <p className="whitespace-normal break-words text-gray-700" title={line.GLAccountName || ""}>{line.GLAccountName || "—"}</p>
+          {line.CustomerFullName && <p className="whitespace-normal break-words text-[11px] leading-4 text-gray-400">{line.CustomerFullName}</p>}
         </div>
       )}
-      <span className="col-span-1 min-w-0 truncate text-gray-500" title={line.JournalReference || ""}>{line.JournalReference || "—"}</span>
-      <span className="col-span-1 whitespace-nowrap text-right text-red-600">{line.Debit ? formatMoney(line.Debit) : ""}</span>
-      <span className="col-span-1 whitespace-nowrap text-right text-green-600">{line.Credit ? formatMoney(line.Credit) : ""}</span>
-      <span className="col-span-1 whitespace-nowrap text-right font-medium text-gray-800">{formatMoney(line.RunningBalance)}</span>
-      <span className="col-span-1 text-right">
+      {showContraAccount && (
+        <span className="col-span-2 min-w-0 whitespace-normal break-words text-gray-600" title={line.ContraGLAccountName || ""}>
+          {line.ContraGLAccountName || "—"}
+        </span>
+      )}
+      <span className="col-span-1 min-w-0 break-all text-gray-500" title={line.JournalReference || ""}>{line.JournalReference || "—"}</span>
+      <span className="col-span-1 break-words text-right text-gray-700">{line.Debit ? formatMoney(line.Debit) : ""}</span>
+      <span className="col-span-1 break-words text-right text-gray-700">{line.Credit ? formatMoney(line.Credit) : ""}</span>
+      {showBalance && <span className="col-span-1 break-words text-right font-medium text-gray-800">{formatMoney(line.RunningBalance)}</span>}
+      <span className={`${showGlAccount ? (showBalance ? "col-span-1" : "col-span-2") : "col-span-2"} text-right`}>
         {line.JournalIsLocked && (
-          <span className="px-2 py-0.5 rounded text-xs font-semibold bg-red-100 text-red-600">Reversed</span>
+          <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-red-100 text-red-600">Reversed</span>
         )}
       </span>
     </div>

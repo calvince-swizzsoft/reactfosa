@@ -192,6 +192,9 @@ export const moduleRouteMap = {
   // Setup (23001) > Levies & Charges (23007)
   23008: "/Accounts/Levies",              // Levies (ControllerName: Levy) — real match for the new LevyController.
   // Setup (23001) > Charge Determination (23010)
+  23011: "/Accounts/WellKnownCharges", // Well-Known Charges — maps predefined SystemTransactionType values to existing commissions plus the employer-contribution complement.
+  23012: "/Accounts/IndefiniteCharges", // Indefinite Charges — reusable dynamic-charge determinations with recovery mode/source and attached commissions.
+  23013: "/Accounts/TextAlertCharges", // Text Alert Charges — maps SystemTransactionCode events to commissions and their customer/institution charge bearer.
   23014: "/Accounts/AlternateChannels/Fees", // Alternate Channels (ControllerName: AlternateChannels) — per-channel-type fee config, docs/api/alternate-channel-api-spec.md §4
   // 23009 "Charges" (ControllerName: Charges) pointed at the OLD reference
   // app's Charges controller, a mostly-duplicate reimplementation of

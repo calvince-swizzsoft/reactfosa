@@ -53,7 +53,7 @@ export default function AuxiliaryConditionRows({ rows, onChange, loanProducts, l
           <div>
             <Label className="text-xs text-gray-500 mb-1 block">Condition (may combine several)</Label>
             <div className="grid grid-cols-2 gap-1">
-              {AUXILIARY_LOAN_CONDITION_OPTIONS.map((o) => (
+              {AUXILIARY_LOAN_CONDITION_OPTIONS.filter((option) => option.value <= 8).map((o) => (
                 <label key={o.value} className="flex items-center gap-2 text-xs text-gray-700">
                   <input
                     type="checkbox"

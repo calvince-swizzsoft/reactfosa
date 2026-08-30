@@ -1,4 +1,10 @@
-import { apiFetch, apiJson, normalizeList } from "@/lib/api";
+import {
+  apiErrorFromResponse,
+  apiFetch,
+  apiJson,
+  normalizeList,
+  readResponseBody,
+} from "@/lib/api";
 
 // Client functions for WebApplication1's CashDepositController
 // (Areas/FrontOffice/Controllers/CashDepositController.cs), base
@@ -77,11 +83,49 @@ export async function listRequests({ type, status, text = "", startDate, endDate
  *   approved, below minimum, etc.) — show `message`.
  */
 export async function createTransaction(model) {
-  const res = await apiFetch(REQUESTS_BASE, {
+  const response = await apiFetch(REQUESTS_BASE, {
     method: "POST",
     body: JSON.stringify(model),
   });
-  return res.json();
+  const body = await readResponseBody(response);
+
+  // A false success flag is a valid HTTP 200 business result here: it may
+  // carry the authorization dialog. Only transport failures should throw.
+  if (!response.ok) {
+    throw apiErrorFromResponse(response, body, "Unable to create the transaction.");
+  }
+
+  // The endpoint has existed with both the Web API anonymous-object casing
+  // (success/message/data) and the DTO casing used by some deployments
+  // (Success/Message/Data). Keep that transport detail out of the screen so
+  // an authorization-required response is not mistaken for an unexplained
+  // transaction failure.
+  const data = body?.data ?? body?.Data ?? null;
+
+  return {
+    success: body?.success ?? body?.Success ?? false,
+    message: body?.message ?? body?.Message ?? "",
+    data: data
+      ? {
+          ...data,
+          dialog: data.dialog ?? data.Dialog ?? false,
+          isCashDepositRequest:
+            data.isCashDepositRequest ?? data.IsCashDepositRequest ?? false,
+          isCashWithdrawalRequest:
+            data.isCashWithdrawalRequest ?? data.IsCashWithdrawalRequest ?? false,
+          selectedCustomerAccountId:
+            data.selectedCustomerAccountId ?? data.SelectedCustomerAccountId,
+          transactionTotalValue:
+            data.transactionTotalValue ?? data.TransactionTotalValue,
+          transactionReference:
+            data.transactionReference ?? data.TransactionReference,
+          cashTransactionRequestId:
+            data.cashTransactionRequestId ?? data.CashTransactionRequestId,
+          transactionCategory:
+            data.transactionCategory ?? data.TransactionCategory,
+        }
+      : null,
+  };
 }
 
 /**
@@ -94,6 +138,10 @@ export async function createTransaction(model) {
 export async function postAuthorizedRequest(id) {
   const body = await unwrap(apiJson(`${REQUESTS_BASE}/post?id=${id}`, { method: "POST" }));
   return body?.data ?? body;
+}
+
+export async function resendApprovalRequest(id) {
+  return unwrap(apiJson(`${REQUESTS_BASE}/resend-approval?id=${encodeURIComponent(id)}`, { method: "POST" }));
 }
 
 export { normalizeList };

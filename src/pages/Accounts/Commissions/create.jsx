@@ -8,10 +8,12 @@ import {
 } from "@/components/ui/select";
 import { FaPercentage } from "react-icons/fa";
 import Swal from "sweetalert2";
-import { apiFetch, normalizeList } from "@/lib/api";
+import { apiFetch, apiJson, apiErrorMessage, normalizeList } from "@/lib/api";
 import PickerList from "../lib/PickerList";
 import SplitRows from "../lib/SplitRows";
 import GraduatedScaleRows from "../lib/GraduatedScaleRows";
+import FieldHelp from "../SavingsProducts/FieldHelp";
+import { ChargeType } from "../lib/chargeType";
 
 // Areas/Accounts/Controllers/CommissionController.cs — docs/api/commission-api-spec.md §5.4.
 // GraduatedScales/Splits/Levies are all OPTIONAL at create — a commission
@@ -32,10 +34,10 @@ const ROUNDING_TYPE_OPTIONS = [
 
 const emptyForm = { Description: "", MaximumCharge: 0, RoundingType: 0, IsLocked: false };
 
-function FieldGroup({ label, children }) {
+function FieldGroup({ label, help, children }) {
   return (
     <div>
-      <Label>{label}</Label>
+      <div className="flex items-center gap-1"><Label>{label}</Label><FieldHelp label={label}>{help}</FieldHelp></div>
       {children}
     </div>
   );
@@ -55,12 +57,16 @@ export default function CreateCommission() {
   useEffect(() => {
     setLoadingLookups(true);
     Promise.all([
-      apiFetch(`${BASE}/api/accounts/chartofaccounts?pageSize=1000`).then((r) => r.json()),
-      apiFetch(`${BASE}/api/accounts/levies`).then((r) => r.json()),
+      apiJson(`${BASE}/api/accounts/chartofaccounts?pageSize=1000`),
+      apiJson(`${BASE}/api/accounts/levies`),
     ]).then(([coaData, levyData]) => {
       setChartOfAccounts(normalizeList(coaData));
       setLevies(normalizeList(levyData));
-    }).catch(() => { }).finally(() => setLoadingLookups(false));
+    }).catch((error) => {
+      setChartOfAccounts([]);
+      setLevies([]);
+      Swal.fire("Lookup Error", apiErrorMessage(error, "Unable to load G/L accounts and levies."), "error");
+    }).finally(() => setLoadingLookups(false));
   }, []);
 
   const toggleLevy = (id) => setSelectedLevyIds((prev) => {
@@ -69,16 +75,61 @@ export default function CreateCommission() {
     return next;
   });
 
+  const readinessIssues = [
+    ...(graduatedScales.length === 0 ? ["No graduated scale can calculate the charge."] : []),
+    ...(selectedLevyIds.size > 0 && !splits.some((row) => row.Leviable) ? ["Linked levies have no Leviable G/L split to use as their calculation base."] : []),
+  ];
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.Description.trim()) {
       Swal.fire("Missing Field", "Description is required.", "warning");
       return;
     }
+    if (!Number.isFinite(form.MaximumCharge) || form.MaximumCharge < 0) {
+      Swal.fire("Invalid Maximum Charge", "Maximum Charge must be zero or a positive amount.", "warning");
+      return;
+    }
+    if (!ROUNDING_TYPE_OPTIONS.some((option) => option.value === form.RoundingType)) {
+      Swal.fire("Invalid Rounding Type", "Select a supported rounding type.", "warning");
+      return;
+    }
+    const orderedScales = graduatedScales.map((row) => ({ ...row, lower: Number(row.RangeLowerLimit), upper: Number(row.RangeUpperLimit) })).sort((a, b) => a.lower - b.lower);
+    const invalidScale = orderedScales.some((row) => !Number.isFinite(row.lower) || !Number.isFinite(row.upper) || row.lower < 0 || row.upper < row.lower ||
+      (row.ChargeType === ChargeType.Percentage && (!Number.isFinite(row.ChargePercentage) || row.ChargePercentage <= 0 || row.ChargePercentage > 100)) ||
+      (row.ChargeType === ChargeType.FixedAmount && (!Number.isFinite(row.ChargeFixedAmount) || row.ChargeFixedAmount <= 0)));
+    if (invalidScale) {
+      Swal.fire("Invalid Graduated Scale", "Each bracket needs a valid non-negative range and a positive percentage or fixed amount for its selected charge type.", "warning");
+      return;
+    }
+    if (orderedScales.some((row, index) => index > 0 && row.lower <= orderedScales[index - 1].upper)) {
+      Swal.fire("Overlapping Brackets", "Graduated-scale amount ranges cannot overlap.", "warning");
+      return;
+    }
+    if (splits.some((row) => !row.ChartOfAccountId || !row.Description?.trim() || !Number.isFinite(Number(row.Percentage)) || Number(row.Percentage) <= 0 || Number(row.Percentage) > 100)) {
+      Swal.fire("Invalid G/L Split", "Each split needs a G/L account, description, and percentage greater than 0 and no more than 100.", "warning");
+      return;
+    }
+    if (splits.length === 0) {
+      Swal.fire("G/L Splits Required", "Add at least one G/L split before creating this charge.", "warning");
+      return;
+    }
     const splitTotal = splits.reduce((sum, s) => sum + (Number(s.Percentage) || 0), 0);
     if (splits.length > 0 && Math.abs(splitTotal - 100) > 0.01) {
       Swal.fire("Splits Don't Balance", `Split percentages must sum to 100% (currently ${splitTotal}%).`, "warning");
       return;
+    }
+    if (readinessIssues.length > 0) {
+      const result = await Swal.fire({
+        icon: "warning",
+        title: "Save as an Incomplete Charge?",
+        html: `<div style="text-align:left">${readinessIssues.map((issue) => `<div>• ${issue}</div>`).join("")}<p style="margin-top:12px">The charge can be saved as a draft, but it will not be fully operational until these items are configured.</p></div>`,
+        showCancelButton: true,
+        confirmButtonText: "Save Incomplete Charge",
+        cancelButtonText: "Continue Editing",
+        confirmButtonColor: "#4f46e5",
+      });
+      if (!result.isConfirmed) return;
     }
 
     setLoading(true);
@@ -120,7 +171,7 @@ export default function CreateCommission() {
 
       <form onSubmit={handleSubmit} className="max-w-3xl space-y-6">
         <div className="grid grid-cols-2 gap-4">
-          <FieldGroup label="Description">
+          <FieldGroup label="Description" help="The business-facing name used whenever this charge is selected or displayed in a transaction.">
             <Input
               value={form.Description}
               onChange={(e) => setForm((p) => ({ ...p, Description: e.target.value }))}
@@ -129,17 +180,18 @@ export default function CreateCommission() {
             />
           </FieldGroup>
 
-          <FieldGroup label="Maximum Charge">
+          <FieldGroup label="Maximum Charge" help="Caps the computed charge at this amount. Use zero when the charge should have no monetary cap.">
             <Input
               type="number"
               min="0"
+              step="0.01"
               value={form.MaximumCharge}
               onChange={(e) => setForm((p) => ({ ...p, MaximumCharge: Number(e.target.value) }))}
               placeholder="e.g. 500"
             />
           </FieldGroup>
 
-          <FieldGroup label="Rounding Type">
+          <FieldGroup label="Rounding Type" help="Controls how fractional currency values are rounded after the charge is calculated.">
             <Select value={String(form.RoundingType)} onValueChange={(v) => setForm((p) => ({ ...p, RoundingType: Number(v) }))}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -157,18 +209,17 @@ export default function CreateCommission() {
               className="w-4 h-4 accent-indigo-600"
             />
             <Label htmlFor="commission-locked">Is Locked?</Label>
+            <FieldHelp label="Is Locked?">A locked charge remains configured but cannot be selected for new mappings or normal operational use.</FieldHelp>
           </div>
         </div>
 
         <div>
-          <Label className="font-semibold text-gray-700 mb-2 block">Graduated Scales (Optional)</Label>
-          <p className="text-xs text-gray-400 mb-2">Rate brackets by transaction amount — leave empty to finalize the rate later.</p>
+          <div className="mb-2 flex items-center gap-1"><Label className="font-semibold text-gray-700">Graduated Scales (Optional)</Label><FieldHelp label="Graduated Scales">Defines different percentage or fixed charges for non-overlapping transaction-amount bands. Leave empty only when the rate will be configured later.</FieldHelp></div>
           <GraduatedScaleRows rows={graduatedScales} onChange={setGraduatedScales} />
         </div>
 
         <div>
-          <Label className="font-semibold text-gray-700 mb-2 block">G/L Splits (Optional)</Label>
-          <p className="text-xs text-gray-400 mb-2">How the computed amount divides across G/L accounts — must sum to 100% if any are added. Mark a split "Leviable" if it should feed a linked levy's calculation.</p>
+          <div className="mb-2 flex items-center gap-1"><Label className="font-semibold text-gray-700">G/L Splits (Required)</Label><FieldHelp label="G/L Splits">Distributes the computed charge among posting accounts. At least one split is required and the percentages must total exactly 100%. Leviable portions form the basis for linked levies.</FieldHelp></div>
           <SplitRows
             rows={splits}
             onChange={setSplits}
@@ -178,7 +229,7 @@ export default function CreateCommission() {
           />
         </div>
 
-        <FieldGroup label="Linked Levies (Optional)">
+        <FieldGroup label="Linked Levies (Optional)" help="Attaches existing levy definitions, such as excise duty, to this charge. A levy is computed only from split portions marked Leviable.">
           <PickerList
             items={levies}
             selectedIds={selectedLevyIds}
@@ -188,6 +239,11 @@ export default function CreateCommission() {
             emptyText={loadingLookups ? "Loading levies..." : "No levies configured yet — create one under Accounts > Levies first."}
           />
         </FieldGroup>
+
+        <div className={`rounded-lg border p-3 text-sm ${readinessIssues.length ? "border-amber-300 bg-amber-50 text-amber-800" : "border-green-200 bg-green-50 text-green-700"}`}>
+          <p className="font-semibold">{readinessIssues.length ? "Configuration incomplete" : "Operational configuration ready"}</p>
+          {readinessIssues.length > 0 && <ul className="mt-1 list-disc pl-5">{readinessIssues.map((issue) => <li key={issue}>{issue}</li>)}</ul>}
+        </div>
 
         <Button type="submit" disabled={loading || loadingLookups} className="w-full bg-indigo-600 hover:bg-indigo-700">
           {loading ? "Creating..." : "Create Commission"}

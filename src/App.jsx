@@ -215,6 +215,9 @@ import ChequeTypes from "./pages/Accounts/ChequeTypes/index.jsx";
 import CreateChequeType from "./pages/Accounts/ChequeTypes/create.jsx";
 import Commissions from "./pages/Accounts/Commissions/index.jsx";
 import CreateCommission from "./pages/Accounts/Commissions/create.jsx";
+import WellKnownCharges from "./pages/Accounts/WellKnownCharges/index.jsx";
+import IndefiniteCharges from "./pages/Accounts/IndefiniteCharges/index.jsx";
+import TextAlertCharges from "./pages/Accounts/TextAlertCharges/index.jsx";
 import Levies from "./pages/Accounts/Levies/index.jsx";
 import CreateLevy from "./pages/Accounts/Levies/create.jsx";
 import ChequeBooks from "./pages/Accounts/ChequeBooks/index.jsx";
@@ -507,6 +510,9 @@ export default function App() {
           <Route path="Accounts/ChequeTypes/create" element={<CreateChequeType />} />
           <Route path="Accounts/Commissions" element={<Commissions />} />
           <Route path="Accounts/Commissions/create" element={<CreateCommission />} />
+          <Route path="Accounts/WellKnownCharges" element={<WellKnownCharges />} />
+          <Route path="Accounts/IndefiniteCharges" element={<IndefiniteCharges />} />
+          <Route path="Accounts/TextAlertCharges" element={<TextAlertCharges />} />
           <Route path="Accounts/Levies" element={<Levies />} />
           <Route path="Accounts/Levies/create" element={<CreateLevy />} />
           <Route path="Accounts/ChequeBooks" element={<ChequeBooks />} />

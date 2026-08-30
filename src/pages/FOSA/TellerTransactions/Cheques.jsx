@@ -2,11 +2,12 @@ import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  FaFileAlt, FaChevronLeft, FaChevronRight, FaSearch, FaChevronDown, FaTimes, FaSpinner,
+  FaFileAlt, FaChevronLeft, FaChevronRight, FaSearch, FaChevronDown, FaTimes, FaSpinner, FaInfoCircle, FaSync,
 } from "react-icons/fa";
 import Swal from "sweetalert2";
 import NotFoundImage from "/assets/scopefinding.png";
@@ -25,6 +26,7 @@ import { listAllUnpayReasons } from "../../Accounts/UnpayReasons/api";
 // list in one request (pageSize=1000, same precedent Bank/Clear already
 // used) and filters/paginates client-side.
 const BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
+const CHEQUES_NAVIGATION_CODE = 25011;
 
 function chequeStatus(item) {
   if (item.IsCleared) return { label: "Cleared", cls: "bg-green-100 text-green-700" };
@@ -185,20 +187,20 @@ function CataloguePanel() {
 
 /* ══════════════════════════ Bank ══════════════════════════ */
 
-function SearchSelectModal({ title, fetchUrl, getLabel, getSublabel, onSelect, onClose }) {
+function SearchSelectModal({ title, fetchUrl, getLabel, getSublabel, onSelect, onClose, filterItem }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
 
   useEffect(() => {
     apiJson(fetchUrl)
-      .then((d) => setItems(normalizeList(d)))
+      .then((d) => setItems(normalizeList(d).filter((item) => !filterItem || filterItem(item))))
       .catch((error) => {
         setItems([]);
         Swal.fire("Error", apiErrorMessage(error, "Unable to load cheques."), "error");
       })
       .finally(() => setLoading(false));
-  }, [fetchUrl]);
+  }, [fetchUrl, filterItem]);
 
   const filtered = useMemo(() => {
     if (!query.trim()) return items;
@@ -293,27 +295,21 @@ const emptyLinkage = {
 
 function BankPanel() {
   const [cheques, setCheques] = useState([]);
-  const [branches, setBranches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState([]);
   const [linkage, setLinkage] = useState(emptyLinkage);
-  const [branchId, setBranchId] = useState("");
   const [openModal, setOpenModal] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
   const fetchCheques = () => {
     setLoading(true);
-    Promise.all([
-      apiJson(`${BASE}/api/frontoffice/cheques?pageSize=1000`),
-      apiJson(`${BASE}/api/administration/branches`),
-    ])
-      .then(([chequeData, branchData]) => {
+    apiJson(`${BASE}/api/frontoffice/cheques?pageSize=1000`)
+      .then((chequeData) => {
         setCheques(normalizeList(chequeData));
-        setBranches(normalizeList(branchData));
+        setSelected([]);
       })
       .catch((error) => {
         setCheques([]);
-        setBranches([]);
         Swal.fire("Error", apiErrorMessage(error, "Unable to load cheque-banking options."), "error");
       })
       .finally(() => setLoading(false));
@@ -321,7 +317,7 @@ function BankPanel() {
 
   useEffect(() => { fetchCheques(); }, []);
 
-  const transferredCheques = cheques.filter((c) => c.IsTransferred === true);
+  const transferredCheques = cheques.filter((c) => c.IsTransferred === true && !c.IsBanked && !c.IsCleared);
   const allSelected = transferredCheques.length > 0 && selected.length === transferredCheques.length;
   const toggleAll = () => setSelected(allSelected ? [] : transferredCheques.map((c) => c.Id));
   const toggleOne = (id) =>
@@ -333,16 +329,20 @@ function BankPanel() {
       IdLabel: `${item.BankName || ""} — ${item.BankBranchName || ""}`.trim(),
       ChartOfAccountId: item.ChartOfAccountId || "",
       ChartOfAccountLabel: item.ChartOfAccountName || item.ChartOfAccountAccountName || "",
+      BranchId: item.BranchId || "",
+      BranchLabel: item.BranchDescription || "",
       _raw: item,
     });
-    if (item.BranchId) setBranchId(item.BranchId);
   };
 
   const handleSubmit = async () => {
     if (selected.length === 0) return Swal.fire("Warning", "Select at least one cheque.", "warning");
-    if (!linkage.Id || !linkage.ChartOfAccountId || !branchId) {
-      return Swal.fire("Warning", "Select a bank linkage and branch.", "warning");
-    }
+    if (!linkage.Id) return Swal.fire("Bank Account Required", "Select the bank account where the cheques will be deposited.", "warning");
+    if (linkage._raw?.IsLocked) return Swal.fire("Locked Bank Account", "Select an active bank account.", "warning");
+    if (!linkage.BranchId) return Swal.fire("Bank Account Incomplete", "The selected bank account has no institution branch configured.", "warning");
+    if (!linkage.ChartOfAccountId) return Swal.fire("Bank Account Incomplete", "The selected bank account has no G/L account configured.", "warning");
+    const bankableIds = new Set(transferredCheques.map((cheque) => cheque.Id));
+    if (selected.some((id) => !bankableIds.has(id))) return Swal.fire("Refresh Required", "One or more selected cheques are no longer available for banking. Refresh and try again.", "warning");
     const confirm = await Swal.fire({
       title: `Bank ${selected.length} cheque(s)?`,
       icon: "question",
@@ -358,13 +358,14 @@ function BankPanel() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           selectedChequeIds: selected,
-          bankLinkageDTO: { Id: linkage.Id, ChartOfAccountId: linkage.ChartOfAccountId, BranchId: branchId },
+          // The API reloads this linkage and its branch/G/L details server-side.
+          bankLinkageDTO: { Id: linkage.Id },
+          ModuleNavigationItemCode: CHEQUES_NAVIGATION_CODE,
         }),
       });
       Swal.fire("Success", data.message || "Cheques banked successfully.", "success");
       setSelected([]);
       setLinkage(emptyLinkage);
-      setBranchId("");
       fetchCheques();
     } catch (err) {
       Swal.fire("Error", apiErrorMessage(err, "Unable to bank the selected cheques."), "error");
@@ -375,32 +376,20 @@ function BankPanel() {
 
   return (
     <>
-      {selected.length > 0 && (
-        <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 mb-4 space-y-3">
-          <p className="text-sm font-semibold text-indigo-700">
-            {selected.length} cheque(s) selected — select a bank linkage
-          </p>
+      <div className="mb-4 space-y-3 rounded-xl border border-indigo-200 bg-indigo-50 p-4">
+          <div className="flex items-center justify-between gap-3"><p className="text-sm font-semibold text-indigo-700">Bank deposit destination</p><Button type="button" variant="outline" size="sm" onClick={fetchCheques} disabled={loading || submitting} className="gap-2"><FaSync className={loading ? "animate-spin" : ""} /> Refresh cheques</Button></div>
           <SelectField
-            label="Bank Linkage"
+            label="Bank Account"
             value={linkage.IdLabel}
-            placeholder="Search & select bank linkage..."
+            placeholder="Search and select destination bank account..."
             onClick={() => setOpenModal("bankLinkage")}
           />
-          <div>
-            <Label className="text-sm font-semibold text-gray-700 mb-1 block">Branch</Label>
-            <Select value={branchId} onValueChange={setBranchId}>
-              <SelectTrigger><SelectValue placeholder="Select branch" /></SelectTrigger>
-              <SelectContent>
-                {branches.map((b) => <SelectItem key={b.Id} value={b.Id}>{b.Description || b.Name || b.Id}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
           {linkage.Id && (
-            <div className="grid grid-cols-2 gap-3 bg-white border border-indigo-100 rounded-xl p-3 text-xs">
+            <div className="grid grid-cols-1 gap-3 rounded-xl border border-indigo-100 bg-white p-3 text-xs md:grid-cols-3">
+              <div><p className="mb-0.5 font-semibold uppercase tracking-wide text-gray-400">Bank Branch</p><p className="font-medium text-gray-800">{linkage.BranchLabel || "Not configured"}</p></div>
               <div>
                 <p className="text-gray-400 font-semibold uppercase tracking-wide mb-0.5">Chart of Account</p>
                 <p className="text-gray-800 font-medium">{linkage.ChartOfAccountLabel || "—"}</p>
-                <p className="text-gray-400 font-mono mt-0.5">{linkage.ChartOfAccountId}</p>
               </div>
               {linkage._raw && (
                 <>
@@ -408,8 +397,8 @@ function BankPanel() {
                     <p className="text-gray-400 font-semibold uppercase tracking-wide mb-0.5">Account No.</p>
                     <p className="text-gray-800 font-medium">{linkage._raw.BankAccountNumber || "—"}</p>
                   </div>
-                  <div className="col-span-2">
-                    <p className="text-gray-400 font-semibold uppercase tracking-wide mb-0.5">Balance</p>
+                  <div>
+                    <p className="text-gray-400 font-semibold uppercase tracking-wide mb-0.5">Current G/L Balance</p>
                     <p className={`font-bold text-sm ${(linkage._raw.BankLinkageBalance ?? 0) < 0 ? "text-red-600" : "text-green-600"}`}>
                       {(linkage._raw.BankLinkageBalance ?? 0).toLocaleString()}
                     </p>
@@ -418,11 +407,20 @@ function BankPanel() {
               )}
             </div>
           )}
-          <Button onClick={handleSubmit} disabled={submitting || !linkage.Id} className="bg-indigo-600 hover:bg-indigo-700">
+          <div className="flex items-center justify-between gap-3"><p className="text-sm text-indigo-700">{selected.length ? `${selected.length} cheque(s) selected · ${transferredCheques.filter((c) => selected.includes(c.Id)).reduce((sum, c) => sum + Number(c.Amount || 0), 0).toLocaleString()} total` : "Select one or more cheques below."}</p><Button onClick={handleSubmit} disabled={submitting || !linkage.Id || selected.length === 0} className="bg-indigo-600 hover:bg-indigo-700">
             {submitting ? "Banking..." : `Bank ${selected.length} Cheque(s)`}
-          </Button>
+          </Button></div>
         </div>
-      )}
+
+      <div className="mb-4 flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+        <Popover>
+          <PopoverTrigger asChild>
+            <button type="button" aria-label="About cheque banking" className="mt-0.5 text-blue-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded-full"><FaInfoCircle /></button>
+          </PopoverTrigger>
+          <PopoverContent className="w-80 text-sm text-gray-700">Only cheques already transferred out of the teller till can be banked. Banking moves their value from External Cheques in Hand to the selected bank account's G/L. The displayed balance is the current system G/L balance for the configured institution branch; it is not a live balance retrieved from the external bank.</PopoverContent>
+        </Popover>
+        <span>Only transferred, not-yet-banked cheques are listed here.</span>
+      </div>
 
       <div className="bg-gray-200 p-4 rounded-sm">
         <div className="grid grid-cols-12 gap-4 bg-gray-700 text-gray-100 font-semibold p-3 rounded-lg mb-4 text-sm">
@@ -492,10 +490,11 @@ function BankPanel() {
 
       {openModal === "bankLinkage" && (
         <SearchSelectModal
-          title="Select Bank Linkage"
+          title="Select Bank Account"
           fetchUrl={`${BASE}/api/accounts/banklinkages/all`}
           getLabel={(item) => `${item.BankName || ""} — ${item.BankBranchName || ""}`.trim() || item.Id}
           getSublabel={(item) => `Acc: ${item.BankAccountNumber || "—"}  |  Bal: ${(item.BankLinkageBalance ?? 0).toLocaleString()}  |  ${item.BranchDescription || ""}`}
+          filterItem={(item) => !item.IsLocked}
           onSelect={(item) => { handleBankLinkageSelect(item); setOpenModal(null); }}
           onClose={() => setOpenModal(null)}
         />
@@ -543,7 +542,7 @@ function ClearPanel() {
 
   useEffect(() => { fetchAll(); }, []);
 
-  const clearableCheques = cheques.filter((c) => c.IsTransferred && c.IsBanked);
+  const clearableCheques = cheques.filter((c) => c.IsTransferred && c.IsBanked && !c.IsCleared);
   const clearableIds = new Set(clearableCheques.map((c) => c.Id));
 
   const allSelected = clearableCheques.length > 0 && selected.length === clearableCheques.length;
@@ -578,7 +577,7 @@ function ClearPanel() {
       const payload = {
         selectedChequeIds: selected,
         clearingOption,
-        actionType: clearingOption === 1 ? "clear" : "unpay",
+        ModuleNavigationItemCode: CHEQUES_NAVIGATION_CODE,
         unPayReasonDTO: clearingOption === 2 && reason
           ? { Id: reason.Id, Code: reason.Code, Description: reason.Description }
           : {},

@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +16,7 @@ import { listAllChartOfAccounts } from "@/pages/Accounts/ChartOfAccounts/api";
 import { apiErrorMessage, apiJson, normalizeList } from "@/lib/api";
 import { savingsProductPayload, savingsProductValidationAlert, validateSavingsProduct } from "./validation";
 import FieldHelp from "./FieldHelp";
+import { SavingsProductCharges, SavingsProductExemptions } from "./SavingsProductConfiguration";
 
 const BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 
@@ -35,7 +35,17 @@ const emptyForm = {
   ChartOfAccountName: "",
   IsMandatory: false,
   IsDefault: false,
+  IsLocked: false,
+  AutomateLedgerFeeCalculation: false,
+  ThrottleOverTheCounterWithdrawals: false,
 };
+
+const recoveryPriorities = [
+  { value: 0, label: "Loans" },
+  { value: 1, label: "Investments" },
+  { value: 2, label: "Savings" },
+  { value: 3, label: "Direct Debits" },
+];
 
 function FieldGroup({ label, help, children }) {
   return (
@@ -104,7 +114,7 @@ function DrawerShell({ open, onClose, title, children }) {
             onClick={onClose}
           />
           <motion.div
-            className="fixed top-5 right-3 w-[520px] bg-white shadow-xl z-50 flex flex-col rounded-2xl p-3 h-[95vh]"
+            className="fixed inset-y-2 right-2 z-50 flex w-[calc(100vw-1rem)] max-w-2xl flex-col rounded-2xl bg-white p-3 shadow-xl sm:inset-y-5 sm:right-3 sm:h-[95vh]"
             initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }}
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
           >
@@ -122,7 +132,6 @@ function DrawerShell({ open, onClose, title, children }) {
 
 function SavingsProductForm({ form, setForm, coaList, loading, loadingData, submitLabel, onSubmit }) {
   const handleChange = (field, value) => {
-    console.log("[SavingsProductForm] field change:", field, "=", value);
     setForm((p) => ({ ...p, [field]: value }));
   };
 
@@ -132,17 +141,17 @@ function SavingsProductForm({ form, setForm, coaList, loading, loadingData, subm
       <FieldGroup label="Description" help="The name shown on member accounts, transaction screens, and reports.">
         <Input value={form.Description} onChange={(e) => handleChange("Description", e.target.value)} required placeholder="e.g. ORDINARY SAVINGS" />
       </FieldGroup>
-      <div className="grid grid-cols-2 gap-3">
-        <FieldGroup label="Max Allowed Withdrawal" help="Largest permitted single withdrawal. Must be greater than zero.">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <FieldGroup label="Maximum Withdrawal" help="Largest amount a customer may withdraw in one transaction. Transactions above this product limit require the configured authorization flow.">
           <NumInput field="MaximumAllowedWithdrawal" value={form.MaximumAllowedWithdrawal} onChange={handleChange} />
         </FieldGroup>
-        <FieldGroup label="Max Allowed Deposit" help="Largest permitted single deposit. Must be greater than zero.">
+        <FieldGroup label="Maximum Deposit" help="Largest amount a customer may deposit in one transaction. This service-enforced limit is supported even though it is omitted from the legacy guide.">
           <NumInput field="MaximumAllowedDeposit" value={form.MaximumAllowedDeposit} onChange={handleChange} />
         </FieldGroup>
         <FieldGroup label="Minimum Balance" help="Protected balance expected to remain after withdrawals.">
           <NumInput field="MinimumBalance" value={form.MinimumBalance} onChange={handleChange} />
         </FieldGroup>
-        <FieldGroup label="Operating Balance" help="Normal operating target; cannot be below minimum. Currently stored but not transaction-enforced.">
+        <FieldGroup label="Operating Balance" help="Balance from which the account qualifies to earn interest. It cannot be lower than the minimum balance.">
           <NumInput field="OperatingBalance" value={form.OperatingBalance} onChange={handleChange} />
         </FieldGroup>
         <FieldGroup label="Withdrawal Notice Amount" help="Withdrawals above this require notice or may attract a without-notice charge.">
@@ -154,34 +163,39 @@ function SavingsProductForm({ form, setForm, coaList, loading, loadingData, subm
         <FieldGroup label="Withdrawal Interval (days)" help="Minimum days between withdrawals; early withdrawal may attract a charge.">
           <NumInput field="WithdrawalInterval" value={form.WithdrawalInterval} onChange={handleChange} />
         </FieldGroup>
-        <FieldGroup label="Annual Percentage Yield (%)" help="Displayed annual return rate, from 0% to 100%; not currently used for automatic accrual.">
+        <FieldGroup label="Annual Percentage Yield (%)" help="Annual interest yield configured for this product, between 0% and 100%. This value is stored; automated accrual requires a separate interest-processing workflow.">
           <NumInput field="AnnualPercentageYield" value={form.AnnualPercentageYield} onChange={handleChange} />
         </FieldGroup>
-        <FieldGroup label="Recovery Priority" help="Recovery category: 0 Loans, 1 Investments, 2 Savings, or 3 Direct Debits.">
-          <NumInput field="Priority" value={form.Priority} onChange={handleChange} />
+        <FieldGroup label="Recovery Priority" help="Select the recovery category used when the system orders recoveries against this product.">
+          <Select value={String(form.Priority)} onValueChange={(value) => handleChange("Priority", Number(value))}>
+            <SelectTrigger><SelectValue placeholder="Select recovery priority" /></SelectTrigger>
+            <SelectContent>
+              {recoveryPriorities.map((option) => <SelectItem key={option.value} value={String(option.value)}>{option.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
         </FieldGroup>
       </div>
       <FieldGroup label="Chart of Account" help="Required G/L control account used for this product's financial postings.">
         <CoaSelect coaList={coaList} value={form.ChartOfAccountId} nameFallback={form.ChartOfAccountName} onChange={handleChange} disabled={loadingData} />
       </FieldGroup>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <div className="flex items-center gap-1">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={form.IsMandatory} onChange={(e) => handleChange("IsMandatory", e.target.checked)} className="w-4 h-4 accent-indigo-600" />
-              <span className="text-sm font-medium">Is Mandatory</span>
-            </label>
-            <FieldHelp label="Is Mandatory">Marks this product for automatic member-account attachment.</FieldHelp>
-          </div>
-        </div>
-        <div>
-          <div className="flex items-center gap-1">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={form.IsDefault} onChange={(e) => handleChange("IsDefault", e.target.checked)} className="w-4 h-4 accent-indigo-600" />
-              <span className="text-sm font-medium">Is Default</span>
-            </label>
-            <FieldHelp label="Is Default">Primary fallback product. Only one product should be default.</FieldHelp>
-          </div>
+      <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">Product behaviour</p>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {[
+            ["IsMandatory", "Mandatory", "Marks this product for automatic member-account attachment where mandatory products are provisioned."],
+            ["IsDefault", "Default product", "Makes this the single fallback savings product. Selecting it clears the previous default."],
+            ["IsLocked", "Locked", "Prevents the product from being selected by workflows that only use active products."],
+            ["AutomateLedgerFeeCalculation", "Automate ledger fees", "Includes this product in the service query used by automated ledger-fee processing."],
+            ["ThrottleOverTheCounterWithdrawals", "Throttle OTC withdrawals", "Copies the throttling flag onto customer savings accounts. No direct transaction rejection based on this flag was found in the current service layer."],
+          ].map(([field, label, help]) => (
+            <div key={field} className="flex items-center gap-1">
+              <label className="flex cursor-pointer items-center gap-2">
+                <input type="checkbox" checked={form[field]} onChange={(e) => handleChange(field, e.target.checked)} className="h-4 w-4 accent-indigo-600" />
+                <span className="text-sm font-medium text-gray-700">{label}</span>
+              </label>
+              <FieldHelp label={label}>{help}</FieldHelp>
+            </div>
+          ))}
         </div>
       </div>
       </div>
@@ -194,7 +208,55 @@ function SavingsProductForm({ form, setForm, coaList, loading, loadingData, subm
   );
 }
 
+function CreateSavingsProductDrawer({ open, onClose, onSuccess }) {
+  const [form, setForm] = useState(emptyForm);
+  const [loading, setLoading] = useState(false);
+  const [coaList, setCoaList] = useState([]);
+  const [loadingData, setLoadingData] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setForm(emptyForm);
+    setLoadingData(true);
+    listAllChartOfAccounts()
+      .then(setCoaList)
+      .catch((error) => {
+        setCoaList([]);
+        Swal.fire("Unable to Load G/L Accounts", apiErrorMessage(error, "Unable to load Chart of Accounts."), "error");
+      })
+      .finally(() => setLoadingData(false));
+  }, [open]);
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    const validationErrors = validateSavingsProduct(form);
+    if (validationErrors.length) return Swal.fire(savingsProductValidationAlert(validationErrors));
+
+    setLoading(true);
+    try {
+      await apiJson(`${BASE}/api/accounts/savingsproducts`, {
+        method: "POST",
+        body: JSON.stringify(savingsProductPayload(form)),
+      }, { fallbackMessage: "Unable to create the savings product." });
+      await Swal.fire("Savings Product Created", "The savings product is ready for use.", "success");
+      onSuccess();
+      onClose();
+    } catch (error) {
+      Swal.fire("Unable to Create Savings Product", apiErrorMessage(error, "Unable to create the savings product."), "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <DrawerShell open={open} onClose={onClose} title="Create Savings Product">
+      <SavingsProductForm form={form} setForm={setForm} coaList={coaList} loading={loading} loadingData={loadingData} submitLabel="Create Savings Product" onSubmit={handleSubmit} />
+    </DrawerShell>
+  );
+}
+
 function EditSavingsProductDrawer({ open, onClose, onSuccess, item }) {
+  const [activeTab, setActiveTab] = useState("details");
   const [form, setForm] = useState(emptyForm);
   const [loading, setLoading] = useState(false);
   const [coaList, setCoaList] = useState([]);
@@ -211,7 +273,7 @@ function EditSavingsProductDrawer({ open, onClose, onSuccess, item }) {
 
   useEffect(() => {
     if (item) {
-      console.log("[EditSavingsProductDrawer] prefill item:", item);
+      setActiveTab("details");
       setForm({
         Description: item.Description || "",
         MaximumAllowedWithdrawal: item.MaximumAllowedWithdrawal ?? "",
@@ -227,6 +289,9 @@ function EditSavingsProductDrawer({ open, onClose, onSuccess, item }) {
         ChartOfAccountName: item.ChartOfAccountName || "",
         IsMandatory: item.IsMandatory || false,
         IsDefault: item.IsDefault || false,
+        IsLocked: item.IsLocked || false,
+        AutomateLedgerFeeCalculation: item.AutomateLedgerFeeCalculation || false,
+        ThrottleOverTheCounterWithdrawals: item.ThrottleOverTheCounterWithdrawals || false,
       });
     }
   }, [item]);
@@ -244,7 +309,6 @@ function EditSavingsProductDrawer({ open, onClose, onSuccess, item }) {
         ...savingsProductPayload(form),
         Id: item.Id,
       };
-      console.log("[EditSavingsProductDrawer] PUT payload:", payload);
       await apiJson(`${BASE}/api/accounts/savingsproducts`, {
         method: "PUT",
         body: JSON.stringify(payload),
@@ -261,7 +325,20 @@ function EditSavingsProductDrawer({ open, onClose, onSuccess, item }) {
 
   return (
     <DrawerShell open={open} onClose={onClose} title="Edit Savings Product">
-      <SavingsProductForm form={form} setForm={setForm} coaList={coaList} loading={loading} loadingData={loadingData} submitLabel="Update Savings Product" onSubmit={handleSubmit} />
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div className="mx-4 mt-2 grid shrink-0 grid-cols-3 rounded-lg bg-gray-100 p-1">
+          {[
+            ["details", "Product Details"],
+            ["charges", "Well-Known Charges"],
+            ["exemptions", "Branch Exemptions"],
+          ].map(([value, label]) => (
+            <button key={value} type="button" onClick={() => setActiveTab(value)} className={`rounded-md px-2 py-2 text-xs font-semibold transition-colors ${activeTab === value ? "bg-indigo-600 text-white shadow" : "text-gray-600 hover:bg-white"}`}>{label}</button>
+          ))}
+        </div>
+        {activeTab === "details" && <SavingsProductForm form={form} setForm={setForm} coaList={coaList} loading={loading} loadingData={loadingData} submitLabel="Update Savings Product" onSubmit={handleSubmit} />}
+        {activeTab === "charges" && item && <div className="min-h-0 flex-1 overflow-y-auto p-4"><SavingsProductCharges productId={item.Id} /></div>}
+        {activeTab === "exemptions" && item && <div className="min-h-0 flex-1 overflow-y-auto p-4"><SavingsProductExemptions product={item} /></div>}
+      </div>
     </DrawerShell>
   );
 }
@@ -269,6 +346,7 @@ function EditSavingsProductDrawer({ open, onClose, onSuccess, item }) {
 export default function SavingsProducts() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [createOpen, setCreateOpen] = useState(false);
   const [editItem, setEditItem] = useState(null);
 
   const fetchItems = () => {
@@ -308,12 +386,13 @@ export default function SavingsProducts() {
         <h2 className="text-xl font-bold text-white flex items-center gap-2">
           <FaPiggyBank /> Savings Products
         </h2>
-        <Link
-          to="/Accounts/SavingsProducts/create"
+        <Button
+          type="button"
+          onClick={() => setCreateOpen(true)}
           className="inline-flex items-center gap-2 rounded-md bg-indigo-600 hover:bg-indigo-700 px-4 py-2 text-sm font-medium text-white"
         >
           <FaPlus /> Add Savings Product
-        </Link>
+        </Button>
       </div>
 
       <div className="bg-gray-200 p-4 rounded-sm">
@@ -377,6 +456,7 @@ export default function SavingsProducts() {
         )}
       </div>
 
+      <CreateSavingsProductDrawer open={createOpen} onClose={() => setCreateOpen(false)} onSuccess={fetchItems} />
       <EditSavingsProductDrawer open={!!editItem} onClose={() => setEditItem(null)} onSuccess={fetchItems} item={editItem} />
     </div>
   );

@@ -108,6 +108,15 @@ export default function CashManagement() {
   useEffect(() => { loadActionableTransfers(); }, []);
 
   const actionTransfer = async (transfer, option) => {
+    if (!transfer?.Id) {
+      Swal.fire(
+        "Transfer Unavailable",
+        "This cash transfer has no request ID. Refresh the list after the updated backend has been deployed.",
+        "error",
+      );
+      return;
+    }
+
     const rejecting = option === 3;
     const result = await Swal.fire({
       title: rejecting ? "Reject cash transfer?" : "Acknowledge cash transfer?",
@@ -212,11 +221,11 @@ export default function CashManagement() {
         <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-400 mb-3">Actionable teller cash transfers</h3>
         <div className="bg-gray-200 p-4 rounded-sm">
           <div className="grid grid-cols-12 gap-4 bg-gray-700 text-gray-100 font-semibold p-3 rounded-lg mb-4 text-sm">
-            <span className="col-span-3">Teller</span>
+            <span className="col-span-2">Teller</span>
             <span className="col-span-3">Reference</span>
             <span className="col-span-2">Amount</span>
             <span className="col-span-2">Created</span>
-            <span className="col-span-2 text-right">Actions</span>
+            <span className="col-span-3 text-right">Actions</span>
           </div>
           {loadingTransfers ? (
             <div className="bg-gray-50 rounded-lg p-5 animate-pulse"><div className="h-4 bg-gray-300 rounded w-2/3" /></div>
@@ -226,13 +235,28 @@ export default function CashManagement() {
             <div className="space-y-2">
               {actionableTransfers.map((transfer) => (
                 <div key={transfer.Id} className="grid grid-cols-12 gap-4 items-center bg-white rounded-lg shadow-lg border p-4 hover:shadow-xl transition-all text-sm">
-                  <span className="col-span-3 text-gray-700">{transfer.EmployeeCustomerFullName || transfer.CreatedBy || "Teller"}</span>
+                  <span className="col-span-2 truncate text-gray-700" title={transfer.TellerDescription}>{transfer.TellerDescription || "—"}</span>
                   <span className="col-span-3 font-mono text-xs text-gray-500">{transfer.Reference || "—"}</span>
                   <span className="col-span-2 font-semibold text-indigo-700">{Number(transfer.Amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                   <span className="col-span-2 text-xs text-gray-500">{transfer.CreatedDate ? new Date(transfer.CreatedDate).toLocaleString() : "—"}</span>
-                  <span className="col-span-2 flex justify-end gap-2">
-                    <Button size="sm" onClick={() => actionTransfer(transfer, 2)} className="bg-indigo-600 hover:bg-indigo-700"><FaCheckCircle className="mr-1" /> Accept</Button>
-                    <Button size="sm" onClick={() => actionTransfer(transfer, 3)} className="bg-red-600 hover:bg-red-700"><FaTimesCircle className="mr-1" /> Reject</Button>
+                  <span className="col-span-3 flex justify-end gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() => actionTransfer(transfer, 2)}
+                      className="gap-1.5 bg-indigo-600 text-white hover:bg-indigo-700"
+                      aria-label={`Acknowledge cash transfer ${transfer.Reference || transfer.Id}`}
+                    >
+                      <FaCheckCircle /> Acknowledge
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => actionTransfer(transfer, 3)}
+                      className="gap-1.5 border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700"
+                      aria-label={`Reject cash transfer ${transfer.Reference || transfer.Id}`}
+                    >
+                      <FaTimesCircle /> Reject
+                    </Button>
                   </span>
                 </div>
               ))}

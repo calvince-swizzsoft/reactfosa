@@ -9,13 +9,15 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import Swal from "sweetalert2";
 import NotFoundImage from "/assets/scopefinding.png";
-import { FaMoneyBillWave, FaPlus, FaPaperPlane, FaChevronLeft, FaChevronRight, FaInfoCircle, FaSearch, FaUndo } from "react-icons/fa";
+import { FaMoneyBillWave, FaPlus, FaPaperPlane, FaChevronLeft, FaChevronRight, FaInfoCircle, FaSearch, FaUndo, FaUser, FaWallet, FaBookOpen } from "react-icons/fa";
 import { apiErrorMessage, apiJson, normalizeList } from "@/lib/api";
-import { listRequests, createTransaction, postAuthorizedRequest } from "./requestsApi";
+import { listRequests, createTransaction, postAuthorizedRequest, resendApprovalRequest } from "./requestsApi";
 import { FrontOfficeTransactionType, CashWithdrawalCategory } from "../lib/frontOfficeEnums";
 import ReceiptModal from "../lib/ReceiptModal";
 import CustomerLookupModal from "@/pages/Registry/Customers/Documents/CustomerLookupModal";
 import DenominationCountFields, { emptyDenominationCounts, sumDenominations } from "../lib/DenominationCountFields";
+import { getGlAccountStatement } from "@/pages/Accounts/GeneralLedgerStatement/api";
+import { StatementRow } from "@/pages/Accounts/GeneralLedgerTransaction";
 
 // Savings Receipts/Payments — the app's one real nav item for the whole
 // teller transaction cycle (NavigationMenu.cs: ControllerName "CashDeposit",
@@ -87,7 +89,7 @@ const emptyForm = {
   PaymentVoucherId: "",
 };
 
-function CreateTransactionDrawer({ open, onClose, onSuccess, onDialog }) {
+function CreateTransactionDrawer({ open, onClose, onSuccess, onDialog, initialCustomer = null, initialAccounts = [], initialAccountId = "" }) {
   const [form, setForm] = useState(emptyForm);
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(false);
@@ -106,9 +108,9 @@ function CreateTransactionDrawer({ open, onClose, onSuccess, onDialog }) {
 
   useEffect(() => {
     if (!open) return;
-    setForm(emptyForm);
-    setSelectedCustomer(null);
-    setAccounts([]);
+    setForm({ ...emptyForm, CreditCustomerAccountId: initialAccountId || "" });
+    setSelectedCustomer(initialCustomer);
+    setAccounts(initialAccounts);
     setChequeTypes([]);
     setChequeBooks([]);
     setPaymentVouchers([]);
@@ -121,7 +123,7 @@ function CreateTransactionDrawer({ open, onClose, onSuccess, onDialog }) {
       setOperatorContext(null);
       Swal.fire("Teller Context Unavailable", apiErrorMessage(error, "Your teller and branch context could not be resolved."), "error");
     }).finally(() => setLoadingData(false));
-  }, [open]);
+  }, [open, initialAccountId, initialCustomer, initialAccounts]);
 
   const isChequeDeposit = form.Type === FrontOfficeTransactionType.ChequeDeposit;
 
@@ -236,12 +238,9 @@ function CreateTransactionDrawer({ open, onClose, onSuccess, onDialog }) {
           Drawer: form.Drawer,
           DrawerBank: form.DrawerBank,
           DrawerBankBranch: form.DrawerBankBranch,
-          // ChequeType is optional (Guid?) — a cheque with no type just
-          // matures the same day it's deposited (frontoffice-api-spec.md
-          // §4.2). Send null, not "", when none is selected — [ValidGuid]
-          // was recently fixed to treat null as valid, but an empty-string
-          // body wouldn't exercise that fix the same way.
-          ChequeType: form.ChequeType || null,
+          // The current deposit contract requires a configured cheque type;
+          // its maturity period determines when the cheque can be cleared.
+          ChequeType: form.ChequeType,
           WriteDate: form.WriteDate ? new Date(form.WriteDate).toISOString() : null,
         });
       } else if (isPaymentVoucher) {
@@ -420,6 +419,109 @@ function TypeBadge({ item }) {
   );
 }
 
+const read = (value, ...names) => names.map((name) => value?.[name]).find((candidate) => candidate !== undefined && candidate !== null);
+const money = (value) => Number.isFinite(Number(value)) ? Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "—";
+const customerName = (customer) => [read(customer, "IndividualFirstName", "individualFirstName"), read(customer, "IndividualLastName", "individualLastName")].filter(Boolean).join(" ") || read(customer, "NonIndividualDescription", "nonIndividualDescription", "Description", "description") || "—";
+
+function CustomerWorkspace({ onUseAccount }) {
+  const [customer, setCustomer] = useState(null);
+  const [accounts, setAccounts] = useState([]);
+  const [selectedAccountId, setSelectedAccountId] = useState("");
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [loadingAccounts, setLoadingAccounts] = useState(false);
+
+  const selectCustomer = (nextCustomer) => {
+    const id = read(nextCustomer, "Id", "id");
+    setCustomer(nextCustomer);
+    setAccounts([]);
+    setSelectedAccountId("");
+    setPickerOpen(false);
+    if (!id) return;
+    setLoadingAccounts(true);
+    apiJson(`${FIN_BASE}/api/accounts/customer-accounts/${id}/accounts`)
+      .then((response) => setAccounts(normalizeList(response)))
+      .catch((error) => Swal.fire("Unable to Load Accounts", apiErrorMessage(error, "The customer's accounts could not be loaded."), "error"))
+      .finally(() => setLoadingAccounts(false));
+  };
+
+  const selectedAccount = accounts.find((account) => String(read(account, "Id", "id")) === String(selectedAccountId));
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between rounded-lg bg-gray-100 p-4">
+        <div><p className="font-semibold text-gray-700">Customer workspace</p><p className="text-sm text-gray-500">Select a customer, review their accounts, then start a transaction from the required account.</p></div>
+        <Button onClick={() => setPickerOpen(true)} className="bg-indigo-600 hover:bg-indigo-700"><FaSearch className="mr-2" /> Select Customer</Button>
+      </div>
+
+      {!customer ? <div className="py-16 text-center"><img src={NotFoundImage} alt="Select customer" className="mx-auto w-32" /><p className="text-gray-400">Select a customer to preview their profile and accounts.</p></div> : <>
+        <div className="grid grid-cols-1 gap-3 rounded-lg border bg-white p-4 text-sm md:grid-cols-4">
+          <div><span className="block text-xs font-semibold uppercase text-gray-400">Customer</span><span className="font-medium text-gray-700">{customerName(customer)}</span></div>
+          <div><span className="block text-xs font-semibold uppercase text-gray-400">Reference</span><span className="text-gray-700">{read(customer, "Reference1", "reference1", "PaddedSerialNumber", "paddedSerialNumber") || "—"}</span></div>
+          <div><span className="block text-xs font-semibold uppercase text-gray-400">Identification</span><span className="text-gray-700">{read(customer, "PersonalIdentificationNumber", "personalIdentificationNumber", "IndividualIdentityCardNumber", "individualIdentityCardNumber") || "—"}</span></div>
+          <div><span className="block text-xs font-semibold uppercase text-gray-400">Mobile</span><span className="text-gray-700">{read(customer, "AddressMobileLine", "addressMobileLine") || "—"}</span></div>
+        </div>
+
+        <div className="rounded-sm bg-gray-200 p-4">
+          <div className="mb-3 grid grid-cols-12 gap-3 rounded-lg bg-gray-700 p-3 text-sm font-semibold text-gray-100"><span className="col-span-3">Account</span><span className="col-span-3">Product</span><span className="col-span-2">Status</span><span className="col-span-2 text-right">Book Balance</span><span className="col-span-2 text-right">Available</span></div>
+          {loadingAccounts ? <div className="space-y-2 animate-pulse">{[1,2,3].map((item) => <div key={item} className="h-14 rounded-lg bg-gray-100" />)}</div> : accounts.length ? <div className="space-y-2">{accounts.map((account) => {
+            const id = read(account, "Id", "id");
+            const selected = String(id) === String(selectedAccountId);
+            return <button type="button" key={id} onClick={() => setSelectedAccountId(String(id))} className={`grid w-full grid-cols-12 gap-3 rounded-lg border p-4 text-left text-sm shadow transition hover:shadow-lg ${selected ? "border-indigo-500 bg-indigo-50" : "bg-white"}`}><span className="col-span-3 break-words font-medium text-indigo-700">{read(account, "FullAccountNumber", "fullAccountNumber") || "—"}</span><span className="col-span-3 break-words text-gray-700">{read(account, "CustomerAccountTypeTargetProductDescription", "customerAccountTypeTargetProductDescription") || "—"}</span><span className="col-span-2 text-gray-600">{read(account, "StatusDescription", "statusDescription") || "—"}</span><span className="col-span-2 text-right text-gray-700">{money(read(account, "BookBalance", "bookBalance"))}</span><span className="col-span-2 text-right font-medium text-gray-800">{money(read(account, "AvailableBalance", "availableBalance"))}</span></button>;
+          })}</div> : <p className="py-10 text-center text-gray-400">This customer has no available accounts.</p>}
+        </div>
+
+        <div className="flex justify-end"><Button disabled={!selectedAccount} onClick={() => onUseAccount(customer, accounts, selectedAccountId)} className="bg-indigo-600 hover:bg-indigo-700"><FaPlus className="mr-2" /> New Transaction for Selected Account</Button></div>
+      </>}
+      {pickerOpen && <CustomerLookupModal onSelect={selectCustomer} onClose={() => setPickerOpen(false)} />}
+    </div>
+  );
+}
+
+const today = () => new Date().toISOString().slice(0, 10);
+const monthAgo = () => { const date = new Date(); date.setMonth(date.getMonth() - 1); return date.toISOString().slice(0, 10); };
+
+function TellerGlStatement() {
+  const [context, setContext] = useState(null);
+  const [lines, setLines] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [startDate, setStartDate] = useState(monthAgo());
+  const [endDate, setEndDate] = useState(today());
+  const [pageIndex, setPageIndex] = useState(0);
+  const [itemsCount, setItemsCount] = useState(0);
+  const pageSize = 20;
+
+  useEffect(() => {
+    apiJson(`${FIN_BASE}/api/frontoffice/requests/context`)
+      .then((response) => setContext(response?.data ?? response?.Data ?? null))
+      .catch((error) => Swal.fire("Teller Context Unavailable", apiErrorMessage(error), "error"));
+  }, []);
+
+  const fetchLines = () => {
+    if (!context?.chartOfAccountId) { setLoading(false); return; }
+    setLoading(true);
+    getGlAccountStatement(context.chartOfAccountId, { startDate, endDate, pageIndex, pageSize })
+      .then((page) => { setLines(page?.PageCollection ?? page?.pageCollection ?? []); setItemsCount(page?.ItemsCount ?? page?.itemsCount ?? 0); })
+      .catch((error) => { setLines([]); Swal.fire("Unable to Load Statement", apiErrorMessage(error), "error"); })
+      .finally(() => setLoading(false));
+  };
+
+  const refreshLines = () => {
+    if (pageIndex === 0) fetchLines();
+    else setPageIndex(0);
+  };
+
+  useEffect(() => { if (context?.chartOfAccountId) fetchLines(); }, [context?.chartOfAccountId, pageIndex]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return <div className="space-y-4">
+    <div className="grid grid-cols-1 gap-3 rounded-lg bg-gray-100 p-4 text-sm md:grid-cols-4"><div><span className="block text-xs font-semibold uppercase text-gray-400">Teller</span>{context?.tellerDescription || "—"}</div><div><span className="block text-xs font-semibold uppercase text-gray-400">Till G/L</span>{context?.chartOfAccountName || "—"}</div><div><span className="block text-xs font-semibold uppercase text-gray-400">Branch</span>{context?.branchDescription || "—"}</div><div><span className="block text-xs font-semibold uppercase text-gray-400">Current balance</span>{money(context?.bookBalance)}</div></div>
+    {!context?.chartOfAccountId ? <p className="py-12 text-center text-gray-400">No cash G/L account is configured for this teller.</p> : <>
+      <div className="flex flex-wrap items-end gap-3"><FieldGroup label="Start Date"><Input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} /></FieldGroup><FieldGroup label="End Date"><Input type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} /></FieldGroup><Button onClick={refreshLines} className="bg-indigo-600 hover:bg-indigo-700">Refresh Statement</Button></div>
+      <div className="rounded-sm bg-gray-200 p-4"><div className="grid grid-cols-12 gap-2 rounded-lg bg-gray-700 px-4 py-3 text-xs font-semibold text-gray-100"><span className="col-span-2">Date</span><span className="col-span-4">Description</span><span className="col-span-1">Reference</span><span className="col-span-1 text-right">Debit</span><span className="col-span-1 text-right">Credit</span><span className="col-span-1 text-right">Balance</span><span className="col-span-2 text-right">Status</span></div>{loading ? <p className="bg-white p-6 text-sm text-gray-400">Loading statement...</p> : lines.length ? <div className="bg-white">{lines.map((line, index) => <StatementRow key={line.Id || index} line={line} />)}</div> : <p className="bg-white p-10 text-center text-gray-400">No G/L transactions found for this period.</p>}</div>
+      <div className="flex items-center justify-center gap-3"><Button disabled={pageIndex === 0} onClick={() => setPageIndex((value) => value - 1)}>Prev</Button><span className="text-sm text-gray-600">Page {pageIndex + 1}</span><Button disabled={(pageIndex + 1) * pageSize >= itemsCount} onClick={() => setPageIndex((value) => value + 1)}>Next</Button></div>
+    </>}
+  </div>;
+}
+
 export default function SavingsReceiptsPayments() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -430,11 +532,30 @@ export default function SavingsReceiptsPayments() {
   const [pageSize, setPageSize] = useState(20);
   const [itemsCount, setItemsCount] = useState(0);
   const [postingIds, setPostingIds] = useState(new Set());
+  const [resendingIds, setResendingIds] = useState(new Set());
   const [receiptJournal, setReceiptJournal] = useState(null);
   const [receiptIsChequeDeposit, setReceiptIsChequeDeposit] = useState(false);
   const [search, setSearch] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [viewTab, setViewTab] = useState("queue");
+  const [prefillCustomer, setPrefillCustomer] = useState(null);
+  const [prefillAccounts, setPrefillAccounts] = useState([]);
+  const [prefillAccountId, setPrefillAccountId] = useState("");
+
+  const openBlankTransaction = () => {
+    setPrefillCustomer(null);
+    setPrefillAccounts([]);
+    setPrefillAccountId("");
+    setDrawerOpen(true);
+  };
+
+  const openAccountTransaction = (customer, accounts, accountId) => {
+    setPrefillCustomer(customer);
+    setPrefillAccounts(accounts);
+    setPrefillAccountId(accountId);
+    setDrawerOpen(true);
+  };
 
   const fetchItems = () => {
     setLoading(true);
@@ -483,6 +604,21 @@ export default function SavingsReceiptsPayments() {
     }
   };
 
+  const handleResendApproval = async (item) => {
+    const confirm = await Swal.fire({ title: "Resend Approval Request?", text: "A new approval request will only be created when no unactioned approval is still open.", icon: "question", showCancelButton: true, confirmButtonColor: "#4f46e5", confirmButtonText: "Resend" });
+    if (!confirm.isConfirmed) return;
+    setResendingIds((prev) => new Set(prev).add(item.Id));
+    try {
+      const result = await resendApprovalRequest(item.Id);
+      await Swal.fire("Approval Resent", result?.message || result?.Message || "The approval request was resent successfully.", "success");
+      fetchItems();
+    } catch (err) {
+      Swal.fire("Unable to Resend Approval", apiErrorMessage(err, "The approval request could not be resent."), "error");
+    } finally {
+      setResendingIds((prev) => { const next = new Set(prev); next.delete(item.Id); return next; });
+    }
+  };
+
   const handleDialog = (message) => {
     Swal.fire("Submitted for Approval", message, "info").then(() => {
       // The new request sits Pending until a checker approves it — surface
@@ -502,10 +638,19 @@ export default function SavingsReceiptsPayments() {
         <h2 className="text-xl font-bold text-white flex items-center gap-2">
           <FaMoneyBillWave /> Savings Receipts/Payments
         </h2>
-        <Button onClick={() => setDrawerOpen(true)} className="bg-indigo-600 hover:bg-indigo-700 flex items-center gap-2">
+        <Button onClick={openBlankTransaction} className="bg-indigo-600 hover:bg-indigo-700 flex items-center gap-2">
           <FaPlus /> New Transaction
         </Button>
       </div>
+
+      <div className="mb-5 flex flex-wrap gap-1 border-b border-gray-200">
+        {[{ id: "queue", label: "Transaction Queue", icon: FaWallet }, { id: "customer", label: "Customer Workspace", icon: FaUser }, { id: "gl", label: "My Till G/L", icon: FaBookOpen }].map((tab) => {
+          const Icon = tab.icon;
+          return <button type="button" key={tab.id} onClick={() => setViewTab(tab.id)} className={`flex items-center gap-2 rounded-t-lg px-4 py-2 text-sm font-semibold ${viewTab === tab.id ? "bg-indigo-600 text-white" : "text-gray-500 hover:bg-indigo-50"}`}><Icon /> {tab.label}</button>;
+        })}
+      </div>
+
+      {viewTab === "queue" && <>
 
       <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
         <div className="flex gap-1 border-b border-gray-200">
@@ -545,7 +690,7 @@ export default function SavingsReceiptsPayments() {
           <span className="col-span-2">Amount</span>
           <span className="col-span-4">Customer</span>
           <span className="col-span-2">Date</span>
-          <span className="col-span-2 text-right">{activeTab === "Authorized" ? "Actions" : ""}</span>
+          <span className="col-span-2 text-right">{activeTab === "Authorized" || activeTab === "Pending" ? "Actions" : ""}</span>
         </div>
 
         {loading ? (
@@ -573,6 +718,11 @@ export default function SavingsReceiptsPayments() {
                     <span className="col-span-4 text-sm text-gray-700">{item.CustomerName || "—"}</span>
                     <span className="col-span-2 text-xs text-gray-400">{item.CreatedDate ? new Date(item.CreatedDate).toLocaleDateString() : "—"}</span>
                     <div className="col-span-2 flex justify-end">
+                      {activeTab === "Pending" && (
+                        <Button size="sm" variant="outline" disabled={resendingIds.has(item.Id)} onClick={() => handleResendApproval(item)} className="border-indigo-200 text-indigo-700 hover:bg-indigo-50 flex items-center gap-1">
+                          <FaUndo /> {resendingIds.has(item.Id) ? "Resending..." : "Resend Approval"}
+                        </Button>
+                      )}
                       {activeTab === "Authorized" && (
                         <Button size="sm" disabled={postingIds.has(item.Id)} onClick={() => handlePost(item.Id)} className="bg-indigo-600 hover:bg-indigo-700 flex items-center gap-1">
                           <FaPaperPlane /> {postingIds.has(item.Id) ? "Posting..." : "Post"}
@@ -601,12 +751,19 @@ export default function SavingsReceiptsPayments() {
           </Button>
         </div>
       </div>
+      </>}
+
+      {viewTab === "customer" && <CustomerWorkspace onUseAccount={openAccountTransaction} />}
+      {viewTab === "gl" && <TellerGlStatement />}
 
       <CreateTransactionDrawer
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         onSuccess={(journal, wasChequeDeposit) => { setReceiptJournal(journal); setReceiptIsChequeDeposit(wasChequeDeposit); fetchItems(); }}
         onDialog={handleDialog}
+        initialCustomer={prefillCustomer}
+        initialAccounts={prefillAccounts}
+        initialAccountId={prefillAccountId}
       />
 
       <ReceiptModal

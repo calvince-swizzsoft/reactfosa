@@ -69,4 +69,12 @@ export function removeInterAccountTransferBatchEntries(entries) {
   return unwrap(apiFetch(`${BASE}/entries/remove`, { method: "POST", body: JSON.stringify(entries) }));
 }
 
+export function getInterAccountTransferDynamicCharges(id) {
+  return unwrap(apiFetch(`${BASE}/${id}/dynamiccharges`));
+}
+
+export function replaceInterAccountTransferDynamicCharges(id, dynamicCharges) {
+  return unwrap(apiFetch(`${BASE}/${id}/dynamiccharges`, { method: "PUT", body: JSON.stringify(dynamicCharges.map((item) => ({ Id: item.Id }))) }));
+}
+
 export { normalizeList };

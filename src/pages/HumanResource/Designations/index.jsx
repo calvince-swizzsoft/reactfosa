@@ -32,18 +32,22 @@ function FieldGroup({ label, help, children }) {
 
 function DesignationForm({ form, setForm, loading, submitLabel, onSubmit }) {
   return (
-    <form onSubmit={onSubmit} className="p-4 space-y-4">
-      <FieldGroup label="Description" help="The job designation assigned to employees. Its threshold collection defines their transaction authority.">
-        <Input value={form.Description} onChange={(e) => setForm((p) => ({ ...p, Description: e.target.value }))} required placeholder="e.g. Teller" />
-      </FieldGroup>
-      <TransactionThresholdEditor value={form.TransactionThresholds} onChange={(TransactionThresholds) => setForm((p) => ({ ...p, TransactionThresholds }))} disabled={loading} />
-      <div className="flex items-center gap-2">
-        <input type="checkbox" id="desig-locked" checked={form.IsLocked} onChange={(e) => setForm((p) => ({ ...p, IsLocked: e.target.checked }))} className="w-4 h-4 accent-indigo-600" />
-        <Label htmlFor="desig-locked" className="flex items-center gap-1.5">Is Locked?<FieldHelp text="Marks this designation unavailable for operational authority. Reassign its employees before locking it." /></Label>
+    <form onSubmit={onSubmit} className="flex min-h-0 flex-1 flex-col">
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
+        <FieldGroup label="Description" help="The job designation assigned to employees. Its threshold collection defines their transaction authority.">
+          <Input value={form.Description} onChange={(e) => setForm((p) => ({ ...p, Description: e.target.value }))} required placeholder="e.g. Teller" />
+        </FieldGroup>
+        <TransactionThresholdEditor value={form.TransactionThresholds} onChange={(TransactionThresholds) => setForm((p) => ({ ...p, TransactionThresholds }))} disabled={loading} />
+        <div className="flex items-center gap-2">
+          <input type="checkbox" id="desig-locked" checked={form.IsLocked} onChange={(e) => setForm((p) => ({ ...p, IsLocked: e.target.checked }))} className="w-4 h-4 accent-indigo-600" />
+          <Label htmlFor="desig-locked" className="flex items-center gap-1.5">Is Locked?<FieldHelp text="Marks this designation unavailable for operational authority. Reassign its employees before locking it." /></Label>
+        </div>
       </div>
-      <Button type="submit" disabled={loading} className="w-full bg-indigo-600 hover:bg-indigo-700">
-        {loading ? "Saving..." : submitLabel}
-      </Button>
+      <div className="shrink-0 border-t p-4 pt-3">
+        <Button type="submit" disabled={loading} className="w-full bg-indigo-600 hover:bg-indigo-700">
+          {loading ? "Saving..." : submitLabel}
+        </Button>
+      </div>
     </form>
   );
 }
@@ -96,8 +100,8 @@ function EditDesignationDrawer({ open, onClose, onSuccess, item }) {
       {open && (
         <>
           <motion.div className="fixed inset-0 bg-black z-40" initial={{ opacity: 0 }} animate={{ opacity: 0.4 }} exit={{ opacity: 0 }} onClick={onClose} />
-          <motion.div className="fixed top-5 right-3 w-[420px] bg-white shadow-xl z-50 flex flex-col rounded-2xl p-3" initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", stiffness: 300, damping: 30 }}>
-            <div className="p-4 flex justify-between items-center bg-indigo-600 rounded-2xl m-2">
+          <motion.div className="fixed right-3 top-5 z-50 flex max-h-[95vh] w-[420px] flex-col rounded-2xl bg-white p-3 shadow-xl" initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", stiffness: 300, damping: 30 }}>
+            <div className="m-2 flex shrink-0 items-center justify-between rounded-2xl bg-indigo-600 p-4">
               <h2 className="font-bold text-lg text-white">Edit Designation</h2>
               <Button variant="outline" size="sm" onClick={onClose}>Close</Button>
             </div>

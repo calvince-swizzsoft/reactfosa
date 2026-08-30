@@ -8,9 +8,10 @@ import {
 } from "@/components/ui/select";
 import { FaLandmark } from "react-icons/fa";
 import Swal from "sweetalert2";
-import { apiFetch, normalizeList } from "@/lib/api";
+import { apiFetch, apiJson, apiErrorMessage, normalizeList } from "@/lib/api";
 import SplitRows from "../lib/SplitRows";
 import { ChargeType } from "../lib/chargeType";
+import FieldHelp from "../SavingsProducts/FieldHelp";
 
 // Areas/Accounts/Controllers/LevyController.cs — docs/api/levy-api-spec.md §4.4.
 // LevySplits are optional at create, same reasoning as Commission's own
@@ -22,12 +23,12 @@ import { ChargeType } from "../lib/chargeType";
 const BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 const LEVIES_BASE = `${BASE}/api/accounts/levies`;
 
-const emptyForm = { Description: "", ChargeType: ChargeType.Percentage, ChargeValue: 0, IsLocked: false };
+const emptyForm = { Description: "", ChargeType: ChargeType.Percentage, ChargePercentage: 0, ChargeFixedAmount: 0, IsLocked: false };
 
-function FieldGroup({ label, children }) {
+function FieldGroup({ label, help, children }) {
   return (
     <div>
-      <Label>{label}</Label>
+      <div className="flex items-center gap-1"><Label>{label}</Label><FieldHelp label={label}>{help}</FieldHelp></div>
       {children}
     </div>
   );
@@ -42,10 +43,12 @@ export default function CreateLevy() {
 
   useEffect(() => {
     setLoadingChartOfAccounts(true);
-    apiFetch(`${BASE}/api/accounts/chartofaccounts?pageSize=1000`)
-      .then((r) => r.json())
+    apiJson(`${BASE}/api/accounts/chartofaccounts?pageSize=1000`)
       .then((d) => setChartOfAccounts(normalizeList(d)))
-      .catch(() => setChartOfAccounts([]))
+      .catch((error) => {
+        setChartOfAccounts([]);
+        Swal.fire("Lookup Error", apiErrorMessage(error, "Unable to load G/L accounts."), "error");
+      })
       .finally(() => setLoadingChartOfAccounts(false));
   }, []);
 
@@ -55,12 +58,24 @@ export default function CreateLevy() {
       Swal.fire("Missing Field", "Description is required.", "warning");
       return;
     }
+    const chargeValue = form.ChargeType === ChargeType.Percentage ? form.ChargePercentage : form.ChargeFixedAmount;
+    if (!Number.isFinite(chargeValue) || chargeValue <= 0 || (form.ChargeType === ChargeType.Percentage && chargeValue > 100)) {
+      Swal.fire("Invalid Levy Charge", form.ChargeType === ChargeType.Percentage ? "Percentage must be greater than 0% and no more than 100%." : "Fixed Amount must be greater than zero.", "warning");
+      return;
+    }
+    if (levySplits.some((row) => !row.ChartOfAccountId || !row.Description?.trim() || !Number.isFinite(Number(row.Percentage)) || Number(row.Percentage) <= 0 || Number(row.Percentage) > 100)) {
+      Swal.fire("Invalid G/L Split", "Each split needs a G/L account, description, and percentage greater than 0 and no more than 100.", "warning");
+      return;
+    }
+    if (levySplits.length === 0) {
+      Swal.fire("G/L Splits Required", "Add at least one G/L split before creating this levy.", "warning");
+      return;
+    }
     const splitTotal = levySplits.reduce((sum, s) => sum + (Number(s.Percentage) || 0), 0);
     if (levySplits.length > 0 && Math.abs(splitTotal - 100) > 0.01) {
       Swal.fire("Splits Don't Balance", `Split percentages must sum to 100% (currently ${splitTotal}%).`, "warning");
       return;
     }
-
     setLoading(true);
     try {
       const payload = { Levy: form, LevySplits: levySplits };
@@ -92,7 +107,7 @@ export default function CreateLevy() {
 
       <form onSubmit={handleSubmit} className="max-w-2xl space-y-6">
         <div className="grid grid-cols-2 gap-4">
-          <FieldGroup label="Description">
+          <FieldGroup label="Description" help="Business-facing name used when this levy is linked to a charge and shown in transaction details.">
             <Input
               value={form.Description}
               onChange={(e) => setForm((p) => ({ ...p, Description: e.target.value }))}
@@ -101,8 +116,8 @@ export default function CreateLevy() {
             />
           </FieldGroup>
 
-          <FieldGroup label="Charge Type">
-            <Select value={String(form.ChargeType)} onValueChange={(v) => setForm((p) => ({ ...p, ChargeType: Number(v) }))}>
+          <FieldGroup label="Charge Type" help="Choose whether the levy is a percentage of its leviable base or one fixed monetary amount.">
+            <Select value={String(form.ChargeType)} onValueChange={(v) => setForm((p) => ({ ...p, ChargeType: Number(v), ChargePercentage: 0, ChargeFixedAmount: 0 }))}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value={String(ChargeType.Percentage)}>Percentage</SelectItem>
@@ -111,12 +126,14 @@ export default function CreateLevy() {
             </Select>
           </FieldGroup>
 
-          <FieldGroup label={form.ChargeType === ChargeType.Percentage ? "Percentage" : "Fixed Amount"}>
+          <FieldGroup label={form.ChargeType === ChargeType.Percentage ? "Percentage" : "Fixed Amount"} help={form.ChargeType === ChargeType.Percentage ? "Rate applied to the sum of linked commission splits marked Leviable." : "Exact levy amount applied when the linked charge is calculated."}>
             <Input
               type="number"
               min="0"
-              value={form.ChargeValue}
-              onChange={(e) => setForm((p) => ({ ...p, ChargeValue: Number(e.target.value) }))}
+              max={form.ChargeType === ChargeType.Percentage ? "100" : undefined}
+              step="0.01"
+              value={form.ChargeType === ChargeType.Percentage ? form.ChargePercentage : form.ChargeFixedAmount}
+              onChange={(e) => setForm((p) => ({ ...p, [p.ChargeType === ChargeType.Percentage ? "ChargePercentage" : "ChargeFixedAmount"]: Number(e.target.value) }))}
               placeholder={form.ChargeType === ChargeType.Percentage ? "e.g. 5" : "e.g. 50"}
             />
           </FieldGroup>
@@ -130,12 +147,12 @@ export default function CreateLevy() {
               className="w-4 h-4 accent-indigo-600"
             />
             <Label htmlFor="levy-locked">Is Locked?</Label>
+            <FieldHelp label="Is Locked?">Locked levies remain configured but are skipped when transaction tariffs are calculated.</FieldHelp>
           </div>
         </div>
 
         <div>
-          <Label className="font-semibold text-gray-700 mb-2 block">G/L Splits (Optional)</Label>
-          <p className="text-xs text-gray-400 mb-2">How the computed levy amount divides across G/L accounts — must sum to 100% if any are added.</p>
+          <div className="mb-2 flex items-center gap-1"><Label className="font-semibold text-gray-700">G/L Splits (Required)</Label><FieldHelp label="G/L Splits">Distributes the calculated levy to posting accounts. At least one split is required and the rows must total 100%.</FieldHelp></div>
           <SplitRows
             rows={levySplits}
             onChange={setLevySplits}
@@ -143,6 +160,11 @@ export default function CreateLevy() {
             showLeviable={false}
             loadingChartOfAccounts={loadingChartOfAccounts}
           />
+        </div>
+
+        <div className={`rounded-lg border p-3 text-sm ${levySplits.length ? "border-green-200 bg-green-50 text-green-700" : "border-amber-300 bg-amber-50 text-amber-800"}`}>
+          <p className="font-semibold">{levySplits.length ? "Operational configuration ready" : "Configuration incomplete"}</p>
+          {!levySplits.length && <p className="mt-1">Add G/L splits totaling 100% before using this levy operationally.</p>}
         </div>
 
         <Button type="submit" disabled={loading} className="w-full bg-indigo-600 hover:bg-indigo-700">

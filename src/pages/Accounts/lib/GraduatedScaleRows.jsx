@@ -6,6 +6,7 @@ import {
 } from "@/components/ui/select";
 import { FaPlus, FaTrash } from "react-icons/fa";
 import { ChargeType } from "./chargeType";
+import FieldHelp from "../SavingsProducts/FieldHelp";
 
 // Row-editor for GraduatedScaleDTO[] (docs/api/commission-api-spec.md §5.6)
 // — the rate-by-amount-bracket structure a Commission's charge is computed
@@ -24,6 +25,7 @@ export const emptyGraduatedScaleRow = () => ({
 });
 
 export default function GraduatedScaleRows({ rows, onChange }) {
+  const HelpLabel = ({ label, children }) => <div className="mb-1 flex items-center gap-1"><Label className="text-xs text-gray-500">{label}</Label><FieldHelp label={label}>{children}</FieldHelp></div>;
   const updateRow = (index, patch) => {
     const next = rows.slice();
     next[index] = { ...next[index], ...patch };
@@ -40,16 +42,16 @@ export default function GraduatedScaleRows({ rows, onChange }) {
         return (
           <div key={index} className="grid grid-cols-12 gap-2 items-end rounded-lg border border-gray-200 p-2">
             <div className="col-span-3">
-              <Label className="text-xs text-gray-500">From Amount</Label>
-              <Input type="number" min="0" value={row.RangeLowerLimit} onChange={(e) => updateRow(index, { RangeLowerLimit: Number(e.target.value) })} />
+              <HelpLabel label="From Amount">Inclusive lower transaction amount for this charge bracket.</HelpLabel>
+              <Input type="number" min="0" step="0.01" value={row.RangeLowerLimit} onChange={(e) => updateRow(index, { RangeLowerLimit: Number(e.target.value) })} />
             </div>
             <div className="col-span-3">
-              <Label className="text-xs text-gray-500">To Amount</Label>
-              <Input type="number" min="0" value={row.RangeUpperLimit} onChange={(e) => updateRow(index, { RangeUpperLimit: Number(e.target.value) })} />
+              <HelpLabel label="To Amount">Inclusive upper transaction amount. It must not be below From Amount or overlap another bracket.</HelpLabel>
+              <Input type="number" min="0" step="0.01" value={row.RangeUpperLimit} onChange={(e) => updateRow(index, { RangeUpperLimit: Number(e.target.value) })} />
             </div>
             <div className="col-span-3">
-              <Label className="text-xs text-gray-500">Charge Type</Label>
-              <Select value={String(row.ChargeType)} onValueChange={(v) => updateRow(index, { ChargeType: Number(v) })}>
+              <HelpLabel label="Charge Type">Determines whether transactions in this bracket use a rate or one fixed amount.</HelpLabel>
+              <Select value={String(row.ChargeType)} onValueChange={(v) => updateRow(index, { ChargeType: Number(v), ChargePercentage: 0, ChargeFixedAmount: 0 })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value={String(ChargeType.Percentage)}>Percentage</SelectItem>
@@ -58,11 +60,11 @@ export default function GraduatedScaleRows({ rows, onChange }) {
               </Select>
             </div>
             <div className="col-span-2">
-              <Label className="text-xs text-gray-500">{isPercentage ? "Percentage" : "Amount"}</Label>
+              <HelpLabel label={isPercentage ? "Percentage" : "Amount"}>{isPercentage ? "Rate applied within this bracket; enter more than 0 and no more than 100." : "Fixed charge for this bracket; enter an amount greater than zero."}</HelpLabel>
               {isPercentage ? (
-                <Input type="number" min="0" max="100" value={row.ChargePercentage} onChange={(e) => updateRow(index, { ChargePercentage: Number(e.target.value) })} />
+                <Input type="number" min="0" max="100" step="0.01" value={row.ChargePercentage} onChange={(e) => updateRow(index, { ChargePercentage: Number(e.target.value) })} />
               ) : (
-                <Input type="number" min="0" value={row.ChargeFixedAmount} onChange={(e) => updateRow(index, { ChargeFixedAmount: Number(e.target.value) })} />
+                <Input type="number" min="0" step="0.01" value={row.ChargeFixedAmount} onChange={(e) => updateRow(index, { ChargeFixedAmount: Number(e.target.value) })} />
               )}
             </div>
             <div className="col-span-1">

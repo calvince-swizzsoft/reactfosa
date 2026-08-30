@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
 import { Input } from "@/components/ui/input";
-import { FaSearch, FaTimes, FaSpinner } from "react-icons/fa";
+import { FaPlus, FaSearch, FaTimes, FaSpinner } from "react-icons/fa";
 import { apiFetch, normalizeList } from "@/lib/api";
+import QuickCreateDrawer from "../../ChartOfAccounts/QuickCreateDrawer";
 
 // A single `pageSize=1000`-style request only ever returns one page — most
 // of these paged endpoints cap pageSize server-side (or the real row count
@@ -46,10 +47,11 @@ async function fetchAllPages(fetchUrl) {
 // across batch types for: customer-account pickers (Credit, Refund, Inter
 // Account Transfer), G/L account pickers, Journal pickers (Reversal), and
 // LoanCase pickers (Disbursement).
-export default function EntryPickerModal({ title, fetchUrl, getLabel, getSublabel, onSelect, onClose }) {
+export default function EntryPickerModal({ title, fetchUrl, getLabel, getSublabel, onSelect, onClose, allowCreateGlAccount = false }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
+  const [creatingAccount, setCreatingAccount] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -78,11 +80,12 @@ export default function EntryPickerModal({ title, fetchUrl, getLabel, getSublabe
           <h3 className="font-bold text-white text-base">{title}</h3>
           <button onClick={onClose} className="text-white/70 hover:text-white transition-colors"><FaTimes /></button>
         </div>
-        <div className="px-4 py-3 border-b border-gray-100">
-          <div className="relative">
+        <div className="flex items-center gap-2 border-b border-gray-100 px-4 py-3">
+          <div className="relative flex-1">
             <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs" />
             <Input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search..." className="pl-8 text-sm" />
           </div>
+          {allowCreateGlAccount && <button type="button" onClick={() => setCreatingAccount(true)} className="flex shrink-0 items-center gap-1 rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700"><FaPlus /> Add new</button>}
         </div>
         <div className="flex-1 overflow-y-auto px-2 py-2">
           {loading ? (
@@ -106,6 +109,7 @@ export default function EntryPickerModal({ title, fetchUrl, getLabel, getSublabe
           )}
         </div>
       </div>
+      <QuickCreateDrawer open={allowCreateGlAccount && creatingAccount} onClose={() => setCreatingAccount(false)} onCreated={(account) => { onSelect(account); onClose(); }} />
     </div>
   );
 }

@@ -1,141 +1,84 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import Swal from "sweetalert2";
 import { FaMobileAlt } from "react-icons/fa";
 import { apiErrorMessage, apiJson, normalizeList } from "@/lib/api";
-import { getAlternateChannelTypeCommissions, replaceAlternateChannelTypeCommissions } from "./api";
-import {
-  ALTERNATE_CHANNEL_TYPE_OPTIONS, ALTERNATE_CHANNEL_KNOWN_CHARGE_TYPE_OPTIONS, CHARGE_BENEFACTOR_OPTIONS,
-  AlternateChannelType, AlternateChannelKnownChargeType, ChargeBenefactor,
-} from "./lib/alternateChannelEnums";
+import { getAlternateChannelChargeOptions, getAlternateChannelTypeCommissions, replaceAlternateChannelTypeCommissions } from "./api";
 import PickerList from "../lib/PickerList";
+import FieldHelp from "../SavingsProducts/FieldHelp";
 
 const FIN_BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 
-function FieldGroup({ label, children }) {
-  return (
-    <div>
-      <Label className="text-sm font-semibold text-gray-700">{label}</Label>
-      {children}
-    </div>
-  );
+function FieldGroup({ label, help, children }) {
+  return <div><div className="mb-1 flex items-center gap-1"><Label className="text-sm font-semibold text-gray-700">{label}</Label><FieldHelp label={label}>{help}</FieldHelp></div>{children}</div>;
 }
 
-// api/accounts/alternatechannels/types/{type}/commissions —
-// docs/api/alternate-channel-api-spec.md §4. Fees are scoped by channel
-// TYPE, not by individual link — every link of a given Type shares the
-// same commission for a given knownChargeType. NavigationMenu code 23014
-// ("Alternate Channels", under Charge Determination).
 export default function AlternateChannelFees() {
-  const [type, setType] = useState(AlternateChannelType.SaccoLink);
-  const [knownChargeType, setKnownChargeType] = useState(AlternateChannelKnownChargeType.Linking);
-  const [chargeBenefactor, setChargeBenefactor] = useState(ChargeBenefactor.Customer);
-
+  const [options, setOptions] = useState({ AlternateChannelTypes: [], KnownChargeTypes: [], ChargeBenefactors: [] });
+  const [type, setType] = useState("");
+  const [knownChargeType, setKnownChargeType] = useState("");
+  const [chargeBenefactor, setChargeBenefactor] = useState(0);
   const [allCommissions, setAllCommissions] = useState([]);
-  const [loadingCommissions, setLoadingCommissions] = useState(true);
   const [selectedIds, setSelectedIds] = useState(new Set());
-  const [loadingAttached, setLoadingAttached] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [loadingMapping, setLoadingMapping] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    setLoadingCommissions(true);
-    apiJson(`${FIN_BASE}/api/accounts/commissions`)
-      .then((d) => setAllCommissions(normalizeList(d)))
-      .catch((error) => {
-        setAllCommissions([]);
-        Swal.fire("Error", apiErrorMessage(error, "Unable to load commissions."), "error");
-      })
-      .finally(() => setLoadingCommissions(false));
+    Promise.all([getAlternateChannelChargeOptions(), apiJson(`${FIN_BASE}/api/accounts/commissions`)]).then(([optionData, commissionData]) => {
+      setOptions(optionData);
+      setAllCommissions(normalizeList(commissionData).filter((item) => !item.IsLocked));
+    }).catch((error) => Swal.fire("Load Error", apiErrorMessage(error, "Unable to load alternate channel charge configuration."), "error"))
+      .finally(() => setLoading(false));
   }, []);
 
-  const fetchAttached = () => {
-    setLoadingAttached(true);
-    getAlternateChannelTypeCommissions(type, knownChargeType)
-      .then((list) => setSelectedIds(new Set((list || []).map((c) => c.Id))))
-      .catch((error) => {
-        setSelectedIds(new Set());
-        Swal.fire("Error", apiErrorMessage(error, "Unable to load attached commissions."), "error");
-      })
-      .finally(() => setLoadingAttached(false));
-  };
+  useEffect(() => {
+    if (type === "" || knownChargeType === "") return;
+    setLoadingMapping(true);
+    getAlternateChannelTypeCommissions(type, knownChargeType).then((mapping) => {
+      const availableIds = new Set(allCommissions.map((item) => item.Id));
+      setSelectedIds(new Set((mapping?.CommissionIds || []).filter((id) => availableIds.has(id))));
+      setChargeBenefactor(Number(mapping?.ChargeBenefactor ?? 0));
+    }).catch((error) => {
+      setSelectedIds(new Set());
+      Swal.fire("Load Error", apiErrorMessage(error, "Unable to load the selected charge mapping."), "error");
+    }).finally(() => setLoadingMapping(false));
+  }, [type, knownChargeType, allCommissions]);
 
-  useEffect(() => { fetchAttached(); }, [type, knownChargeType]);
+  const toggle = (id) => setSelectedIds((current) => {
+    const next = new Set(current);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
 
-  const toggle = (id) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-  };
-
-  const handleSave = async () => {
+  const handleSave = async (event) => {
+    event.preventDefault();
+    if (type === "" || !options.AlternateChannelTypes.some((item) => item.Value === Number(type))) return Swal.fire("Channel Required", "Select a supported alternate channel type.", "warning");
+    if (knownChargeType === "" || !options.KnownChargeTypes.some((item) => item.Value === Number(knownChargeType))) return Swal.fire("Charge Type Required", "Select a supported alternate channel charge type.", "warning");
+    if (!options.ChargeBenefactors.some((item) => item.Value === chargeBenefactor)) return Swal.fire("Charge Bearer Required", "Select who bears the charges.", "warning");
+    if (selectedIds.size === 0) return Swal.fire("Applicable Charge Required", "Select at least one applicable charge.", "warning");
     setSaving(true);
     try {
-      const commissions = allCommissions.filter((c) => selectedIds.has(c.Id)).map((c) => ({ Id: c.Id }));
-      await replaceAlternateChannelTypeCommissions(type, { knownChargeType, chargeBenefactor, commissions });
-      Swal.fire("Success", "Fee configuration saved.", "success");
-    } catch (err) {
-      Swal.fire("Error", apiErrorMessage(err, "Unable to save the fee configuration."), "error");
-    } finally {
-      setSaving(false);
-    }
+      const response = await replaceAlternateChannelTypeCommissions(type, { knownChargeType: Number(knownChargeType), chargeBenefactor, commissionIds: [...selectedIds] });
+      Swal.fire("Success", response?.message || "Alternate channel charges updated successfully.", "success");
+    } catch (error) {
+      Swal.fire("Update Failed", apiErrorMessage(error, "Unable to update the alternate channel charges."), "error");
+    } finally { setSaving(false); }
   };
 
-  return (
-    <div className="bg-white m-8 px-8 py-8 shadow-2xl rounded-lg relative">
-      <div className="flex justify-between items-center mb-6 bg-indigo-800 px-6 py-3 rounded-2xl">
-        <h2 className="text-xl font-bold text-white flex items-center gap-2">
-          <FaMobileAlt /> Alternate Channel Fees
-        </h2>
+  return <div className="relative m-8 rounded-lg bg-white px-8 py-8 shadow-2xl">
+    <div className="mb-6 flex items-center gap-3 rounded-2xl bg-indigo-800 px-6 py-3"><FaMobileAlt className="text-xl text-white" /><div><h1 className="text-xl font-bold text-white">Alternate Channel Charges</h1><p className="text-xs text-indigo-100">Map alternate-channel operations to charges not determined automatically elsewhere.</p></div></div>
+    <form onSubmit={handleSave} className="max-w-3xl space-y-6">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <FieldGroup label="Alternate Channel Type" help="The third-party or institution-operated banking environment. Every customer link of this channel type shares this charge mapping."><Select value={type} onValueChange={setType} disabled={loading}><SelectTrigger><SelectValue placeholder="Select channel type" /></SelectTrigger><SelectContent>{options.AlternateChannelTypes.map((item) => <SelectItem key={item.Value} value={String(item.Value)}>{item.Description}</SelectItem>)}</SelectContent></Select></FieldGroup>
+        <FieldGroup label="Charge Type" help="The channel operation that invokes the charges, such as withdrawal, deposit, airtime, balance inquiry, linking, renewal, or PIN reset. Sacco Link-specific operations are also supplied by the domain."><Select value={knownChargeType} onValueChange={setKnownChargeType} disabled={loading}><SelectTrigger><SelectValue placeholder="Select charge type" /></SelectTrigger><SelectContent className="max-h-72 overflow-y-auto">{options.KnownChargeTypes.map((item) => <SelectItem key={item.Value} value={String(item.Value)}>{item.Description}</SelectItem>)}</SelectContent></Select></FieldGroup>
       </div>
-
-      <div className="max-w-2xl space-y-4">
-        <p className="text-xs text-gray-400">
-          Fees are scoped by channel type, not by individual link — every link of a given type shares the same commission for a given fee category.
-        </p>
-
-        <div className="grid grid-cols-2 gap-4">
-          <FieldGroup label="Channel Type">
-            <select className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm mt-1" value={type} onChange={(e) => setType(Number(e.target.value))}>
-              {ALTERNATE_CHANNEL_TYPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
-          </FieldGroup>
-          <FieldGroup label="Fee Category">
-            <select className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm mt-1" value={knownChargeType} onChange={(e) => setKnownChargeType(Number(e.target.value))}>
-              {ALTERNATE_CHANNEL_KNOWN_CHARGE_TYPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
-          </FieldGroup>
-        </div>
-
-        <FieldGroup label="Charge Benefactor">
-          <select className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm mt-1" value={chargeBenefactor} onChange={(e) => setChargeBenefactor(Number(e.target.value))}>
-            {CHARGE_BENEFACTOR_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
-          <p className="text-xs text-gray-400 mt-1">Applies to the whole batch below, not per-commission.</p>
-        </FieldGroup>
-
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">Attached Commissions</p>
-          {loadingCommissions || loadingAttached ? (
-            <p className="text-sm text-gray-400">Loading...</p>
-          ) : (
-            <PickerList
-              items={allCommissions}
-              selectedIds={selectedIds}
-              onToggle={toggle}
-              getLabel={(c) => c.Description}
-              getSublabel={(c) => c.ChargeType === 1 ? `${c.LowerLimit}–${c.UpperLimit}%` : undefined}
-              emptyText="No commissions configured yet."
-            />
-          )}
-        </div>
-
-        <Button onClick={handleSave} disabled={saving} className="w-full bg-indigo-600 hover:bg-indigo-700">
-          {saving ? "Saving..." : "Save Fee Configuration"}
-        </Button>
-      </div>
-    </div>
-  );
+      <FieldGroup label="Charges Borne By" help="Customer debits the customer's product G/L account. Institution debits the institution settlement G/L account. This bearer applies to every selected charge in the mapping."><Select value={String(chargeBenefactor)} onValueChange={(value) => setChargeBenefactor(Number(value))} disabled={type === "" || knownChargeType === "" || loadingMapping}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{options.ChargeBenefactors.map((item) => <SelectItem key={item.Value} value={String(item.Value)}>{item.Description}</SelectItem>)}</SelectContent></Select></FieldGroup>
+      <FieldGroup label={`Applicable Charges${selectedIds.size ? ` (${selectedIds.size} selected)` : ""}`} help="Existing unlocked Accounts charges whose scales, caps, rounding, G/L splits, and levies are applied when this channel operation runs."><PickerList items={allCommissions} selectedIds={selectedIds} onToggle={toggle} getLabel={(item) => item.Description} getSublabel={(item) => item.MaximumCharge > 0 ? `Maximum ${item.MaximumCharge}` : "Uncapped"} emptyText={loading ? "Loading charges..." : "No unlocked charges are available."} /></FieldGroup>
+      <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">Updating fully replaces the mapping for the selected channel and charge type. Locked charges cannot be assigned and are skipped by tariff calculation.</div>
+      <Button type="submit" disabled={loading || loadingMapping || saving || type === "" || knownChargeType === ""} className="w-full bg-indigo-600 hover:bg-indigo-700">{saving ? "Updating..." : "Update Alternate Channel Charges"}</Button>
+    </form>
+  </div>;
 }

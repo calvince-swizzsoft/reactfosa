@@ -304,11 +304,11 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
       </motion.div>
 
       {picker === "coa" && (
-        <EntryPickerModal title="Select Credit G/L Account" fetchUrl={`${FIN_BASE}/api/accounts/chartofaccounts?pageSize=1000`} getLabel={(i) => `${i.AccountCode} — ${i.AccountName}`}
+        <EntryPickerModal title="Select Credit G/L Account" allowCreateGlAccount fetchUrl={`${FIN_BASE}/api/accounts/chartofaccounts?pageSize=1000`} getLabel={(i) => `${i.AccountCode} — ${i.AccountName}`}
           onSelect={(i) => setEntryForm((p) => ({ ...p, ChartOfAccountId: i.Id, ChartOfAccountLabel: `${i.AccountCode} — ${i.AccountName}` }))} onClose={() => setPicker(null)} />
       )}
       {picker === "contraCoa" && (
-        <EntryPickerModal title="Select Debit G/L Account" fetchUrl={`${FIN_BASE}/api/accounts/chartofaccounts?pageSize=1000`} getLabel={(i) => `${i.AccountCode} — ${i.AccountName}`}
+        <EntryPickerModal title="Select Debit G/L Account" allowCreateGlAccount fetchUrl={`${FIN_BASE}/api/accounts/chartofaccounts?pageSize=1000`} getLabel={(i) => `${i.AccountCode} — ${i.AccountName}`}
           onSelect={(i) => setEntryForm((p) => ({ ...p, ContraChartOfAccountId: i.Id, ContraChartOfAccountLabel: `${i.AccountCode} — ${i.AccountName}` }))} onClose={() => setPicker(null)} />
       )}
       {picker === "customer" && (

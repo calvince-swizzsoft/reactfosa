@@ -229,15 +229,16 @@ export default function GeneralLedgerStatement({
           </div>
 
           <div className="bg-gray-200 p-4 rounded-sm">
-            <div className="grid grid-cols-12 gap-2 bg-gray-700 text-gray-100 font-semibold p-3 rounded-lg mb-2 text-sm">
-              <span className="col-span-2">Date</span>
-              <span className="col-span-3">Description</span>
+            <div className="grid grid-cols-12 gap-2 bg-gray-700 text-gray-100 font-semibold p-3 rounded-lg mb-2 text-xs leading-4 [&>*]:min-w-0 [&>*]:whitespace-normal [&>*]:break-words">
+              <span className="col-span-1">Date</span>
+              <span className="col-span-2">Description</span>
               <span className="col-span-2">G/L Account</span>
+              <span className="col-span-2">Contra G/L Account</span>
               <span className="col-span-1">Reference</span>
               <span className="col-span-1 text-right">Debit</span>
               <span className="col-span-1 text-right">Credit</span>
-              <span className="col-span-1 text-right">Balance</span>
-              <span className="col-span-1 text-right"></span>
+              {mode !== "browse" && <span className="col-span-1 text-right">Balance</span>}
+              <span className={`${mode !== "browse" ? "col-span-1" : "col-span-2"} text-right`}></span>
             </div>
 
             {loadingLines ? (
@@ -253,7 +254,7 @@ export default function GeneralLedgerStatement({
             ) : lines.length > 0 ? (
               <div className="bg-white rounded-lg shadow-lg border">
                 {lines.map((line) => (
-                  <StatementRow key={line.Id} line={line} showGlAccount />
+                  <StatementRow key={line.Id} line={line} showGlAccount showContraAccount showBalance={mode !== "browse"} />
                 ))}
               </div>
             ) : (

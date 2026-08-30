@@ -67,6 +67,14 @@ function EditLevyDrawer({ open, onClose, onSuccess, item }) {
       Swal.fire("Missing Field", "Description is required.", "warning");
       return;
     }
+    if (!Number.isFinite(form.ChargeValue) || form.ChargeValue <= 0 || (form.ChargeType === ChargeType.Percentage && form.ChargeValue > 100)) {
+      Swal.fire("Invalid Levy Charge", form.ChargeType === ChargeType.Percentage ? "Percentage must be greater than 0% and no more than 100%." : "Fixed Amount must be greater than zero.", "warning");
+      return;
+    }
+    if (levySplits.some((row) => !row.ChartOfAccountId || !row.Description?.trim() || !Number.isFinite(Number(row.Percentage)) || Number(row.Percentage) <= 0 || Number(row.Percentage) > 100)) {
+      Swal.fire("Invalid G/L Split", "Each split needs a G/L account, description, and percentage greater than 0 and no more than 100.", "warning");
+      return;
+    }
     const splitTotal = levySplits.reduce((sum, s) => sum + (Number(s.Percentage) || 0), 0);
     if (levySplits.length > 0 && Math.abs(splitTotal - 100) > 0.01) {
       Swal.fire("Splits Don't Balance", `Split percentages must sum to 100% (currently ${splitTotal}%).`, "warning");
@@ -76,7 +84,12 @@ function EditLevyDrawer({ open, onClose, onSuccess, item }) {
     setLoading(true);
     try {
       const [levyRes, splitsRes] = await Promise.all([
-        apiFetch(`${LEVIES_BASE}/${item.Id}`, { method: "PUT", body: JSON.stringify({ ...form, Id: item.Id }) }),
+        apiFetch(`${LEVIES_BASE}/${item.Id}`, { method: "PUT", body: JSON.stringify({
+          ...form,
+          Id: item.Id,
+          ChargePercentage: form.ChargeType === ChargeType.Percentage ? form.ChargeValue : 0,
+          ChargeFixedAmount: form.ChargeType === ChargeType.FixedAmount ? form.ChargeValue : 0,
+        }) }),
         apiFetch(`${LEVIES_BASE}/${item.Id}/splits`, { method: "PUT", body: JSON.stringify(levySplits) }),
       ]);
 

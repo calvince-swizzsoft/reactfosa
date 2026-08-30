@@ -90,10 +90,14 @@ export function getAlternateChannelTypeCommissions(type, knownChargeType) {
   return unwrap(apiJson(`${BASE}/types/${type}/commissions?${params.toString()}`));
 }
 
-export function replaceAlternateChannelTypeCommissions(type, { knownChargeType, chargeBenefactor, commissions }) {
+export function getAlternateChannelChargeOptions() {
+  return unwrap(apiJson(`${BASE}/charge-options`));
+}
+
+export function replaceAlternateChannelTypeCommissions(type, { knownChargeType, chargeBenefactor, commissionIds }) {
   return unwrap(apiJson(`${BASE}/types/${type}/commissions`, {
     method: "PUT",
-    body: JSON.stringify({ KnownChargeType: knownChargeType, ChargeBenefactor: chargeBenefactor, Commissions: commissions }),
+    body: JSON.stringify({ KnownChargeType: knownChargeType, ChargeBenefactor: chargeBenefactor, CommissionIds: commissionIds }),
   }));
 }
 

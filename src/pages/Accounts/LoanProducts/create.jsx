@@ -77,10 +77,22 @@ const FIELD_HELP = {
   "Lock product?": "Prevents this product from being selected for new operational activity until an administrator unlocks it.",
 };
 
-function Section({ title, children }) {
+const SECTION_HELP = {
+  "Loan Cycles (optional)": "Defines tiered lending rules for successive loan cycles, such as the cycle number, qualifying range, term, amount, or multiplier. Leave empty when this product does not vary by borrowing cycle.",
+  "Auxiliary Appraisal Factors (optional)": "Defines balance bands and multipliers used for both loanee entitlement and guarantor capacity calculations.",
+  "Auxiliary Conditions (optional)": "Enforces supported eligibility rules against another loan product: no outstanding balance or a required Approved, Verified, or Appraised application. Maximum Eligible % caps this application's amount against the qualifying target case.",
+  "Deductibles (optional)": "Selects savings, loan, or investment balances that may be deducted or recovered when this loan is processed, according to each configured deductible rule.",
+  "Dynamic Charges (optional)": "Attaches configurable fees whose amounts are calculated from the transaction at runtime. Leave empty when the product has no additional dynamic charges.",
+};
+
+function Section({ title, help, children }) {
+  const guidance = help ?? SECTION_HELP[title];
   return (
     <div className="space-y-4 border-t border-gray-100 pt-6 first:border-t-0 first:pt-0">
-      <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">{title}</p>
+      <div className="flex items-center gap-1">
+        <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">{title}</p>
+        {guidance && <FieldHelp label={title}>{guidance}</FieldHelp>}
+      </div>
       <div className="grid grid-cols-2 gap-4">{children}</div>
     </div>
   );
@@ -256,8 +268,13 @@ export default function CreateLoanProduct() {
     if (appraisalFactors.some((row) => row.RangeLowerLimit < 0 || row.RangeUpperLimit < row.RangeLowerLimit || row.LoaneeMultiplier < 0 || row.GuarantorMultiplier < 0)) errors.push("Every appraisal-factor band needs a valid range and non-negative multipliers.");
     if (rangesOverlap(appraisalFactors)) errors.push("Appraisal-factor bands cannot overlap.");
     if (auxiliaryConditions.some((row) => !row.TargetLoanProductId || !row.Condition || row.MaximumEligiblePercentage < 0 || row.MaximumEligiblePercentage > 100)) errors.push("Every auxiliary condition needs a target product, at least one condition, and a percentage between 0% and 100%.");
-    if (deductibles.some((row) => !row.Description?.trim() || !row.CustomerAccountTypeTargetProductId || row.ChargePercentage < 0 || row.ChargePercentage > 100 || row.ChargeFixedAmount < 0)) errors.push("Every deductible needs a name, target product, and valid non-negative charge.");
-    if (dynamicCharges.some((row) => !(row.Id ?? row.id))) errors.push("Every dynamic-charge row must reference an existing charge.");
+    if (deductibles.some((row) => !row.Description?.trim() || !row.CustomerAccountTypeTargetProductId ||
+      (row.ChargeType === ChargeType.Percentage && (row.ChargePercentage <= 0 || row.ChargePercentage > 100)) ||
+      (row.ChargeType === ChargeType.FixedAmount && row.ChargeFixedAmount <= 0))) errors.push("Every deductible needs a name, target product, and a positive charge in the selected charge type.");
+    const guidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    const chargeIds = dynamicCharges.map((row) => String(row.Id ?? row.id ?? "").trim());
+    if (chargeIds.some((id) => !guidPattern.test(id))) errors.push("Every dynamic charge must contain a valid GUID.");
+    if (new Set(chargeIds.map((id) => id.toLowerCase())).size !== chargeIds.length) errors.push("The same dynamic charge cannot be attached more than once.");
     if (errors.length) {
       Swal.fire({ icon: "warning", title: "Review Loan Product", html: `<div style="text-align:left">${errors.map((message) => `<div>• ${message}</div>`).join("")}</div>` });
       return;
@@ -482,6 +499,7 @@ export default function CreateLoanProduct() {
       {picker && (
         <EntryPickerModal
           title="Select G/L Account"
+          allowCreateGlAccount
           fetchUrl={`${FIN_BASE}/api/accounts/chartofaccounts?pageSize=1000`}
           getLabel={(i) => `${i.AccountCode} — ${i.AccountName}`}
           onSelect={(i) => {

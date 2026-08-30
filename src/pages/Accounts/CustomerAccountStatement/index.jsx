@@ -270,14 +270,14 @@ export default function CustomerAccountStatement() {
           )}
 
           <div className="bg-gray-200 p-4 rounded-sm">
-            <div className="grid grid-cols-12 gap-2 bg-gray-700 text-gray-100 font-semibold p-3 rounded-lg mb-2 text-sm">
+            <div className="grid grid-cols-12 gap-2 bg-gray-700 text-gray-100 font-semibold p-3 rounded-lg mb-2 text-xs leading-4 [&>*]:min-w-0 [&>*]:whitespace-normal [&>*]:break-words">
               <span className="col-span-2">Date</span>
               <span className="col-span-4">Description</span>
               <span className="col-span-1">Reference</span>
               <span className="col-span-1 text-right">Debit</span>
               <span className="col-span-1 text-right">Credit</span>
               <span className="col-span-1 text-right">Balance</span>
-              <span className="col-span-1 text-right"></span>
+              <span className="col-span-2 text-right"></span>
             </div>
 
             {loadingLines ? (

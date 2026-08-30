@@ -148,7 +148,7 @@ function CreateVoucherBatchDrawer({ open, onClose, onSuccess }) {
           onSelect={(i) => setForm((p) => ({ ...p, PostingPeriodId: i.Id, PostingPeriodLabel: i.Description }))} onClose={() => setPicker(null)} />
       )}
       {picker === "coa" && (
-        <EntryPickerModal title="Select G/L Account" fetchUrl={`${FIN_BASE}/api/accounts/chartofaccounts?pageSize=1000`} getLabel={(i) => `${i.AccountCode} — ${i.AccountName}`}
+        <EntryPickerModal title="Select G/L Account" allowCreateGlAccount fetchUrl={`${FIN_BASE}/api/accounts/chartofaccounts?pageSize=1000`} getLabel={(i) => `${i.AccountCode} — ${i.AccountName}`}
           onSelect={(i) => setForm((p) => ({ ...p, ChartOfAccountId: i.Id, ChartOfAccountLabel: `${i.AccountCode} — ${i.AccountName}` }))} onClose={() => setPicker(null)} />
       )}
       {picker === "customer" && (
@@ -335,7 +335,7 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
       </motion.div>
 
       {picker === "coa" && (
-        <EntryPickerModal title="Select G/L Account" fetchUrl={`${FIN_BASE}/api/accounts/chartofaccounts?pageSize=1000`} getLabel={(i) => `${i.AccountCode} — ${i.AccountName}`}
+        <EntryPickerModal title="Select G/L Account" allowCreateGlAccount fetchUrl={`${FIN_BASE}/api/accounts/chartofaccounts?pageSize=1000`} getLabel={(i) => `${i.AccountCode} — ${i.AccountName}`}
           onSelect={(i) => setEntryForm((p) => ({ ...p, ChartOfAccountId: i.Id, ChartOfAccountLabel: `${i.AccountCode} — ${i.AccountName}` }))} onClose={() => setPicker(null)} />
       )}
       {picker === "customer" && (

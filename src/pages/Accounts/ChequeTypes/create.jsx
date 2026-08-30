@@ -10,6 +10,7 @@ import { FaMoneyCheckAlt } from "react-icons/fa";
 import Swal from "sweetalert2";
 import { apiFetch, normalizeList } from "@/lib/api";
 import PickerList from "../lib/PickerList";
+import FieldHelp from "../SavingsProducts/FieldHelp";
 
 // Areas/Accounts/Controllers/ChequeTypeController.cs — docs/api/cheque-type-api-spec.md §5.4.
 // POST / requires both a commission and a loan/investment product attached
@@ -29,10 +30,13 @@ const CHARGE_RECOVERY_MODE_OPTIONS = [
 
 const emptyForm = { Description: "", MaturityPeriod: 0, ChargeRecoveryMode: 0, IsLocked: false };
 
-function FieldGroup({ label, children }) {
+function FieldGroup({ label, help, children }) {
   return (
     <div>
-      <Label>{label}</Label>
+      <div className="flex items-center gap-1">
+        <Label>{label}</Label>
+        <FieldHelp label={label}>{help}</FieldHelp>
+      </div>
       {children}
     </div>
   );
@@ -125,7 +129,7 @@ export default function CreateChequeType() {
       </div>
 
       <form onSubmit={handleSubmit} className="max-w-xl space-y-4">
-        <FieldGroup label="Description">
+        <FieldGroup label="Description" help="The teller-facing name used to identify this cheque category during deposit, banking, and clearance.">
           <Input
             value={form.Description}
             onChange={(e) => setForm((p) => ({ ...p, Description: e.target.value }))}
@@ -134,7 +138,7 @@ export default function CreateChequeType() {
           />
         </FieldGroup>
 
-        <FieldGroup label="Maturity Period (days)">
+        <FieldGroup label="Maturity Period (days)" help="The number of calendar days added to the deposit date to calculate the cheque's expected maturity date. Enter 0 for same-day maturity.">
           <Input
             type="number"
             min="0"
@@ -144,7 +148,7 @@ export default function CreateChequeType() {
           />
         </FieldGroup>
 
-        <FieldGroup label="Charge Recovery Mode">
+        <FieldGroup label="Charge Recovery Mode" help="Controls when the selected commissions are recovered: immediately when the cheque is deposited, or later when it is successfully cleared.">
           <Select value={String(form.ChargeRecoveryMode)} onValueChange={(v) => setForm((p) => ({ ...p, ChargeRecoveryMode: Number(v) }))}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -162,9 +166,10 @@ export default function CreateChequeType() {
             className="w-4 h-4 accent-indigo-600"
           />
           <Label htmlFor="chequetype-locked">Is Locked?</Label>
+          <FieldHelp label="Is Locked">Administrative status flag for this cheque type. The current cheque-deposit pipeline does not yet enforce this flag, so locking alone does not prevent teller selection.</FieldHelp>
         </div>
 
-        <FieldGroup label={`Commissions${selectedCommissionIds.size ? ` (${selectedCommissionIds.size} selected)` : ""} — at least one required`}>
+        <FieldGroup label={`Commissions${selectedCommissionIds.size ? ` (${selectedCommissionIds.size} selected)` : ""} — at least one required`} help="Charges associated with this cheque type. Recovery timing is determined by the Charge Recovery Mode above.">
           <PickerList
             items={commissions}
             selectedIds={selectedCommissionIds}
@@ -175,7 +180,7 @@ export default function CreateChequeType() {
           />
         </FieldGroup>
 
-        <FieldGroup label={`Loan Products${selectedLoanProductIds.size ? ` (${selectedLoanProductIds.size} selected)` : ""}`}>
+        <FieldGroup label={`Loan Products${selectedLoanProductIds.size ? ` (${selectedLoanProductIds.size} selected)` : ""}`} help="Loan products whose dues may be recovered from cheque proceeds when this cheque type is cleared, according to the institution's recovery priority.">
           <PickerList
             items={loanProducts}
             selectedIds={selectedLoanProductIds}
@@ -186,7 +191,7 @@ export default function CreateChequeType() {
           />
         </FieldGroup>
 
-        <FieldGroup label={`Investment Products${selectedInvestmentProductIds.size ? ` (${selectedInvestmentProductIds.size} selected)` : ""} — at least one loan or investment product required`}>
+        <FieldGroup label={`Investment Products${selectedInvestmentProductIds.size ? ` (${selectedInvestmentProductIds.size} selected)` : ""} — at least one loan or investment product required`} help="Investment products that may receive recoveries from cheque proceeds at clearance. At least one loan or investment product must be attached.">
           <PickerList
             items={investmentProducts}
             selectedIds={selectedInvestmentProductIds}

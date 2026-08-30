@@ -11,12 +11,15 @@ import {
   listInterAccountTransferBatches, createInterAccountTransferBatch, listInterAccountTransferBatchEntries,
   addInterAccountTransferBatchEntry, removeInterAccountTransferBatchEntries,
   auditInterAccountTransferBatch, authorizeInterAccountTransferBatch,
+  getInterAccountTransferDynamicCharges, replaceInterAccountTransferDynamicCharges,
+  normalizeList,
 } from "./interAccountTransferApi";
 import { BatchStatus, ApportionTo } from "../lib/batchEnums";
 import BatchStatusBadge from "../lib/BatchStatusBadge";
 import BatchAuditModal from "../lib/BatchAuditModal";
 import EntryPickerModal from "../lib/EntryPickerModal";
 import { runBatchAction } from "../lib/runBatchAction";
+import DynamicChargePicker from "../../lib/DynamicChargePicker";
 
 const FIN_BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 const MODULE_NAVIGATION_ITEM_CODE = { origination: 23069, verification: 23079, authorization: 23089 };
@@ -132,6 +135,9 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
   const [addingEntry, setAddingEntry] = useState(false);
   const [picker, setPicker] = useState(false);
   const [auditOpen, setAuditOpen] = useState(false);
+  const [dynamicCharges, setDynamicCharges] = useState([]);
+  const [loadingCharges, setLoadingCharges] = useState(false);
+  const [savingCharges, setSavingCharges] = useState(false);
 
   const fetchEntries = () => {
     if (!batch) return;
@@ -142,7 +148,15 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { fetchEntries(); setEntryForm(emptyEntryForm); }, [batch?.Id]);
+  useEffect(() => {
+    fetchEntries();
+    setEntryForm(emptyEntryForm);
+    if (!batch) return;
+    setLoadingCharges(true);
+    getInterAccountTransferDynamicCharges(batch.Id).then((items) => setDynamicCharges(normalizeList(items)))
+      .catch((error) => Swal.fire("Load Error", error.message || "Unable to load transfer charges.", "error"))
+      .finally(() => setLoadingCharges(false));
+  }, [batch?.Id]);
 
   if (!batch) return null;
 
@@ -193,6 +207,17 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
     );
   };
 
+  const saveDynamicCharges = async () => {
+    setSavingCharges(true);
+    try {
+      const refreshed = await replaceInterAccountTransferDynamicCharges(batch.Id, dynamicCharges);
+      setDynamicCharges(normalizeList(refreshed));
+      Swal.fire("Success", "Transfer charges updated successfully.", "success");
+    } catch (error) {
+      Swal.fire("Update Failed", error.message || "Unable to update transfer charges.", "error");
+    } finally { setSavingCharges(false); }
+  };
+
   const handleAudit = async (option, remarks) => {
     await runBatchAction(
       () => auditInterAccountTransferBatch(batch.Id, { Option: option, Remarks: remarks, ModuleNavigationItemCode: MODULE_NAVIGATION_ITEM_CODE.verification }),
@@ -227,6 +252,12 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
           </div>
 
           <p className="text-xs text-gray-400">No control-total check exists for this type — verify the source account can cover {entriesTotal.toLocaleString()} before authorizing.</p>
+
+          <div className="rounded-lg border border-gray-200 p-3">
+            <DynamicChargePicker value={dynamicCharges} onChange={setDynamicCharges} disabled={!canManageEntries || loadingCharges} />
+            {canManageEntries && <Button type="button" onClick={saveDynamicCharges} disabled={loadingCharges || savingCharges} className="mt-3 w-full bg-indigo-600 hover:bg-indigo-700">{savingCharges ? "Updating charges..." : "Update Transfer Charges"}</Button>}
+            {!canManageEntries && <p className="mt-2 text-xs text-gray-400">Charges can only be changed by the batch creator while the batch is pending.</p>}
+          </div>
 
           {batch.AuditRemarks && (
             <div className="text-xs bg-gray-50 border rounded-lg p-3">
@@ -319,7 +350,7 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
       </motion.div>
 
       {picker && isGL && (
-        <EntryPickerModal title="Select G/L Account" fetchUrl={`${FIN_BASE}/api/accounts/chartofaccounts?pageSize=1000`} getLabel={(i) => `${i.AccountCode} — ${i.AccountName}`}
+        <EntryPickerModal title="Select G/L Account" allowCreateGlAccount fetchUrl={`${FIN_BASE}/api/accounts/chartofaccounts?pageSize=1000`} getLabel={(i) => `${i.AccountCode} — ${i.AccountName}`}
           onSelect={(i) => setEntryForm((p) => ({ ...p, ChartOfAccountId: i.Id, ChartOfAccountLabel: `${i.AccountCode} — ${i.AccountName}` }))} onClose={() => setPicker(false)} />
       )}
       {picker && !isGL && (
