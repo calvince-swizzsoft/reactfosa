@@ -85,6 +85,8 @@ function ApprovalRecordDrawer({ item, onClose, onDecision, isActing }) {
 
   const amount = valueOf(record, "Amount");
   const createdDate = valueOf(record, "CreatedDate");
+  const paymentVoucherId = valueOf(record, "PaymentVoucherId");
+  const voucherWriteDate = valueOf(record, "PaymentVoucherWriteDate");
 
   return (
     <AnimatePresence>
@@ -108,6 +110,13 @@ function ApprovalRecordDrawer({ item, onClose, onDecision, isActing }) {
                 <DetailField label="Created by" value={valueOf(record, "CreatedBy")} />
                 <DetailField label="Created date" value={createdDate ? new Date(createdDate).toLocaleString() : "—"} />
                 <DetailField label="Request remarks" value={requestRemarks(record)} />
+                {paymentVoucherId && <>
+                  <DetailField label="Voucher number" value={valueOf(record, "PaymentVoucherNumber")} />
+                  <DetailField label="Voucher status" value={valueOf(record, "PaymentVoucherStatusDescription")} />
+                  <DetailField label="Voucher payee" value={valueOf(record, "PaymentVoucherPayee")} />
+                  <DetailField label="Voucher reference" value={valueOf(record, "PaymentVoucherReference")} />
+                  <DetailField label="Voucher write date" value={voucherWriteDate ? new Date(voucherWriteDate).toLocaleDateString() : "—"} />
+                </>}
               </div>
             ) : <p className="p-6 text-sm text-slate-500">The related record could not be loaded.</p>}
           </div>

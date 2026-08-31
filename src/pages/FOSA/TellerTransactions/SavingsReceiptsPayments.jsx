@@ -213,6 +213,16 @@ function CreateTransactionDrawer({ open, onClose, onSuccess, onDialog, initialCu
       Swal.fire("Payment Voucher Details Required", "Select a cheque book and active voucher, then enter its payee, reference, and write date.", "warning");
       return;
     }
+    if (isPaymentVoucher) {
+      const writeDate = new Date(`${form.WriteDate}T00:00:00`);
+      const oldestAcceptedDate = new Date();
+      oldestAcceptedDate.setMonth(oldestAcceptedDate.getMonth() - 6);
+      oldestAcceptedDate.setHours(0, 0, 0, 0);
+      if (Number.isNaN(writeDate.getTime()) || writeDate > new Date() || writeDate < oldestAcceptedDate) {
+        Swal.fire("Invalid Voucher Date", "Payment vouchers cannot be post-dated or more than six months old.", "warning");
+        return;
+      }
+    }
 
     setLoading(true);
     try {
@@ -342,8 +352,8 @@ function CreateTransactionDrawer({ open, onClose, onSuccess, onDialog, initialCu
                   <FieldGroup label="Cheque Number">
                     <Input inputMode="numeric" maxLength={6} value={form.ChequeNumber} onChange={(e) => handleChange("ChequeNumber", e.target.value.replace(/\D/g, "").slice(0, 6))} required placeholder="e.g. 000482" />
                   </FieldGroup>
-                  <FieldGroup label="Write Date">
-                    <Input type="date" max={new Date().toISOString().slice(0, 10)} value={form.WriteDate} onChange={(e) => handleChange("WriteDate", e.target.value)} />
+                  <FieldGroup label="Write Date" help="The voucher cannot be post-dated or more than six months old.">
+                    <Input type="date" min={new Date(new Date().setMonth(new Date().getMonth() - 6)).toISOString().slice(0, 10)} max={new Date().toISOString().slice(0, 10)} value={form.WriteDate} onChange={(e) => handleChange("WriteDate", e.target.value)} />
                   </FieldGroup>
                   <FieldGroup label="Drawer (Cheque Owner)">
                     <Input value={form.Drawer} onChange={(e) => handleChange("Drawer", e.target.value)} required placeholder="e.g. John Doe" />

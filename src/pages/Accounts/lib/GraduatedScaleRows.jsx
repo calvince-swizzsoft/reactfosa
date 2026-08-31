@@ -60,7 +60,7 @@ export default function GraduatedScaleRows({ rows, onChange }) {
               </Select>
             </div>
             <div className="col-span-2">
-              <HelpLabel label={isPercentage ? "Percentage" : "Amount"}>{isPercentage ? "Rate applied within this bracket; enter more than 0 and no more than 100." : "Fixed charge for this bracket; enter an amount greater than zero."}</HelpLabel>
+              <HelpLabel label={isPercentage ? "Percentage" : "Amount"}>{isPercentage ? "Enter percentage points: 1 means 1%, while 0.01 means 0.01% (a charge of 1 on a transaction of 10,000 before rounding)." : "Fixed charge for this bracket; enter an amount greater than zero."}</HelpLabel>
               {isPercentage ? (
                 <Input type="number" min="0" max="100" step="0.01" value={row.ChargePercentage} onChange={(e) => updateRow(index, { ChargePercentage: Number(e.target.value) })} />
               ) : (
