@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/select";
 import Swal from "sweetalert2";
 import { Link } from "react-router-dom";
-import { FaCogs, FaArrowLeft, FaPlay, FaWrench, FaBroom, FaMoneyCheckAlt } from "react-icons/fa";
+import { FaCogs, FaArrowLeft, FaPlay, FaWrench, FaBroom, FaMoneyCheckAlt, FaLayerGroup } from "react-icons/fa";
 import { apiFetch } from "@/lib/api";
 import { TargetDateOption } from "./api";
 import {
@@ -162,14 +162,31 @@ export default function StandingOrderExecution() {
     if (!r.isConfirmed) return;
     setExecuteLoading(true);
     try {
-      const { ran, message } = await executeDueStandingOrders({
+      const { ran, message, result } = await executeDueStandingOrders({
         targetDate: executeForm.targetDate || undefined,
         targetDateOption: Number(executeForm.targetDateOption),
         priority: Number(executeForm.priority),
         maximumStandingOrderExecuteAttemptCount: Number(executeForm.maximumStandingOrderExecuteAttemptCount),
         pageSize: Number(executeForm.pageSize) || 100,
       });
-      Swal.fire("Done", message, ran ? "success" : "info");
+      Swal.fire({
+        title: ran ? "Standing Orders Queued" : "No Standing Orders Queued",
+        icon: ran ? "success" : "info",
+        html: `
+          <p class="mb-3">${result.detail || message}</p>
+          <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-left text-sm">
+            <span>Total inspected</span><strong>${result.totalStandingOrders}</strong>
+            <span>Eligible</span><strong>${result.eligibleCount}</strong>
+            <span>Queued</span><strong>${result.queuedCount}</strong>
+            <span>Locked</span><strong>${result.lockedCount}</strong>
+            <span>Wrong trigger</span><strong>${result.wrongTriggerCount}</strong>
+            <span>Not yet due</span><strong>${result.notYetDueCount}</strong>
+            <span>Eligible but overdue</span><strong>${result.overdueCount}</strong>
+            <span>Expired</span><strong>${result.expiredCount}</strong>
+          </div>
+          ${result.recurringBatchId ? `<p class="mt-3 text-xs text-gray-500">Recurring batch: ${result.recurringBatchId}</p>` : ""}
+        `,
+      });
     } catch (err) {
       Swal.fire("Error", err.message, "error");
     } finally {
@@ -239,11 +256,10 @@ export default function StandingOrderExecution() {
         <h2 className="text-xl font-bold text-white flex items-center gap-2">
           <FaCogs /> Standing Order Execution
         </h2>
-        <Link to="/Accounts/StandingOrders">
-          <Button variant="outline" className="bg-white flex items-center gap-2">
-            <FaArrowLeft /> Back to Standing Orders
-          </Button>
-        </Link>
+        <div className="flex gap-2">
+          <Link to="/Accounts/RecurringBatches"><Button variant="outline" className="bg-white flex items-center gap-2"><FaLayerGroup /> Recurring Batches</Button></Link>
+          <Link to="/Accounts/StandingOrders"><Button variant="outline" className="bg-white flex items-center gap-2"><FaArrowLeft /> Standing Orders</Button></Link>
+        </div>
       </div>
 
       <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">

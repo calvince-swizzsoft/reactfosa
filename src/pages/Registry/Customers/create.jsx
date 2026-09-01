@@ -102,7 +102,12 @@ function EnumSelect({ value, options, onChange }) {
 }
 function Options({ items, selected, toggle, empty }) {
   if (!items.length) return <p className="text-sm text-gray-400">{empty}</p>;
-  return <div className="divide-y rounded-lg border">{items.map((item) => { const id = pick(item, "Id", "id"); return <label key={id} className="flex gap-3 p-3 hover:bg-gray-50"><input type="checkbox" checked={selected.includes(id)} onChange={() => toggle(id)} className="accent-indigo-600" /><span>{pick(item, "Description", "description")}</span>{pick(item, "IsMandatory", "isMandatory") && <small className="ml-auto text-indigo-600">Mandatory</small>}</label>; })}</div>;
+  return <div className="divide-y rounded-lg border">{items.map((item) => {
+    const id = pick(item, "Id", "id");
+    const locked = Boolean(pick(item, "IsLocked", "isLocked"));
+    const automatic = Boolean(pick(item, "IsMandatory", "isMandatory")) || Boolean(pick(item, "IsDefault", "isDefault"));
+    return <label key={id} className={`flex gap-3 p-3 ${locked || automatic ? "bg-gray-50 text-gray-400" : "hover:bg-gray-50"}`}><input type="checkbox" checked={selected.includes(id)} onChange={() => toggle(id)} disabled={locked || automatic} className="accent-indigo-600" /><span>{pick(item, "Description", "description")}</span>{locked ? <small className="ml-auto text-red-600">Locked</small> : automatic ? <small className="ml-auto text-indigo-600">Created automatically</small> : null}</label>;
+  })}</div>;
 }
 
 export default function CreateCustomerDrawer({ open, onClose, onSuccess }) {
@@ -112,6 +117,7 @@ export default function CreateCustomerDrawer({ open, onClose, onSuccess }) {
   const [loadingData, setLoadingData] = useState(false);
   const [branches, setBranches] = useState([]), [stations, setStations] = useState([]);
   const [debits, setDebits] = useState([]), [investments, setInvestments] = useState([]), [savings, setSavings] = useState([]);
+  const [unavailableSources, setUnavailableSources] = useState([]);
   const [selectedDebits, setSelectedDebits] = useState([]), [selectedInvestments, setSelectedInvestments] = useState([]), [selectedSavings, setSelectedSavings] = useState([]);
   const [images, setImages] = useState({});
   const [partner, setPartner] = useState(emptyPartner), [partners, setPartners] = useState([]);
@@ -128,11 +134,11 @@ export default function CreateCustomerDrawer({ open, onClose, onSuccess }) {
   useEffect(() => {
     if (!open) return;
     setForm(emptyForm); setTab("particulars"); setSelectedDebits([]); setSelectedInvestments([]); setSelectedSavings([]);
-    setImages({}); setPartners([]); setCorporationMembers([]); setReferees([]); setResults([]); setSearch("");
+    setImages({}); setPartners([]); setCorporationMembers([]); setReferees([]); setResults([]); setSearch(""); setUnavailableSources([]);
     setLoadingData(true);
     const sources = [["branches", `${BASE}/api/administration/branches`, setBranches], ["stations", `${BASE}/api/registry/station?pageIndex=0&pageSize=1000&text=`, setStations], ["debit types", `${CUSTOMER_URL}/registration/debit-types`, setDebits], ["investment products", `${BASE}/api/accounts/investmentsproducts`, setInvestments], ["savings products", `${BASE}/api/accounts/savingsproducts`, setSavings]];
     Promise.allSettled(sources.map(async ([, url, setter]) => { const response = await apiFetch(url); const body = await readApiResponse(response); setter(list(body)); }))
-      .then((results) => { const failed = results.map((result, index) => result.status === "rejected" ? sources[index][0] : null).filter(Boolean); if (failed.length) Swal.fire("Some options could not be loaded", `Unavailable: ${failed.join(", ")}. Other registration sections remain usable.`, "warning"); })
+      .then((results) => { const failed = results.map((result, index) => result.status === "rejected" ? sources[index][0] : null).filter(Boolean); setUnavailableSources(failed); if (failed.length) Swal.fire("Some options could not be loaded", `Unavailable: ${failed.join(", ")}. Reload registration before selecting products from an unavailable catalogue.`, "warning"); })
       .finally(() => setLoadingData(false));
   }, [open]);
 
@@ -166,6 +172,11 @@ export default function CreateCustomerDrawer({ open, onClose, onSuccess }) {
       setTab(validation.tab);
       return Swal.fire({ title: "Check Customer Details", html: `<div style="text-align:left">${validation.errors.map((message) => `<div>• ${message}</div>`).join("")}</div>`, icon: "warning" });
     }
+    const invalidSavings = selectedSavings.some((id) => !savings.some((item) => pick(item, "Id", "id") === id && !pick(item, "IsLocked", "isLocked")));
+    const invalidInvestments = selectedInvestments.some((id) => !investments.some((item) => pick(item, "Id", "id") === id && !pick(item, "IsLocked", "isLocked")));
+    if (invalidSavings || invalidInvestments) {
+      return Swal.fire("Invalid product selection", "A selected product is no longer available or is locked. Reload registration and choose again.", "warning");
+    }
     setLoading(true);
     try {
       const now = new Date().toISOString();
@@ -193,8 +204,8 @@ export default function CreateCustomerDrawer({ open, onClose, onSuccess }) {
         {tab === "referees" && <div className="space-y-4"><p className="text-sm text-gray-500">Add existing registered customers as referees.</p><Lookup target="referee" /><MemberRows items={referees} setter={setReferees} /></div>}
         {tab === "images" && <div className="grid grid-cols-2 gap-4">{IMAGE_FIELDS.map(([field, label]) => <div key={field} className="border rounded-lg p-4"><Label className="font-semibold">{label}</Label>{images[field] ? <img src={images[field].preview} alt={label} className="h-36 w-full object-contain bg-gray-100 mt-2" /> : <div className="h-36 bg-gray-100 mt-2 flex items-center justify-center"><FaCamera className="text-3xl text-gray-400" /></div>}<Input className="mt-3" type="file" accept="image/*" capture="environment" onChange={(e) => readImage(field, e.target.files?.[0])} /><small className="text-gray-400">Camera, scanner output, JPG or PNG; max 5 MB.</small></div>)}</div>}
         {tab === "debits" && <div><div className="mb-3 flex items-center gap-1 text-sm font-semibold text-gray-700">Additional debit types <FieldHelp label="Debit Types">Recurring or automatic charge instructions made available to the customer. Company-mandatory debit types are attached automatically; selections here are additional.</FieldHelp></div><Options items={debits} selected={selectedDebits} toggle={(id) => toggle(setSelectedDebits, id)} empty="No debit types configured." /></div>}
-        {tab === "investments" && <div><div className="mb-3 flex items-center gap-1 text-sm font-semibold text-gray-700">Additional investment products <FieldHelp label="Investment Products">Investment accounts to open or make available during registration. Mandatory company products are attached automatically.</FieldHelp></div><Options items={investments} selected={selectedInvestments} toggle={(id) => toggle(setSelectedInvestments, id)} empty="No investment products configured." /></div>}
-        {tab === "savings" && <div><div className="mb-3 flex items-center gap-1 text-sm font-semibold text-gray-700">Additional savings products <FieldHelp label="Savings Products">Savings accounts to open or make available during registration. Mandatory company products are attached automatically.</FieldHelp></div><Options items={savings} selected={selectedSavings} toggle={(id) => toggle(setSelectedSavings, id)} empty="No savings products configured." /></div>}
+        {tab === "investments" && <div><div className="mb-3 flex items-center gap-1 text-sm font-semibold text-gray-700">Additional investment products <FieldHelp label="Investment Products">Default, mandatory, and company-attached products are resolved and created by the server. Select only optional extras.</FieldHelp></div>{unavailableSources.includes("investment products") && <p className="mb-3 rounded-md bg-amber-50 p-3 text-sm text-amber-700">Investment products could not be loaded. Reload registration before choosing an optional investment product.</p>}<Options items={investments} selected={selectedInvestments} toggle={(id) => toggle(setSelectedInvestments, id)} empty="No investment products configured." /></div>}
+        {tab === "savings" && <div><div className="mb-3 flex items-center gap-1 text-sm font-semibold text-gray-700">Additional savings products <FieldHelp label="Savings Products">The default, mandatory, and company-attached savings products are resolved and created by the server. Select only optional extras.</FieldHelp></div>{unavailableSources.includes("savings products") && <p className="mb-3 rounded-md bg-amber-50 p-3 text-sm text-amber-700">Savings products could not be loaded. Reload registration before choosing an optional savings product.</p>}<Options items={savings} selected={selectedSavings} toggle={(id) => toggle(setSelectedSavings, id)} empty="No savings products configured." /></div>}
       </main></div><div className="px-5 py-3 border-t bg-gray-50 flex justify-between shrink-0"><div className="flex gap-4"><label className="flex gap-2"><input type="checkbox" checked={form.isLocked} onChange={(e) => change("isLocked", e.target.checked)} />Locked</label><label className="flex gap-2"><input type="checkbox" checked={form.inhibitGuaranteeing} onChange={(e) => change("inhibitGuaranteeing", e.target.checked)} />Inhibit guaranteeing</label></div><Button type="submit" disabled={loading || loadingData} className="bg-indigo-600 hover:bg-indigo-700">{loading ? "Registering..." : `Register ${typeLabel}`}</Button></div>
     </form>
   </motion.div></>}</AnimatePresence>;

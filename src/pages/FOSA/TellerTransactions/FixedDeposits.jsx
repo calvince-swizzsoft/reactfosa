@@ -8,8 +8,9 @@ import Swal from "sweetalert2";
 import NotFoundImage from "/assets/scopefinding.png";
 import { FaPiggyBank, FaPlus, FaChevronLeft, FaChevronRight } from "react-icons/fa";
 import {
-  listFixedDeposits, listPayableFixedDeposits, listRevocableFixedDeposits,
+  listFixedDeposits, listPendingFixedDeposits, listPayableFixedDeposits, listRevocableFixedDeposits,
   getFixedDeposit, listFixedDepositPayables, verifyFixedDeposit,
+  getFixedDepositPostingReconciliation, reconcileFixedDepositPosting,
   terminateFixedDeposits, liquidateFixedDeposits,
 } from "./fixedDepositsApi";
 import { FixedDepositStatus } from "../lib/frontOfficeEnums";
@@ -27,6 +28,7 @@ const STATUS_BADGE = {
 
 const TABS = [
   { id: "all", label: "All" },
+  { id: "pending", label: "Pending Posting" },
   { id: "payable", label: "Payable" },
   { id: "revocable", label: "Revocable" },
 ];
@@ -45,11 +47,18 @@ function FixedDepositDetailDrawer({ id, onClose, onChanged }) {
   const [loading, setLoading] = useState(false);
   const [payables, setPayables] = useState([]);
   const [verifying, setVerifying] = useState(false);
+  const [reconciliation, setReconciliation] = useState(null);
 
   useEffect(() => {
     if (!id) return;
     setLoading(true);
-    getFixedDeposit(id).then(setDeposit).catch((error) => {
+    setReconciliation(null);
+    getFixedDeposit(id).then((loadedDeposit) => {
+      setDeposit(loadedDeposit);
+      if (loadedDeposit?.Status === FixedDepositStatus.Running) {
+        getFixedDepositPostingReconciliation(id).then(setReconciliation).catch(() => setReconciliation(null));
+      }
+    }).catch((error) => {
       setDeposit(null);
       Swal.fire("Error", apiErrorMessage(error, "Unable to load the fixed deposit."), "error");
     }).finally(() => setLoading(false));
@@ -62,6 +71,7 @@ function FixedDepositDetailDrawer({ id, onClose, onChanged }) {
   if (!id) return null;
 
   const isNew = deposit?.Status === FixedDepositStatus.New;
+  const isRunning = deposit?.Status === FixedDepositStatus.Running;
 
   const handleVerify = async (approve) => {
     const confirm = await Swal.fire({
@@ -79,6 +89,55 @@ function FixedDepositDetailDrawer({ id, onClose, onChanged }) {
       onChanged?.();
     } catch (err) {
       Swal.fire("Error", apiErrorMessage(err, "Unable to verify the fixed deposit."), "error");
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  const handleReconcile = async () => {
+    let currentEligibility = reconciliation;
+    try {
+      currentEligibility = await getFixedDepositPostingReconciliation(id);
+      setReconciliation(currentEligibility);
+    } catch (error) {
+      Swal.fire("Unable to check posting", apiErrorMessage(error, "The reconciliation check could not be completed."), "error");
+      return;
+    }
+    if (!currentEligibility?.Eligible) {
+      Swal.fire("Reset not allowed", currentEligibility?.Reason || "This fixed deposit is not eligible for failed-posting reconciliation.", "info");
+      return;
+    }
+
+    const confirmation = await Swal.fire({
+      title: "Reset failed posting to New?",
+      text: "This is allowed only because the server found no matching FDR Fixing journal.",
+      icon: "warning",
+      input: "textarea",
+      inputLabel: "Reconciliation reason",
+      inputPlaceholder: "Explain why this status correction is required...",
+      inputAttributes: { maxlength: "180" },
+      showCancelButton: true,
+      confirmButtonColor: "#dc2626",
+      confirmButtonText: "Reset to New",
+      preConfirm: (value) => {
+        const reason = String(value || "").trim();
+        if (reason.length < 10) {
+          Swal.showValidationMessage("Enter a reason of at least 10 characters.");
+          return false;
+        }
+        return reason;
+      },
+    });
+    if (!confirmation.isConfirmed) return;
+    setVerifying(true);
+    try {
+      const updated = await reconcileFixedDepositPosting(id, confirmation.value);
+      setDeposit(updated);
+      setReconciliation(null);
+      Swal.fire("Reconciled", "The unposted deposit is New and can be reviewed and posted again.", "success");
+      onChanged?.();
+    } catch (error) {
+      Swal.fire("Unable to reconcile", apiErrorMessage(error, "The failed posting could not be reconciled."), "error");
     } finally {
       setVerifying(false);
     }
@@ -141,6 +200,13 @@ function FixedDepositDetailDrawer({ id, onClose, onChanged }) {
                   </Button>
                 </div>
               )}
+              {isRunning && (
+                <div className="border-t pt-3">
+                  <Button disabled={verifying} onClick={handleReconcile} className="w-full bg-red-600 hover:bg-red-700">
+                    Check Failed Posting
+                  </Button>
+                </div>
+              )}
             </>
           )}
         </div>
@@ -163,7 +229,7 @@ export default function FixedDeposits() {
 
   const fetchItems = () => {
     setLoading(true);
-    const fetcher = activeTab === "payable" ? listPayableFixedDeposits : activeTab === "revocable" ? listRevocableFixedDeposits : listFixedDeposits;
+    const fetcher = activeTab === "pending" ? listPendingFixedDeposits : activeTab === "payable" ? listPayableFixedDeposits : activeTab === "revocable" ? listRevocableFixedDeposits : listFixedDeposits;
     fetcher({ text: search, pageIndex, pageSize })
       .then((page) => {
         setItems(page?.pageCollection || page?.PageCollection || []);
@@ -288,8 +354,11 @@ export default function FixedDeposits() {
                   <span className="col-span-2 text-sm text-gray-700">{item.Term} mo</span>
                   <span className="col-span-2 text-xs text-gray-500">{item.MaturityDate ? new Date(item.MaturityDate).toLocaleDateString() : "—"}</span>
                   <span className="col-span-2">
-                    <span className={`px-2 py-1 rounded text-xs font-semibold ${STATUS_BADGE[item.StatusDescription] || "bg-gray-100 text-gray-500"}`}>
-                      {item.StatusDescription || "—"}
+                    <span className="flex flex-wrap items-center gap-2">
+                      <span className={`px-2 py-1 rounded text-xs font-semibold ${STATUS_BADGE[item.StatusDescription] || "bg-gray-100 text-gray-500"}`}>
+                        {item.StatusDescription || "—"}
+                      </span>
+                      {item.Status === FixedDepositStatus.New && <button type="button" onClick={() => setSelectedId(item.Id)} className="text-xs font-semibold text-indigo-700 hover:underline">Review &amp; Post</button>}
                     </span>
                   </span>
                 </div>

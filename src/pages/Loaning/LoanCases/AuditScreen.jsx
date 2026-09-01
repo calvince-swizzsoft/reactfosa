@@ -5,9 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Swal from "sweetalert2";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaStamp } from "react-icons/fa";
+import { FaRedo, FaStamp } from "react-icons/fa";
 import NotFoundImage from "/assets/scopefinding.png";
-import { listLoanCases, getVerificationWorksheet, auditLoanCase } from "./lib/loanCaseApi";
+import { listLoanCases, getVerificationWorksheet, auditLoanCase, recalculateRepaymentSchedule } from "./lib/loanCaseApi";
 import { LoanCaseStatus, LoanAuditOption } from "./lib/loanCaseEnums";
 import LoanCaseStatusBadge from "./lib/LoanCaseStatusBadge";
 import LoanCaseSummary from "./lib/LoanCaseSummary";
@@ -34,6 +34,7 @@ function AuditDrawer({ loanCaseId, workflowItemId, onClose, onChanged }) {
   const [loading, setLoading] = useState(true);
   const [remarks, setRemarks] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [recalculating, setRecalculating] = useState(false);
   const [usedBiometrics, setUsedBiometrics] = useState(false);
   const [reference, setReference] = useState("");
   const [activeTab, setActiveTab] = useState("overview");
@@ -51,6 +52,27 @@ function AuditDrawer({ loanCaseId, workflowItemId, onClose, onChanged }) {
   }, [loanCaseId]);
 
   if (!loanCaseId) return null;
+
+  const recalculateSchedule = async () => {
+    if (!workflowItemId) {
+      Swal.fire("Assigned Task Required", "Open this case from Approval Requests before recalculating its repayment schedule.", "warning");
+      return;
+    }
+    setRecalculating(true);
+    try {
+      const refreshed = await recalculateRepaymentSchedule(loanCaseId, workflowItemId);
+      setData((previous) => ({
+        ...previous,
+        loanCase: refreshed.loanCase,
+        repaymentSchedule: refreshed.repaymentSchedule || [],
+      }));
+      Swal.fire("Schedule Recalculated", "The repayment schedule and persisted loan-case totals were updated.", "success");
+    } catch (err) {
+      Swal.fire("Recalculation Failed", err.message, "error");
+    } finally {
+      setRecalculating(false);
+    }
+  };
 
   const submit = async (option) => {
     if (!remarks) {
@@ -107,7 +129,7 @@ function AuditDrawer({ loanCaseId, workflowItemId, onClose, onChanged }) {
               {activeTab === "security" && <LoanCaseSummary loanCase={data.loanCase} guarantors={data.guarantors} collaterals={data.collaterals} />}
               {activeTab === "accounts" && <Rows items={data.loanAccounts} empty="No existing loan accounts found." render={(item) => `${item.FullAccountNumber} · ${item.CustomerAccountTypeTargetProductDescription || "Loan"} · ${Number((item.BookBalance || 0) + (item.CarryForwardsBalance || 0)).toLocaleString()}`} />}
               {activeTab === "history" && <div className="grid grid-cols-1 md:grid-cols-2 gap-4"><section><Heading>Standing Orders</Heading><Rows items={data.standingOrders} empty="No standing orders found." render={(item) => `${item.Description || "Standing order"} · ${Number(item.Amount || 0).toLocaleString()}`} /></section><section><Heading>Posted Payouts</Heading><Rows items={data.payouts} empty="No posted payouts found." render={(item) => `${item.Reference || item.Description || "Payout"} · ${Number(item.Amount || item.Principal || 0).toLocaleString()}`} /></section><section className="md:col-span-2"><Heading>Applications in process</Heading><Rows items={data.applications} empty="No other applications in process." render={(item) => `${item.PaddedCaseNumber || "Loan case"} · ${item.LoanProductDescription || ""} · ${item.StatusDescription || ""}`} /></section></div>}
-              {activeTab === "schedule" && <div className="overflow-x-auto rounded-lg border"><div className="grid min-w-[900px] grid-cols-7 gap-2 bg-gray-700 p-3 text-xs font-semibold text-gray-100"><span>Period</span><span>Due Date</span><span>Starting</span><span>Payment</span><span>Interest</span><span>Principal</span><span>Ending</span></div>{(data.repaymentSchedule || []).map((row) => <div key={row.Period} className="grid min-w-[900px] grid-cols-7 gap-2 border-t p-3 text-xs text-gray-700"><span>{row.Period}</span><span>{new Date(row.DueDate).toLocaleDateString()}</span><span>{Number(row.StartingBalance).toLocaleString()}</span><span>{Number(row.Payment).toLocaleString()}</span><span>{Number(row.InterestPayment).toLocaleString()}</span><span>{Number(row.PrincipalPayment).toLocaleString()}</span><span>{Number(row.EndingBalance).toLocaleString()}</span></div>)}</div>}
+              {activeTab === "schedule" && <div className="space-y-3"><div className="flex items-center justify-between"><div><p className="text-sm font-semibold text-gray-700">Repayment Schedule</p><p className="text-xs text-gray-500">Total repayment: {Number(data.loanCase?.TotalPaybackAmount || 0).toLocaleString()}</p></div><Button type="button" onClick={recalculateSchedule} disabled={recalculating || !workflowItemId} title={!workflowItemId ? "Open the assigned verification task to recalculate" : undefined} className="bg-indigo-600 hover:bg-indigo-700"><FaRedo className={`mr-2 ${recalculating ? "animate-spin" : ""}`} />{recalculating ? "Recalculating..." : "Recalculate Schedule"}</Button></div><div className="overflow-x-auto rounded-lg border"><div className="grid min-w-[900px] grid-cols-7 gap-2 bg-gray-700 p-3 text-xs font-semibold text-gray-100"><span>Period</span><span>Due Date</span><span>Starting</span><span>Payment</span><span>Interest</span><span>Principal</span><span>Ending</span></div>{(data.repaymentSchedule || []).map((row) => <div key={row.Period} className="grid min-w-[900px] grid-cols-7 gap-2 border-t p-3 text-xs text-gray-700"><span>{row.Period}</span><span>{new Date(row.DueDate).toLocaleDateString()}</span><span>{Number(row.StartingBalance).toLocaleString()}</span><span>{Number(row.Payment).toLocaleString()}</span><span>{Number(row.InterestPayment).toLocaleString()}</span><span>{Number(row.PrincipalPayment).toLocaleString()}</span><span>{Number(row.EndingBalance).toLocaleString()}</span></div>)}</div></div>}
 
               {activeTab === "decision" && <div className="border-t pt-4 space-y-3">
                 <div><Label className="text-sm font-semibold text-gray-700">Verification Reference</Label><Input value={reference} onChange={(e) => setReference(e.target.value)} placeholder="Enter the verification reference" /></div>

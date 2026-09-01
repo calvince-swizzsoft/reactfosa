@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 import Swal from "sweetalert2";
 import { FaHourglassEnd } from "react-icons/fa";
 import { apiErrorMessage, apiJson } from "@/lib/api";
@@ -13,6 +12,7 @@ import DenominationCountFields, {
 } from "../lib/DenominationCountFields";
 import { TellerCashBalanceStatus } from "../lib/frontOfficeEnums";
 import ReceiptModal from "../lib/ReceiptModal";
+import FieldHelp from "@/pages/Accounts/SavingsProducts/FieldHelp";
 
 const BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 
@@ -57,10 +57,13 @@ const BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 // - A balanced close requires only the teller-to-treasury journal; shortage
 //   and excess closes additionally post their variance journal.
 
-function FieldGroup({ label, children }) {
+function FieldGroup({ label, help, children }) {
   return (
     <div>
-      <Label className="text-sm font-semibold text-gray-700">{label}</Label>
+      <div className="flex items-center gap-1">
+        <Label className="text-sm font-semibold text-gray-700">{label}</Label>
+        {help && <FieldHelp label={label}>{help}</FieldHelp>}
+      </div>
       {children}
     </div>
   );
@@ -77,10 +80,9 @@ export default function EndOfDay() {
   const [teller, setTeller] = useState(null);
   const [loadingTeller, setLoadingTeller] = useState(true);
   const [counts, setCounts] = useState(emptyDenominationCounts);
-  const [reference, setReference] = useState("");
-  const [remarks, setRemarks] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [receiptJournal, setReceiptJournal] = useState(null);
+  const [validationErrors, setValidationErrors] = useState({});
 
   useEffect(() => {
     const employeeId = getEmployeeIdFromToken();
@@ -106,12 +108,23 @@ export default function EndOfDay() {
   const bookBalance = teller?.BookBalance ?? 0;
   const status = statusFor(closingBalance, bookBalance);
 
-  const handleCountChange = (key, value) => setCounts((prev) => ({ ...prev, [key]: value }));
+  const handleCountChange = (key, value) => {
+    setCounts((prev) => ({ ...prev, [key]: value }));
+    setValidationErrors((current) => ({ ...current, counts: undefined }));
+  };
 
   const handleSubmit = async () => {
+    const errors = {};
+    if (!teller?.Id) errors.teller = "The logged-in user has no available teller record.";
+    setValidationErrors(errors);
+    if (Object.keys(errors).length) {
+      Swal.fire("Check End-of-Day Details", "Correct the highlighted fields before continuing.", "warning");
+      return;
+    }
+
     const confirm = await Swal.fire({
       title: "Run End of Day Process?",
-      text: "This will close the current business day. This action cannot be undone.",
+      html: `Counted cash: <strong>${closingBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</strong><br/>Book balance: <strong>${bookBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</strong><br/>Result: <strong>${status.label}</strong><br/><br/>This closes this teller for today and cannot be repeated.`,
       icon: "warning",
       showCancelButton: true,
       confirmButtonColor: "#4f46e5",
@@ -131,8 +144,6 @@ export default function EndOfDay() {
         // validator — the controller never reads this field again after
         // the initial HasErrors check.
         Amount: closingBalance > 0 ? closingBalance : bookBalance > 0 ? bookBalance : 0.01,
-        Reference: reference,
-        Remarks: remarks,
         // Now required to reconcile exactly against ClosingBalance
         // (DENOMINATION-CAPTURE-FRONTEND-GUIDE.md) — guaranteed here since
         // ClosingBalance is itself sumDenominations(counts).
@@ -143,10 +154,9 @@ export default function EndOfDay() {
         method: "POST",
         body: JSON.stringify(payload),
       });
-      setReceiptJournal(data.data);
+      if (data.data) setReceiptJournal(data.data);
+      else Swal.fire("End of Day Complete", data.message || "The teller was closed successfully.", "success");
       setCounts(emptyDenominationCounts);
-      setReference("");
-      setRemarks("");
     } catch (err) {
       Swal.fire("Error", apiErrorMessage(err, "Unable to complete the end-of-day process."), "error");
     } finally {
@@ -169,9 +179,10 @@ export default function EndOfDay() {
             <p className="mt-1 font-medium text-gray-800">
               {loadingTeller ? "Loading..." : teller?.Description || "—"}
             </p>
+            {validationErrors.teller && <p className="mt-1 text-xs text-red-600">{validationErrors.teller}</p>}
           </div>
           <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-            <p className="text-sm text-gray-500">Book Balance (expected cash)</p>
+            <div className="flex items-center gap-1"><p className="text-sm text-gray-500">Book Balance (expected cash)</p><FieldHelp label="Book balance">This is the teller cash balance calculated from posted journals. The server reloads it during submission and does not trust the browser value.</FieldHelp></div>
             <p className="mt-1 font-medium text-gray-800">
               {loadingTeller ? "Loading..." : bookBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </p>
@@ -179,28 +190,19 @@ export default function EndOfDay() {
         </div>
 
         {/* Denomination count */}
-        <FieldGroup label="Count Your Cash">
+        <FieldGroup label="Count Your Cash" help="Enter the number of physical notes or coins in each denomination. The counted total becomes the cash transferred to treasury.">
           <DenominationCountFields counts={counts} onChange={handleCountChange} />
         </FieldGroup>
 
         {/* Balance status */}
         <div className="flex justify-between items-center rounded-lg border border-gray-200 bg-white p-4 shadow">
           <div>
-            <p className="text-sm text-gray-500">Closing vs. Book Balance</p>
+            <div className="flex items-center gap-1"><p className="text-sm text-gray-500">Closing vs. Book Balance</p><FieldHelp label="Balance result">Zero is balanced. A negative difference is a shortage; a positive difference is an excess. The server recalculates this classification before posting.</FieldHelp></div>
             <p className="mt-1 text-2xl font-semibold text-gray-800">
               {(closingBalance - bookBalance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </p>
           </div>
           <span className={`px-3 py-1 rounded text-sm font-semibold ${status.cls}`}>{status.label}</span>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <FieldGroup label="Reference">
-            <Input value={reference} onChange={(e) => setReference(e.target.value)} placeholder="Optional" />
-          </FieldGroup>
-          <FieldGroup label="Remarks">
-            <Input value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Optional" />
-          </FieldGroup>
         </div>
 
         <p className="text-xs text-gray-400">
@@ -209,7 +211,7 @@ export default function EndOfDay() {
 
         <Button
           onClick={handleSubmit}
-          disabled={submitting || loadingTeller}
+          disabled={submitting || loadingTeller || !teller}
           className="w-full bg-indigo-600 hover:bg-indigo-700"
         >
           {submitting ? "Processing..." : "Run End of Day Process"}

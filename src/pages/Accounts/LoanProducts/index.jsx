@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Swal from "sweetalert2";
-import { FaHandHoldingUsd, FaPlus, FaSearch } from "react-icons/fa";
+import { FaHandHoldingUsd, FaPlus, FaSearch, FaPencilAlt } from "react-icons/fa";
 import NotFoundImage from "/assets/scopefinding.png";
 import { listLoanProductsPaged } from "./api";
 import { apiErrorMessage } from "@/lib/api";
@@ -67,7 +67,8 @@ export default function LoanProducts() {
           <span className="col-span-2">Code</span>
           <span className="col-span-6">Description</span>
           <span className="col-span-2">Section</span>
-          <span className="col-span-2">Category</span>
+          <span className="col-span-1">Category</span>
+          <span className="col-span-1 text-center">Action</span>
         </div>
 
         {loading ? (
@@ -77,19 +78,29 @@ export default function LoanProducts() {
         ) : items.length > 0 ? (
           <div className="space-y-2">
             {items.map((product) => (
-              <button
+              <div
                 key={product.Id}
-                type="button"
-                onClick={() => Swal.fire("Coming Soon", "Editing an existing loan product isn't built yet — this list is read-only for now.", "info")}
                 className="w-full text-left bg-white rounded-lg shadow-lg border hover:shadow-xl transition-all"
               >
                 <div className="grid grid-cols-12 gap-2 items-center py-3 px-6 text-sm">
                   <span className="col-span-2 font-medium text-indigo-700">{product.PaddedCode}</span>
                   <span className="col-span-6 text-gray-700 truncate">{product.Description}</span>
                   <span className="col-span-2 text-gray-700">{product.LoanRegistrationLoanProductSectionDescription}</span>
-                  <span className="col-span-2 text-gray-700">{product.LoanRegistrationLoanProductCategoryDescription}</span>
+                  <span className="col-span-1 text-gray-700 truncate">{product.LoanRegistrationLoanProductCategoryDescription}</span>
+                  <span className="col-span-1 flex justify-center">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      aria-label={`Edit ${product.Description}`}
+                      onClick={() => navigate(`/Accounts/LoanProducts/${product.Id}/edit`)}
+                      className="text-indigo-700 border-indigo-200 hover:bg-indigo-50"
+                    >
+                      <FaPencilAlt className="mr-1" /> Edit
+                    </Button>
+                  </span>
                 </div>
-              </button>
+              </div>
             ))}
           </div>
         ) : (

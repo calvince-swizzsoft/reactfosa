@@ -113,7 +113,7 @@ export default function TextAlerts() {
           <span className="col-span-2">Recipient</span>
           <span className="col-span-4">Message</span>
           <span className="col-span-2">Company</span>
-          <span className="col-span-2">DLR Status</span>
+          <span className="col-span-2">Delivery status</span>
           <span className="col-span-2">Created</span>
         </div>
 
@@ -140,6 +140,9 @@ export default function TextAlerts() {
                   <span className="col-span-2">
                     <span className={`px-2 py-1 rounded text-xs font-semibold ${statusBadgeClass(item.TextMessageDLRStatusDescription)}`}>
                       {item.TextMessageDLRStatusDescription || "—"}
+                    </span>
+                    <span className="mt-1 block break-words text-[11px] leading-4 text-gray-500" title={item.TextMessageReference || ""}>
+                      {item.TextMessageReference || "No provider response recorded"}
                     </span>
                   </span>
                   <span className="col-span-2 text-sm text-gray-500">{formatDate(item.CreatedDate)}</span>

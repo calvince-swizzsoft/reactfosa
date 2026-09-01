@@ -36,6 +36,7 @@ export default function FinanceReports() {
   const [branchId, setBranchId] = useState("");
   const report = REPORTS.find((item) => item.id === reportId) || REPORTS[0];
   const isBranch = reportId === "branch";
+  const isIncomeExpenditure = reportId === "income-expenditure";
 
   useEffect(() => {
     apiFetch(`${import.meta.env.VITE_APP_MEMBERSHIP_URL}/api/administration/branches?pageIndex=0&pageSize=1000`)
@@ -92,11 +93,12 @@ export default function FinanceReports() {
       <Button onClick={loadReport} disabled={loading} className="bg-indigo-600 hover:bg-indigo-700">{loading ? "Generating..." : "Generate"}</Button>
       <div className="relative flex-1 min-w-56"><FaSearch className="absolute left-3 top-3 text-gray-400" /><Input value={search} onChange={(e) => { setSearch(e.target.value); setPageIndex(0); }} placeholder="Search accounts, parents or cost centres" className="pl-9" /></div>
       <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setPageIndex(0); }} className="h-10 border border-gray-300 rounded-md bg-white px-3">{[20, 50, 100].map((size) => <option key={size} value={size}>{size} per page</option>)}</select>
+      <p className="basis-full text-xs text-gray-500">The selected date includes entries whose accounting value date falls on or before that day. Statement figures are net closing account balances, not gross transaction turnover.</p>
     </div>
     {!isBranch && rows.length > 0 && <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-5">
       <div className="bg-gray-100 rounded-lg p-4"><p className="text-xs uppercase text-gray-500">Total Debit</p><p className="text-lg font-bold text-gray-800">{money(totalDebit)}</p></div>
       <div className="bg-gray-100 rounded-lg p-4"><p className="text-xs uppercase text-gray-500">Total Credit</p><p className="text-lg font-bold text-gray-800">{money(totalCredit)}</p></div>
-      <div className={`rounded-lg p-4 ${Math.abs(totalDebit - totalCredit) < 0.01 ? "bg-green-100" : "bg-amber-100"}`}><p className="text-xs uppercase text-gray-500">Difference</p><p className="text-lg font-bold text-gray-800">{money(totalDebit - totalCredit)}</p></div>
+      <div className={`rounded-lg p-4 ${isIncomeExpenditure || Math.abs(totalDebit - totalCredit) < 0.01 ? "bg-green-100" : "bg-amber-100"}`}><p className="text-xs uppercase text-gray-500">{isIncomeExpenditure ? "Net surplus / (deficit)" : "Difference"}</p><p className="text-lg font-bold text-gray-800">{money(isIncomeExpenditure ? totalCredit - totalDebit : totalDebit - totalCredit)}</p></div>
     </div>}
     <div className="bg-gray-200 p-4 rounded-sm">
       <div className="grid grid-cols-12 gap-3 bg-gray-700 text-gray-100 font-semibold p-3 rounded-lg mb-4 text-sm">{isBranch ? <><span className="col-span-2">Category</span><span className="col-span-2">Short Code</span><span className="col-span-6">Account</span><span className="col-span-2 text-right">Balance</span></> : <><span className="col-span-2">Account Code</span><span className="col-span-3">Account Name</span><span className="col-span-2">Parent</span><span className="col-span-2">Cost Centre</span><span className="col-span-1">Type</span><span className="col-span-1 text-right">Debit</span><span className="col-span-1 text-right">Credit</span></>}</div>

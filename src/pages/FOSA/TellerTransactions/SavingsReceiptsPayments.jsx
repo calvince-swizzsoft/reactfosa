@@ -39,6 +39,12 @@ const TYPE_OPTIONS = [
 ];
 
 const FIN_BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
+const LOAN_PRODUCT_CODE = 2;
+
+function isLoanAccount(account) {
+  const productCode = account?.CustomerAccountTypeProductCode ?? account?.customerAccountTypeProductCode;
+  return Number(productCode) === LOAN_PRODUCT_CODE;
+}
 
 // Pending/Authorized/Rejected share the same numeric values across
 // CashDepositRequestAuthStatus/CashWithdrawalRequestAuthStatus, and the
@@ -126,6 +132,7 @@ function CreateTransactionDrawer({ open, onClose, onSuccess, onDialog, initialCu
   }, [open, initialAccountId, initialCustomer, initialAccounts]);
 
   const isChequeDeposit = form.Type === FrontOfficeTransactionType.ChequeDeposit;
+  const isDeposit = form.Type === FrontOfficeTransactionType.CashDeposit || isChequeDeposit;
 
   // ChequeTypeController.GetAll (docs/api/cheque-type-api-spec.md §5.2) —
   // every cheque type, unpaged, meant for exactly this kind of picker.
@@ -163,6 +170,14 @@ function CreateTransactionDrawer({ open, onClose, onSuccess, onDialog, initialCu
   const handleChange = (field, value) => setForm((p) => ({ ...p, [field]: value }));
 
   const selectedAccount = accounts.find((account) => String(account.Id) === String(form.CreditCustomerAccountId));
+  const eligibleAccounts = isDeposit ? accounts.filter((account) => !isLoanAccount(account)) : accounts;
+
+  useEffect(() => {
+    if (isDeposit && isLoanAccount(selectedAccount)) {
+      setForm((current) => ({ ...current, CreditCustomerAccountId: "" }));
+    }
+  }, [isDeposit, selectedAccount]);
+
   const selectedCustomerName = selectedCustomer
     ? ([selectedCustomer.IndividualFirstName, selectedCustomer.IndividualLastName].filter(Boolean).join(" ") || selectedCustomer.NonIndividualDescription || selectedCustomer.Description)
     : "";
@@ -203,6 +218,10 @@ function CreateTransactionDrawer({ open, onClose, onSuccess, onDialog, initialCu
     }
     if (!form.CreditCustomerAccountId || !form.TotalValue || Number(form.TotalValue) <= 0) {
       Swal.fire("Missing Fields", "Select an account and enter an amount greater than zero.", "warning");
+      return;
+    }
+    if (isDeposit && isLoanAccount(selectedAccount)) {
+      Swal.fire("Invalid Deposit Account", "Cash and cheque deposits can only be posted to savings or investment accounts. Use the supported loan-repayment process for a loan account.", "warning");
       return;
     }
     if (isChequeDeposit && (!/^\d{6}$/.test(form.ChequeNumber) || !form.Drawer.trim() || !form.DrawerBank.trim() || !form.DrawerBankBranch.trim() || !form.ChequeType || !form.WriteDate)) {
@@ -327,11 +346,12 @@ function CreateTransactionDrawer({ open, onClose, onSuccess, onDialog, initialCu
                 <Select value={form.CreditCustomerAccountId ? String(form.CreditCustomerAccountId) : ""} onValueChange={(v) => handleChange("CreditCustomerAccountId", v)} disabled={loadingAccounts || !selectedCustomer}>
                   <SelectTrigger><SelectValue placeholder={loadingAccounts ? "Loading..." : !selectedCustomer ? "Select a customer first" : "Select account"} /></SelectTrigger>
                   <SelectContent className="max-h-60 overflow-y-auto">
-                    {accounts.map((a) => (
+                    {eligibleAccounts.map((a) => (
                       <SelectItem key={String(a.Id)} value={String(a.Id)}>{a.FullAccountNumber || a.CustomerAccountFullAccountNumber || a.CustomerAccountTypeTargetProductDescription || a.Id}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                {isDeposit && accounts.length > eligibleAccounts.length && <p className="mt-1 text-xs text-gray-500">Loan accounts are excluded because direct deposits are not a supported loan-repayment method.</p>}
               </FieldGroup>
 
               {selectedAccount && <div className="grid grid-cols-2 gap-2 rounded-lg bg-gray-50 border p-3 text-sm">

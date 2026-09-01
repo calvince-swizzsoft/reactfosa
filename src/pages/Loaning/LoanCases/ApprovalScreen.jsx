@@ -7,7 +7,7 @@ import Swal from "sweetalert2";
 import { motion, AnimatePresence } from "framer-motion";
 import { FaCheckCircle } from "react-icons/fa";
 import NotFoundImage from "/assets/scopefinding.png";
-import { listLoanCases, getApprovalWorksheet, approveLoanCase } from "./lib/loanCaseApi";
+import { listLoanCases, getApprovalWorksheet, getApprovalRepaymentSchedule, approveLoanCase } from "./lib/loanCaseApi";
 import { LoanCaseStatus, LoanApprovalOption } from "./lib/loanCaseEnums";
 import LoanCaseStatusBadge from "./lib/LoanCaseStatusBadge";
 import LoanCaseSummary from "./lib/LoanCaseSummary";
@@ -30,8 +30,7 @@ function ReviewText({ label, value }) {
 }
 
 const emptyForm = {
-  ApprovedAmount: "", ApprovedAmountRemarks: "", ApprovedPrincipalPayment: "",
-  ApprovedInterestPayment: "", MonthlyPaybackAmount: "", TotalPaybackAmount: "", ApprovalRemarks: "",
+  ApprovedAmount: "", ApprovedAmountRemarks: "", MonthlyPaybackAmount: "", TotalPaybackAmount: "", ApprovalRemarks: "",
 };
 
 function ApprovalDrawer({ loanCaseId, workflowItemId, onClose, onChanged }) {
@@ -63,6 +62,33 @@ function ApprovalDrawer({ loanCaseId, workflowItemId, onClose, onChanged }) {
       .finally(() => setLoading(false));
   }, [loanCaseId]);
 
+  useEffect(() => {
+    const amount = Number(form.ApprovedAmount);
+    if (!loanCaseId || !Number.isFinite(amount) || amount <= 0) return;
+
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      getApprovalRepaymentSchedule(loanCaseId, amount)
+        .then((schedule) => {
+          if (cancelled) return;
+          setData((previous) => previous ? { ...previous, repaymentSchedule: schedule || [] } : previous);
+          setForm((previous) => ({
+            ...previous,
+            MonthlyPaybackAmount: schedule?.[0]?.Payment || "",
+            TotalPaybackAmount: (schedule || []).reduce((sum, item) => sum + Number(item.Payment || 0), 0),
+          }));
+        })
+        .catch((err) => {
+          if (!cancelled) Swal.fire("Schedule Error", err.message, "error");
+        });
+    }, 300);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [loanCaseId, form.ApprovedAmount]);
+
   if (!loanCaseId) return null;
 
   const submit = async (option) => {
@@ -86,10 +112,6 @@ function ApprovalDrawer({ loanCaseId, workflowItemId, onClose, onChanged }) {
         Option: option,
         ApprovedAmount: Number(form.ApprovedAmount) || 0,
         ApprovedAmountRemarks: form.ApprovedAmountRemarks,
-        ApprovedPrincipalPayment: Number(form.ApprovedPrincipalPayment) || 0,
-        ApprovedInterestPayment: Number(form.ApprovedInterestPayment) || 0,
-        MonthlyPaybackAmount: Number(form.MonthlyPaybackAmount) || 0,
-        TotalPaybackAmount: Number(form.TotalPaybackAmount) || 0,
         ApprovalRemarks: form.ApprovalRemarks,
       });
       // The server's own message says so explicitly when a
@@ -154,12 +176,6 @@ function ApprovalDrawer({ loanCaseId, workflowItemId, onClose, onChanged }) {
               <div className="grid grid-cols-2 gap-3 border-t pt-4">
                 <FieldGroup label="Approved Amount (required to approve)">
                   <Input type="number" min="0" value={form.ApprovedAmount} onChange={(e) => setForm((p) => ({ ...p, ApprovedAmount: e.target.value }))} />
-                </FieldGroup>
-                <FieldGroup label="Approved Principal Payment">
-                  <Input type="number" min="0" value={form.ApprovedPrincipalPayment} onChange={(e) => setForm((p) => ({ ...p, ApprovedPrincipalPayment: e.target.value }))} />
-                </FieldGroup>
-                <FieldGroup label="Approved Interest Payment">
-                  <Input type="number" min="0" value={form.ApprovedInterestPayment} onChange={(e) => setForm((p) => ({ ...p, ApprovedInterestPayment: e.target.value }))} />
                 </FieldGroup>
                 <FieldGroup label="Monthly Payback Amount">
                   <Input type="number" min="0" value={form.MonthlyPaybackAmount} disabled />

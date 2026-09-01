@@ -235,6 +235,7 @@ import {
     FaChevronRight,
     FaChevronDown,
     FaChevronUp,
+    FaPencilAlt,
 } from "react-icons/fa";
 import AddProducts from "./AddLoanProducts";
 import LoanProductDetailsDrawer from "./LoanProductDetailsDrawer";
@@ -246,6 +247,7 @@ export default function LoanProducts() {
     const [openDrawer, setOpenDrawer] = useState(false);
     const [selectedProduct, setSelectedProduct] = useState(null);
     const [detailDrawerOpen, setDetailDrawerOpen] = useState(false);
+    const [editProduct, setEditProduct] = useState(null);
 
     // Pagination & search
     const [search, setSearch] = useState("");
@@ -363,7 +365,15 @@ export default function LoanProducts() {
                                     <span className="col-span-2">{p.PaddedCode}</span>
                                     {/* <span className="col-span-3">{p.Priority}</span> */}
                                     <span className="col-span-2 flex gap-1 items-center">{p.LoanInterestAnnualPercentageRate}%</span>
-                                    <span className="col-span-2 text-right">
+                                    <span className="col-span-2 flex justify-end gap-2">
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+                                            onClick={() => setEditProduct(p)}
+                                        >
+                                            <FaPencilAlt className="mr-1" /> Edit
+                                        </Button>
                                         <Button
                                             size="sm"
                                             variant="outline"
@@ -410,6 +420,7 @@ export default function LoanProducts() {
 
             {/* ADD PRODUCT DRAWER */}
             <AddProducts open={openDrawer} onClose={() => setOpenDrawer(false)} refresh={fetchProducts} />
+            <AddProducts open={Boolean(editProduct)} product={editProduct} onClose={() => setEditProduct(null)} refresh={fetchProducts} />
 
             {/* Details Drawer */}
             <LoanProductDetailsDrawer open={detailDrawerOpen} onClose={() => setDetailDrawerOpen(false)} product={selectedProduct} />

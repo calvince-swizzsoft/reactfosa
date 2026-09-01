@@ -24,7 +24,6 @@ import LoanDisbursed from "./LoanDisbursed";
 import LoanRejected from "./LoanRejected";
 import LoanAppraised from "./LoanAppraised";
 import AddLoanApplicationDrawer from "./AddLoanApplicationDrawer/AddLoanApplicationDrawer";
-import { LoanApplicationProvider } from "./AddLoanApplicationDrawer/LoanApplicationContext";
 import RestructuredLoans from "./RestructuredLoans";
 
 export default function LoanApplication() {
@@ -130,12 +129,10 @@ export default function LoanApplication() {
             </Tabs>
 
             {/* Drawer */}
-            <LoanApplicationProvider>
-                <AddLoanApplicationDrawer
-                    open={addDrawerOpen}
-                    onClose={() => setAddDrawerOpen(false)}
-                />
-            </LoanApplicationProvider>
+            <AddLoanApplicationDrawer
+                open={addDrawerOpen}
+                onClose={() => setAddDrawerOpen(false)}
+            />
         </div>
     );
 }

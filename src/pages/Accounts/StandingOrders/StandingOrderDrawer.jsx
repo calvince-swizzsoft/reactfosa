@@ -8,6 +8,8 @@ import {
 } from "@/components/ui/select";
 import Swal from "sweetalert2";
 import { apiFetch } from "@/lib/api";
+import CustomerLookupModal from "@/pages/Registry/Customers/Documents/CustomerLookupModal";
+import FieldHelp from "@/pages/Accounts/SavingsProducts/FieldHelp";
 import {
   StandingOrderTrigger,
   ScheduleFrequency,
@@ -54,6 +56,27 @@ const ROUNDING_TYPE_OPTIONS = [
   { value: RoundingType.Floor, label: "Floor" },
 ];
 
+const roundLoanPayment = (value, roundingType) => {
+  if (!Number.isFinite(value)) return 0;
+
+  switch (Number(roundingType)) {
+    case RoundingType.ToEven: {
+      const lower = Math.floor(value);
+      const fraction = value - lower;
+      if (Math.abs(fraction - 0.5) < Number.EPSILON) return lower % 2 === 0 ? lower : lower + 1;
+      return Math.round(value);
+    }
+    case RoundingType.AwayFromZero:
+      return Math.sign(value) * Math.floor(Math.abs(value) + 0.5);
+    case RoundingType.Ceiling:
+      return Math.ceil(value);
+    case RoundingType.Floor:
+      return Math.floor(value);
+    default:
+      return value;
+  }
+};
+
 const TABS = [
   { id: "parties", label: "Parties" },
   { id: "schedule", label: "Schedule & Charges" },
@@ -82,11 +105,15 @@ const emptyForm = {
   beneficiaryProductRoundingType: RoundingType.NoRounding,
 };
 
-function FieldGroup({ label, children }) {
+function FieldGroup({ label, help, error, children }) {
   return (
     <div>
-      <Label className="text-sm font-semibold text-gray-700">{label}</Label>
+      <div className="mb-1 flex items-center gap-1">
+        <Label className="text-sm font-semibold text-gray-700">{label}</Label>
+        <FieldHelp label={label}>{help}</FieldHelp>
+      </div>
       {children}
+      {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
     </div>
   );
 }
@@ -107,29 +134,19 @@ function EnumSelect({ value, options, onChange }) {
 // Same two-step customer -> account picker used in FOSA/Transactions
 // (CashDeposit.jsx etc.): pick a customer first, then one of their accounts,
 // rather than a single flat dropdown over every account in the system.
-function PartyPicker({ label, customers, loadingCustomers, customerId, onCustomerChange, accounts, loadingAccounts, accountId, onAccountChange }) {
+function PartyPicker({ label, help, customer, onChooseCustomer, accounts, loadingAccounts, accountId, onAccountChange, error }) {
   return (
     <div className="space-y-3 rounded-lg border p-4">
-      <p className="text-sm font-semibold text-gray-700">{label}</p>
-      <FieldGroup label="Customer">
-        <Select value={customerId ? String(customerId) : ""} onValueChange={onCustomerChange} disabled={loadingCustomers}>
-          <SelectTrigger><SelectValue placeholder={loadingCustomers ? "Loading..." : "Search & select customer"} /></SelectTrigger>
-          <SelectContent className="max-h-60 overflow-y-auto">
-            {customers.map((c) => {
-              const name = [c.IndividualFirstName, c.IndividualLastName]
-                .filter(Boolean)
-                .join(" ") || c.NonIndividualDescription || c.Description || `Customer ${c.Id}`;
-              return (
-                <SelectItem key={String(c.Id)} value={String(c.Id)}>{name}</SelectItem>
-              );
-            })}
-          </SelectContent>
-        </Select>
+      <div className="flex items-center gap-1"><p className="text-sm font-semibold text-gray-700">{label}</p><FieldHelp label={label}>{help}</FieldHelp></div>
+      <FieldGroup label="Customer" help="Searches the complete customer registry on the server; selecting a customer loads only that customer's accounts.">
+        <Button type="button" variant="outline" className="w-full justify-start font-normal" onClick={onChooseCustomer}>
+          {customer?.name || "Search and select customer"}
+        </Button>
       </FieldGroup>
-      <FieldGroup label="Account">
-        <Select value={accountId ? String(accountId) : ""} onValueChange={onAccountChange} disabled={!customerId || loadingAccounts}>
+      <FieldGroup label="Account" error={error} help="The specific customer account used on this side of the standing order.">
+        <Select value={accountId ? String(accountId) : ""} onValueChange={onAccountChange} disabled={!customer?.id || loadingAccounts}>
           <SelectTrigger>
-            <SelectValue placeholder={loadingAccounts ? "Loading..." : !customerId ? "Select a customer first" : "Select account"} />
+            <SelectValue placeholder={loadingAccounts ? "Loading..." : !customer?.id ? "Select a customer first" : "Select account"} />
           </SelectTrigger>
           <SelectContent className="max-h-60 overflow-y-auto">
             {accounts.map((a) => (
@@ -150,15 +167,13 @@ export default function StandingOrderDrawer({ open, onClose, onSuccess, standing
   const [form, setForm] = useState(emptyForm);
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(false);
-
-  const [customers, setCustomers] = useState([]);
-  const [loadingCustomers, setLoadingCustomers] = useState(false);
-
-  const [benefactorCustomerId, setBenefactorCustomerId] = useState("");
+  const [errors, setErrors] = useState({});
+  const [customerPickerSide, setCustomerPickerSide] = useState(null);
+  const [benefactorCustomer, setBenefactorCustomer] = useState(null);
   const [benefactorAccounts, setBenefactorAccounts] = useState([]);
   const [loadingBenefactorAccounts, setLoadingBenefactorAccounts] = useState(false);
 
-  const [beneficiaryCustomerId, setBeneficiaryCustomerId] = useState("");
+  const [beneficiaryCustomer, setBeneficiaryCustomer] = useState(null);
   const [beneficiaryAccounts, setBeneficiaryAccounts] = useState([]);
   const [loadingBeneficiaryAccounts, setLoadingBeneficiaryAccounts] = useState(false);
 
@@ -189,12 +204,7 @@ export default function StandingOrderDrawer({ open, onClose, onSuccess, standing
   useEffect(() => {
     if (!open) return;
     setActiveTab("parties");
-    setLoadingCustomers(true);
-    apiFetch(`${FIN_BASE}/api/registry/customers`)
-      .then((r) => r.json())
-      .then((d) => setCustomers(normalizeList(d)))
-      .catch(() => setCustomers([]))
-      .finally(() => setLoadingCustomers(false));
+    setErrors({});
 
     if (isEdit) {
       setLoadingData(true);
@@ -223,8 +233,8 @@ export default function StandingOrderDrawer({ open, onClose, onSuccess, standing
           });
           const benefactorCid = detail.benefactorCustomerAccountCustomerId || "";
           const beneficiaryCid = detail.beneficiaryCustomerAccountCustomerId || "";
-          setBenefactorCustomerId(benefactorCid);
-          setBeneficiaryCustomerId(beneficiaryCid);
+          setBenefactorCustomer({ id: benefactorCid, name: detail.benefactorCustomerAccountCustomerFullName || "Selected customer" });
+          setBeneficiaryCustomer({ id: beneficiaryCid, name: detail.beneficiaryCustomerAccountCustomerFullName || "Selected customer" });
           fetchAccountsForCustomer(benefactorCid, setBenefactorAccounts, setLoadingBenefactorAccounts);
           fetchAccountsForCustomer(beneficiaryCid, setBeneficiaryAccounts, setLoadingBeneficiaryAccounts);
         })
@@ -232,8 +242,8 @@ export default function StandingOrderDrawer({ open, onClose, onSuccess, standing
         .finally(() => setLoadingData(false));
     } else {
       setForm(emptyForm);
-      setBenefactorCustomerId("");
-      setBeneficiaryCustomerId("");
+      setBenefactorCustomer(null);
+      setBeneficiaryCustomer(null);
       setBenefactorAccounts([]);
       setBeneficiaryAccounts([]);
     }
@@ -242,22 +252,86 @@ export default function StandingOrderDrawer({ open, onClose, onSuccess, standing
 
   const handleChange = (field, value) => setForm((p) => ({ ...p, [field]: value }));
 
-  const handleBenefactorCustomerChange = (customerId) => {
-    setBenefactorCustomerId(customerId);
-    handleChange("benefactorCustomerAccountId", "");
-    fetchAccountsForCustomer(customerId, setBenefactorAccounts, setLoadingBenefactorAccounts);
+  const customerSummary = (customer) => ({
+    id: customer.Id ?? customer.id,
+    name: [customer.IndividualFirstName, customer.IndividualLastName].filter(Boolean).join(" ") || customer.NonIndividualDescription || customer.Description || "Selected customer",
+  });
+
+  const handleCustomerSelected = (customer) => {
+    const selected = customerSummary(customer);
+    if (customerPickerSide === "benefactor") {
+      setBenefactorCustomer(selected);
+      handleChange("benefactorCustomerAccountId", "");
+      fetchAccountsForCustomer(selected.id, setBenefactorAccounts, setLoadingBenefactorAccounts);
+    } else {
+      setBeneficiaryCustomer(selected);
+      handleChange("beneficiaryCustomerAccountId", "");
+      fetchAccountsForCustomer(selected.id, setBeneficiaryAccounts, setLoadingBeneficiaryAccounts);
+    }
+    setCustomerPickerSide(null);
   };
 
-  const handleBeneficiaryCustomerChange = (customerId) => {
-    setBeneficiaryCustomerId(customerId);
-    handleChange("beneficiaryCustomerAccountId", "");
-    fetchAccountsForCustomer(customerId, setBeneficiaryAccounts, setLoadingBeneficiaryAccounts);
+  const selectedBeneficiaryAccount = beneficiaryAccounts.find((account) => String(account.Id ?? account.id) === String(form.beneficiaryCustomerAccountId));
+  const beneficiaryProductCode = Number(selectedBeneficiaryAccount?.CustomerAccountTypeProductCode ?? selectedBeneficiaryAccount?.customerAccountTypeProductCode ?? 0);
+  const isLoanBeneficiary = beneficiaryProductCode === 2;
+
+  useEffect(() => {
+    if (!selectedBeneficiaryAccount || !isLoanBeneficiary) return;
+
+    const productRoundingType = selectedBeneficiaryAccount.CustomerAccountTypeTargetProductRoundingType
+      ?? selectedBeneficiaryAccount.customerAccountTypeTargetProductRoundingType;
+
+    if (productRoundingType !== null && productRoundingType !== undefined) {
+      setForm((previous) => ({
+        ...previous,
+        beneficiaryProductRoundingType: Number(productRoundingType),
+      }));
+    }
+  }, [isLoanBeneficiary, selectedBeneficiaryAccount]);
+
+  useEffect(() => {
+    if (!isLoanBeneficiary) return;
+
+    const principal = Number(form.principal) || 0;
+    const interest = Number(form.interest) || 0;
+    const paymentPerPeriod = roundLoanPayment(principal, form.beneficiaryProductRoundingType)
+      + roundLoanPayment(interest, form.beneficiaryProductRoundingType);
+
+    setForm((previous) => previous.paymentPerPeriod === paymentPerPeriod
+      ? previous
+      : { ...previous, paymentPerPeriod });
+  }, [form.principal, form.interest, form.beneficiaryProductRoundingType, isLoanBeneficiary]);
+
+  useEffect(() => {
+    if (!isLoanBeneficiary && activeTab === "loanTerms") setActiveTab("parties");
+  }, [activeTab, isLoanBeneficiary]);
+
+  const validate = () => {
+    const next = {};
+    const amount = Number(form.chargeType === ChargeType.Percentage ? form.chargePercentage : form.chargeFixedAmount);
+    if (!form.benefactorCustomerAccountId) next.benefactorCustomerAccountId = "Select the paying account.";
+    if (!form.beneficiaryCustomerAccountId) next.beneficiaryCustomerAccountId = "Select the receiving account.";
+    if (form.benefactorCustomerAccountId && form.benefactorCustomerAccountId === form.beneficiaryCustomerAccountId) next.beneficiaryCustomerAccountId = "Paying and receiving accounts must be different.";
+    if (!form.durationStartDate) next.durationStartDate = "Start date is required.";
+    if (!form.durationEndDate) next.durationEndDate = "End date is required.";
+    if (form.durationStartDate && form.durationEndDate && form.durationEndDate < form.durationStartDate) next.durationEndDate = "End date cannot be before the start date.";
+    if (isLoanBeneficiary) {
+      if (Number(form.principal) < 0 || Number(form.interest) < 0) next.loanPayment = "Principal and interest cannot be negative.";
+      if (Number(form.principal) + Number(form.interest) <= 0) next.loanPayment = "Enter a principal or interest recovery amount.";
+    } else if (form.trigger !== StandingOrderTrigger.Sweep) {
+      if (!Number.isFinite(amount) || amount <= 0) next.transferAmount = "Enter a transfer amount greater than zero.";
+      if (form.chargeType === ChargeType.Percentage && amount > 100) next.transferAmount = "Percentage cannot exceed 100%.";
+    }
+    setErrors(next);
+    return next;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.benefactorCustomerAccountId || !form.beneficiaryCustomerAccountId) {
-      Swal.fire("Missing Fields", "Benefactor and beneficiary accounts are required.", "warning");
+    const validationErrors = validate();
+    if (Object.keys(validationErrors).length > 0) {
+      setActiveTab(validationErrors.benefactorCustomerAccountId || validationErrors.beneficiaryCustomerAccountId ? "parties" : validationErrors.loanPayment ? "loanTerms" : "schedule");
+      Swal.fire("Check Standing Order", "Please correct the highlighted fields before saving.", "warning");
       return;
     }
 
@@ -297,11 +371,7 @@ export default function StandingOrderDrawer({ open, onClose, onSuccess, standing
       onClose();
     } catch (err) {
       if (!isEdit && err.status === 409) {
-        // Created, but the server flagged a duplicate benefactor/beneficiary/
-        // trigger combination — not a hard failure, per the spec.
-        Swal.fire("Created with a Warning", err.message, "warning");
-        onSuccess();
-        onClose();
+        Swal.fire("Duplicate Standing Order", err.message, "warning");
       } else {
         Swal.fire("Error", err.message, "error");
       }
@@ -332,7 +402,7 @@ export default function StandingOrderDrawer({ open, onClose, onSuccess, standing
             <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
               <div className="grid grid-cols-12 gap-3 px-3 pt-2 pb-3 flex-1 overflow-hidden">
                 <aside className="col-span-3 bg-gray-200 p-3 rounded-lg overflow-y-auto">
-                  {TABS.map((tab) => (
+                  {TABS.filter((tab) => tab.id !== "loanTerms" || isLoanBeneficiary).map((tab) => (
                     <div
                       key={tab.id}
                       onClick={() => setActiveTab(tab.id)}
@@ -355,25 +425,25 @@ export default function StandingOrderDrawer({ open, onClose, onSuccess, standing
                         <section className="space-y-4">
                           <PartyPicker
                             label="Benefactor (paying side)"
-                            customers={customers}
-                            loadingCustomers={loadingCustomers}
-                            customerId={benefactorCustomerId}
-                            onCustomerChange={handleBenefactorCustomerChange}
+                            help="The source account that will be debited when the order executes."
+                            customer={benefactorCustomer}
+                            onChooseCustomer={() => setCustomerPickerSide("benefactor")}
                             accounts={benefactorAccounts}
                             loadingAccounts={loadingBenefactorAccounts}
                             accountId={form.benefactorCustomerAccountId}
                             onAccountChange={(v) => handleChange("benefactorCustomerAccountId", v)}
+                            error={errors.benefactorCustomerAccountId}
                           />
                           <PartyPicker
                             label="Beneficiary (receiving side)"
-                            customers={customers}
-                            loadingCustomers={loadingCustomers}
-                            customerId={beneficiaryCustomerId}
-                            onCustomerChange={handleBeneficiaryCustomerChange}
+                            help="The savings, investment, or loan account that receives the transfer or loan recovery."
+                            customer={beneficiaryCustomer}
+                            onChooseCustomer={() => setCustomerPickerSide("beneficiary")}
                             accounts={beneficiaryAccounts}
                             loadingAccounts={loadingBeneficiaryAccounts}
                             accountId={form.beneficiaryCustomerAccountId}
                             onAccountChange={(v) => handleChange("beneficiaryCustomerAccountId", v)}
+                            error={errors.beneficiaryCustomerAccountId}
                           />
                         </section>
                       )}
@@ -381,46 +451,49 @@ export default function StandingOrderDrawer({ open, onClose, onSuccess, standing
                       {activeTab === "schedule" && (
                         <section className="space-y-4">
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <FieldGroup label="Trigger">
+                            <FieldGroup label="Trigger" help="Schedule runs by date. Sweep moves the available source balance. Payout, Check-Off, and Microloan are used by their corresponding automated processes.">
                               <EnumSelect value={form.trigger} options={TRIGGER_OPTIONS} onChange={(v) => handleChange("trigger", v)} />
                             </FieldGroup>
-                            <FieldGroup label="Frequency">
+                            <FieldGroup label="Frequency" help="How often the order becomes due. Execution is adjusted to a valid business day.">
                               <EnumSelect value={form.scheduleFrequency} options={FREQUENCY_OPTIONS} onChange={(v) => handleChange("scheduleFrequency", v)} />
                             </FieldGroup>
-                            <FieldGroup label="Start Date">
-                              <Input type="date" value={form.durationStartDate} onChange={(e) => handleChange("durationStartDate", e.target.value)} />
+                            <FieldGroup label="Start Date" error={errors.durationStartDate} help="The first date on which the standing order can become due.">
+                              <Input type="date" required value={form.durationStartDate} onChange={(e) => handleChange("durationStartDate", e.target.value)} />
                             </FieldGroup>
-                            <FieldGroup label="End Date">
-                              <Input type="date" value={form.durationEndDate} onChange={(e) => handleChange("durationEndDate", e.target.value)} />
+                            <FieldGroup label="End Date" error={errors.durationEndDate} help="The order will no longer be selected after this date.">
+                              <Input type="date" required min={form.durationStartDate || undefined} value={form.durationEndDate} onChange={(e) => handleChange("durationEndDate", e.target.value)} />
                             </FieldGroup>
-                            <FieldGroup label="Charge Type">
+                            {!isLoanBeneficiary && form.trigger !== StandingOrderTrigger.Sweep && <FieldGroup label="Transfer Amount Type" help="Determines the amount transferred: either a fixed amount or a percentage of the source account's available balance.">
                               <EnumSelect value={form.chargeType} options={CHARGE_TYPE_OPTIONS} onChange={(v) => handleChange("chargeType", v)} />
-                            </FieldGroup>
-                            {form.chargeType === ChargeType.Percentage ? (
-                              <FieldGroup label="Charge Percentage">
-                                <Input type="number" step="0.01" value={form.chargePercentage} onChange={(e) => handleChange("chargePercentage", e.target.value)} />
+                            </FieldGroup>}
+                            {!isLoanBeneficiary && form.trigger !== StandingOrderTrigger.Sweep && (form.chargeType === ChargeType.Percentage ? (
+                              <FieldGroup label="Transfer Percentage" error={errors.transferAmount} help="Percentage of the source account's available balance to transfer on each execution.">
+                                <Input type="number" min="0.01" max="100" step="0.01" value={form.chargePercentage} onChange={(e) => handleChange("chargePercentage", e.target.value)} />
                               </FieldGroup>
                             ) : (
-                              <FieldGroup label="Charge Fixed Amount">
-                                <Input type="number" step="0.01" value={form.chargeFixedAmount} onChange={(e) => handleChange("chargeFixedAmount", e.target.value)} />
+                              <FieldGroup label="Fixed Transfer Amount" error={errors.transferAmount} help="Exact amount to transfer on each execution, subject to available funds.">
+                                <Input type="number" min="0.01" step="0.01" value={form.chargeFixedAmount} onChange={(e) => handleChange("chargeFixedAmount", e.target.value)} />
                               </FieldGroup>
-                            )}
+                            ))}
                           </div>
-                          <FieldGroup label="Remarks">
-                            <Input value={form.remarks} onChange={(e) => handleChange("remarks", e.target.value)} placeholder="Enter remarks" />
+                          <FieldGroup label="Remarks" help="An optional meaningful reference carried into execution batches and used during audit and reconciliation.">
+                            <Input maxLength={250} value={form.remarks} onChange={(e) => handleChange("remarks", e.target.value)} placeholder="Purpose or reference for this order" />
                           </FieldGroup>
                           <div className="flex items-center gap-4 pt-2">
                             <label className="flex items-center gap-2 cursor-pointer">
                               <input type="checkbox" checked={form.chargeable} onChange={(e) => handleChange("chargeable", e.target.checked)} className="w-4 h-4 accent-indigo-600" />
-                              <span className="text-sm font-medium">Chargeable</span>
+                              <span className="text-sm font-medium">Recover standing-order fee</span>
+                              <FieldHelp label="Standing-order fee">Uses the source savings product's configured Standing Order Fee. This is separate from the transfer amount above and is capped to remaining available funds.</FieldHelp>
                             </label>
                             <label className="flex items-center gap-2 cursor-pointer">
                               <input type="checkbox" checked={form.scheduleForceExecute} onChange={(e) => handleChange("scheduleForceExecute", e.target.checked)} className="w-4 h-4 accent-indigo-600" />
                               <span className="text-sm font-medium">Force Execute</span>
+                              <FieldHelp label="Force Execute">Requests execution on the next run and resets the normal attempt counter. It does not create funds or permit an overdraft.</FieldHelp>
                             </label>
                             <label className="flex items-center gap-2 cursor-pointer">
                               <input type="checkbox" checked={form.isLocked} onChange={(e) => handleChange("isLocked", e.target.checked)} className="w-4 h-4 accent-indigo-600" />
                               <span className="text-sm font-medium">Is Locked</span>
+                              <FieldHelp label="Locked standing order">Locked orders are excluded from automated execution until unlocked.</FieldHelp>
                             </label>
                           </div>
                         </section>
@@ -429,26 +502,24 @@ export default function StandingOrderDrawer({ open, onClose, onSuccess, standing
                       {activeTab === "loanTerms" && (
                         <section className="space-y-4">
                           <p className="text-sm text-gray-500">
-                            Only relevant for Check-Off/Microloan triggers and loan-product beneficiaries — leave at 0/No Rounding otherwise.
+                            Set the principal and interest to recover on each execution. Payment per period is calculated automatically, and actual recovery is capped by the outstanding loan and available funds.
                           </p>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <FieldGroup label="Loan Amount">
-                              <Input type="number" step="0.01" value={form.loanAmount} onChange={(e) => handleChange("loanAmount", e.target.value)} />
+                            <FieldGroup label="Principal" error={errors.loanPayment} help="Principal requested on each execution, capped by the outstanding loan principal and available funds.">
+                              <Input type="number" min="0" step="0.01" value={form.principal} onChange={(e) => handleChange("principal", e.target.value)} />
                             </FieldGroup>
-                            <FieldGroup label="Payment Per Period">
-                              <Input type="number" step="0.01" value={form.paymentPerPeriod} onChange={(e) => handleChange("paymentPerPeriod", e.target.value)} />
+                            <FieldGroup label="Interest" help="Interest requested on each execution. Available funds are applied to interest before principal.">
+                              <Input type="number" min="0" step="0.01" value={form.interest} onChange={(e) => handleChange("interest", e.target.value)} />
                             </FieldGroup>
-                            <FieldGroup label="Principal">
-                              <Input type="number" step="0.01" value={form.principal} onChange={(e) => handleChange("principal", e.target.value)} />
+                            <FieldGroup label="Payment Per Period" help="Automatically calculated as principal plus interest using the beneficiary loan product's rounding rule.">
+                              <Input type="number" value={form.paymentPerPeriod} readOnly className="bg-gray-100" />
                             </FieldGroup>
-                            <FieldGroup label="Interest">
-                              <Input type="number" step="0.01" value={form.interest} onChange={(e) => handleChange("interest", e.target.value)} />
-                            </FieldGroup>
-                            <FieldGroup label="Capitalized Interest">
-                              <Input type="number" step="0.01" value={form.capitalizedInterest} onChange={(e) => handleChange("capitalizedInterest", e.target.value)} />
-                            </FieldGroup>
-                            <FieldGroup label="Beneficiary Product Rounding">
-                              <EnumSelect value={form.beneficiaryProductRoundingType} options={ROUNDING_TYPE_OPTIONS} onChange={(v) => handleChange("beneficiaryProductRoundingType", v)} />
+                            <FieldGroup label="Rounding" help="Taken automatically from the selected beneficiary loan product and applied again by the API when the standing order is saved.">
+                              <Input
+                                value={ROUNDING_TYPE_OPTIONS.find((option) => option.value === Number(form.beneficiaryProductRoundingType))?.label || "No Rounding"}
+                                readOnly
+                                className="bg-gray-100"
+                              />
                             </FieldGroup>
                           </div>
                         </section>
@@ -467,6 +538,7 @@ export default function StandingOrderDrawer({ open, onClose, onSuccess, standing
           </motion.div>
         </>
       )}
+      {customerPickerSide && <CustomerLookupModal onSelect={handleCustomerSelected} onClose={() => setCustomerPickerSide(null)} />}
     </AnimatePresence>
   );
 }

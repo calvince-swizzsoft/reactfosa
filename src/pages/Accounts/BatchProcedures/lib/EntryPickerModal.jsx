@@ -47,7 +47,7 @@ async function fetchAllPages(fetchUrl) {
 // across batch types for: customer-account pickers (Credit, Refund, Inter
 // Account Transfer), G/L account pickers, Journal pickers (Reversal), and
 // LoanCase pickers (Disbursement).
-export default function EntryPickerModal({ title, fetchUrl, getLabel, getSublabel, onSelect, onClose, allowCreateGlAccount = false }) {
+export default function EntryPickerModal({ title, fetchUrl, getLabel, getSublabel, filterItems, emptyText = "No results found.", onSelect, onClose, allowCreateGlAccount = false }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
@@ -64,13 +64,14 @@ export default function EntryPickerModal({ title, fetchUrl, getLabel, getSublabe
   }, [fetchUrl]);
 
   const filtered = useMemo(() => {
-    if (!query.trim()) return items;
+    const eligible = filterItems ? items.filter(filterItems) : items;
+    if (!query.trim()) return eligible;
     const q = query.toLowerCase();
-    return items.filter((item) =>
+    return eligible.filter((item) =>
       String(getLabel(item) || "").toLowerCase().includes(q) ||
       String(getSublabel?.(item) || "").toLowerCase().includes(q)
     );
-  }, [query, items, getLabel, getSublabel]);
+  }, [query, items, getLabel, getSublabel, filterItems]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -93,7 +94,7 @@ export default function EntryPickerModal({ title, fetchUrl, getLabel, getSublabe
               <FaSpinner className="animate-spin" /><span className="text-sm">Loading...</span>
             </div>
           ) : filtered.length === 0 ? (
-            <p className="text-center text-sm text-gray-400 py-8">No results found.</p>
+            <p className="text-center text-sm text-gray-400 py-8">{emptyText}</p>
           ) : (
             filtered.map((item) => (
               <button

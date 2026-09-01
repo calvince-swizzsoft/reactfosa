@@ -48,6 +48,10 @@ export function createLoanCase(request) {
   return unwrap(apiFetch(BASE, { method: "POST", body: JSON.stringify(request) }));
 }
 
+export function ensureAppraisalWorkflow(id) {
+  return unwrap(apiFetch(`${BASE}/${id}/ensure-appraisal-workflow`, { method: "POST" }));
+}
+
 // Same duplicate-application guard Create enforces — call before submit to
 // warn early, not to block (Create still enforces it either way).
 export function checkInProcess(customerId) {
@@ -85,6 +89,18 @@ export function getApprovalWorksheet(id) {
   return unwrap(apiFetch(`${BASE}/${id}/approval-worksheet`));
 }
 
+export function getApprovalRepaymentSchedule(id, amount) {
+  const params = new URLSearchParams({ amount: String(amount) });
+  return unwrap(apiFetch(`${BASE}/${id}/approval-repayment-schedule?${params.toString()}`));
+}
+
+export function recalculateRepaymentSchedule(id, workflowItemId) {
+  return unwrap(apiFetch(`${BASE}/${id}/recalculate-repayment-schedule`, {
+    method: "POST",
+    body: JSON.stringify({ WorkflowItemId: workflowItemId }),
+  }));
+}
+
 export function getVerificationWorksheet(id) {
   return unwrap(apiFetch(`${BASE}/${id}/verification-worksheet`));
 }
@@ -111,9 +127,8 @@ export function appraiseLoanCase(id, request) {
   return unwrap(apiFetch(`${BASE}/${id}/appraise`, { method: "POST", body: JSON.stringify(request) }));
 }
 
-// request: { WorkflowItemId?, UsedBiometrics, Option, ApprovedAmount, ApprovedAmountRemarks,
-// ApprovedPrincipalPayment, ApprovedInterestPayment, MonthlyPaybackAmount,
-// TotalPaybackAmount, ApprovalRemarks } — LoanApprovalOption: 1=Approve,
+// request: { WorkflowItemId?, UsedBiometrics, Option, ApprovedAmount,
+// ApprovedAmountRemarks, ApprovalRemarks } — LoanApprovalOption: 1=Approve,
 // 2=Reject, 4=Defer (non-sequential). No ModuleNavigationItemCode field on
 // this request (unlike Appraise) — confirmed against
 // ApproveLoanCaseRequest, don't send one. ApprovedAmount required >0 only

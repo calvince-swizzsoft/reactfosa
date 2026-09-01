@@ -46,10 +46,12 @@ const formatDate = (iso) => {
   return Number.isNaN(d.getTime()) ? "—" : d.toLocaleDateString();
 };
 
+const field = (item, camelCaseName, pascalCaseName) => item?.[camelCaseName] ?? item?.[pascalCaseName];
+
 const formatCharge = (item) =>
-  item.chargeType === 1 // Percentage
-    ? `${item.chargePercentage ?? 0}%`
-    : (item.chargeFixedAmount ?? 0).toLocaleString();
+  Number(field(item, "chargeType", "ChargeType")) === 1 // Percentage
+    ? `${field(item, "chargePercentage", "ChargePercentage") ?? 0}%`
+    : Number(field(item, "chargeFixedAmount", "ChargeFixedAmount") ?? 0).toLocaleString();
 
 export default function StandingOrders() {
   const [items, setItems] = useState([]);
@@ -76,8 +78,8 @@ export default function StandingOrders() {
       trigger: trigger === "" ? undefined : trigger,
     })
       .then((page) => {
-        setItems(page?.pageCollection || []);
-        setItemsCount(page?.itemsCount || 0);
+        setItems(page?.pageCollection || page?.PageCollection || []);
+        setItemsCount(page?.itemsCount ?? page?.ItemsCount ?? 0);
       })
       .catch(() => {
         setItems([]);
@@ -120,6 +122,11 @@ export default function StandingOrders() {
           <Link to="/Accounts/StandingOrders/Execution">
             <Button variant="outline" className="bg-white flex items-center gap-2">
               <FaCogs /> Execution
+            </Button>
+          </Link>
+          <Link to="/Accounts/RecurringBatches">
+            <Button variant="outline" className="bg-white flex items-center gap-2">
+              Recurring Batches
             </Button>
           </Link>
           <Button onClick={openCreate} className="bg-indigo-600 hover:bg-indigo-700 flex items-center gap-2">
@@ -196,35 +203,35 @@ export default function StandingOrders() {
         ) : items.length > 0 ? (
           <div className="space-y-2">
             {items.map((item) => (
-              <div key={item.id} className="bg-white rounded-lg shadow-lg border">
+              <div key={field(item, "id", "Id")} className="bg-white rounded-lg shadow-lg border">
                 <div className="grid grid-cols-12 gap-2 items-center py-4 px-6 hover:shadow-xl transition-all">
                   <span className="col-span-1">
                     <span className="px-2 py-0.5 rounded text-xs font-semibold bg-indigo-100 text-indigo-600">
-                      {item.triggerDescription || "—"}
+                      {field(item, "triggerDescription", "TriggerDescription") || "—"}
                     </span>
                   </span>
                   <div className="col-span-3">
-                    <p className="text-sm text-gray-700">{item.benefactorCustomerAccountCustomerFullName || "—"}</p>
-                    <p className="text-xs text-gray-400">{item.benefactorFullAccountNumber || "—"}</p>
+                    <p className="text-sm text-gray-700">{field(item, "benefactorCustomerAccountCustomerFullName", "BenefactorCustomerAccountCustomerFullName") || "—"}</p>
+                    <p className="text-xs text-gray-400">{field(item, "benefactorFullAccountNumber", "BenefactorFullAccountNumber") || "—"}</p>
                   </div>
                   <div className="col-span-3">
-                    <p className="text-sm text-gray-700">{item.beneficiaryCustomerAccountCustomerFullName || "—"}</p>
-                    <p className="text-xs text-gray-400">{item.beneficiaryFullAccountNumber || "—"}</p>
+                    <p className="text-sm text-gray-700">{field(item, "beneficiaryCustomerAccountCustomerFullName", "BeneficiaryCustomerAccountCustomerFullName") || "—"}</p>
+                    <p className="text-xs text-gray-400">{field(item, "beneficiaryFullAccountNumber", "BeneficiaryFullAccountNumber") || "—"}</p>
                   </div>
                   <div className="col-span-2">
-                    <p className="text-sm text-gray-700">{item.scheduleFrequencyDescription || "—"}</p>
-                    <p className="text-xs text-gray-400">Next: {formatDate(item.scheduleExpectedRunDate)}</p>
+                    <p className="text-sm text-gray-700">{field(item, "scheduleFrequencyDescription", "ScheduleFrequencyDescription") || "—"}</p>
+                    <p className="text-xs text-gray-400">Next: {formatDate(field(item, "scheduleExpectedRunDate", "ScheduleExpectedRunDate"))}</p>
                   </div>
                   <div className="col-span-1">
-                    <p className="text-sm text-gray-700">{item.chargeTypeDescription || "—"}</p>
+                    <p className="text-sm text-gray-700">{field(item, "chargeTypeDescription", "ChargeTypeDescription") || "—"}</p>
                     <p className="text-xs text-gray-400">{formatCharge(item)}</p>
                   </div>
                   <div className="col-span-1 flex flex-col gap-1 items-start">
-                    <span className={`px-2 py-0.5 rounded text-xs font-semibold ${statusBadgeClass(item.recordStatusDescription)}`}>
-                      {item.recordStatusDescription || "—"}
+                    <span className={`px-2 py-0.5 rounded text-xs font-semibold ${statusBadgeClass(field(item, "recordStatusDescription", "RecordStatusDescription"))}`}>
+                      {field(item, "recordStatusDescription", "RecordStatusDescription") || "—"}
                     </span>
-                    <span className={`px-2 py-0.5 rounded text-xs font-semibold ${item.isLocked ? "bg-red-100 text-red-600" : "bg-green-100 text-green-600"}`}>
-                      {item.isLocked ? "Locked" : "Active"}
+                    <span className={`px-2 py-0.5 rounded text-xs font-semibold ${field(item, "isLocked", "IsLocked") ? "bg-red-100 text-red-600" : "bg-green-100 text-green-600"}`}>
+                      {field(item, "isLocked", "IsLocked") ? "Locked" : "Active"}
                     </span>
                   </div>
                   <div className="col-span-1 flex justify-end">

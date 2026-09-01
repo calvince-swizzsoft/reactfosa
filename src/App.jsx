@@ -93,6 +93,7 @@ import FileTracking from "./pages/Registry/FileTracking/index.jsx";
 import CustomerAccounts from "./pages/Accounts/CustomerAccounts/index.jsx";
 import StandingOrders from "./pages/Accounts/StandingOrders/index.jsx";
 import StandingOrderExecution from "./pages/Accounts/StandingOrders/Execution.jsx";
+import RecurringBatches from "./pages/Accounts/RecurringBatches/index.jsx";
 import CustomerAccountStatement from "./pages/Accounts/CustomerAccountStatement/index.jsx";
 import GeneralLedgerStatement from "./pages/Accounts/GeneralLedgerStatement/index.jsx";
 import AccountStatuses from "./pages/Accounts/AccountStatuses/index.jsx";
@@ -381,6 +382,7 @@ export default function App() {
           <Route path="Accounts/CustomerAccounts" element={<CustomerAccounts />} />
           <Route path="Accounts/StandingOrders" element={<StandingOrders />} />
           <Route path="Accounts/StandingOrders/Execution" element={<StandingOrderExecution />} />
+          <Route path="Accounts/RecurringBatches" element={<RecurringBatches />} />
           <Route path="Accounts/CustomerAccountStatement" element={<CustomerAccountStatement />} />
           <Route path="Accounts/GeneralLedgerStatement" element={<GeneralLedgerStatement />} />
           <Route path="Accounts/AccountStatuses" element={<AccountStatuses />} />
@@ -488,6 +490,7 @@ export default function App() {
           <Route path="Accounts/SavingsProducts/create" element={<CreateSavingsProduct />} />
           <Route path="Accounts/LoanProducts" element={<AccountsLoanProducts />} />
           <Route path="Accounts/LoanProducts/create" element={<CreateLoanProduct />} />
+          <Route path="Accounts/LoanProducts/:id/edit" element={<CreateLoanProduct />} />
           <Route path="Accounts/AlternateChannels/Register" element={<RegisterAlternateChannel />} />
           <Route path="Accounts/AlternateChannels/Management" element={<AlternateChannelManagement />} />
           <Route path="Accounts/AlternateChannels/Fees" element={<AlternateChannelFees />} />

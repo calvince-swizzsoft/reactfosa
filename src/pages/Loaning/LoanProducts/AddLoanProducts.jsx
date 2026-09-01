@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import Swal from "sweetalert2";
+import { apiFetch } from "@/lib/api";
 
 
 
@@ -14,7 +15,9 @@ const LEDGER_API =
 
 
 
-export default function AddLoanProducts({ open, onClose, refresh }) {
+const FIN_BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
+
+export default function AddLoanProducts({ open, onClose, refresh, product = null }) {
     const [loading, setLoading] = useState(false);
     const [ledgers, setLedgers] = useState([]);
     const [loadingLedgers, setLoadingLedgers] = useState(false);
@@ -52,14 +55,14 @@ export default function AddLoanProducts({ open, onClose, refresh }) {
     const enumBindings = {
         LoanRegistrationLoanProductSection: { 0: "FOSA", 1: "BOSA" },
         LoanRegistrationLoanProductCategory: { 0: "Short-Term", 1: "Long-Term" },
-        LoanInterestChargeMode: { 300: "Upfront", 301: "Periodic" },
-        LoanInterestRecoveryMode: { 400: "Upfront", 401: "Periodic" },
+        LoanInterestChargeMode: { 768: "Upfront", 769: "Periodic" },
+        LoanInterestRecoveryMode: { 1024: "Upfront", 1025: "Periodic" },
         LoanInterestCalculationMode: {
-            200: "Reducing Balance",
-            201: "Straight Line",
-            202: "Amortization (Straight Line)",
-            203: "Amortization (Diminishing Balance)",
-            204: "Fixed Interest",
+            512: "Reducing Balance",
+            513: "Straight Line",
+            514: "Amortization (Straight Line)",
+            515: "Amortization (Diminishing Balance)",
+            516: "Fixed Interest",
         },
         LoanRegistrationPaymentFrequencyPerYear: {
             1: "Annual",
@@ -76,12 +79,12 @@ export default function AddLoanProducts({ open, onClose, refresh }) {
         LoanRegistrationPaymentDueDate: { 0: "End of Period", 1: "Beginning of Period" },
         LoanRegistrationStandingOrderTrigger: { 0: "Payout", 1: "Check-Off", 2: "Schedule", 3: "Sweep", 4: "Microloan" },
         LoanRegistrationGuarantorSecurityMode: { 0: "Income", 1: "Investments" },
-        LoanRegistrationPayoutRecoveryMode: { 700: "Per Standing Order", 701: "Outstanding Percentage" },
+        LoanRegistrationPayoutRecoveryMode: { 1792: "Per Standing Order", 1793: "Outstanding Percentage" },
         LoanRegistrationAggregateCheckOffRecoveryMode: { 0: "Outstanding Balance", 1: "Per Standing Order" },
-        LoanRegistrationRoundingType: { 0: "None", 1: "Nearest", 2: "Up", 3: "Down" },
+        LoanRegistrationRoundingType: { 0: "No Rounding", 1: "Midpoint To Even", 2: "Midpoint Away From Zero", 3: "Round Up", 4: "Round Down" },
     };
 
-    const [form, setForm] = useState({
+    const defaultForm = {
         Code: "",
         Description: "",
         ChartOfAccountId: "",
@@ -102,6 +105,7 @@ export default function AddLoanProducts({ open, onClose, refresh }) {
         LoanRegistrationMinimumMembershipPeriod: 0,
         LoanRegistrationConsecutiveIncome: 0,
         LoanRegistrationInvestmentsMultiplier: 0,
+        LoanRegistrationConsiderInvestmentsBalanceForIncomeBasedLoanAppraisal: false,
         LoanRegistrationExcludeOutstandingLoansOnMaximumEntitlement: false,
         LoanRegistrationPaymentFrequencyPerYear: "",
         LoanRegistrationPaymentDueDate: "",
@@ -122,24 +126,107 @@ export default function AddLoanProducts({ open, onClose, refresh }) {
         LoanRegistrationThrottleScheduledArrearsRecovery: false,
         LoanRegistrationRoundingType: "",
         Priority: 0,
+        TakeHomeType: 1,
+        TakeHomePercentage: 0,
+        TakeHomeFixedAmount: 0,
         LoanRegistrationBypassAudit: false,
         LoanRegistrationEnforceSystemAppraisalRecommendation: false,
         IsLocked: false,
-    });
+    };
+    const [form, setForm] = useState(defaultForm);
+
+    useEffect(() => {
+        if (!open) return;
+        if (!product?.Id) {
+            setForm(defaultForm);
+            return;
+        }
+
+        let cancelled = false;
+        setLoading(true);
+        apiFetch(`${FIN_BASE}/api/accounts/loanproducts/${product.Id}`)
+            .then(async (response) => {
+                if (!response.ok) throw new Error(`Could not load loan product (${response.status})`);
+                const body = await response.json();
+                const current = body?.data ?? body?.Data ?? body;
+                if (!cancelled) {
+                    const normalized = { ...defaultForm, ...current };
+                    Object.keys(enumBindings).forEach((field) => {
+                        if (normalized[field] !== null && normalized[field] !== undefined) normalized[field] = String(normalized[field]);
+                    });
+                    normalized.Priority = String(normalized.Priority ?? 0);
+                    setForm(normalized);
+                }
+            })
+            .catch((error) => {
+                if (!cancelled) Swal.fire("Error", error.message, "error");
+            })
+            .finally(() => {
+                if (!cancelled) setLoading(false);
+            });
+        return () => { cancelled = true; };
+    }, [open, product?.Id]);
 
     const update = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
 
+    const validateForm = () => {
+        const errors = [];
+        const number = (field) => Number(form[field]);
+        const finiteFields = ["LoanInterestAnnualPercentageRate", "LoanRegistrationMinimumInterestAmount", "LoanRegistrationMinimumAmount", "LoanRegistrationMaximumAmount", "LoanRegistrationTermInMonths", "LoanRegistrationMinimumMembershipPeriod", "LoanRegistrationConsecutiveIncome", "LoanRegistrationInvestmentsMultiplier", "LoanRegistrationGracePeriod", "LoanRegistrationMinimumGuarantors", "LoanRegistrationMaximumGuarantees", "LoanRegistrationMaximumSelfGuaranteeEligiblePercentage", "LoanRegistrationPayoutRecoveryPercentage", "TakeHomePercentage", "TakeHomeFixedAmount"];
+        if (finiteFields.some((field) => !Number.isFinite(number(field)))) errors.push("All amount, percentage and period fields require valid numbers.");
+        if (!form.Description?.trim()) errors.push("Product name is required.");
+        if (form.Description?.trim().length > 256) errors.push("Product name cannot exceed 256 characters.");
+
+        const accountIds = [form.ChartOfAccountId, form.InterestReceivedChartOfAccountId, form.InterestReceivableChartOfAccountId, form.InterestChargedChartOfAccountId];
+        if (accountIds.some((id) => !id)) errors.push("Select all four principal and interest G/L accounts.");
+        if (accountIds.filter(Boolean).length !== new Set(accountIds.filter(Boolean)).size) errors.push("Principal and interest G/L accounts must be distinct.");
+
+        if (number("LoanInterestAnnualPercentageRate") < 0 || number("LoanInterestAnnualPercentageRate") > 100) errors.push("Annual interest rate must be between 0% and 100%.");
+        if (number("LoanRegistrationTermInMonths") <= 0 || number("LoanRegistrationTermInMonths") > 32767) errors.push("Loan term must be between 1 and 32,767 months.");
+        if (number("LoanRegistrationMinimumAmount") < 0) errors.push("Minimum loan amount cannot be negative.");
+        if (number("LoanRegistrationMaximumAmount") <= 0) errors.push("Maximum loan amount must be greater than zero.");
+        if (number("LoanRegistrationMaximumAmount") < number("LoanRegistrationMinimumAmount")) errors.push("Maximum loan amount cannot be lower than the minimum.");
+        if (number("LoanRegistrationMinimumInterestAmount") < 0 || number("LoanRegistrationInvestmentsMultiplier") < 0) errors.push("Minimum interest and investment multiplier cannot be negative.");
+        if (number("LoanRegistrationMinimumGuarantors") < 0) errors.push("Minimum guarantors cannot be negative.");
+        if (number("LoanRegistrationMaximumGuarantees") <= 0) errors.push("Maximum guarantees must be greater than zero.");
+        if (form.LoanRegistrationSecurityRequired && number("LoanRegistrationMinimumGuarantors") <= 0 && !form.LoanRegistrationAllowSelfGuarantee) errors.push("Security requires a guarantor unless self-guarantee is allowed.");
+        if (form.LoanRegistrationAllowSelfGuarantee && number("LoanRegistrationMaximumSelfGuaranteeEligiblePercentage") <= 0) errors.push("Set a positive self-guarantee percentage.");
+
+        ["LoanRegistrationPayoutRecoveryPercentage", "LoanRegistrationMaximumSelfGuaranteeEligiblePercentage", "TakeHomePercentage"].forEach((field) => {
+            if (number(field) < 0 || number(field) > 100) errors.push(`${field === "TakeHomePercentage" ? "Take-home" : field === "LoanRegistrationPayoutRecoveryPercentage" ? "Payout recovery" : "Self-guarantee"} percentage must be between 0% and 100%.`);
+        });
+        if (number("TakeHomeType") === 2 && number("TakeHomeFixedAmount") < 0) errors.push("Take-home fixed amount cannot be negative.");
+
+        const requiredSelections = ["LoanRegistrationLoanProductSection", "LoanRegistrationLoanProductCategory", "LoanInterestChargeMode", "LoanInterestRecoveryMode", "LoanInterestCalculationMode", "LoanRegistrationPaymentFrequencyPerYear", "LoanRegistrationPaymentDueDate", "LoanRegistrationStandingOrderTrigger", "LoanRegistrationGuarantorSecurityMode", "LoanRegistrationPayoutRecoveryMode", "LoanRegistrationAggregateCheckOffRecoveryMode", "LoanRegistrationRoundingType", "TakeHomeType"];
+        if (requiredSelections.some((field) => form[field] === "" || form[field] === null || form[field] === undefined)) errors.push("Complete every product rule selection.");
+        Object.entries(enumBindings).forEach(([field, options]) => {
+            if (form[field] !== "" && !Object.prototype.hasOwnProperty.call(options, String(form[field]))) errors.push(`Select a valid value for ${field}.`);
+        });
+        if (![1, 2].includes(number("TakeHomeType"))) errors.push("Select a valid take-home rule.");
+
+        const term = number("LoanRegistrationTermInMonths");
+        const frequencyDivisor = { 1: 12, 2: 6, 3: 4, 4: 3 }[number("LoanRegistrationPaymentFrequencyPerYear")];
+        if (frequencyDivisor && term % frequencyDivisor !== 0) errors.push("Loan term is incompatible with the selected payment frequency.");
+        return [...new Set(errors)];
+    };
+
     const handleSubmit = async () => {
+        const validationErrors = validateForm();
+        if (validationErrors.length) {
+            Swal.fire({ title: "Check Loan Product", html: `<div class="text-left">${validationErrors.map((error) => `<p>• ${error}</p>`).join("")}</div>`, icon: "warning" });
+            return;
+        }
         setLoading(true);
         try {
-            const res = await fetch(`${import.meta.env.VITE_APP_LOANING_URL}/api/Loansetups/AddLoanproducts`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },
-                body: JSON.stringify(form),
+            const editing = Boolean(product?.Id);
+            const res = await apiFetch(`${FIN_BASE}/api/accounts/loanproducts${editing ? `/${product.Id}` : ""}`, {
+                method: editing ? "PUT" : "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(editing ? form : { LoanProduct: form }),
             });
             const data = await res.json();
-            if (!data.Success) throw new Error(data.Message);
-            Swal.fire("Success", "Loan product added successfully", "success");
+            if (!res.ok || !(data.success ?? data.Success)) throw new Error(data.message || data.Message || "Could not save loan product");
+            Swal.fire("Success", editing ? "Loan product updated successfully" : "Loan product added successfully", "success");
             refresh();
             onClose();
         } catch (err) {
@@ -234,7 +321,7 @@ export default function AddLoanProducts({ open, onClose, refresh }) {
                     >
                         {/* HEADER */}
                         <div className="p-4 bg-indigo-700 text-white flex justify-between items-center rounded-2xl m-2">
-                            <h2 className="text-xl font-bold">Add Loan Product</h2>
+                            <h2 className="text-xl font-bold">{product?.Id ? "Edit Loan Product" : "Add Loan Product"}</h2>
                             <Button variant="outline" className="text-gray-800" onClick={onClose}>Close</Button>
                         </div>
 
@@ -343,8 +430,8 @@ export default function AddLoanProducts({ open, onClose, refresh }) {
                                         </SelectTrigger>
 
                                         <SelectContent>
-                                            <SelectItem value="300">Upfront</SelectItem>
-                                            <SelectItem value="301">Periodic</SelectItem>
+                                            <SelectItem value="768">Upfront</SelectItem>
+                                            <SelectItem value="769">Periodic</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
@@ -363,8 +450,8 @@ export default function AddLoanProducts({ open, onClose, refresh }) {
                                         </SelectTrigger>
 
                                         <SelectContent>
-                                            <SelectItem value="400">Upfront</SelectItem>
-                                            <SelectItem value="401">Periodic</SelectItem>
+                                            <SelectItem value="1024">Upfront</SelectItem>
+                                            <SelectItem value="1025">Periodic</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
@@ -383,11 +470,11 @@ export default function AddLoanProducts({ open, onClose, refresh }) {
                                         </SelectTrigger>
 
                                         <SelectContent>
-                                            <SelectItem value="200">Reducing Balance</SelectItem>
-                                            <SelectItem value="201">Straight Line</SelectItem>
-                                            <SelectItem value="202">Amortization (Straight Line)</SelectItem>
-                                            <SelectItem value="203">Amortization (Diminishing Balance)</SelectItem>
-                                            <SelectItem value="204">Fixed Interest</SelectItem>
+                                            <SelectItem value="512">Reducing Balance</SelectItem>
+                                            <SelectItem value="513">Straight Line</SelectItem>
+                                            <SelectItem value="514">Amortization (Straight Line)</SelectItem>
+                                            <SelectItem value="515">Amortization (Diminishing Balance)</SelectItem>
+                                            <SelectItem value="516">Fixed Interest</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
@@ -422,6 +509,7 @@ export default function AddLoanProducts({ open, onClose, refresh }) {
                                     <Input type="number" step="0.01" value={form.LoanRegistrationInvestmentsMultiplier} onChange={e => update("LoanRegistrationInvestmentsMultiplier", Number(e.target.value))} />
                                 </div>
                                 {renderCheckbox("Exclude Outstanding Loans from Entitlement", "LoanRegistrationExcludeOutstandingLoansOnMaximumEntitlement")}
+                                {renderCheckbox("Include Savings in Income-Based Appraisal", "LoanRegistrationConsiderInvestmentsBalanceForIncomeBasedLoanAppraisal")}
                             </section>
 
                             {/* REPAYMENT */}
@@ -511,6 +599,25 @@ export default function AddLoanProducts({ open, onClose, refresh }) {
                                 {renderCheckbox(
                                     "Create Standing Order on Loan Audit",
                                     "LoanRegistrationCreateStandingOrderOnLoanAudit"
+                                )}
+                            </section>
+
+                            {/* TAKE-HOME RULE */}
+                            <section className="grid grid-cols-1 md:grid-cols-4 gap-4 border-b-4 pb-4">
+                                <div>
+                                    <Label>Take-Home Rule</Label>
+                                    <Select value={String(form.TakeHomeType)} onValueChange={(value) => update("TakeHomeType", Number(value))}>
+                                        <SelectTrigger><SelectValue placeholder="Select take-home rule" /></SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="1">Percentage</SelectItem>
+                                            <SelectItem value="2">Fixed Amount</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                {Number(form.TakeHomeType) === 1 ? (
+                                    <div><Label>Minimum Take-Home (%)</Label><Input type="number" min="0" max="100" step="0.01" value={form.TakeHomePercentage} onChange={(e) => update("TakeHomePercentage", Number(e.target.value))} /></div>
+                                ) : (
+                                    <div><Label>Minimum Take-Home Amount</Label><Input type="number" min="0" step="0.01" value={form.TakeHomeFixedAmount} onChange={(e) => update("TakeHomeFixedAmount", Number(e.target.value))} /></div>
                                 )}
                             </section>
 
@@ -649,7 +756,7 @@ export default function AddLoanProducts({ open, onClose, refresh }) {
                             {/* SUBMIT */}
                             <div className="flex justify-end">
                                 <Button onClick={handleSubmit} disabled={loading}>
-                                    {loading ? "Submitting..." : "Save Loan Product"}
+                                    {loading ? "Submitting..." : product?.Id ? "Update Loan Product" : "Save Loan Product"}
                                 </Button>
                             </div>
                         </div>
@@ -659,5 +766,3 @@ export default function AddLoanProducts({ open, onClose, refresh }) {
         </AnimatePresence>
     );
 }
-
-

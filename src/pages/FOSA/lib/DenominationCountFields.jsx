@@ -57,8 +57,12 @@ export default function DenominationCountFields({ counts, onChange }) {
             <Input
               type="number"
               min="0"
+              step="1"
               value={counts[d.key] ?? 0}
-              onChange={(e) => onChange(d.key, Number(e.target.value))}
+              onChange={(e) => {
+                const parsed = Number(e.target.value);
+                onChange(d.key, Number.isFinite(parsed) ? Math.max(0, Math.floor(parsed)) : 0);
+              }}
             />
           </div>
         ))}

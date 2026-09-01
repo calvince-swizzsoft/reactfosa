@@ -1,33 +1,51 @@
 import { useState, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Swal from "sweetalert2";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaPlus, FaChevronDown, FaTrash, FaClipboardCheck } from "react-icons/fa";
+import { FaPlus, FaChevronDown, FaTrash, FaClipboardCheck, FaUser, FaChartLine, FaWallet, FaShieldAlt, FaCalculator, FaCalendarAlt, FaGavel } from "react-icons/fa";
 import NotFoundImage from "/assets/scopefinding.png";
 import { listLoanCases, getAppraisalWorksheet, appraiseLoanCase } from "./lib/loanCaseApi";
 import { LoanCaseStatus, LoanAppraisalOption } from "./lib/loanCaseEnums";
 import LoanCaseStatusBadge from "./lib/LoanCaseStatusBadge";
 import LoanCaseSummary from "./lib/LoanCaseSummary";
 import EntryPickerModal from "../../Accounts/BatchProcedures/lib/EntryPickerModal";
+import FieldHelp from "../../Accounts/SavingsProducts/FieldHelp";
 
 const FIN_BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 const MODULE_NAVIGATION_ITEM_CODE = 70008; // Appraisal (ControllerName: AppraiseLoan)
+const INCOME_ADJUSTMENT_DEDUCTION = 0xFADE + 1;
+const money = (value) => Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-function FieldGroup({ label, children }) {
+function FieldGroup({ label, help, required, children }) {
   return (
     <div>
-      <Label className="text-sm font-semibold text-gray-700">{label}</Label>
+      <div className="mb-1 flex items-center gap-1">
+        <Label className="text-sm font-semibold text-gray-700">
+          {label}{required && <span className="ml-1 text-red-500">*</span>}
+        </Label>
+        <FieldHelp label={label}>{help}</FieldHelp>
+      </div>
       {children}
     </div>
   );
 }
 
-function Metric({ label, value }) {
-  return <div className="rounded-lg border bg-gray-50 p-3"><p className="text-xs uppercase tracking-wider text-gray-400">{label}</p><p className="mt-1 font-bold text-gray-800">{Number(value || 0).toLocaleString()}</p></div>;
+function Metric({ label, value, help }) {
+  return <div className="rounded-lg border border-indigo-100 border-l-4 border-l-indigo-500 bg-white p-3 shadow-sm"><div className="flex items-center gap-1"><p className="text-xs uppercase tracking-wider text-gray-400">{label}</p>{help && <FieldHelp label={label}>{help}</FieldHelp>}</div><p className="mt-1 text-lg font-bold text-indigo-800">{money(value)}</p></div>;
 }
+
+const APPRAISAL_TABS = [
+  { key: "overview", label: "Overview", icon: FaUser },
+  { key: "history", label: "Financial History", icon: FaChartLine },
+  { key: "loans", label: "Existing Loans", icon: FaWallet },
+  { key: "security", label: "Security", icon: FaShieldAlt },
+  { key: "qualification", label: "Qualification", icon: FaCalculator },
+  { key: "schedule", label: "Repayment Schedule", icon: FaCalendarAlt },
+  { key: "decision", label: "Decision", icon: FaGavel },
+];
 
 function ContextList({ title, items = [], render, empty }) {
   return <div><p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">{title}</p><div className="space-y-2">{items.length ? items.map((item, index) => <div key={item.Id || index} className="rounded-lg border bg-gray-50 p-3 text-sm text-gray-700">{render(item)}</div>) : <p className="text-sm text-gray-400">{empty}</p>}</div></div>;
@@ -57,6 +75,7 @@ const emptyDecisionForm = {
 };
 
 function AppraisalDrawer({ loanCaseId, workflowItemId, onClose, onChanged }) {
+  const navigate = useNavigate();
   const [worksheet, setWorksheet] = useState(null);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState(emptyDecisionForm);
@@ -78,7 +97,7 @@ function AppraisalDrawer({ loanCaseId, workflowItemId, onClose, onChanged }) {
           LoanProductLatestIncome: "",
           AppraisedNetIncome: "",
           AppraisedAbility: "",
-          SystemAppraisedAmount: data.maximumEntitled ?? "",
+          SystemAppraisedAmount: data.systemAppraisedAmount ?? "",
           SystemAppraisalRemarks: "",
           AppraisedAmount: data.loanCase?.AmountApplied ?? "",
           AppraisedAmountRemarks: "",
@@ -99,15 +118,55 @@ function AppraisalDrawer({ loanCaseId, workflowItemId, onClose, onChanged }) {
 
   const addIncomeAdjustment = (item) => {
     if (incomeAdjustments.some((r) => r.IncomeAdjustmentId === item.Id)) return;
-    setIncomeAdjustments((p) => [...p, { IncomeAdjustmentId: item.Id, label: item.Description, CustomerAccountId: "", Amount: "", IsEnabled: true }]);
+    setIncomeAdjustments((p) => [...p, { IncomeAdjustmentId: item.Id, label: item.Description, Type: item.Type, TypeDescription: item.TypeDescription, CustomerAccountId: "", Amount: "", IsEnabled: true }]);
   };
   const updateIncomeAdjustment = (index, patch) => setIncomeAdjustments((p) => p.map((r, i) => (i === index ? { ...r, ...patch } : r)));
   const removeIncomeAdjustment = (index) => setIncomeAdjustments((p) => p.filter((_, i) => i !== index));
+  const requiresIncomeAppraisal = worksheet?.requiresIncomeAppraisal !== false;
+  const adjustedNetIncome = incomeAdjustments.reduce((netIncome, row) => {
+    if (!row.IsEnabled) return netIncome;
+    const amount = Number(row.Amount) || 0;
+    return row.Type === INCOME_ADJUSTMENT_DEDUCTION ? netIncome - amount : netIncome + amount;
+  }, Number(form.LoanProductLatestIncome) || 0);
 
   const submit = async (option) => {
-    if (!form.AppraisalRemarks) {
+    const remarks = form.AppraisalRemarks.trim();
+    if (!remarks) {
       Swal.fire("Missing Fields", "Appraisal remarks are required.", "warning");
       return;
+    }
+    if (option === LoanAppraisalOption.Appraise) {
+      if (!worksheet?.fileReadyForAppraisal) {
+        Swal.fire(
+          "Physical File Required",
+          worksheet?.fileRegister?.LoanAppraisalReadinessMessage || "The physical file must be received by the loan appraisal department before appraisal.",
+          "warning",
+        );
+        return;
+      }
+      const positiveFields = [
+        ["Appraised amount", form.AppraisedAmount],
+        ["Monthly payback amount", form.MonthlyPaybackAmount],
+        ["Total payback amount", form.TotalPaybackAmount],
+      ];
+      const invalid = positiveFields.find(([, value]) => !Number.isFinite(Number(value)) || Number(value) <= 0);
+      if (invalid) {
+        Swal.fire("Invalid Appraisal", `${invalid[0]} must be greater than zero.`, "warning");
+        return;
+      }
+      if (requiresIncomeAppraisal && (adjustedNetIncome < 0 || Number(form.AppraisedAbility) < 0)) {
+        Swal.fire("Invalid Appraisal", "Net income and appraised ability cannot be negative.", "warning");
+        return;
+      }
+      if (Number(form.AppraisedAmount) !== Number(form.SystemAppraisedAmount) && !form.AppraisedAmountRemarks.trim()) {
+        Swal.fire("Missing Fields", "Give a reason for overriding the system-appraised amount.", "warning");
+        return;
+      }
+      const invalidAdjustment = incomeAdjustments.find((row) => !Number.isFinite(Number(row.Amount)) || Number(row.Amount) <= 0);
+      if (invalidAdjustment) {
+        Swal.fire("Invalid Adjustment", `Enter an amount greater than zero for ${invalidAdjustment.label}.`, "warning");
+        return;
+      }
     }
     setSubmitting(true);
     try {
@@ -116,18 +175,18 @@ function AppraisalDrawer({ loanCaseId, workflowItemId, onClose, onChanged }) {
         UsedBiometrics: usedBiometrics,
         Option: option,
         ModuleNavigationItemCode: MODULE_NAVIGATION_ITEM_CODE,
-        LoanProductLatestIncome: Number(form.LoanProductLatestIncome) || 0,
-        AppraisedNetIncome: Number(form.AppraisedNetIncome) || 0,
-        AppraisedAbility: Number(form.AppraisedAbility) || 0,
+        LoanProductLatestIncome: requiresIncomeAppraisal ? Number(form.LoanProductLatestIncome) || 0 : 0,
+        AppraisedNetIncome: requiresIncomeAppraisal ? adjustedNetIncome : 0,
+        AppraisedAbility: requiresIncomeAppraisal ? Number(form.AppraisedAbility) || 0 : 0,
         SystemAppraisedAmount: Number(form.SystemAppraisedAmount) || 0,
         SystemAppraisalRemarks: form.SystemAppraisalRemarks,
         AppraisedAmount: Number(form.AppraisedAmount) || 0,
         AppraisedAmountRemarks: form.AppraisedAmountRemarks,
-        AppraisalRemarks: form.AppraisalRemarks,
+        AppraisalRemarks: remarks,
         MonthlyPaybackAmount: Number(form.MonthlyPaybackAmount) || 0,
         TotalPaybackAmount: Number(form.TotalPaybackAmount) || 0,
         TotalLoansBalance: Number(form.TotalLoansBalance) || 0,
-        IncomeAdjustments: option === LoanAppraisalOption.Appraise
+        IncomeAdjustments: option === LoanAppraisalOption.Appraise && requiresIncomeAppraisal
           ? incomeAdjustments.map((r) => ({ IncomeAdjustmentId: r.IncomeAdjustmentId, CustomerAccountId: r.CustomerAccountId || null, Amount: Number(r.Amount) || 0, IsEnabled: r.IsEnabled }))
           : [],
         AttachedLoanAccountIds: option === LoanAppraisalOption.Appraise ? attachedLoanIds : [],
@@ -146,34 +205,48 @@ function AppraisalDrawer({ loanCaseId, workflowItemId, onClose, onChanged }) {
   return (
     <AnimatePresence>
       <motion.div className="fixed inset-0 bg-black z-40" initial={{ opacity: 0 }} animate={{ opacity: 0.4 }} exit={{ opacity: 0 }} onClick={onClose} />
-      <motion.div className="fixed top-0 right-0 h-full w-[94vw] max-w-[1280px] bg-white shadow-2xl z-50 flex flex-col" initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", stiffness: 300, damping: 30 }}>
+      <motion.div className="fixed top-0 right-0 h-full w-[94vw] max-w-[1280px] overflow-hidden rounded-l-2xl bg-white shadow-2xl z-50 flex flex-col" initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", stiffness: 300, damping: 30 }}>
         <div className="m-2 flex justify-between items-center bg-indigo-600 rounded-2xl px-4 py-3">
-          <h2 className="font-bold text-white">Appraise Loan Case</h2>
+          <h2 className="flex items-center gap-2 font-bold text-white"><FaClipboardCheck /> Appraise Loan Case {worksheet?.loanCase?.PaddedCaseNumber && <span className="font-normal text-indigo-100">· {worksheet.loanCase.PaddedCaseNumber}</span>}</h2>
           <Button variant="outline" size="sm" onClick={onClose}>Close</Button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+        <div className="flex-1 overflow-y-auto bg-gray-50 px-4 py-4 space-y-4">
           {loading ? (
             <div className="space-y-2 animate-pulse">{[1, 2, 3].map((i) => <div key={i} className="h-10 bg-gray-100 rounded-lg" />)}</div>
           ) : worksheet ? (
             <>
-              <div className="flex gap-1 overflow-x-auto border-b border-gray-200 pb-2">
-                {[
-                  ["overview", "Overview"], ["history", "Financial History"], ["loans", "Existing Loans"],
-                  ["security", "Security"], ["qualification", "Qualification"], ["decision", "Decision"],
-                ].map(([key, label]) => (
-                  <button key={key} type="button" onClick={() => setActiveTab(key)} className={`whitespace-nowrap rounded-md px-3 py-2 text-sm font-semibold ${activeTab === key ? "bg-indigo-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
-                    {label}
+              <div className="flex gap-1 overflow-x-auto border-b border-gray-200">
+                {APPRAISAL_TABS.map(({ key, label, icon: Icon }) => (
+                  <button key={key} type="button" onClick={() => setActiveTab(key)} className={`flex items-center gap-2 whitespace-nowrap rounded-t-lg px-4 py-2 text-sm font-semibold transition-all ${activeTab === key ? "bg-indigo-600 text-white shadow" : "text-gray-500 hover:bg-indigo-50 hover:text-indigo-700"}`}>
+                    <Icon className="text-xs" /> {label}
                   </button>
                 ))}
               </div>
 
               {activeTab === "overview" && <>
                 <LoanCaseSummary loanCase={worksheet.loanCase} guarantors={worksheet.guarantors} collaterals={worksheet.collaterals} />
-                <div className={`rounded-lg border p-3 text-sm ${worksheet.fileRegister?.FileRegister?.StatusDescription === "Received" ? "border-green-200 bg-green-50 text-green-700" : "border-amber-200 bg-amber-50 text-amber-700"}`}>
-                  <p className="font-semibold">Physical file: {worksheet.fileRegister?.FileRegister?.StatusDescription || "Not registered"}</p>
-                  <p className="text-xs mt-1">Current department: {worksheet.fileRegister?.LastDepartment?.Description || "Not available"}</p>
+                <div className="grid grid-cols-2 gap-3 rounded-lg border border-indigo-100 bg-white p-4 text-sm shadow-sm md:grid-cols-4">
+                  <div><span className="block text-xs text-gray-400">Employer</span><strong>{worksheet.customer?.StationZoneDivisionEmployerDescription || worksheet.loanCase.CustomerStationZoneDivisionEmployerDescription || "—"}</strong></div>
+                  <div><span className="block text-xs text-gray-400">Station</span><strong>{worksheet.customer?.StationDescription || worksheet.loanCase.CustomerStation || "—"}</strong></div>
+                  <div><span className="block text-xs text-gray-400">Membership number</span><strong>{worksheet.customer?.PaddedSerialNumber || worksheet.customer?.SerialNumber || "—"}</strong></div>
+                  <div><span className="block text-xs text-gray-400">Identification</span><strong>{worksheet.customer?.IdentificationNumber || worksheet.customer?.IndividualIdentificationNumber || "—"}</strong></div>
+                  <div><span className="block text-xs text-gray-400">Section</span><strong>{worksheet.loanCase.LoanRegistrationLoanProductSectionDescription || "—"}</strong></div>
+                  <div><span className="block text-xs text-gray-400">Term</span><strong>{worksheet.loanCase.LoanRegistrationTermInMonths || 0} months</strong></div>
+                  <div><span className="block text-xs text-gray-400">Annual interest</span><strong>{worksheet.loanCase.LoanInterestAnnualPercentageRate || 0}%</strong></div>
+                  <div><span className="block text-xs text-gray-400">Interest calculation</span><strong>{worksheet.loanCase.LoanInterestCalculationModeDescription || worksheet.loanCase.InterestCalculationModeDescription || "—"}</strong></div>
+                  <div><span className="block text-xs text-gray-400">Payment frequency</span><strong>{worksheet.loanCase.LoanRegistrationPaymentFrequencyPerYearDescription || "—"}</strong></div>
+                  <div><span className="block text-xs text-gray-400">Savings product</span><strong>{worksheet.loanCase.SavingsProductDescription || "—"}</strong></div>
                 </div>
+                {worksheet.fileRegister?.IsLoanAppraisalFileTrackingEnforced && (
+                  <div className={`rounded-lg border p-3 text-sm ${worksheet.fileReadyForAppraisal ? "border-green-200 bg-green-50 text-green-700" : "border-amber-200 bg-amber-50 text-amber-700"}`}>
+                    <p className="font-semibold">Physical file: {worksheet.fileRegister?.FileRegister?.StatusDescription || "Not registered"}</p>
+                    <p className="text-xs mt-1">Current department: {worksheet.fileRegister?.LastDepartment?.Description || "Not available"}</p>
+                    {!worksheet.fileReadyForAppraisal && (
+                      <p className="text-xs mt-1 font-medium">{worksheet.fileRegister?.LoanAppraisalReadinessMessage || "Receive the file in the loan appraisal department to continue."}</p>
+                    )}
+                  </div>
+                )}
               </>}
 
               {activeTab === "history" && <ContextList title="Standing Orders" items={worksheet.standingOrders} render={(item) => `${item.Description || "Standing order"} · ${Number(item.Amount || 0).toLocaleString()}`} empty="No standing orders found." />}
@@ -197,56 +270,77 @@ function AppraisalDrawer({ loanCaseId, workflowItemId, onClose, onChanged }) {
 
               {activeTab === "qualification" && <>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <Metric label="Total shares" value={worksheet.totalShares} />
-                  <Metric label="Maximum loan" value={worksheet.maximumLoan} />
-                  <Metric label="Existing balance" value={worksheet.outstandingLoansBalance} />
-                  <Metric label="Maximum entitled" value={worksheet.maximumEntitled} />
+                  <Metric label="Appraisal balance" value={worksheet.appraisalBaseBalance} help={`${money(worksheet.qualification?.InvestmentsBalance)} investments${worksheet.qualification?.SavingsIncluded ? ` + ${money(worksheet.qualification?.SavingsBalance)} savings` : ""}. ${worksheet.qualification?.SavingsIncluded ? "This product includes savings." : "This product uses investments only."}`} />
+                  <Metric label="Maximum loan" value={worksheet.maximumLoan} help={`${money(worksheet.appraisalBaseBalance)} × ${Number(worksheet.qualification?.EffectiveMultiplier || 0).toLocaleString()} = ${money(worksheet.qualification?.BalanceBasedMaximum)}, capped at the product maximum of ${money(worksheet.qualification?.ProductMaximumAmount)}.`} />
+                  <Metric label="Existing balance" value={worksheet.outstandingLoansBalance} help="The absolute book and carry-forward balance of this customer's existing accounts for the selected loan product." />
+                  <Metric label="Maximum entitled" value={worksheet.maximumEntitled} help={worksheet.qualification?.ExistingBalanceExcluded ? `${money(worksheet.maximumLoan)}. The product is configured not to deduct existing balances from maximum entitlement.` : `${money(worksheet.maximumLoan)} − ${money(worksheet.outstandingLoansBalance)}, never below zero.`} />
                 </div>
-                <p className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-xs text-amber-800">The entitlement is calculated from the active investment multiplier rule. The legacy take-home formulas are not active business logic and have not been silently enabled.</p>
               </>}
 
-              {activeTab === "decision" && <>
+              {activeTab === "schedule" && (
+                <div className="overflow-x-auto rounded-lg border">
+                  <div className="grid min-w-[900px] grid-cols-7 gap-2 bg-gray-700 p-3 text-xs font-semibold text-gray-100">
+                    <span>Period</span><span>Due Date</span><span className="text-right">Starting</span><span className="text-right">Payment</span><span className="text-right">Interest</span><span className="text-right">Principal</span><span className="text-right">Ending</span>
+                  </div>
+                  {(worksheet.repaymentSchedule || []).map((row) => (
+                    <div key={row.Period} className="grid min-w-[900px] grid-cols-7 gap-2 border-t p-3 text-xs text-gray-700">
+                      <span>{row.Period}</span>
+                      <span>{new Date(row.DueDate).toLocaleDateString()}</span>
+                      <span className="text-right">{Number(row.StartingBalance || 0).toLocaleString()}</span>
+                      <span className="text-right font-semibold">{Number(row.Payment || 0).toLocaleString()}</span>
+                      <span className="text-right">{Number(row.InterestPayment || 0).toLocaleString()}</span>
+                      <span className="text-right">{Number(row.PrincipalPayment || 0).toLocaleString()}</span>
+                      <span className="text-right">{Number(row.EndingBalance || 0).toLocaleString()}</span>
+                    </div>
+                  ))}
+                  {!(worksheet.repaymentSchedule || []).length && <p className="py-8 text-center text-sm text-gray-400">No repayment schedule available.</p>}
+                </div>
+              )}
+
+              {activeTab === "decision" && <div className="space-y-4 rounded-lg border bg-white p-4 shadow-sm">
 
               <div className="bg-gray-50 rounded-lg p-3 text-xs text-gray-600 space-y-1">
-                <p className="font-semibold text-gray-700 uppercase tracking-wider text-[11px] mb-1">System recommendation (calculated again by the server on submit)</p>
-                <p>Total shares: {worksheet.totalShares?.toLocaleString()} · Max loan: {worksheet.maximumLoan?.toLocaleString()} · Max entitled: {worksheet.maximumEntitled?.toLocaleString()}</p>
-                <p>Outstanding balance: {worksheet.outstandingLoansBalance?.toLocaleString()} · Loan+interest estimate: {worksheet.loanPlusInterest?.toLocaleString()} · Payment/period: {worksheet.paymentPerPeriod?.toLocaleString()}</p>
+                <p className="font-semibold text-gray-700 uppercase tracking-wider text-[11px] mb-1">System recommendation</p>
+                <p>Appraisal balance: {money(worksheet.appraisalBaseBalance)} · Max loan: {money(worksheet.maximumLoan)} · Max entitled: {money(worksheet.maximumEntitled)}</p>
+                <p>Outstanding balance: {money(worksheet.outstandingLoansBalance)} · Loan + interest: {money(worksheet.loanPlusInterest)} · Payment/period: {money(worksheet.paymentPerPeriod)}</p>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <FieldGroup label="Loan Product Latest Income">
-                  <Input type="number" value={form.LoanProductLatestIncome} onChange={(e) => setForm((p) => ({ ...p, LoanProductLatestIncome: e.target.value }))} />
-                </FieldGroup>
-                <FieldGroup label="Appraised Net Income">
-                  <Input type="number" value={form.AppraisedNetIncome} onChange={(e) => setForm((p) => ({ ...p, AppraisedNetIncome: e.target.value }))} />
-                </FieldGroup>
-                <FieldGroup label="Appraised Ability">
-                  <Input type="number" value={form.AppraisedAbility} onChange={(e) => setForm((p) => ({ ...p, AppraisedAbility: e.target.value }))} />
-                </FieldGroup>
-                <FieldGroup label="System Appraised Amount">
+                {requiresIncomeAppraisal && <>
+                  <FieldGroup label="Latest Verified Income" help="The latest verified income amount associated with this loan product.">
+                    <Input type="number" min="0" step="0.01" value={form.LoanProductLatestIncome} onChange={(e) => setForm((p) => ({ ...p, LoanProductLatestIncome: e.target.value }))} />
+                  </FieldGroup>
+                  <FieldGroup label="Net Income After Adjustments" help="Verified income remaining after the selected allowances and deductions.">
+                    <Input type="number" value={adjustedNetIncome} disabled />
+                  </FieldGroup>
+                  <FieldGroup label="Assessed Repayment Capacity" help="The amount the officer assesses that the customer can repay per period.">
+                    <Input type="number" min="0" step="0.01" value={form.AppraisedAbility} onChange={(e) => setForm((p) => ({ ...p, AppraisedAbility: e.target.value }))} />
+                  </FieldGroup>
+                </>}
+                <FieldGroup label="System Recommended Principal" help="The principal amount calculated by the server from the product's appraisal rules.">
                   <Input type="number" value={form.SystemAppraisedAmount} disabled />
                 </FieldGroup>
-                <FieldGroup label="Appraised Amount">
-                  <Input type="number" value={form.AppraisedAmount} onChange={(e) => setForm((p) => ({ ...p, AppraisedAmount: e.target.value }))} />
+                <FieldGroup label="Officer Recommended Principal" help="The principal amount recommended by the appraising officer. An override requires a reason." required>
+                  <Input type="number" min="0" step="0.01" value={form.AppraisedAmount} onChange={(e) => setForm((p) => ({ ...p, AppraisedAmount: e.target.value }))} />
                 </FieldGroup>
-                <FieldGroup label="Total Loans Balance">
-                  <Input type="number" value={form.TotalLoansBalance} onChange={(e) => setForm((p) => ({ ...p, TotalLoansBalance: e.target.value }))} />
+                <FieldGroup label="Outstanding Loan Balance" help="The customer's current outstanding loan exposure used during assessment.">
+                  <Input type="number" min="0" step="0.01" value={form.TotalLoansBalance} onChange={(e) => setForm((p) => ({ ...p, TotalLoansBalance: e.target.value }))} />
                 </FieldGroup>
-                <FieldGroup label="Monthly Payback Amount">
-                  <Input type="number" value={form.MonthlyPaybackAmount} onChange={(e) => setForm((p) => ({ ...p, MonthlyPaybackAmount: e.target.value }))} />
+                <FieldGroup label="Proposed Monthly Instalment" help="The proposed monthly repayment amount; the server checks the product's take-home rule." required>
+                  <Input type="number" min="0" step="0.01" value={form.MonthlyPaybackAmount} onChange={(e) => setForm((p) => ({ ...p, MonthlyPaybackAmount: e.target.value }))} />
                 </FieldGroup>
-                <FieldGroup label="Total Payback Amount">
-                  <Input type="number" value={form.TotalPaybackAmount} onChange={(e) => setForm((p) => ({ ...p, TotalPaybackAmount: e.target.value }))} />
+                <FieldGroup label="Estimated Total Repayment" help="The estimated principal and interest payable over the full loan term." required>
+                  <Input type="number" min="0" step="0.01" value={form.TotalPaybackAmount} onChange={(e) => setForm((p) => ({ ...p, TotalPaybackAmount: e.target.value }))} />
                 </FieldGroup>
               </div>
 
-              <FieldGroup label="System Appraisal Remarks">
+              <FieldGroup label="System Appraisal Remarks" help="Generated and saved by the server when the decision is submitted.">
                 <Input value={form.SystemAppraisalRemarks} disabled placeholder="Generated by the server when submitted" />
               </FieldGroup>
-              <FieldGroup label="Appraised Amount Remarks">
+              <FieldGroup label="Appraised Amount Remarks" help="Required only when the officer's amount differs from the system amount.">
                 <Input value={form.AppraisedAmountRemarks} onChange={(e) => setForm((p) => ({ ...p, AppraisedAmountRemarks: e.target.value }))} />
               </FieldGroup>
-              <FieldGroup label="Appraisal Remarks">
+              <FieldGroup label="Appraisal Remarks" help="Concise reason supporting the appraisal or rejection decision." required>
                 <Input value={form.AppraisalRemarks} onChange={(e) => setForm((p) => ({ ...p, AppraisalRemarks: e.target.value }))} required />
               </FieldGroup>
 
@@ -257,9 +351,12 @@ function AppraisalDrawer({ loanCaseId, workflowItemId, onClose, onChanged }) {
                 </label>
               )}
 
-              <div className="border-t pt-4">
+              {requiresIncomeAppraisal && <div className="border-t pt-4">
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Income Adjustments</p>
+                  <div className="flex items-center gap-1">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Income Adjustments</p>
+                    <FieldHelp label="Income Adjustments">Add verified allowances or deductions used to assess net income.</FieldHelp>
+                  </div>
                   <Button type="button" size="sm" variant="outline" onClick={() => setPicker(true)} className="flex items-center gap-1">
                     <FaPlus className="text-xs" /> Add
                   </Button>
@@ -267,7 +364,12 @@ function AppraisalDrawer({ loanCaseId, workflowItemId, onClose, onChanged }) {
                 <div className="space-y-2">
                   {incomeAdjustments.map((row, i) => (
                     <div key={i} className="bg-gray-50 rounded-lg p-2 flex items-center gap-2">
-                      <span className="text-sm text-gray-700 flex-1 truncate">{row.label}</span>
+                      <span className="text-sm text-gray-700 flex-1 truncate">
+                        <span className={`mr-2 rounded px-1.5 py-0.5 text-[10px] font-semibold ${row.Type === INCOME_ADJUSTMENT_DEDUCTION ? "bg-red-100 text-red-600" : "bg-green-100 text-green-600"}`}>
+                          {row.Type === INCOME_ADJUSTMENT_DEDUCTION ? "− Deduction" : "+ Allowance"}
+                        </span>
+                        {row.label}
+                      </span>
                       <Input type="number" placeholder="Amount" className="w-28" value={row.Amount} onChange={(e) => updateIncomeAdjustment(i, { Amount: e.target.value })} />
                       <button type="button" onClick={() => removeIncomeAdjustment(i)} className="text-red-400 hover:text-red-600">
                         <FaTrash className="text-xs" />
@@ -275,8 +377,8 @@ function AppraisalDrawer({ loanCaseId, workflowItemId, onClose, onChanged }) {
                     </div>
                   ))}
                 </div>
-              </div>
-              </>}
+              </div>}
+              </div>}
             </>
           ) : (
             <p className="text-sm text-gray-400 text-center py-8">Not found.</p>
@@ -284,10 +386,15 @@ function AppraisalDrawer({ loanCaseId, workflowItemId, onClose, onChanged }) {
         </div>
 
         <div className="shrink-0 px-4 py-3 border-t flex gap-2">
-          <Button disabled={submitting || !worksheet?.fileReadyForAppraisal} onClick={() => submit(LoanAppraisalOption.Appraise)} className="flex-1 bg-indigo-600 hover:bg-indigo-700">
+          {!workflowItemId && (
+            <Button type="button" variant="outline" onClick={() => navigate("/CommandHub/ApprovalRequests")} className="flex-1">
+              Open Assigned Task
+            </Button>
+          )}
+          <Button title={!worksheet?.fileReadyForAppraisal ? worksheet?.fileRegister?.LoanAppraisalReadinessMessage : undefined} disabled={submitting || !worksheet?.fileReadyForAppraisal || !workflowItemId} onClick={() => submit(LoanAppraisalOption.Appraise)} className="flex-1 bg-indigo-600 hover:bg-indigo-700">
             {submitting ? "Working..." : "Appraise"}
           </Button>
-          <Button disabled={submitting} onClick={() => submit(LoanAppraisalOption.Reject)} variant="outline" className="flex-1 border-red-300 text-red-600 hover:bg-red-50">
+          <Button disabled={submitting || !workflowItemId} onClick={() => submit(LoanAppraisalOption.Reject)} variant="outline" className="flex-1 border-red-300 text-red-600 hover:bg-red-50">
             Reject
           </Button>
         </div>
@@ -307,6 +414,7 @@ function AppraisalDrawer({ loanCaseId, workflowItemId, onClose, onChanged }) {
 }
 
 export default function AppraisalScreen() {
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const routedLoanCaseId = searchParams.get("loanCaseId");
   const routedWorkflowItemId = searchParams.get("workflowItemId");
@@ -330,6 +438,9 @@ export default function AppraisalScreen() {
         <h2 className="text-xl font-bold text-white flex items-center gap-2">
           <FaClipboardCheck /> Loan Case Appraisal
         </h2>
+        <Button type="button" onClick={() => navigate("/CommandHub/ApprovalRequests")} className="bg-indigo-600 hover:bg-indigo-700">
+          Open Approval Requests
+        </Button>
       </div>
 
       <div className="bg-gray-200 p-4 rounded-sm">

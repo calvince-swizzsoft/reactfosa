@@ -69,7 +69,10 @@ const buildQuery = (params) => {
 export function listTextAlerts({ pageIndex = 0, pageSize = 20, dlrStatus, text } = {}) {
   return unwrap(
     apiFetch(`${TEXT_ALERT_BASE}${buildQuery({ pageIndex, pageSize, dlrStatus, text: dlrStatus !== undefined ? text : undefined })}`)
-  );
+  ).then((page) => ({
+    pageCollection: page?.pageCollection ?? page?.PageCollection ?? [],
+    itemsCount: Number(page?.itemsCount ?? page?.ItemsCount ?? 0),
+  }));
 }
 
 /** GET /{id} — single text alert. */

@@ -75,12 +75,21 @@ export const TargetDateOption = {
 // Every endpoint returns { success, message, data }. Callers just await +
 // try/catch (matching the Swal.fire error pattern used across this app's
 // forms) instead of re-checking res.ok/success at every call site. The
-// thrown Error carries the HTTP status too, since createStandingOrder's 409
-// ("created, but flagged with a conflict message") needs different handling
-// from a genuine failure.
+// thrown Error carries the HTTP status too, so createStandingOrder's duplicate
+// 409 can be presented as a specific business-rule conflict.
+const normalizeKeys = (value) => {
+  if (Array.isArray(value)) return value.map(normalizeKeys);
+  if (!value || typeof value !== "object") return value;
+
+  return Object.fromEntries(Object.entries(value).map(([key, item]) => [
+    key.length ? `${key[0].toLowerCase()}${key.slice(1)}` : key,
+    normalizeKeys(item),
+  ]));
+};
+
 async function unwrap(responsePromise) {
   const body = await responsePromise;
-  return body.data;
+  return normalizeKeys(body.data ?? body.Data);
 }
 
 const buildQuery = (params) => {

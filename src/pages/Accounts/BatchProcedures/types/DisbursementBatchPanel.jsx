@@ -145,7 +145,8 @@ function CreateDisbursementBatchDrawer({ open, onClose, onSuccess }) {
   );
 }
 
-const emptyEntryForm = { LoanCaseId: "", Reference: "" };
+const AUDITED_LOAN_CASE_STATUS = 48832;
+const emptyEntryForm = { LoanCaseId: "", LoanCaseLabel: "", Reference: "" };
 
 function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
   const [entries, setEntries] = useState([]);
@@ -153,6 +154,7 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
   const [entryForm, setEntryForm] = useState(emptyEntryForm);
   const [addingEntry, setAddingEntry] = useState(false);
   const [auditOpen, setAuditOpen] = useState(false);
+  const [loanCasePickerOpen, setLoanCasePickerOpen] = useState(false);
 
   const fetchEntries = () => {
     if (!batch) return;
@@ -181,6 +183,7 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
       await addDisbursementBatchEntry(batch.Id, { LoanCaseId: entryForm.LoanCaseId, Reference: entryForm.Reference });
       setEntryForm(emptyEntryForm);
       fetchEntries();
+      Swal.fire("Entry Added", "The audited loan case was added to the disbursement batch.", "success");
     } catch (err) {
       Swal.fire("Error", err.message, "error");
     } finally {
@@ -269,10 +272,8 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
           {canManageEntries && (
             <form onSubmit={handleAddEntry} className="border-t pt-4 space-y-3">
               <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Add Entry</p>
-              <FieldGroup label="Loan Case Id">
-                <Input value={entryForm.LoanCaseId} onChange={(e) => setEntryForm((p) => ({ ...p, LoanCaseId: e.target.value }))} placeholder="Paste an Audited, not-yet-batched LoanCase GUID" required />
-                <p className="text-xs text-gray-400 mt-1">No picker for this yet — the Loan Origination screens (Loaning/LoanCases) list cases by stage, not a cross-stage "Audited and not yet batched" search. Paste the Id from there for now; the server refuses if it's already batched.</p>
-              </FieldGroup>
+              <PickerField label="Audited Loan Case" value={entryForm.LoanCaseLabel} placeholder="Search eligible audited loan cases..." onClick={() => setLoanCasePickerOpen(true)} />
+              {entryForm.LoanCaseId && <div className="rounded-lg border border-indigo-100 bg-indigo-50 px-3 py-2 text-xs text-indigo-700">Selected case: <span className="font-semibold">{entryForm.LoanCaseLabel}</span></div>}
               <FieldGroup label="Reference">
                 <Input value={entryForm.Reference} onChange={(e) => setEntryForm((p) => ({ ...p, Reference: e.target.value }))} />
               </FieldGroup>
@@ -299,6 +300,24 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
         onSubmit={stage === "verification" ? handleAudit : handleAuthorize}
         onClose={() => setAuditOpen(false)}
       />
+      {loanCasePickerOpen && (
+        <EntryPickerModal
+          title="Select Audited Loan Case"
+          fetchUrl={`${FIN_BASE}/api/backoffice/loancases?status=${AUDITED_LOAN_CASE_STATUS}&pageSize=50&text=&loanCaseFilter=0`}
+          filterItems={(loanCase) => !loanCase.IsBatched
+            && Number(loanCase.LoanRegistrationLoanProductCategory) === Number(batch.LoanProductCategory)
+            && String(loanCase.BranchId) === String(batch.BranchId)}
+          getLabel={(loanCase) => `${loanCase.PaddedCaseNumber || loanCase.CaseNumber || "Loan case"} — ${loanCase.CustomerFullName || "Customer"}`}
+          getSublabel={(loanCase) => `${loanCase.LoanProductDescription || "Loan product"} · ${Number(loanCase.ApprovedAmount || 0).toLocaleString()} · ${loanCase.BranchDescription || "Branch"}`}
+          emptyText="No unbatched audited loan cases match this batch's branch and product category."
+          onSelect={(loanCase) => setEntryForm((previous) => ({
+            ...previous,
+            LoanCaseId: loanCase.Id,
+            LoanCaseLabel: `${loanCase.PaddedCaseNumber || loanCase.CaseNumber || "Loan case"} — ${loanCase.CustomerFullName || "Customer"}`,
+          }))}
+          onClose={() => setLoanCasePickerOpen(false)}
+        />
+      )}
     </AnimatePresence>
   );
 }

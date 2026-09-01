@@ -63,6 +63,7 @@ export default function CashManagement() {
   const [bankLinkageId, setBankLinkageId] = useState("");
   const [reference, setReference] = useState("");
   const [counts, setCounts] = useState(emptyDenominationCounts);
+  const [validationErrors, setValidationErrors] = useState({});
 
   useEffect(() => {
     setLoadingData(true);
@@ -142,29 +143,29 @@ export default function CashManagement() {
     }
   };
 
-  const handleCountChange = (key, value) => setCounts((p) => ({ ...p, [key]: value }));
+  const handleCountChange = (key, value) => {
+    setCounts((p) => ({ ...p, [key]: value }));
+    setValidationErrors((current) => ({ ...current, denominations: undefined }));
+  };
   const totalValue = sumDenominations(counts);
+
+  const validateMovement = () => {
+    const errors = {};
+    if (!branchId) errors.branchId = "Select your branch.";
+    if (totalValue <= 0) errors.denominations = "Enter at least one denomination count.";
+    if (reference.trim().length > 100) errors.reference = "Reference cannot exceed 100 characters.";
+    if (transactionType === TreasuryTransactionType.TreasuryToTeller && !tellerId) errors.tellerId = "Select a destination teller.";
+    if (transactionType === TreasuryTransactionType.TreasuryToTreasury && !destinationTreasuryId) errors.destinationTreasuryId = "Select a destination treasury.";
+    if ((transactionType === TreasuryTransactionType.BankToTreasury || transactionType === TreasuryTransactionType.TreasuryToBank) && !bankLinkageId) errors.bankLinkageId = "Select a bank.";
+    return errors;
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!branchId) {
-      Swal.fire("Missing Field", "Select your branch first.", "warning");
-      return;
-    }
-    if (totalValue <= 0) {
-      Swal.fire("Missing Amount", "Enter a denomination count first.", "warning");
-      return;
-    }
-    if (transactionType === TreasuryTransactionType.TreasuryToTeller && !tellerId) {
-      Swal.fire("Missing Field", "Select a destination teller.", "warning");
-      return;
-    }
-    if (transactionType === TreasuryTransactionType.TreasuryToTreasury && !destinationTreasuryId) {
-      Swal.fire("Missing Field", "Select a destination treasury.", "warning");
-      return;
-    }
-    if ((transactionType === TreasuryTransactionType.BankToTreasury || transactionType === TreasuryTransactionType.TreasuryToBank) && !bankLinkageId) {
-      Swal.fire("Missing Field", "Select a bank.", "warning");
+    const errors = validateMovement();
+    setValidationErrors(errors);
+    if (Object.keys(errors).length) {
+      Swal.fire("Check Required Fields", "Correct the highlighted fields before submitting.", "warning");
       return;
     }
 
@@ -174,7 +175,7 @@ export default function CashManagement() {
       BranchId: branchId,
       TransactionType: transactionType,
       TotalValue: totalValue,
-      Reference: reference,
+      Reference: reference.trim(),
       TellerId: transactionType === TreasuryTransactionType.TreasuryToTeller ? tellerId : undefined,
       Id: transactionType === TreasuryTransactionType.TreasuryToTreasury
         ? destinationTreasuryId
@@ -198,6 +199,7 @@ export default function CashManagement() {
       Swal.fire("Success", data.message || "Cash movement posted successfully", "success");
       setCounts(emptyDenominationCounts);
       setReference("");
+      setValidationErrors({});
       setMovementOpen(false);
     } catch (err) {
       Swal.fire("Error", apiErrorMessage(err, "Unable to post the cash movement."), "error");
@@ -276,16 +278,17 @@ export default function CashManagement() {
               <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
         <div className="grid grid-cols-2 gap-4">
           <FieldGroup label="Your Branch">
-            <Select value={branchId ? String(branchId) : ""} onValueChange={setBranchId} disabled={loadingData}>
+            <Select value={branchId ? String(branchId) : ""} onValueChange={(value) => { setBranchId(value); setTellerId(""); setDestinationTreasuryId(""); setValidationErrors((current) => ({ ...current, branchId: undefined })); }} disabled={loadingData}>
               <SelectTrigger><SelectValue placeholder={loadingData ? "Loading..." : "Select Branch"} /></SelectTrigger>
               <SelectContent className="max-h-60 overflow-y-auto">
                 {branches.map((b) => <SelectItem key={String(b.Id)} value={String(b.Id)}>{b.Description}</SelectItem>)}
               </SelectContent>
             </Select>
+            {validationErrors.branchId && <p className="mt-1 text-xs text-red-600">{validationErrors.branchId}</p>}
           </FieldGroup>
 
           <FieldGroup label="Movement">
-            <Select value={String(transactionType)} onValueChange={(v) => setTransactionType(Number(v))}>
+            <Select value={String(transactionType)} onValueChange={(v) => { setTransactionType(Number(v)); setTellerId(""); setDestinationTreasuryId(""); setBankLinkageId(""); setValidationErrors({}); }}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 {TRANSACTION_TYPE_OPTIONS.map((o) => <SelectItem key={o.value} value={String(o.value)}>{o.label}</SelectItem>)}
@@ -295,29 +298,31 @@ export default function CashManagement() {
 
           {transactionType === TreasuryTransactionType.TreasuryToTeller && (
             <FieldGroup label="Destination Teller">
-              <Select value={tellerId ? String(tellerId) : ""} onValueChange={setTellerId} disabled={loadingData}>
+              <Select value={tellerId ? String(tellerId) : ""} onValueChange={(value) => { setTellerId(value); setValidationErrors((current) => ({ ...current, tellerId: undefined })); }} disabled={loadingData || !branchId}>
                 <SelectTrigger><SelectValue placeholder={loadingData ? "Loading..." : "Select Teller"} /></SelectTrigger>
                 <SelectContent className="max-h-60 overflow-y-auto">
-                  {tellers.map((t) => <SelectItem key={String(t.Id)} value={String(t.Id)}>{t.Description}</SelectItem>)}
+                  {tellers.filter((t) => String(t.EmployeeBranchId).toLowerCase() === String(branchId).toLowerCase()).map((t) => <SelectItem key={String(t.Id)} value={String(t.Id)}>{t.Description}</SelectItem>)}
                 </SelectContent>
               </Select>
+              {validationErrors.tellerId && <p className="mt-1 text-xs text-red-600">{validationErrors.tellerId}</p>}
             </FieldGroup>
           )}
 
           {transactionType === TreasuryTransactionType.TreasuryToTreasury && (
             <FieldGroup label="Destination Treasury">
-              <Select value={destinationTreasuryId ? String(destinationTreasuryId) : ""} onValueChange={setDestinationTreasuryId} disabled={loadingData}>
+              <Select value={destinationTreasuryId ? String(destinationTreasuryId) : ""} onValueChange={(value) => { setDestinationTreasuryId(value); setValidationErrors((current) => ({ ...current, destinationTreasuryId: undefined })); }} disabled={loadingData || !branchId}>
                 <SelectTrigger><SelectValue placeholder={loadingData ? "Loading..." : "Select Treasury"} /></SelectTrigger>
                 <SelectContent className="max-h-60 overflow-y-auto">
-                  {treasuries.map((t) => <SelectItem key={String(t.Id)} value={String(t.Id)}>{t.Description} ({t.BranchDescription})</SelectItem>)}
+                  {treasuries.filter((t) => String(t.BranchId).toLowerCase() !== String(branchId).toLowerCase()).map((t) => <SelectItem key={String(t.Id)} value={String(t.Id)}>{t.Description} ({t.BranchDescription})</SelectItem>)}
                 </SelectContent>
               </Select>
+              {validationErrors.destinationTreasuryId && <p className="mt-1 text-xs text-red-600">{validationErrors.destinationTreasuryId}</p>}
             </FieldGroup>
           )}
 
           {(transactionType === TreasuryTransactionType.BankToTreasury || transactionType === TreasuryTransactionType.TreasuryToBank) && (
             <FieldGroup label="Bank">
-              <Select value={bankLinkageId ? String(bankLinkageId) : ""} onValueChange={setBankLinkageId} disabled={loadingData}>
+              <Select value={bankLinkageId ? String(bankLinkageId) : ""} onValueChange={(value) => { setBankLinkageId(value); setValidationErrors((current) => ({ ...current, bankLinkageId: undefined })); }} disabled={loadingData}>
                 <SelectTrigger><SelectValue placeholder={loadingData ? "Loading..." : "Select Bank"} /></SelectTrigger>
                 <SelectContent className="max-h-60 overflow-y-auto">
                   {banks.map((b) => (
@@ -327,17 +332,20 @@ export default function CashManagement() {
                   ))}
                 </SelectContent>
               </Select>
+              {validationErrors.bankLinkageId && <p className="mt-1 text-xs text-red-600">{validationErrors.bankLinkageId}</p>}
             </FieldGroup>
           )}
 
           <FieldGroup label="Reference">
-            <Input value={reference} onChange={(e) => setReference(e.target.value)} placeholder="Optional" />
+            <Input value={reference} maxLength={101} onChange={(e) => { setReference(e.target.value); setValidationErrors((current) => ({ ...current, reference: undefined })); }} placeholder="Optional (maximum 100 characters)" />
+            {validationErrors.reference && <p className="mt-1 text-xs text-red-600">{validationErrors.reference}</p>}
           </FieldGroup>
         </div>
 
         <div>
           <Label className="text-sm font-semibold text-gray-700 mb-2 block">Denomination Count</Label>
           <DenominationCountFields counts={counts} onChange={handleCountChange} />
+          {validationErrors.denominations && <p className="mt-1 text-xs text-red-600">{validationErrors.denominations}</p>}
         </div>
               </div>
               <div className="shrink-0 border-t bg-white p-4">

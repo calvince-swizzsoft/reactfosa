@@ -49,12 +49,33 @@ export function executeDueStandingOrders({
   maximumStandingOrderExecuteAttemptCount,
   pageSize = 100,
 }) {
-  return unwrap(
-    apiJson(`${EXECUTION_BASE}/execute`, {
+  return apiJson(`${EXECUTION_BASE}/execute`, {
       method: "POST",
       body: JSON.stringify({ targetDate, targetDateOption, priority, maximumStandingOrderExecuteAttemptCount, pageSize }),
-    })
-  );
+    }).then((body) => {
+      const result = body.data ?? body.Data ?? {};
+      const value = (camel, pascal) => result[camel] ?? result[pascal] ?? 0;
+      const queuedCount = Number(value("queuedCount", "QueuedCount"));
+
+      return {
+        ran: queuedCount > 0,
+        message: body.message ?? body.Message,
+        result: {
+          resultCode: value("resultCode", "ResultCode"),
+          detail: value("detail", "Detail"),
+          totalStandingOrders: Number(value("totalStandingOrders", "TotalStandingOrders")),
+          eligibleCount: Number(value("eligibleCount", "EligibleCount")),
+          wrongTriggerCount: Number(value("wrongTriggerCount", "WrongTriggerCount")),
+          lockedCount: Number(value("lockedCount", "LockedCount")),
+          notYetDueCount: Number(value("notYetDueCount", "NotYetDueCount")),
+          overdueCount: Number(value("overdueCount", "OverdueCount")),
+          expiredCount: Number(value("expiredCount", "ExpiredCount")),
+          entryCount: Number(value("entryCount", "EntryCount")),
+          queuedCount,
+          recurringBatchId: value("recurringBatchId", "RecurringBatchId") || null,
+        },
+      };
+    });
 }
 
 /**

@@ -1,12 +1,17 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Swal from "sweetalert2";
 import { FaHandHoldingUsd, FaChevronDown } from "react-icons/fa";
 import { apiErrorMessage, apiJson, normalizeList } from "@/lib/api";
-import { createLoanProduct } from "./api";
+import {
+  createLoanProduct, getLoanProduct, updateLoanProduct,
+  loanCycles as loanCycleApi, auxiliaryAppraisalFactors as appraisalFactorApi,
+  dynamicCharges as dynamicChargeApi, auxiliaryConditions as auxiliaryConditionApi,
+  deductibles as deductibleApi,
+} from "./api";
 import EntryPickerModal from "../BatchProcedures/lib/EntryPickerModal";
 import LoanCycleRows from "./lib/LoanCycleRows";
 import AppraisalFactorRows from "./lib/AppraisalFactorRows";
@@ -204,8 +209,11 @@ const emptyForm = {
 
 export default function CreateLoanProduct() {
   const navigate = useNavigate();
+  const { id } = useParams();
+  const isEditing = Boolean(id);
   const [form, setForm] = useState(emptyForm);
   const [loading, setLoading] = useState(false);
+  const [loadingExisting, setLoadingExisting] = useState(isEditing);
   const [picker, setPicker] = useState(null);
 
   const [loanProducts, setLoanProducts] = useState([]);
@@ -231,6 +239,37 @@ export default function CreateLoanProduct() {
       setInvestmentProducts(normalizeList(investmentData));
     }).finally(() => setLoadingProducts(false));
   }, []);
+
+  useEffect(() => {
+    if (!isEditing) return;
+
+    setLoadingExisting(true);
+    Promise.all([
+      getLoanProduct(id),
+      loanCycleApi.list(id),
+      appraisalFactorApi.list(id),
+      dynamicChargeApi.list(id),
+      auxiliaryConditionApi.list(id),
+      deductibleApi.list(id),
+    ]).then(([product, cycles, factors, charges, conditions, productDeductibles]) => {
+      setForm({
+        ...emptyForm,
+        ...product,
+        ChartOfAccountLabel: product.ChartOfAccountName || product.ChartOfAccountAccountName || "Selected account",
+        InterestReceivedChartOfAccountLabel: product.InterestReceivedChartOfAccountName || product.InterestReceivedChartOfAccountAccountName || "Selected account",
+        InterestReceivableChartOfAccountLabel: product.InterestReceivableChartOfAccountName || product.InterestReceivableChartOfAccountAccountName || "Selected account",
+        InterestChargedChartOfAccountLabel: product.InterestChargedChartOfAccountName || product.InterestChargedChartOfAccountAccountName || "Selected account",
+      });
+      setLoanCycles(normalizeList(cycles));
+      setAppraisalFactors(normalizeList(factors));
+      setDynamicCharges(normalizeList(charges));
+      setAuxiliaryConditions(normalizeList(conditions));
+      setDeductibles(normalizeList(productDeductibles));
+    }).catch((error) => {
+      Swal.fire("Error", apiErrorMessage(error, "Unable to load the loan product."), "error");
+      navigate("/Accounts/LoanProducts");
+    }).finally(() => setLoadingExisting(false));
+  }, [id, isEditing, navigate]);
 
   const set = (field) => (value) => setForm((p) => ({ ...p, [field]: value }));
 
@@ -281,24 +320,36 @@ export default function CreateLoanProduct() {
     }
     setLoading(true);
     try {
-      const loanProduct = { ...form };
-      delete loanProduct.ChartOfAccountLabel;
-      delete loanProduct.InterestReceivedChartOfAccountLabel;
-      delete loanProduct.InterestReceivableChartOfAccountLabel;
-      delete loanProduct.InterestChargedChartOfAccountLabel;
+      const loanProduct = Object.fromEntries(
+        Object.keys(emptyForm)
+          .filter((key) => !key.endsWith("Label"))
+          .map((key) => [key, form[key]])
+      );
+      if (isEditing) loanProduct.Id = id;
 
-      await createLoanProduct({
-        LoanProduct: loanProduct,
-        LoanCycles: loanCycles.length ? loanCycles : null,
-        AuxiliaryAppraisalFactors: appraisalFactors.length ? appraisalFactors : null,
-        DynamicCharges: dynamicCharges.length ? dynamicCharges : null,
-        AuxiliaryConditions: auxiliaryConditions.length ? auxiliaryConditions : null,
-        Deductibles: deductibles.length ? deductibles : null,
-      });
-      Swal.fire("Success", "Loan product created.", "success");
+      if (isEditing) {
+        await updateLoanProduct(id, loanProduct);
+        await Promise.all([
+          loanCycleApi.replace(id, loanCycles),
+          appraisalFactorApi.replace(id, appraisalFactors),
+          dynamicChargeApi.replace(id, dynamicCharges),
+          auxiliaryConditionApi.replace(id, auxiliaryConditions),
+          deductibleApi.replace(id, deductibles),
+        ]);
+      } else {
+        await createLoanProduct({
+          LoanProduct: loanProduct,
+          LoanCycles: loanCycles.length ? loanCycles : null,
+          AuxiliaryAppraisalFactors: appraisalFactors.length ? appraisalFactors : null,
+          DynamicCharges: dynamicCharges.length ? dynamicCharges : null,
+          AuxiliaryConditions: auxiliaryConditions.length ? auxiliaryConditions : null,
+          Deductibles: deductibles.length ? deductibles : null,
+        });
+      }
+      Swal.fire("Success", `Loan product ${isEditing ? "updated" : "created"}.`, "success");
       navigate("/Accounts/LoanProducts");
     } catch (err) {
-      Swal.fire("Error", apiErrorMessage(err, "Unable to create the loan product."), "error");
+      Swal.fire("Error", apiErrorMessage(err, `Unable to ${isEditing ? "update" : "create"} the loan product.`), "error");
     } finally {
       setLoading(false);
     }
@@ -308,12 +359,16 @@ export default function CreateLoanProduct() {
     <div className="bg-white m-8 px-8 py-8 shadow-2xl rounded-lg relative">
       <div className="flex justify-between items-center mb-6 bg-indigo-800 px-6 py-3 rounded-2xl">
         <h2 className="text-xl font-bold text-white flex items-center gap-2">
-          <FaHandHoldingUsd /> New Loan Product
+          <FaHandHoldingUsd /> {isEditing ? "Edit Loan Product" : "New Loan Product"}
         </h2>
         <Button variant="outline" onClick={() => navigate("/Accounts/LoanProducts")}>Cancel</Button>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6 max-w-4xl">
+      {loadingExisting ? (
+        <div className="space-y-4 animate-pulse max-w-4xl" aria-label="Loading loan product">
+          {[1, 2, 3, 4].map((row) => <div key={row} className="h-20 rounded-lg bg-gray-100" />)}
+        </div>
+      ) : <form onSubmit={handleSubmit} className="space-y-6 max-w-4xl">
         <Section title="Identity & Classification">
           <FieldGroup label="Name" full>
             <Input value={form.Description} onChange={(e) => set("Description")(e.target.value)} required />
@@ -491,10 +546,10 @@ export default function CreateLoanProduct() {
 
         <div className="pt-4">
           <Button type="submit" disabled={loading} className="w-full bg-indigo-600 hover:bg-indigo-700">
-            {loading ? "Creating..." : "Create Loan Product"}
+            {loading ? (isEditing ? "Updating..." : "Creating...") : (isEditing ? "Update Loan Product" : "Create Loan Product")}
           </Button>
         </div>
-      </form>
+      </form>}
 
       {picker && (
         <EntryPickerModal
