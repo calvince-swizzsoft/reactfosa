@@ -93,7 +93,12 @@ export function apiErrorFromResponse(response, body, fallbackMessage) {
 
   return new ApiError({
     status,
-    code: nonEmptyString(payload.code) || nonEmptyString(payload.Code) || "REQUEST_FAILED",
+    code:
+      nonEmptyString(payload.code) ||
+      nonEmptyString(payload.Code) ||
+      nonEmptyString(payload.error?.code) ||
+      nonEmptyString(payload.Error?.Code) ||
+      "REQUEST_FAILED",
     message:
       responseMessage(body) ||
       nonEmptyString(fallbackMessage) ||

@@ -111,7 +111,6 @@ function FiscalCountDetailDrawer({ id, onClose }) {
                     <DetailRow label="Primary Description" value={item.PrimaryDescription} />
                     <DetailRow label="Secondary Description" value={item.SecondaryDescription} />
                     <DetailRow label="Reference" value={item.Reference} />
-                    <DetailRow label="Transaction Code" value={item.TransactionCodeDescription || "Unclassified"} />
                     <DetailRow label="Transaction Type" value={item.TransactionTypeDescription || "—"} />
                     <DetailRow label="System Trace Audit Number" value={item.SystemTraceAuditNumber} />
                     <DetailRow label="Created By" value={item.CreatedBy} />
@@ -243,7 +242,7 @@ export default function FiscalCounts() {
           <span className="col-span-2">Description</span>
           <span className="col-span-1">Reference</span>
           <span className="col-span-2">Total Value</span>
-          <span className="col-span-2">Transaction Code</span>
+          <span className="col-span-2">Transaction Type</span>
           <span className="col-span-1">Created</span>
         </div>
 
@@ -279,7 +278,7 @@ export default function FiscalCounts() {
                   </span>
                   <span className="col-span-2">
                     <span className="px-2 py-1 rounded text-xs font-semibold bg-blue-100 text-blue-600">
-                      {item.TransactionCodeDescription || "Unclassified"}
+                      {item.TransactionTypeDescription || "—"}
                     </span>
                   </span>
                   <span className="col-span-1 text-xs text-gray-500">{item.CreatedDate ? new Date(item.CreatedDate).toLocaleDateString() : "—"}</span>

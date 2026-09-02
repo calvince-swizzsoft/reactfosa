@@ -214,6 +214,8 @@ import BankReconciliation from "./pages/Accounts/BankReconciliation/index.jsx";
 import BudgetManagement from "./pages/Accounts/BudgetManagement/index.jsx";
 import ChequeTypes from "./pages/Accounts/ChequeTypes/index.jsx";
 import CreateChequeType from "./pages/Accounts/ChequeTypes/create.jsx";
+import CreditTypes from "./pages/Accounts/CreditTypes/index.jsx";
+import DirectDebits from "./pages/Accounts/DirectDebits/index.jsx";
 import Commissions from "./pages/Accounts/Commissions/index.jsx";
 import CreateCommission from "./pages/Accounts/Commissions/create.jsx";
 import WellKnownCharges from "./pages/Accounts/WellKnownCharges/index.jsx";
@@ -511,6 +513,8 @@ export default function App() {
           <Route path="Accounts/BudgetManagement/Appropriation" element={<BudgetManagement mode="appropriation" />} />
           <Route path="Accounts/ChequeTypes" element={<ChequeTypes />} />
           <Route path="Accounts/ChequeTypes/create" element={<CreateChequeType />} />
+          <Route path="Accounts/CreditTypes" element={<CreditTypes />} />
+          <Route path="Accounts/DirectDebits" element={<DirectDebits />} />
           <Route path="Accounts/Commissions" element={<Commissions />} />
           <Route path="Accounts/Commissions/create" element={<CreateCommission />} />
           <Route path="Accounts/WellKnownCharges" element={<WellKnownCharges />} />

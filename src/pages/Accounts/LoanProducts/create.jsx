@@ -72,9 +72,9 @@ const FIELD_HELP = {
   "Aggregate Check-Off Recovery Mode": "Determines how aggregate check-off receipts are allocated against the loan.",
   "Rounding Type": "Controls how calculated repayment and recovery amounts are rounded.",
   "Recovery Priority": "Sets this product's order when available funds must be shared across multiple recoveries.",
-  Type: "Selects whether the minimum take-home requirement is expressed as a percentage or a fixed amount.",
-  Percentage: "The minimum percentage of income that must remain after proposed loan deductions.",
-  "Fixed Amount": "The minimum fixed amount that must remain after proposed loan deductions.",
+  Type: "Choose how much income a member must retain after the proposed loan instalment. Percentage protects a share of verified adjusted income; Fixed Amount protects the same currency amount for every member using this product. This is an affordability limit, not an interest rate or fee.",
+  Percentage: "Enter the minimum share of verified adjusted income that must remain after the proposed instalment. Formula: required take-home = adjusted income × percentage. Example: at 33%, a member with 30,000 income must retain at least 9,900, so the instalment cannot exceed 20,100. Enter 33 for 33%, not 0.33.",
+  "Fixed Amount": "Enter the minimum currency amount that must remain after the proposed instalment. Example: with a fixed take-home of 10,000 and adjusted income of 30,000, the instalment cannot exceed 20,000. This is the protected balance, not the instalment amount.",
   "Principal G/L Account": "The control account that carries the outstanding loan principal in the general ledger.",
   "Interest Received G/L Account": "The income account credited when loan interest is received.",
   "Interest Receivable G/L Account": "The asset account used for interest that has been charged but not yet collected.",
@@ -487,7 +487,7 @@ export default function CreateLoanProduct() {
           </FieldGroup>
         </Section>
 
-        <Section title="Take-Home">
+        <Section title="Take-Home" help="Defines the affordability safeguard applied during loan appraisal. The system subtracts the proposed periodic instalment from the member's verified adjusted income and rejects the appraisal when the remainder is below this requirement.">
           <FieldGroup label="Type">
             <EnumSelect options={CHARGE_TYPE_OPTIONS} value={form.TakeHomeType} onChange={set("TakeHomeType")} />
           </FieldGroup>

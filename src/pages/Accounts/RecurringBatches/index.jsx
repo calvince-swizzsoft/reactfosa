@@ -21,6 +21,13 @@ const TYPE_OPTIONS = [
   { value: 9, label: "Arrears Recovery From Investment Product" },
 ];
 
+const STATUS_OPTIONS = [
+  { value: 1, label: "Pending" },
+  { value: 2, label: "Posted" },
+  { value: 4, label: "Rejected" },
+  { value: 8, label: "Verified" },
+];
+
 const formatDateTime = (value) => {
   if (!value) return "—";
   const date = new Date(value);
@@ -33,6 +40,84 @@ const statusClass = (status = "") => {
   if (value.includes("reject") || value.includes("fail")) return "bg-red-100 text-red-600";
   if (value.includes("pending") || value.includes("audit")) return "bg-amber-100 text-amber-600";
   return "bg-gray-100 text-gray-600";
+};
+
+const money = (value) => `KES ${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+const meaningful = (value) => value && value !== "000-0000000-000-000" ? value : "—";
+
+const cleanReference = (value = "") => value.replace(/~+\s*$/g, "").trim();
+
+const readWorkerAmount = (remarks, label) => {
+  const match = remarks.match(new RegExp(`${label}=([\\d,.-]+)`, "i"));
+  return match ? Number(match[1].replace(/,/g, "")) : null;
+};
+
+const standingOrderSummary = (entry) => {
+  const order = entry.standingOrder || {};
+  const customer = order.benefactorCustomerAccountCustomerFullName || order.beneficiaryCustomerAccountCustomerFullName;
+  const source = meaningful(order.benefactorFullAccountNumber);
+  const destination = meaningful(order.beneficiaryFullAccountNumber);
+  const amount = Number(order.principal || 0) + Number(order.interest || 0);
+
+  return {
+    customer: customer || "Member name unavailable",
+    route: `${source} → ${destination}`,
+    purpose: cleanReference(order.remarks || entry.reference) || "Standing order repayment",
+    terms: [
+      order.triggerDescription,
+      order.scheduleFrequencyDescription,
+      amount > 0 ? `${money(amount)} per run` : null,
+    ].filter(Boolean).join(" · "),
+  };
+};
+
+const friendlyOutcome = (entry, month) => {
+  const remarks = entry.remarks || "";
+  const lower = remarks.toLowerCase();
+  const order = entry.standingOrder || {};
+  const sourceAvailable = readWorkerAmount(remarks, "source available");
+  const expectedPrincipal = readWorkerAmount(remarks, "expected principal");
+  const expectedInterest = readWorkerAmount(remarks, "expected interest");
+  const recoverablePrincipal = readWorkerAmount(remarks, "recoverable principal");
+  const recoverableInterest = readWorkerAmount(remarks, "recoverable interest");
+  const expected = Number(expectedPrincipal || 0) + Number(expectedInterest || 0);
+  const recoverable = Number(recoverablePrincipal || 0) + Number(recoverableInterest || 0);
+
+  if (lower.includes("schedule arrears recovery") && lower.includes("no transactions")) {
+    return {
+      title: `Already processed for ${month || "this period"}`,
+      detail: "No additional principal or interest was due, so the system did not post another recovery.",
+    };
+  }
+  if (lower.includes("execute fresh recovery") && expected > 0 && recoverable === 0 && Number(order.beneficiaryCustomerAccountCustomerAccountTypeProductCode) === 2) {
+    return {
+      title: "No outstanding loan balance was available to recover",
+      detail: `The standing order expected ${money(expected)}, and the source account had ${money(sourceAvailable)}, but the destination loan account reported no recoverable principal or interest. Confirm that the loan was disbursed and that this standing order points to the correct loan account.`,
+    };
+  }
+  if (lower.includes("execute fresh recovery") && expected > 0 && recoverable === 0 && sourceAvailable === 0) {
+    return {
+      title: "The source account had no available funds",
+      detail: `This standing order expected ${money(expected)}, but the source account had no available balance when processing ran.`,
+    };
+  }
+  if (lower.includes("no transactions")) {
+    return {
+      title: "Nothing was available to post",
+      detail: "The calculated recoverable principal and interest were both zero.",
+    };
+  }
+  if (!remarks) {
+    return { title: "Waiting for processing", detail: "No processing result has been recorded yet." };
+  }
+  if (lower.startsWith("succeeded")) {
+    return { title: "Posted successfully", detail: "The standing-order transaction was posted." };
+  }
+  return {
+    title: lower.startsWith("failed") ? "Standing order was not posted" : "Processing details",
+    detail: remarks.replace(/^failed\s*[-–>]+\s*/i, "").replace(/^succeeded\s*[-–>]+\s*/i, "").trim(),
+  };
 };
 
 function BatchDrawer({ batch, onClose }) {
@@ -89,19 +174,38 @@ function BatchDrawer({ batch, onClose }) {
 
         <div className="px-5 pb-4 flex-1 overflow-y-auto">
           <div className="grid grid-cols-12 gap-3 bg-gray-700 text-gray-100 font-semibold p-3 rounded-lg mb-3 text-sm">
-            <span className="col-span-2">Status</span><span className="col-span-3">Standing Order</span><span className="col-span-2">Reference</span><span className="col-span-3">Outcome / Remarks</span><span className="col-span-2">Created</span>
+            <span className="col-span-2">Status</span><span className="col-span-4">Standing order</span><span className="col-span-4">What happened</span><span className="col-span-2">Processed</span>
           </div>
           {loading ? <div className="p-8 text-center text-gray-400">Loading entries...</div> : entries.length ? (
             <div className="space-y-2">
-              {entries.map((entry) => (
-                <div key={entry.id} className="grid grid-cols-12 gap-3 bg-white border rounded-lg shadow p-3 text-sm items-start">
-                  <span className={`col-span-2 w-fit px-2 py-1 rounded text-xs font-semibold ${statusClass(entry.statusDescription)}`}>{entry.statusDescription || "—"}</span>
-                  <div className="col-span-3"><p className="font-mono text-xs break-all">{entry.standingOrderId || "—"}</p><p className="text-xs text-gray-400">{entry.standingOrder?.benefactorFullAccountNumber || ""}</p></div>
-                  <p className="col-span-2 break-words">{entry.reference || "—"}</p>
-                  <p className="col-span-3 whitespace-pre-wrap break-words text-xs">{entry.remarks || "No worker outcome recorded yet"}</p>
-                  <p className="col-span-2 text-xs">{formatDateTime(entry.createdDate)}</p>
-                </div>
-              ))}
+              {entries.map((entry) => {
+                const summary = standingOrderSummary(entry);
+                const outcome = friendlyOutcome(entry, batch.monthDescription);
+                return (
+                  <div key={entry.id} className="grid grid-cols-12 gap-3 bg-white border rounded-lg shadow p-3 text-sm items-start">
+                    <span className={`col-span-2 w-fit px-2 py-1 rounded text-xs font-semibold ${statusClass(entry.statusDescription)}`}>{entry.statusDescription || "—"}</span>
+                    <div className="col-span-4 min-w-0">
+                      <p className="font-semibold text-gray-800 break-words">{summary.customer}</p>
+                      <p className="font-medium text-indigo-700 break-words">{summary.route}</p>
+                      <p className="text-xs text-gray-600 break-words">{summary.purpose}</p>
+                      {summary.terms && <p className="text-xs text-gray-400 mt-1">{summary.terms}</p>}
+                    </div>
+                    <div className="col-span-4 min-w-0">
+                      <p className="font-semibold text-gray-800">{outcome.title}</p>
+                      <p className="text-xs text-gray-600 mt-1 break-words">{outcome.detail}</p>
+                      <details className="mt-2 text-xs text-gray-500">
+                        <summary className="cursor-pointer text-indigo-600 hover:text-indigo-700">Technical details</summary>
+                        <p className="font-mono break-all mt-1">Standing order ID: {entry.standingOrderId || "—"}</p>
+                        <p className="whitespace-pre-wrap break-words mt-1">{entry.remarks || "No worker output recorded."}</p>
+                      </details>
+                    </div>
+                    <div className="col-span-2 text-xs text-gray-600">
+                      <p>{formatDateTime(entry.createdDate)}</p>
+                      <p className="text-gray-400 mt-1 break-words">{entry.createdBy || "—"}</p>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           ) : <div className="p-8 text-center text-gray-400">No entries found for this batch.</div>}
         </div>
@@ -122,18 +226,24 @@ export default function RecurringBatches() {
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(20);
   const [type, setType] = useState("");
+  const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
 
   const load = () => {
     setLoading(true);
-    listRecurringBatches({ type: type === "" ? undefined : type, pageIndex, pageSize })
+    listRecurringBatches({
+      type: type === "" ? undefined : type,
+      status: status === "" ? undefined : status,
+      pageIndex,
+      pageSize,
+    })
       .then((page) => { setItems(page?.pageCollection || []); setItemsCount(page?.itemsCount || 0); })
       .catch((error) => { setItems([]); setItemsCount(0); Swal.fire("Unable to load recurring batches", error.message, "error"); })
       .finally(() => setLoading(false));
   };
 
-  useEffect(load, [pageIndex, pageSize, type]);
+  useEffect(load, [pageIndex, pageSize, type, status]);
 
   return (
     <div className="bg-white m-8 px-8 py-8 shadow-2xl rounded-lg relative">
@@ -149,6 +259,10 @@ export default function RecurringBatches() {
         <select value={type} onChange={(event) => { setType(event.target.value === "" ? "" : Number(event.target.value)); setPageIndex(0); }} className="border p-2 rounded-lg">
           <option value="">All batch types</option>
           {TYPE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+        </select>
+        <select value={status} onChange={(event) => { setStatus(event.target.value === "" ? "" : Number(event.target.value)); setPageIndex(0); }} className="border p-2 rounded-lg">
+          <option value="">All statuses</option>
+          {STATUS_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
         </select>
         <select value={pageSize} onChange={(event) => { setPageSize(Number(event.target.value)); setPageIndex(0); }} className="border p-2 rounded-lg">
           {[10, 20, 50, 100].map((size) => <option key={size} value={size}>{size} per page</option>)}

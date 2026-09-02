@@ -59,8 +59,9 @@ const modelStateError = apiErrorFromResponse(response(400, null), {
 assert.equal(modelStateError.message, "The selected branch does not exist.\nThe customer is required.");
 
 const nestedError = apiErrorFromResponse(response(400, null), {
-  error: { message: "The customer must have at least one account before being linked." },
+  error: { code: "MAKER_CHECKER_VIOLATION", message: "The customer must have at least one account before being linked." },
 });
 assert.equal(nestedError.message, "The customer must have at least one account before being linked.");
+assert.equal(nestedError.code, "MAKER_CHECKER_VIOLATION");
 
 console.log("All frontend API error-handling tests passed.");

@@ -1,0 +1,5 @@
+Payroll Number,Customer Name,Savings Product,Savings Product Code,Has Configured Savings Account,Loan Product,Has Configured Loan Account,Investment Product,Has Configured Investment Account,Payout Amount
+00998877765l,Ernest Muriithi,ORDINARY SAVINGS,1,Yes,SALARY ADVANCE,Yes,Mandatory Share Capital,Yes,25000.00
+999887565,Alfred Otieno,ORDINARY SAVINGS,1,Yes,SALARY ADVANCE,No,Mandatory Share Capital,Yes,25000.00
+0009998,Dorothy Mogoi,ORDINARY SAVINGS,1,Yes,SALARY ADVANCE,No,Mandatory Share Capital,No,25000.00
+4322344344,Calvince Ochieng,ORDINARY SAVINGS,1,Yes,SALARY ADVANCE,No,Mandatory Share Capital,No,25000.00

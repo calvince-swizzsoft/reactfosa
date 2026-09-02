@@ -220,6 +220,8 @@ export const moduleRouteMap = {
   23021: "/Accounts/Tellers",             // Tellers (ControllerName: Teller, AreaName: FrontOffice)
   23022: "/Accounts/BankLinkages",        // Bank Linkages (ControllerName: BankLinkage) — was dead-pointed at /Finance/BanksSetup (no matching route), repointed
   23023: "/Accounts/ChequeTypes",         // Cheque Types (ControllerName: ChequeType) — was unmapped entirely; list/create/edit all built
+  23024: "/Accounts/DirectDebits",        // Direct Debits (ControllerName: DirectDebit) — one-off credit-batch deductions
+  23025: "/Accounts/CreditTypes",         // Credit Types (ControllerName: CreditType) — master data and related charges/direct debits/products
   23028: "/Accounts/UnpayReasons",        // Unpay Reasons (ControllerName: UnpayReason) — real, documented controller (docs/api/unpayreason-api-spec.md); was previously unmapped, with FOSA/TellerTransactions/UnpayReasons.jsx calling an undocumented /api/unpay endpoint instead of this one
   23029: "/Accounts/FixedDepositTypes",   // Fixed Deposit Types (ControllerName: FixedDepositType) — controller was built 2026-08-16 (previously didn't exist at all, zero rows in swiftFin_FixedDepositTypes); closes the FixedDepositTypeId picker gap noted in FOSA/TellerTransactions/TODO.md
   // Operations (23002) > Transactions Journal (23031). Both journal views

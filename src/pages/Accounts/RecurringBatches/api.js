@@ -24,8 +24,8 @@ const query = (values) => {
   return params.toString();
 };
 
-export const listRecurringBatches = ({ type, pageIndex = 0, pageSize = 20 } = {}) =>
-  unwrap(apiJson(`${BASE}?${query({ type, pageIndex, pageSize })}`));
+export const listRecurringBatches = ({ type, status, pageIndex = 0, pageSize = 20 } = {}) =>
+  unwrap(apiJson(`${BASE}?${query({ type, status, pageIndex, pageSize })}`));
 
 export const getRecurringBatch = (id) => unwrap(apiJson(`${BASE}/${id}`));
 

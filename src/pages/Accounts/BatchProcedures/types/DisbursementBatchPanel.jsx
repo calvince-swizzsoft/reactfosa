@@ -151,17 +151,27 @@ const emptyEntryForm = { LoanCaseId: "", LoanCaseLabel: "", Reference: "" };
 function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [entriesLoadError, setEntriesLoadError] = useState(false);
   const [entryForm, setEntryForm] = useState(emptyEntryForm);
   const [addingEntry, setAddingEntry] = useState(false);
   const [auditOpen, setAuditOpen] = useState(false);
   const [loanCasePickerOpen, setLoanCasePickerOpen] = useState(false);
 
   const fetchEntries = () => {
-    if (!batch) return;
+    if (!batch) return Promise.resolve([]);
     setLoading(true);
-    listDisbursementBatchEntries(batch.Id, { pageSize: 100 })
-      .then((page) => setEntries(page?.pageCollection || page?.PageCollection || []))
-      .catch(() => setEntries([]))
+    setEntriesLoadError(false);
+    return listDisbursementBatchEntries(batch.Id, { pageSize: 100 })
+      .then((page) => {
+        const batchEntries = page?.pageCollection || page?.PageCollection || [];
+        setEntries(batchEntries);
+        return batchEntries;
+      })
+      .catch(() => {
+        setEntries([]);
+        setEntriesLoadError(true);
+        return null;
+      })
       .finally(() => setLoading(false));
   };
 
@@ -199,6 +209,17 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
   };
 
   const handleAudit = async (option, remarks) => {
+    if (option === 1) {
+      const currentEntries = await fetchEntries();
+      if (!currentEntries) {
+        Swal.fire("Entries Unavailable", "The batch entries could not be checked. Reload them before verifying the batch.", "error");
+        return;
+      }
+      if (currentEntries.length === 0) {
+        Swal.fire("Empty Batch", "Add at least one entry before verifying this disbursement batch.", "warning");
+        return;
+      }
+    }
     await runBatchAction(
       () => auditDisbursementBatch(batch.Id, { Option: option, Remarks: remarks, ModuleNavigationItemCode: MODULE_NAVIGATION_ITEM_CODE.verification }),
       { successMessage: option === 1 ? "Batch verified." : "Batch rejected.", onSuccess: () => { setAuditOpen(false); onChanged(); onClose(); } }
@@ -206,6 +227,17 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
   };
 
   const handleAuthorize = async (option, remarks) => {
+    if (option === 1) {
+      const currentEntries = await fetchEntries();
+      if (!currentEntries) {
+        Swal.fire("Entries Unavailable", "The batch entries could not be checked. Reload them before authorizing the batch.", "error");
+        return;
+      }
+      if (currentEntries.length === 0) {
+        Swal.fire("Empty Batch", "A disbursement batch must contain at least one entry before authorization.", "warning");
+        return;
+      }
+    }
     await runBatchAction(
       () => authorizeDisbursementBatch(batch.Id, { Option: option, Remarks: remarks, ModuleNavigationItemCode: MODULE_NAVIGATION_ITEM_CODE.authorization }),
       { successMessage: option === 1 ? "Batch authorized. Entries disburse off a background queue — check the entries list for real posting status." : "Batch rejected.", onSuccess: () => { setAuditOpen(false); onChanged(); onClose(); } }
@@ -245,6 +277,11 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
             <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">Entries (Loan Cases)</p>
             {loading ? (
               <div className="space-y-2 animate-pulse">{[1, 2].map((i) => <div key={i} className="h-10 bg-gray-100 rounded-lg" />)}</div>
+            ) : entriesLoadError ? (
+              <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-4 text-center">
+                <p className="text-sm font-medium text-red-600">Entries could not be loaded.</p>
+                <Button type="button" onClick={fetchEntries} className="mt-3">Retry</Button>
+              </div>
             ) : entries.length > 0 ? (
               <div className="space-y-2">
                 {entries.map((entry) => (
@@ -286,9 +323,22 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
 
         {(stage === "verification" || stage === "authorization") && (
           <div className="shrink-0 px-4 py-3 border-t">
-            <Button onClick={() => setAuditOpen(true)} className="w-full bg-indigo-600 hover:bg-indigo-700">
-              {stage === "verification" ? "Verify Batch" : "Authorize Batch"}
+            <Button
+              onClick={() => setAuditOpen(true)}
+              disabled={loading || entriesLoadError || entries.length === 0}
+              className="w-full bg-indigo-600 hover:bg-indigo-700"
+            >
+              {loading
+                ? "Checking Entries..."
+                : entriesLoadError
+                  ? "Entries Unavailable"
+                  : entries.length === 0
+                    ? "Add Entries Before Continuing"
+                    : stage === "verification" ? "Verify Batch" : "Authorize Batch"}
             </Button>
+            {!loading && !entriesLoadError && entries.length === 0 && (
+              <p className="mt-2 text-center text-xs text-amber-600">This batch cannot move forward until it contains at least one entry.</p>
+            )}
           </div>
         )}
       </motion.div>

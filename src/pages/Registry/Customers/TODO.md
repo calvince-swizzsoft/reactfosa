@@ -21,9 +21,6 @@ First pass covers Individual customer registration only (list + create), against
   — confirm with backend if one is needed).
 - **Edit / Delete / View actions** on the Customers list — no update or delete
   endpoint was available yet when this was built.
-- **`individualNationality`** is a bare numeric input right now (no enum or
-  lookup endpoint was known). Replace with a proper `Select` once the real
-  value list (or a lookup API) is confirmed.
 - **`durationStartDate`/`durationEndDate`** are silently sent as today's date
   and not exposed in the UI. Revisit if they turn out to need to be
   user-editable (e.g. a membership validity period).

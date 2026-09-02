@@ -9,7 +9,10 @@ export default function ConfirmEmail() {
 
   useEffect(() => {
     const userId = params.get("userId");
-    const code = params.get("code");
+    // The Email Alerts viewer displays stored HTML as plain text. Links copied
+    // from that view can therefore retain the HTML entity in `&amp;code=` and
+    // reach the browser with a key named `amp;code`. Accept both forms.
+    const code = params.get("code") || params.get("amp;code");
     if (!userId || !code) {
       setState({ status: "error", message: "This confirmation link is incomplete." });
       return;

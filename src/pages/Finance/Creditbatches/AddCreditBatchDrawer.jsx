@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Swal from "sweetalert2";
-import { apiErrorMessage, apiJson } from "@/lib/api";
+import { apiErrorMessage, apiJson, normalizeList } from "@/lib/api";
 
 export default function AddCreditBatchDrawer({ open, onClose, onSuccess }) {
     const [loading, setLoading] = useState(false);
@@ -49,9 +49,9 @@ export default function AddCreditBatchDrawer({ open, onClose, onSuccess }) {
             try {
                 setCreditTypesLoading(true);
                 const data = await apiJson(
-                    `${import.meta.env.VITE_APP_FIN_URL}/api/values/credittypes`
+                    `${import.meta.env.VITE_APP_FIN_URL}/api/accounts/credittypes`
                 );
-                setCreditTypes(data || []);
+                setCreditTypes(normalizeList(data));
             } catch (error) {
                 setCreditTypes([]);
                 Swal.fire("Error", apiErrorMessage(error, "Unable to load credit types."), "error");

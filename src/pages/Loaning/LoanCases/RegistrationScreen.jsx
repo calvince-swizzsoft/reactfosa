@@ -11,6 +11,8 @@ import { listLoanCases, createLoanCase, checkInProcess, ensureAppraisalWorkflow,
 import { LoanCaseStatus, RecordStatus } from "./lib/loanCaseEnums";
 import LoanCaseStatusBadge from "./lib/LoanCaseStatusBadge";
 import LoanCaseSummary from "./lib/LoanCaseSummary";
+import StandingOrderSummary from "./lib/StandingOrderSummary";
+import PayoutSummary from "./lib/PayoutSummary";
 import CustomerPickerModal from "./lib/CustomerPickerModal";
 import EntryPickerModal from "../../Accounts/BatchProcedures/lib/EntryPickerModal";
 import QuickCreateModal from "../lib/QuickCreateModal";
@@ -18,6 +20,13 @@ import { createLoanPurpose, createLoaningRemark } from "../lib/loanMastersApi";
 import { apiFetch } from "@/lib/api";
 
 const FIN_BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
+
+const localDateInputValue = (date = new Date()) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
 
 function FieldGroup({ label, children }) {
   return (
@@ -86,7 +95,7 @@ const emptyForm = {
   LoanPurposeId: "", LoanPurposeLabel: "", loanPurpose: null,
   RegistrationRemarkId: "", RegistrationRemarkLabel: "", registrationRemark: null,
   BranchId: "", BranchLabel: "", branch: null,
-  AmountApplied: "", ReceivedDate: new Date().toISOString().split("T")[0],
+  AmountApplied: "", ReceivedDate: localDateInputValue(),
 };
 
 function GuarantorRow({ row, index, loanProductId, onChange, onRemove }) {
@@ -235,7 +244,7 @@ export function CreateLoanCaseDrawer({ open, onClose, onSuccess, title = "Regist
       Swal.fire("Amount Outside Product Limits", `Enter an amount between ${minimumAmount.toLocaleString()} and ${maximumAmount.toLocaleString()}.`, "warning");
       return;
     }
-    if (new Date(`${form.ReceivedDate}T23:59:59`) > new Date()) {
+    if (form.ReceivedDate > localDateInputValue()) {
       Swal.fire("Invalid Received Date", "Received date cannot be in the future.", "warning");
       return;
     }
@@ -368,7 +377,7 @@ export function CreateLoanCaseDrawer({ open, onClose, onSuccess, title = "Regist
                 <PickerField label="Branch" value={form.BranchLabel} placeholder="Select branch..." onClick={() => setPicker("branch")} />
                 <div className="grid grid-cols-2 gap-3">
                   <FieldGroup label="Amount Applied"><Input type="number" min={form.loanProduct?.LoanRegistrationMicrocredit ? 0 : form.loanProduct?.LoanRegistrationMinimumAmount || 0} max={form.loanProduct?.LoanRegistrationMicrocredit ? undefined : form.loanProduct?.LoanRegistrationMaximumAmount || undefined} value={form.AmountApplied} onChange={(e) => setForm((p) => ({ ...p, AmountApplied: e.target.value }))} required /></FieldGroup>
-                  <FieldGroup label="Received Date"><Input type="date" max={new Date().toISOString().split("T")[0]} value={form.ReceivedDate} onChange={(e) => setForm((p) => ({ ...p, ReceivedDate: e.target.value }))} required /></FieldGroup>
+                  <FieldGroup label="Received Date"><Input type="date" max={localDateInputValue()} value={form.ReceivedDate} onChange={(e) => setForm((p) => ({ ...p, ReceivedDate: e.target.value }))} required /></FieldGroup>
                 </div>
                 {form.loanProduct && <div className="grid grid-cols-2 gap-3 rounded-lg border border-indigo-100 bg-indigo-50/40 p-4 text-sm md:grid-cols-3">
                   <div><span className="block text-xs text-gray-400">Section</span><strong>{form.loanProduct.LoanRegistrationLoanProductSectionDescription || form.loanProduct.ProductSectionDescription || "—"}</strong></div>
@@ -387,8 +396,8 @@ export function CreateLoanCaseDrawer({ open, onClose, onSuccess, title = "Regist
               </div>}
 
               {form.CustomerId && contextLoading && activeTab !== "loanDetails" && <div className="space-y-2 animate-pulse">{[1, 2, 3].map((i) => <div key={i} className="h-12 rounded-lg bg-gray-100" />)}</div>}
-              {form.CustomerId && !contextLoading && activeTab === "standingOrders" && <RegistrationRows items={context?.standingOrders} empty="No standing orders found." render={(item) => `${item.Description || "Standing order"} · ${Number(item.Amount || 0).toLocaleString()}`} />}
-              {form.CustomerId && !contextLoading && activeTab === "income" && <RegistrationRows items={context?.payouts} empty="No income history found." render={(item) => `${item.Reference || item.Description || "Payout"} · ${Number(item.Amount || item.TotalValue || 0).toLocaleString()}`} />}
+              {form.CustomerId && !contextLoading && activeTab === "standingOrders" && <RegistrationRows items={context?.standingOrders} empty="No standing orders found." render={(item) => <StandingOrderSummary item={item} accounts={context?.accounts} />} />}
+              {form.CustomerId && !contextLoading && activeTab === "income" && <RegistrationRows items={context?.payouts} empty="No income history found." render={(item) => <PayoutSummary item={item} accounts={context?.accounts} />} />}
               {form.CustomerId && !contextLoading && activeTab === "applications" && <RegistrationRows items={context?.applications} empty="No loan applications in process." render={(item) => `${item.PaddedCaseNumber || "Loan case"} · ${item.LoanProductDescription || ""} · ${Number(item.AmountApplied || 0).toLocaleString()}`} />}
 
               {form.CustomerId && activeTab === "guarantors" && (

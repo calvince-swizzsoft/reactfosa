@@ -171,7 +171,7 @@ function CreateCreditBatchDrawer({ open, onClose, onSuccess }) {
       {picker === "creditType" && (
         <EntryPickerModal
           title="Select Credit Type"
-          fetchUrl={`${FIN_BASE}/api/values/credittypes`}
+          fetchUrl={`${FIN_BASE}/api/accounts/credittypes`}
           getLabel={(i) => i.Description}
           onSelect={(i) => setForm((p) => ({ ...p, CreditTypeId: i.Id, CreditTypeLabel: i.Description }))}
           onClose={() => setPicker(null)}

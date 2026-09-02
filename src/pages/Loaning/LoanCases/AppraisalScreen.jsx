@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import Swal from "sweetalert2";
 import { motion, AnimatePresence } from "framer-motion";
 import { FaPlus, FaChevronDown, FaTrash, FaClipboardCheck, FaUser, FaChartLine, FaWallet, FaShieldAlt, FaCalculator, FaCalendarAlt, FaGavel } from "react-icons/fa";
@@ -11,12 +12,15 @@ import { listLoanCases, getAppraisalWorksheet, appraiseLoanCase } from "./lib/lo
 import { LoanCaseStatus, LoanAppraisalOption } from "./lib/loanCaseEnums";
 import LoanCaseStatusBadge from "./lib/LoanCaseStatusBadge";
 import LoanCaseSummary from "./lib/LoanCaseSummary";
+import StandingOrderSummary from "./lib/StandingOrderSummary";
 import EntryPickerModal from "../../Accounts/BatchProcedures/lib/EntryPickerModal";
 import FieldHelp from "../../Accounts/SavingsProducts/FieldHelp";
+import { createIncomeAdjustment } from "../lib/loanMastersApi";
 
 const FIN_BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 const MODULE_NAVIGATION_ITEM_CODE = 70008; // Appraisal (ControllerName: AppraiseLoan)
 const INCOME_ADJUSTMENT_DEDUCTION = 0xFADE + 1;
+const INCOME_ADJUSTMENT_ALLOWANCE = 0xFADE;
 const money = (value) => Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 function FieldGroup({ label, help, required, children }) {
@@ -74,6 +78,78 @@ const emptyDecisionForm = {
   MonthlyPaybackAmount: "", TotalPaybackAmount: "", TotalLoansBalance: "",
 };
 
+function CreateIncomeAdjustmentDrawer({ open, onClose, onCreated }) {
+  const [description, setDescription] = useState("");
+  const [type, setType] = useState(String(INCOME_ADJUSTMENT_ALLOWANCE));
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setDescription("");
+    setType(String(INCOME_ADJUSTMENT_ALLOWANCE));
+  }, [open]);
+
+  const submit = async (event) => {
+    event.preventDefault();
+    if (!description.trim()) {
+      Swal.fire("Missing Field", "Enter a description for the income adjustment.", "warning");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const saved = await createIncomeAdjustment({
+        Description: description.trim(),
+        Type: Number(type),
+        IsLocked: false,
+      });
+      if (saved?.ErrorMessageResult) throw new Error(saved.ErrorMessageResult);
+      onCreated({
+        ...saved,
+        Description: saved?.Description || description.trim(),
+        Type: saved?.Type ?? Number(type),
+        TypeDescription: saved?.TypeDescription || (Number(type) === INCOME_ADJUSTMENT_DEDUCTION ? "Deduction" : "Allowance"),
+      });
+      onClose();
+    } catch (error) {
+      Swal.fire("Error", error.message, "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <AnimatePresence>
+      {open && <>
+        <motion.div className="fixed inset-0 z-[60] bg-black" initial={{ opacity: 0 }} animate={{ opacity: 0.4 }} exit={{ opacity: 0 }} onClick={onClose} />
+        <motion.div className="fixed right-3 top-5 z-[70] w-[calc(100vw-1.5rem)] max-w-[440px] rounded-2xl bg-white p-3 shadow-2xl" initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", stiffness: 300, damping: 30 }}>
+          <div className="m-2 flex items-center justify-between rounded-2xl bg-indigo-600 p-4">
+            <h2 className="font-bold text-white">New Income Adjustment</h2>
+            <Button type="button" variant="outline" size="sm" onClick={onClose}>Close</Button>
+          </div>
+          <form onSubmit={submit} className="space-y-4 p-4">
+            <FieldGroup label="Description" help="Give the adjustment a reusable name that other appraisers will understand, such as Housing Allowance, PAYE, or Existing Loan Deduction." required>
+              <Input autoFocus value={description} onChange={(event) => setDescription(event.target.value)} placeholder="e.g. Housing Allowance" />
+            </FieldGroup>
+            <FieldGroup label="Type" help="An allowance increases adjusted net income. A deduction reduces it and therefore lowers the member's affordable repayment capacity." required>
+              <Select value={type} onValueChange={setType}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={String(INCOME_ADJUSTMENT_ALLOWANCE)}>Allowance — adds to income</SelectItem>
+                  <SelectItem value={String(INCOME_ADJUSTMENT_DEDUCTION)}>Deduction — subtracts from income</SelectItem>
+                </SelectContent>
+              </Select>
+            </FieldGroup>
+            <Button type="submit" disabled={saving} className="w-full bg-indigo-600 hover:bg-indigo-700">
+              {saving ? "Creating..." : "Create and Add to Appraisal"}
+            </Button>
+          </form>
+        </motion.div>
+      </>}
+    </AnimatePresence>
+  );
+}
+
 function AppraisalDrawer({ loanCaseId, workflowItemId, onClose, onChanged }) {
   const navigate = useNavigate();
   const [worksheet, setWorksheet] = useState(null);
@@ -81,6 +157,7 @@ function AppraisalDrawer({ loanCaseId, workflowItemId, onClose, onChanged }) {
   const [form, setForm] = useState(emptyDecisionForm);
   const [incomeAdjustments, setIncomeAdjustments] = useState([]);
   const [picker, setPicker] = useState(false);
+  const [creatingIncomeAdjustment, setCreatingIncomeAdjustment] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [usedBiometrics, setUsedBiometrics] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
@@ -249,7 +326,7 @@ function AppraisalDrawer({ loanCaseId, workflowItemId, onClose, onChanged }) {
                 )}
               </>}
 
-              {activeTab === "history" && <ContextList title="Standing Orders" items={worksheet.standingOrders} render={(item) => `${item.Description || "Standing order"} · ${Number(item.Amount || 0).toLocaleString()}`} empty="No standing orders found." />}
+              {activeTab === "history" && <ContextList title="Standing Orders" items={worksheet.standingOrders} render={(item) => <StandingOrderSummary item={item} accounts={worksheet.accounts || worksheet.loanAccounts} />} empty="No standing orders found." />}
 
               {activeTab === "loans" && <div className="space-y-4">
                 <ContextList title="Loan applications in process" items={worksheet.loanApplications} render={(item) => `${item.PaddedCaseNumber || "Loan case"} · ${item.LoanProductDescription || ""} · ${Number(item.AmountApplied || 0).toLocaleString()}`} empty="No other applications in process." />
@@ -307,29 +384,29 @@ function AppraisalDrawer({ loanCaseId, workflowItemId, onClose, onChanged }) {
 
               <div className="grid grid-cols-2 gap-3">
                 {requiresIncomeAppraisal && <>
-                  <FieldGroup label="Latest Verified Income" help="The latest verified income amount associated with this loan product.">
+                  <FieldGroup label="Latest Verified Income" help="Enter the member's most recent regular income confirmed from an accepted source, such as a current payslip, payroll record, or employer confirmation. Enter the base figure before the allowances and deductions listed below; do not enter the requested loan amount or proposed instalment. A blank value is treated as zero.">
                     <Input type="number" min="0" step="0.01" value={form.LoanProductLatestIncome} onChange={(e) => setForm((p) => ({ ...p, LoanProductLatestIncome: e.target.value }))} />
                   </FieldGroup>
-                  <FieldGroup label="Net Income After Adjustments" help="Verified income remaining after the selected allowances and deductions.">
+                  <FieldGroup label="Net Income After Adjustments" help="Calculated automatically as Latest Verified Income + enabled allowances − enabled deductions. This adjusted figure is used for the product's take-home affordability check. Review the income adjustments below if it is lower than expected.">
                     <Input type="number" value={adjustedNetIncome} disabled />
                   </FieldGroup>
-                  <FieldGroup label="Assessed Repayment Capacity" help="The amount the officer assesses that the customer can repay per period.">
+                  <FieldGroup label="Assessed Repayment Capacity" help="Enter the maximum amount the member can reasonably repay in one payment period after reviewing income, expenses, existing commitments, and policy. This is an officer assessment; it is not the loan principal or the member's remaining take-home.">
                     <Input type="number" min="0" step="0.01" value={form.AppraisedAbility} onChange={(e) => setForm((p) => ({ ...p, AppraisedAbility: e.target.value }))} />
                   </FieldGroup>
                 </>}
-                <FieldGroup label="System Recommended Principal" help="The principal amount calculated by the server from the product's appraisal rules.">
+                <FieldGroup label="System Recommended Principal" help="The loan principal calculated by the system from the product's entitlement, balances, limits, and appraisal rules. It is read-only. If the officer recommends a different principal, a reason must be entered below.">
                   <Input type="number" value={form.SystemAppraisedAmount} disabled />
                 </FieldGroup>
-                <FieldGroup label="Officer Recommended Principal" help="The principal amount recommended by the appraising officer. An override requires a reason." required>
+                <FieldGroup label="Officer Recommended Principal" help="Enter the principal the officer recommends for approval. Reducing this amount normally reduces the scheduled instalment. If it differs from the System Recommended Principal, explain why in Appraised Amount Remarks." required>
                   <Input type="number" min="0" step="0.01" value={form.AppraisedAmount} onChange={(e) => setForm((p) => ({ ...p, AppraisedAmount: e.target.value }))} />
                 </FieldGroup>
-                <FieldGroup label="Outstanding Loan Balance" help="The customer's current outstanding loan exposure used during assessment.">
+                <FieldGroup label="Outstanding Loan Balance" help="The member's existing unpaid loan exposure used in the assessment. Confirm that this agrees with the listed loan accounts; changing it does not change the new loan's scheduled instalment.">
                   <Input type="number" min="0" step="0.01" value={form.TotalLoansBalance} onChange={(e) => setForm((p) => ({ ...p, TotalLoansBalance: e.target.value }))} />
                 </FieldGroup>
-                <FieldGroup label="Proposed Monthly Instalment" help="The proposed monthly repayment amount; the server checks the product's take-home rule." required>
+                <FieldGroup label="Proposed Monthly Instalment" help="The scheduled amount the member will pay each month, calculated from the recommended principal, interest rules, and term. It is not calculated from take-home; take-home is the affordability limit. For a percentage rule: maximum instalment = adjusted income × (100% − required percentage). Example: income 30,000 with 33% protected allows at most 20,100. Reduce the principal or extend the term if the scheduled instalment is too high." required>
                   <Input type="number" min="0" step="0.01" value={form.MonthlyPaybackAmount} onChange={(e) => setForm((p) => ({ ...p, MonthlyPaybackAmount: e.target.value }))} />
                 </FieldGroup>
-                <FieldGroup label="Estimated Total Repayment" help="The estimated principal and interest payable over the full loan term." required>
+                <FieldGroup label="Estimated Total Repayment" help="The estimated total paid over the full term: principal plus applicable interest. This is not the monthly instalment or the amount disbursed to the member.">
                   <Input type="number" min="0" step="0.01" value={form.TotalPaybackAmount} onChange={(e) => setForm((p) => ({ ...p, TotalPaybackAmount: e.target.value }))} />
                 </FieldGroup>
               </div>
@@ -337,7 +414,7 @@ function AppraisalDrawer({ loanCaseId, workflowItemId, onClose, onChanged }) {
               <FieldGroup label="System Appraisal Remarks" help="Generated and saved by the server when the decision is submitted.">
                 <Input value={form.SystemAppraisalRemarks} disabled placeholder="Generated by the server when submitted" />
               </FieldGroup>
-              <FieldGroup label="Appraised Amount Remarks" help="Required only when the officer's amount differs from the system amount.">
+              <FieldGroup label="Appraised Amount Remarks" help="Required when the Officer Recommended Principal differs from the system recommendation. State the specific reason, such as affordability, verified income, security, or an approved policy exception.">
                 <Input value={form.AppraisedAmountRemarks} onChange={(e) => setForm((p) => ({ ...p, AppraisedAmountRemarks: e.target.value }))} />
               </FieldGroup>
               <FieldGroup label="Appraisal Remarks" help="Concise reason supporting the appraisal or rejection decision." required>
@@ -357,9 +434,14 @@ function AppraisalDrawer({ loanCaseId, workflowItemId, onClose, onChanged }) {
                     <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Income Adjustments</p>
                     <FieldHelp label="Income Adjustments">Add verified allowances or deductions used to assess net income.</FieldHelp>
                   </div>
-                  <Button type="button" size="sm" variant="outline" onClick={() => setPicker(true)} className="flex items-center gap-1">
-                    <FaPlus className="text-xs" /> Add
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button type="button" size="sm" variant="outline" onClick={() => setPicker(true)} className="flex items-center gap-1">
+                      <FaPlus className="text-xs" /> Add Existing
+                    </Button>
+                    <Button type="button" size="sm" onClick={() => setCreatingIncomeAdjustment(true)} className="flex items-center gap-1 bg-indigo-600 hover:bg-indigo-700">
+                      <FaPlus className="text-xs" /> Create New
+                    </Button>
+                  </div>
                 </div>
                 <div className="space-y-2">
                   {incomeAdjustments.map((row, i) => (
@@ -409,6 +491,11 @@ function AppraisalDrawer({ loanCaseId, workflowItemId, onClose, onChanged }) {
           onClose={() => setPicker(false)}
         />
       )}
+      <CreateIncomeAdjustmentDrawer
+        open={creatingIncomeAdjustment}
+        onClose={() => setCreatingIncomeAdjustment(false)}
+        onCreated={addIncomeAdjustment}
+      />
     </AnimatePresence>
   );
 }

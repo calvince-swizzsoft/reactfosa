@@ -43,7 +43,7 @@ const CUSTOMER_FILTER_OPTIONS = [
 const formatDate = (iso) => {
   if (!iso) return "—";
   const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? "—" : d.toLocaleDateString();
+  return Number.isNaN(d.getTime()) || d.getFullYear() <= 1 ? "Not scheduled" : d.toLocaleDateString();
 };
 
 const field = (item, camelCaseName, pascalCaseName) => item?.[camelCaseName] ?? item?.[pascalCaseName];
