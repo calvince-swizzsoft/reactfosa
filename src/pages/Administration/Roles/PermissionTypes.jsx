@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { FaChevronDown, FaSearch, FaShieldAlt, FaTimes, FaTrash, FaUsersCog } from "react-icons/fa";
+import { FaBuilding, FaChevronDown, FaSearch, FaShieldAlt, FaTimes, FaTrash, FaUsersCog } from "react-icons/fa";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -47,6 +47,7 @@ const permissionGroup = (permissionType) => {
 };
 
 export default function AdministrationPermissionTypes() {
+  const [activeTab, setActiveTab] = useState("roles");
   const [permissionTypes, setPermissionTypes] = useState([]);
   const [permissionTypesLoading, setPermissionTypesLoading] = useState(false);
   const [selectedPermissionType, setSelectedPermissionType] = useState("");
@@ -63,6 +64,11 @@ export default function AdministrationPermissionTypes() {
   const [assignedRows, setAssignedRows] = useState([]);
   const [assignedLoading, setAssignedLoading] = useState(false);
   const [removingRoleNames, setRemovingRoleNames] = useState(new Set());
+  const [assignedBranches, setAssignedBranches] = useState([]);
+  const [assignedBranchesLoading, setAssignedBranchesLoading] = useState(false);
+  const [selectedBranchId, setSelectedBranchId] = useState("");
+  const [addingBranch, setAddingBranch] = useState(false);
+  const [removingBranchIds, setRemovingBranchIds] = useState(new Set());
 
   const [addForm, setAddForm] = useState(emptyAddForm);
   const [adding, setAdding] = useState(false);
@@ -123,9 +129,11 @@ export default function AdministrationPermissionTypes() {
 
   useEffect(() => {
     setAddForm(emptyAddForm);
+    setSelectedBranchId("");
 
     if (!selectedPermissionType) {
       setAssignedRows([]);
+      setAssignedBranches([]);
       return;
     }
 
@@ -144,7 +152,21 @@ export default function AdministrationPermissionTypes() {
       }
     };
 
+    const fetchAssignedBranches = async () => {
+      setAssignedBranchesLoading(true);
+      try {
+        const data = await apiJson(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/roles/GetBranchesForPermissionType?permissionType=${encodeURIComponent(selectedPermissionType)}`, {}, { fallbackMessage: "Failed to load branches for this permission type." });
+        setAssignedBranches(normalizeBranchOptions(data));
+      } catch (error) {
+        Swal.fire("Error", apiErrorMessage(error, "Unable to load current branches for this permission type."), "error");
+        setAssignedBranches([]);
+      } finally {
+        setAssignedBranchesLoading(false);
+      }
+    };
+
     fetchAssignedRoles();
+    fetchAssignedBranches();
   }, [selectedPermissionType]);
 
   const branchDescriptionById = useMemo(() => {
@@ -161,6 +183,16 @@ export default function AdministrationPermissionTypes() {
   const availableRoles = useMemo(
     () => roles.filter((roleName) => !assignedRoleNames.has(roleName)),
     [roles, assignedRoleNames]
+  );
+
+  const assignedBranchIds = useMemo(
+    () => new Set(assignedBranches.map((branch) => String(branch.id))),
+    [assignedBranches]
+  );
+
+  const availableBranches = useMemo(
+    () => branches.filter((branch) => !assignedBranchIds.has(String(branch.id))),
+    [branches, assignedBranchIds]
   );
 
   const groupedPermissionTypes = useMemo(() => {
@@ -275,6 +307,64 @@ export default function AdministrationPermissionTypes() {
     }
   };
 
+  const handleAddBranch = async () => {
+    if (!selectedPermissionType || !selectedBranchId) {
+      Swal.fire("Missing branch", "Please select a branch to map.", "warning");
+      return;
+    }
+
+    const branch = branches.find((item) => String(item.id) === String(selectedBranchId));
+    setAddingBranch(true);
+    try {
+      const data = await apiJson(
+        `${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/roles/addPermissionTypeToBranches`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            SystemPermissionType: selectedPermissionType,
+            Branches: [{ Id: selectedBranchId, Description: branch?.name || "" }],
+          }),
+        },
+        { fallbackMessage: `Failed to map "${branch?.name || "branch"}" to "${selectedPermissionType}".` },
+      );
+
+      setAssignedBranches((prev) => [...prev, branch]);
+      setSelectedBranchId("");
+      Swal.fire("Success", data?.message || `"${branch.name}" mapped to "${selectedPermissionType}".`, "success");
+    } catch (error) {
+      Swal.fire("Error", apiErrorMessage(error, "Unable to add branch mapping."), "error");
+    } finally {
+      setAddingBranch(false);
+    }
+  };
+
+  const handleRemoveBranch = async (branch) => {
+    if (!selectedPermissionType) return;
+    setRemovingBranchIds((prev) => new Set(prev).add(String(branch.id)));
+    try {
+      await apiJson(
+        `${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/roles/RemoveBranchesFromPermissionType`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            SystemPermissionType: selectedPermissionType,
+            Branches: [{ Id: branch.id, Description: branch.name }],
+          }),
+        },
+        { fallbackMessage: `Failed to remove "${branch.name}" from "${selectedPermissionType}".` },
+      );
+      setAssignedBranches((prev) => prev.filter((item) => String(item.id) !== String(branch.id)));
+    } catch (error) {
+      Swal.fire("Error", apiErrorMessage(error, "Unable to remove branch mapping."), "error");
+    } finally {
+      setRemovingBranchIds((prev) => {
+        const next = new Set(prev);
+        next.delete(String(branch.id));
+        return next;
+      });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-100 p-6 md:p-10">
       <div className="mx-auto max-w-6xl rounded-2xl bg-white p-8 shadow-xl">
@@ -283,7 +373,7 @@ export default function AdministrationPermissionTypes() {
           <div>
           <h2 className="text-2xl font-semibold text-slate-800">Permission Types</h2>
           <p className="mt-2 text-sm text-slate-500">
-            Map a system permission type to one or more roles, with a branch and approval requirements per role.
+            Control which roles can perform an operation and which branches can use it.
           </p>
           </div>
         </div>
@@ -389,10 +479,34 @@ export default function AdministrationPermissionTypes() {
                 </div>
               </div>
               <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-indigo-700 shadow-sm">
-                {assignedRows.length} {assignedRows.length === 1 ? "mapped role" : "mapped roles"}
+                {activeTab === "roles"
+                  ? `${assignedRows.length} ${assignedRows.length === 1 ? "mapped role" : "mapped roles"}`
+                  : `${assignedBranches.length} ${assignedBranches.length === 1 ? "mapped branch" : "mapped branches"}`}
               </span>
             </div>
 
+            <div className="mt-6 flex gap-1 rounded-xl bg-slate-100 p-1" role="tablist" aria-label="Permission assignment type">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === "roles"}
+                onClick={() => setActiveTab("roles")}
+                className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors ${activeTab === "roles" ? "bg-white text-indigo-700 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+              >
+                <FaUsersCog /> Role Assignments
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === "branches"}
+                onClick={() => setActiveTab("branches")}
+                className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors ${activeTab === "branches" ? "bg-white text-indigo-700 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+              >
+                <FaBuilding /> Branch Assignments
+              </button>
+            </div>
+
+            {activeTab === "roles" && <>
             <div className="mt-6">
               <div className="flex items-center justify-between">
                 <Label className="text-xs font-semibold uppercase tracking-wider text-slate-400">
@@ -530,14 +644,86 @@ export default function AdministrationPermissionTypes() {
                 </>
               )}
             </div>
+            </>}
+
+            {activeTab === "branches" && <>
+              <div className="mt-6">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-slate-400">Mapped Branches</Label>
+                  {assignedBranchesLoading && <span className="text-xs text-slate-400">Loading current mappings...</span>}
+                </div>
+                <div className="mt-2 overflow-hidden rounded-xl border border-slate-200">
+                  <table className="w-full text-left">
+                    <thead className="bg-slate-50">
+                      <tr>
+                        <th className="px-4 py-2.5 text-sm font-semibold text-slate-700">Branch</th>
+                        <th className="px-4 py-2.5 text-right text-sm font-semibold text-slate-700">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200">
+                      {assignedBranchesLoading ? (
+                        Array.from({ length: 3 }).map((_, index) => (
+                          <tr key={index} className="animate-pulse"><td colSpan={2} className="px-4 py-3"><div className="h-4 rounded bg-slate-100" /></td></tr>
+                        ))
+                      ) : assignedBranches.length > 0 ? (
+                        assignedBranches.map((branch) => (
+                          <tr key={branch.id} className="transition-colors hover:bg-slate-50">
+                            <td className="px-4 py-2.5 text-sm font-medium text-slate-800">{branch.name}</td>
+                            <td className="px-4 py-2.5 text-right">
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveBranch(branch)}
+                                disabled={removingBranchIds.has(String(branch.id))}
+                                className="rounded-md p-1.5 text-red-600 hover:bg-red-50 disabled:opacity-50"
+                                title={`Remove ${branch.name}`}
+                                aria-label={`Remove ${branch.name}`}
+                              >
+                                <FaTrash className="text-xs" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr><td colSpan={2} className="px-4 py-3 text-sm text-slate-500">No branches mapped to this permission type yet.</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-5">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-slate-500">Add Branch Mapping</Label>
+                <p className="mt-1 text-sm text-slate-500">Allow this operation to be used in another branch.</p>
+                {availableBranches.length === 0 && !branchesLoading ? (
+                  <p className="mt-3 text-sm text-slate-500">All branches are already mapped to this permission type.</p>
+                ) : (
+                  <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end">
+                    <div className="flex-1 space-y-2">
+                      <Label htmlFor="permissionBranch" className="text-sm font-semibold text-slate-700">Branch</Label>
+                      <Select value={selectedBranchId} onValueChange={setSelectedBranchId}>
+                        <SelectTrigger id="permissionBranch">
+                          <SelectValue placeholder={branchesLoading ? "Loading branches..." : "Select a branch"} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableBranches.map((branch) => <SelectItem key={branch.id} value={String(branch.id)}>{branch.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Button type="button" onClick={handleAddBranch} disabled={addingBranch || !selectedBranchId} className="bg-indigo-600 hover:bg-indigo-700">
+                      {addingBranch ? "Adding..." : "Add Branch"}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </>}
           </>
         )}
 
         {!selectedPermissionType && !permissionTypesLoading && (
           <div className="mt-6 rounded-xl border border-dashed border-slate-300 px-6 py-12 text-center">
             <FaShieldAlt className="mx-auto text-3xl text-slate-300" />
-            <p className="mt-3 font-medium text-slate-700">Select a permission type to manage its role mappings</p>
-            <p className="mt-1 text-sm text-slate-500">Existing assignments and the add-mapping form will appear here.</p>
+            <p className="mt-3 font-medium text-slate-700">Select a permission type to manage its assignments</p>
+            <p className="mt-1 text-sm text-slate-500">Role and branch mappings will appear in separate tabs.</p>
           </div>
         )}
       </div>

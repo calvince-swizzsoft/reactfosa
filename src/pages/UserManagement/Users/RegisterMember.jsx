@@ -77,7 +77,7 @@ export default function RegisterMember({ open, onClose, refresh }) {
 
     try {
       const response = await fetch(
-        "https://localhost:44327/api/auth/register",
+        `${import.meta.env.VITE_APP_ADMIN_URL}/api/auth/register`,
         {
           method: "POST",
           headers: {
