@@ -37,6 +37,8 @@ import Finance from "./pages/Finance/Finance";
 import AccountsSetup from "./pages/Payroll/Accounts/AccountsSetup.jsx";
 
 import FixedAssetsSetup from "./pages/FixedAssets/FixedAssetsSetup.jsx";
+import AssetCatalogue from "./pages/FixedAssets/AssetCatalogue.jsx";
+import AssetDepreciation from "./pages/FixedAssets/AssetDepreciation.jsx";
 import FixCategory from "./pages/FixedAssets/Category/fixCategory.jsx";
 import Location from "./pages/FixedAssets/Location/Location.jsx";
 import FixUnitOfMeasure from "./pages/FixedAssets/UnitOfMeasure/fixUnitOfMeasure.jsx";
@@ -283,6 +285,8 @@ export default function App() {
 
           {/* FixedAssets */}
           <Route path="FixedAssets" element={<FixedAssetsSetup />} />
+          <Route path="FixedAssets/Catalogue" element={<AssetCatalogue />} />
+          <Route path="FixedAssets/Depreciation" element={<AssetDepreciation />} />
           <Route path="FixedAssets/Category" element={<FixCategory />} />
           <Route path="FixedAssets/Location" element={<Location />} />
           <Route path="FixedAssets/FixedAssetCard" element={<FixedAssetsSetup />} />

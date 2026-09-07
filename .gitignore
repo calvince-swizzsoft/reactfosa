@@ -16,6 +16,10 @@ dist-ssr
 scripts/e2e/*.state.json
 scripts/e2e/*-LATEST.md
 
+# Generated deployment packages, extracted builds, and temporary verification work
+/deployment-artifacts/
+/tmp/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

@@ -7,6 +7,7 @@ import Swal from "sweetalert2";
 import { FaSearch, FaTruck } from "react-icons/fa";
 import { createSupplier, updateSupplier, CHART_OF_ACCOUNTS_BASE } from "./api";
 import EntryPickerModal from "@/pages/Accounts/BatchProcedures/lib/EntryPickerModal";
+import { apiErrorMessage } from "@/lib/api";
 
 function FieldGroup({ label, children }) {
   return (
@@ -85,7 +86,7 @@ export default function SupplierDrawer({ open, onClose, onSuccess, item }) {
       onSuccess();
       onClose();
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", apiErrorMessage(err, `Unable to ${item ? "update" : "create"} the supplier.`), "error");
     } finally {
       setSaving(false);
     }

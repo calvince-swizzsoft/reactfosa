@@ -1,203 +1,127 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  FaClipboardList,
-  FaSearch,
-  FaChevronDown,
-  FaChevronUp,
-  FaDesktop,
-  FaUser,
-} from "react-icons/fa";
+import { FaChevronDown, FaChevronUp, FaClipboardList, FaDesktop, FaHistory, FaSearch, FaUser } from "react-icons/fa";
 import NotFoundImage from "/assets/scopefinding.png";
 import Swal from "sweetalert2";
 import { apiErrorMessage, apiJson, normalizeList } from "@/lib/api";
 
+const tabs = [
+  { id: "logs", label: "Audit Logs", description: "Entity and database record changes", icon: FaClipboardList },
+  { id: "entries", label: "Audit Entries", description: "User and business activity history", icon: FaHistory },
+];
+
+const displayDate = (value) => (value ? new Date(value).toLocaleString() : "—");
+const displayValue = (value) => value || "—";
+
+function DetailField({ label, value }) {
+  return <div><dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</dt><dd className="mt-1 break-words text-sm text-slate-800">{displayValue(value)}</dd></div>;
+}
+
+function EnvironmentDetails({ item }) {
+  const hasLegacyHardware = item.EnvironmentMACAddress || item.EnvironmentMotherboardSerialNumber || item.EnvironmentProcessorId;
+  return (
+    <div className="grid gap-6 border-t border-slate-200 bg-slate-50 px-6 py-5 lg:grid-cols-2">
+      <section>
+        <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-900"><FaDesktop className="text-indigo-600" /> Client context</h3>
+        <dl className="grid gap-4 sm:grid-cols-2">
+          <DetailField label="IP address" value={item.ClientIPAddress || item.EnvironmentIPAddress} />
+          <DetailField label="Device ID" value={item.ClientDeviceId || "Not captured"} />
+          <div className="sm:col-span-2"><DetailField label="Browser / user agent" value={item.ClientUserAgent || "Not captured"} /></div>
+        </dl>
+      </section>
+      <section>
+        <h3 className="mb-3 text-sm font-semibold text-slate-900">Server context</h3>
+        <dl className="grid gap-4 sm:grid-cols-2">
+          <DetailField label="Machine" value={item.ServerMachineName || item.EnvironmentMachineName} />
+          <DetailField label="OS version" value={item.ServerOSVersion || item.EnvironmentOSVersion} />
+          <DetailField label="Runtime user" value={item.EnvironmentUserName} />
+          <DetailField label="Domain" value={item.EnvironmentDomainName} />
+        </dl>
+      </section>
+      <section className="lg:col-span-2">
+        <h3 className="mb-3 text-sm font-semibold text-slate-900">Legacy hardware identifiers</h3>
+        {hasLegacyHardware ? <dl className="grid gap-4 sm:grid-cols-3"><DetailField label="MAC address" value={item.EnvironmentMACAddress} /><DetailField label="Motherboard serial" value={item.EnvironmentMotherboardSerialNumber} /><DetailField label="Processor ID" value={item.EnvironmentProcessorId} /></dl> : <p className="text-sm text-slate-500">Not available from a browser-based client.</p>}
+      </section>
+      <section className="border-t border-slate-200 pt-4 lg:col-span-2">
+        <h3 className="mb-3 text-sm font-semibold text-slate-900">Audit record</h3>
+        <dl className="grid gap-4 sm:grid-cols-2"><DetailField label="Created by" value={item.CreatedBy} /><DetailField label="Created date" value={displayDate(item.CreatedDate)} /></dl>
+      </section>
+    </div>
+  );
+}
+
+function AuditRow({ item, isEntries, open, onToggle }) {
+  return (
+    <>
+      <tr className="hover:bg-slate-50">
+        <td className="whitespace-nowrap px-5 py-4 font-medium text-indigo-700">{displayValue(item.EventType)}</td>
+        <td className="max-w-sm px-5 py-4 text-slate-800"><span className="line-clamp-2">{displayValue(isEntries ? item.Activity : item.TableName)}</span></td>
+        <td className="max-w-48 truncate px-5 py-4 text-slate-600">{displayValue(isEntries ? item.CustomerId : item.RecordID)}</td>
+        <td className="whitespace-nowrap px-5 py-4 text-slate-700"><span className="flex items-center gap-2"><FaUser className="text-slate-400" /> {displayValue(item.ApplicationUserName)}</span></td>
+        {isEntries && <td className="px-5 py-4 text-slate-600">{displayValue(item.ApplicationUserDesignation)}</td>}
+        <td className="whitespace-nowrap px-5 py-4 text-slate-600">{displayDate(item.CreatedDate)}</td>
+        <td className="px-5 py-4 text-right"><button type="button" onClick={onToggle} className="inline-flex items-center gap-1 rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100">{open ? <FaChevronUp /> : <FaChevronDown />} {open ? "Hide" : "View"}</button></td>
+      </tr>
+      {open && <tr><td colSpan={isEntries ? 7 : 6} className="p-0">{!isEntries && <div className="border-t border-slate-200 px-6 py-4"><dl><DetailField label="Narration" value={item.AdditionalNarration} /></dl></div>}<EnvironmentDetails item={item} /></td></tr>}
+    </>
+  );
+}
+
 export default function AuditLogs() {
-  const [logs, setLogs] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [expandedLog, setExpandedLog] = useState(null);
+  const [activeTab, setActiveTab] = useState("logs");
+  const [records, setRecords] = useState({ logs: [], entries: [] });
+  const [loading, setLoading] = useState({ logs: true, entries: false });
+  const [loaded, setLoaded] = useState({ logs: false, entries: false });
+  const [expandedId, setExpandedId] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
-    const fetchLogs = async () => {
-      setLoading(true);
+    if (loaded[activeTab]) return;
+    let cancelled = false;
+    const path = activeTab === "logs" ? "" : "/entries";
+    const fetchRecords = async () => {
+      setLoading((current) => ({ ...current, [activeTab]: true }));
       try {
-        const data = await apiJson(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/auditlogs`);
-        setLogs(normalizeList(data));
-      } catch (err) {
-        setLogs([]);
-        Swal.fire("Error", apiErrorMessage(err, "Unable to load audit logs."), "error");
+        const data = await apiJson(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/auditlogs${path}`);
+        if (!cancelled) {
+          setRecords((current) => ({ ...current, [activeTab]: normalizeList(data) }));
+          setLoaded((current) => ({ ...current, [activeTab]: true }));
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setRecords((current) => ({ ...current, [activeTab]: [] }));
+          Swal.fire("Error", apiErrorMessage(error, `Unable to load audit ${activeTab}.`), "error");
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading((current) => ({ ...current, [activeTab]: false }));
       }
     };
+    fetchRecords();
+    return () => { cancelled = true; };
+  }, [activeTab, loaded]);
 
-    fetchLogs();
-  }, []);
-
-  const filteredLogs = useMemo(() => {
+  const isEntries = activeTab === "entries";
+  const filteredRecords = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
-    if (!query) return logs;
+    if (!query) return records[activeTab];
+    return records[activeTab].filter((item) => [item.EventType, item.TableName, item.RecordID, item.ApplicationUserName, item.ApplicationUserDesignation, item.AdditionalNarration, item.Activity, item.CustomerId].some((value) => String(value || "").toLowerCase().includes(query)));
+  }, [activeTab, records, searchQuery]);
 
-    return logs.filter((log) =>
-      log.EventType?.toLowerCase().includes(query) ||
-      log.TableName?.toLowerCase().includes(query) ||
-      log.RecordID?.toLowerCase().includes(query) ||
-      log.ApplicationUserName?.toLowerCase().includes(query) ||
-      log.AdditionalNarration?.toLowerCase().includes(query)
-    );
-  }, [logs, searchQuery]);
+  const selectTab = (tabId) => { setActiveTab(tabId); setExpandedId(null); setSearchQuery(""); };
 
   return (
-    <div className="bg-white m-8 px-8 py-8 shadow-2xl rounded-lg relative">
-      {/* Header */}
-      <div className="flex justify-between items-center mb-6 bg-indigo-800 px-6 py-3 rounded-2xl">
-        <h2 className="text-xl font-bold text-white flex items-center gap-2">
-          <FaClipboardList className="text-white" /> Audit Logs
-          <span className="text-sm font-normal ml-2">
-            ({filteredLogs.length} {filteredLogs.length === 1 ? "entry" : "entries"})
-          </span>
-        </h2>
+    <main className="min-h-screen bg-slate-100 p-6 md:p-10">
+      <div className="mx-auto max-w-7xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <header className="border-b border-slate-200 px-6 py-5 md:px-8"><h1 className="flex items-center gap-3 text-2xl font-bold text-slate-900"><FaClipboardList className="text-indigo-700" /> Audit History</h1><p className="mt-1 text-sm text-slate-600">Review system data changes and user activity in one place.</p></header>
+        <nav className="flex gap-2 border-b border-slate-200 px-6 pt-4 md:px-8" aria-label="Audit views">
+          {tabs.map((tab) => { const Icon = tab.icon; const selected = activeTab === tab.id; return <button key={tab.id} type="button" onClick={() => selectTab(tab.id)} className={`flex items-center gap-3 rounded-t-lg border-b-2 px-4 py-3 text-left transition ${selected ? "border-indigo-700 bg-indigo-50 text-indigo-800" : "border-transparent text-slate-600 hover:bg-slate-50 hover:text-slate-900"}`} aria-current={selected ? "page" : undefined}><Icon /><span><span className="block text-sm font-semibold">{tab.label}</span><span className="hidden text-xs font-normal sm:block">{tab.description}</span></span></button>; })}
+        </nav>
+        <section className="p-6 md:p-8">
+          <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="text-lg font-semibold text-slate-900">{isEntries ? "Audit Entries" : "Audit Logs"}</h2><p className="text-sm text-slate-500">{filteredRecords.length} {filteredRecords.length === 1 ? "record" : "records"}</p></div><label className="relative block w-full sm:max-w-md"><span className="sr-only">Search audit records</span><FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" /><input type="search" placeholder={isEntries ? "Search event, activity, user, or customer..." : "Search event, table, record, user, or narration..."} className="w-full rounded-lg border border-slate-300 py-2.5 pl-10 pr-4 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} /></label></div>
+          <div className="overflow-x-auto rounded-xl border border-slate-200"><table className="min-w-full divide-y divide-slate-200 text-sm"><thead className="bg-slate-100 text-left text-xs font-semibold uppercase tracking-wide text-slate-600"><tr><th className="px-5 py-3">Event</th><th className="px-5 py-3">{isEntries ? "Activity" : "Table"}</th><th className="px-5 py-3">{isEntries ? "Customer" : "Record ID"}</th><th className="px-5 py-3">Application user</th>{isEntries && <th className="px-5 py-3">Designation</th>}<th className="px-5 py-3">Created</th><th className="px-5 py-3 text-right">Details</th></tr></thead><tbody className="divide-y divide-slate-200 bg-white">
+            {loading[activeTab] ? [1, 2, 3].map((row) => <tr key={row} className="animate-pulse">{Array.from({ length: isEntries ? 7 : 6 }).map((_, column) => <td key={column} className="px-5 py-5"><div className="h-4 rounded bg-slate-200" /></td>)}</tr>) : filteredRecords.length ? filteredRecords.map((item) => <AuditRow key={item.Id} item={item} isEntries={isEntries} open={expandedId === item.Id} onToggle={() => setExpandedId(expandedId === item.Id ? null : item.Id)} />) : <tr><td colSpan={isEntries ? 7 : 6} className="px-6 py-12 text-center text-slate-500"><img src={NotFoundImage} alt="" className="mx-auto mb-3 w-36" />{searchQuery ? "No audit records match your search." : `No audit ${isEntries ? "entries" : "logs"} found.`}</td></tr>}
+          </tbody></table></div>
+        </section>
       </div>
-
-      {/* Search Bar */}
-      <div className="mb-6 bg-gray-100 p-4 rounded-lg">
-        <div className="flex-1 relative">
-          <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search audit logs by event, table, record, user, or narration..."
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-      </div>
-
-      {/* Table */}
-      <div className="bg-gray-200 p-4 rounded-sm">
-        <div className="grid grid-cols-12 gap-4 bg-gray-700 text-gray-100 font-semibold p-3 rounded-lg mb-4">
-          <span className="col-span-2">Event</span>
-          <span className="col-span-2">Table</span>
-          <span className="col-span-2">Record Id</span>
-          <span className="col-span-3">App. User</span>
-          <span className="col-span-2">Created</span>
-          <span className="col-span-1 text-right">Details</span>
-        </div>
-
-        {loading ? (
-          <div className="space-y-2 animate-pulse">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="grid grid-cols-12 gap-2 bg-gray-50 p-6 rounded">
-                {Array.from({ length: 12 }).map((_, j) => (
-                  <div key={j} className="h-4 bg-gray-200 rounded"></div>
-                ))}
-              </div>
-            ))}
-          </div>
-        ) : filteredLogs.length > 0 ? (
-          <div className="space-y-2">
-            {filteredLogs.map((log) => (
-              <div key={log.Id} className="bg-white rounded-lg shadow-lg border">
-                {/* Main Row */}
-                <div className="grid grid-cols-12 gap-2 items-center py-4 px-6 hover:shadow-xl transition-all">
-                  <span className="font-medium text-indigo-700 col-span-2 truncate">
-                    {log.EventType}
-                  </span>
-
-                  <span className="col-span-2 truncate">{log.TableName}</span>
-
-                  <span className="col-span-2 truncate text-gray-600">{log.RecordID}</span>
-
-                  <span className="col-span-3 flex items-center gap-2 truncate">
-                    <FaUser className="text-gray-500 shrink-0" />
-                    {log.ApplicationUserName}
-                  </span>
-
-                  <span className="col-span-2 text-sm text-gray-600">
-                    {log.CreatedDate ? new Date(log.CreatedDate).toLocaleString() : ""}
-                  </span>
-
-                  <span className="col-span-1 flex justify-end">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setExpandedLog(expandedLog === log.Id ? null : log.Id)
-                      }
-                      className="inline-flex items-center gap-1 rounded-md bg-gray-700 hover:bg-gray-600 text-white px-3 py-1.5 text-xs font-medium"
-                    >
-                      {expandedLog === log.Id ? (
-                        <>
-                          <FaChevronUp /> Hide
-                        </>
-                      ) : (
-                        <>
-                          <FaChevronDown /> View
-                        </>
-                      )}
-                    </button>
-                  </span>
-                </div>
-
-                {/* Expanded Section */}
-                {expandedLog === log.Id && (
-                  <div className="border-t bg-gray-400 p-4 mx-1 mb-1 rounded-b-lg space-y-4">
-                    <div className="bg-white p-4 rounded-lg shadow border">
-                      <div className="bg-gray-200 rounded-xl p-3">
-                        <h3 className="font-bold text-white bg-indigo-700 p-3 rounded-xl mb-2">
-                          Narration
-                        </h3>
-                        <p className="p-3 bg-gray-50 rounded-xl border-2 text-sm text-gray-700">
-                          {log.AdditionalNarration || "—"}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="bg-white p-4 rounded-lg shadow border">
-                      <div className="bg-gray-200 rounded-xl p-3">
-                        <h3 className="font-bold text-white bg-indigo-700 p-3 rounded-xl mb-2 flex items-center gap-2">
-                          <FaDesktop /> Environment
-                        </h3>
-                        <div className="grid grid-cols-2 p-3 bg-gray-50 rounded-xl border-2 gap-3 text-sm text-gray-700">
-                          <span><b>User:</b> {log.EnvironmentUserName}</span>
-                          <span><b>Machine:</b> {log.EnvironmentMachineName}</span>
-                          <span><b>Domain:</b> {log.EnvironmentDomainName}</span>
-                          <span><b>OS Version:</b> {log.EnvironmentOSVersion}</span>
-                          <span><b>MAC Address:</b> {log.EnvironmentMACAddress}</span>
-                          <span><b>Motherboard S/N:</b> {log.EnvironmentMotherboardSerialNumber}</span>
-                          <span><b>Processor Id:</b> {log.EnvironmentProcessorId}</span>
-                          <span><b>IP Address:</b> {log.EnvironmentIPAddress}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="bg-white p-4 rounded-lg shadow border">
-                      <div className="bg-gray-200 rounded-xl p-3">
-                        <h3 className="font-bold text-white bg-indigo-700 p-3 rounded-xl mb-2">
-                          System
-                        </h3>
-                        <div className="grid grid-cols-2 p-3 bg-gray-50 rounded-xl border-2 gap-3 text-sm text-gray-700">
-                          <span><b>Created By:</b> {log.CreatedBy}</span>
-                          <span>
-                            <b>Created Date:</b>{" "}
-                            {log.CreatedDate ? new Date(log.CreatedDate).toLocaleString() : "—"}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-gray-500 text-center mt-4">
-            <img src={NotFoundImage} alt="Not Found" className="mx-auto w-42" />
-            <p className="font-medium text-gray-400">
-              {searchQuery ? "No audit logs match your search." : "No Audit Logs Found."}
-            </p>
-          </div>
-        )}
-      </div>
-    </div>
+    </main>
   );
 }

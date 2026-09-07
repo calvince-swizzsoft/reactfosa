@@ -9,8 +9,9 @@ import { apiErrorMessage, apiJson } from "@/lib/api";
 
 export default function AddInvCategoryDrawer({ open, onClose, onSuccess }) {
   const [formData, setFormData] = useState({
-    description: "",
-    isLocked: false,
+    Description: "",
+    Remarks: "",
+    IsLocked: false,
   });
   const [loading, setLoading] = useState(false);
 
@@ -20,7 +21,7 @@ export default function AddInvCategoryDrawer({ open, onClose, onSuccess }) {
 
     try {
       await apiJson(
-        `${import.meta.env.VITE_APP_INV_URL}/api/categories`,
+        `${import.meta.env.VITE_APP_FIN_URL}/api/control/inventory-categories`,
         {
           method: "POST",
           headers: {
@@ -32,7 +33,7 @@ export default function AddInvCategoryDrawer({ open, onClose, onSuccess }) {
 
       Swal.fire("Success", "Category added successfully!", "success");
 
-      setFormData({ description: "", isLocked: false });
+      setFormData({ Description: "", Remarks: "", IsLocked: false });
 
       if (onSuccess) onSuccess();
       onClose();
@@ -71,21 +72,25 @@ export default function AddInvCategoryDrawer({ open, onClose, onSuccess }) {
             <div className="p-3 flex-1">
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <Label>Description</Label>
+                  <Label>Name</Label>
                   <Input
                     placeholder="Enter category name"
-                    value={formData.description}
+                    value={formData.Description}
                     onChange={(e) =>
-                      setFormData({ ...formData, description: e.target.value })
+                      setFormData({ ...formData, Description: e.target.value })
                     }
                     required
                   />
                 </div>
+                <div>
+                  <Label>Remarks</Label>
+                  <textarea className="w-full min-h-24 rounded-md border border-gray-300 p-3 text-sm" value={formData.Remarks} onChange={(e) => setFormData({ ...formData, Remarks: e.target.value })} required placeholder="Briefly describe this inventory category" />
+                </div>
                 <div className="flex items-center gap-2">
                   <Checkbox
-                    checked={formData.isLocked}
+                    checked={formData.IsLocked}
                     onCheckedChange={(checked) =>
-                      setFormData({ ...formData, isLocked: checked })
+                      setFormData({ ...formData, IsLocked: checked })
                     }
                   />
                   <Label>Locked</Label>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { FaLayerGroup, FaPlus, FaCalendarAlt, FaUser, FaEdit, FaTrash } from "react-icons/fa";
+import { FaLayerGroup, FaPlus, FaUser, FaEdit } from "react-icons/fa";
 import AddInvCategoryDrawer from "./AddInvCategoryDrawer";
 import EditInvCategoryDrawer from "./EditInvCategoryDrawer";
 import Swal from "sweetalert2";
@@ -18,7 +18,7 @@ export default function Invcategory() {
   const fetchCategories = async () => {
     setLoading(true);
     try {
-      const data = await apiJson(`${import.meta.env.VITE_APP_INV_URL}/api/categories`, {
+      const data = await apiJson(`${import.meta.env.VITE_APP_FIN_URL}/api/control/inventory-categories?pageIndex=0&pageSize=1000`, {
         headers: { "ngrok-skip-browser-warning": "true" },
       });
       setCategories(normalizeList(data));
@@ -34,41 +34,12 @@ export default function Invcategory() {
     fetchCategories();
   }, []);
 
-  // Delete Handler
-  const handleDelete = async (id) => {
-    Swal.fire({
-      title: "Are you sure?",
-      text: "This action cannot be undone.",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#dc2626",
-      cancelButtonColor: "#6b7280",
-      confirmButtonText: "Yes, delete it!",
-    }).then(async (result) => {
-      if (result.isConfirmed) {
-        try {
-          await apiJson(
-            `${import.meta.env.VITE_APP_INV_URL}/api/categories/${id}`,
-            {
-              method: "DELETE",
-              headers: { "ngrok-skip-browser-warning": "true" },
-            }
-          );
-          Swal.fire("Deleted!", "Category has been deleted.", "success");
-          fetchCategories();
-        } catch (err) {
-          Swal.fire("Error!", apiErrorMessage(err, "Unable to delete the category."), "error");
-        }
-      }
-    });
-  };
-
   return (
     <div className="bg-white m-8 px-8 py-8 shadow-2xl rounded-lg relative">
       {/* Header */}
       <div className="flex justify-between items-center mb-6 bg-indigo-800 px-6 py-3 rounded-2xl">
         <h2 className="text-xl font-bold text-white flex items-center gap-2">
-          <FaLayerGroup className="text-white" /> Categories
+          <FaLayerGroup className="text-white" /> Inventory Categories
         </h2>
         <Button
           onClick={() => setAddDrawerOpen(true)}
@@ -80,10 +51,11 @@ export default function Invcategory() {
 
       {/* Table */}
       <div className="bg-gray-200 p-4 rounded-sm">
-        <div className="grid grid-cols-6 gap-4 bg-gray-700 text-gray-100 font-semibold p-3 rounded-lg mb-4">
-          <span>Description</span>
+        <div className="grid grid-cols-12 gap-4 bg-gray-700 text-gray-100 font-semibold p-3 rounded-lg mb-4">
+          <span className="col-span-3">Name</span>
+          <span className="col-span-3">Remarks</span>
           <span>Created By</span>
-          <span>Created Date</span>
+          <span className="col-span-2">Created Date</span>
           <span>Locked?</span>
           <span className="col-span-2 text-right">Actions</span>
         </div>
@@ -105,14 +77,15 @@ export default function Invcategory() {
             {categories.map((cat) => (
               <div
                 key={cat.Id}
-                className="grid grid-cols-6 gap-4 items-center bg-white py-4 px-6 rounded-lg shadow-lg hover:shadow-xl transition-all border"
+                className="grid grid-cols-12 gap-4 items-center bg-white py-4 px-6 rounded-lg shadow-lg hover:shadow-xl transition-all border"
               >
               
-                <span className="font-medium text-indigo-700">{cat.Description}</span>
+                <span className="col-span-3 font-medium text-indigo-700">{cat.Description}</span>
+                <span className="col-span-3 text-sm text-gray-600">{cat.Remarks}</span>
                 <span className="flex items-center gap-2">
                   <FaUser className="text-gray-500" /> {cat.CreatedBy}
                 </span>
-                <span className=" col-span-1 flex items-center gap-2">
+                <span className="col-span-2 flex items-center gap-2">
                   {new Date(cat.CreatedDate).toLocaleString()}
                 </span>
                 <span
@@ -133,14 +106,6 @@ export default function Invcategory() {
                     }}
                   >
                     <FaEdit /> Edit
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    className="text-white"
-                    onClick={() => handleDelete(cat.Id)}
-                  >
-                    <FaTrash /> Delete
                   </Button>
                 </div>
               </div>

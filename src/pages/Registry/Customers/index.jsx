@@ -34,7 +34,7 @@ export default function Customers() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [addOpen, setAddOpen] = useState(false);
-  const [editingId, setEditingId] = useState(null);
+  const [editingCustomer, setEditingCustomer] = useState(null);
   const [alertPrefsCustomer, setAlertPrefsCustomer] = useState(null);
   const [nextOfKinCustomer, setNextOfKinCustomer] = useState(null);
   const [canEdit, setCanEdit] = useState(false);
@@ -88,7 +88,7 @@ export default function Customers() {
   const editCustomer = (item) => {
     if (!editAccessResolved) return Swal.fire("Checking Access", "Customer edit access is still being resolved. Try again in a moment.", "info");
     if (!canEdit) return Swal.fire("Customer Editing Permission Required", "Your current role cannot edit customers. Assign the Customer Editing permission under Administration → Role Permission Types, then try again.", "info");
-    setEditingId(item.Id ?? item.id);
+    setEditingCustomer(item);
   };
 
   return (
@@ -179,7 +179,7 @@ export default function Customers() {
       </div>
 
       <CreateCustomerDrawer open={addOpen} onClose={() => setAddOpen(false)} onSuccess={() => fetchItems(pageIndex, query, appliedFilter)} />
-      <EditCustomerDrawer customerId={editingId} open={Boolean(editingId)} onClose={() => setEditingId(null)} onSuccess={() => fetchItems(pageIndex, query, appliedFilter)} />
+      <EditCustomerDrawer customerId={editingCustomer?.Id ?? editingCustomer?.id} customerSummary={editingCustomer} open={Boolean(editingCustomer)} onClose={() => setEditingCustomer(null)} onSuccess={() => fetchItems(pageIndex, query, appliedFilter)} />
       <AlertPreferencesDrawer
         open={Boolean(alertPrefsCustomer)}
         customerId={alertPrefsCustomer?.Id ?? alertPrefsCustomer?.id}

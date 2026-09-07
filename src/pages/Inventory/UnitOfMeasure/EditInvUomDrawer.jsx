@@ -6,20 +6,22 @@ import { Label } from "@/components/ui/label";
 import Swal from "sweetalert2";
 import { apiErrorMessage, apiJson } from "@/lib/api";
 
-export default function EditInvUomDrawer({ open, onClose, onSuccess, uom }) {
+export default function EditInvUomDrawer({ open, onClose, onSuccess, uom, units = [] }) {
   const [formData, setFormData] = useState({
-    id: "",
-    code: "",
-    description: "",
+    Id: "",
+    Name: "",
+    Contains: "",
+    BaseUnitId: "",
   });
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (uom) {
       setFormData({
-        id: uom.Id,
-        code: uom.Code,
-        description: uom.Description,
+        Id: uom.Id,
+        Name: uom.Name || "",
+        Contains: uom.Contains ?? "",
+        BaseUnitId: uom.BaseUnitId || "",
       });
     }
   }, [uom]);
@@ -30,13 +32,13 @@ export default function EditInvUomDrawer({ open, onClose, onSuccess, uom }) {
 
     try {
       await apiJson(
-        `${import.meta.env.VITE_APP_INV_URL}/api/unit-of-measure/${uom.Id}`,
+        `${import.meta.env.VITE_APP_FIN_URL}/api/control/unitsofmeasurement/${uom.Id}`,
         {
           method: "PUT",
           headers: {
             "ngrok-skip-browser-warning": "true",
           },
-          body: JSON.stringify(formData),
+          body: JSON.stringify({ ...formData, Contains: formData.Contains === "" ? null : Number(formData.Contains), BaseUnitId: formData.BaseUnitId || null }),
         }
       );
 
@@ -79,26 +81,32 @@ export default function EditInvUomDrawer({ open, onClose, onSuccess, uom }) {
             <div className="p-3 flex-1">
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <Label>Code</Label>
+                  <Label>Name</Label>
                   <Input
-                    placeholder="Enter UOM Code"
-                    value={formData.code}
+                    placeholder="Enter unit name"
+                    value={formData.Name}
                     onChange={(e) =>
-                      setFormData({ ...formData, code: e.target.value })
+                      setFormData({ ...formData, Name: e.target.value })
                     }
                     required
                   />
                 </div>
                 <div>
-                  <Label>Description</Label>
+                  <Label>Contains</Label>
                   <Input
-                    placeholder="Enter Description"
-                    value={formData.description}
+                    type="number" min="0.0001" step="any" placeholder="Number of base units"
+                    value={formData.Contains}
                     onChange={(e) =>
-                      setFormData({ ...formData, description: e.target.value })
+                      setFormData({ ...formData, Contains: e.target.value })
                     }
-                    required
                   />
+                </div>
+                <div>
+                  <Label>Of Base Units</Label>
+                  <select className="w-full h-10 rounded-md border border-gray-300 px-3 text-sm" value={formData.BaseUnitId} onChange={(e) => setFormData({ ...formData, BaseUnitId: e.target.value })}>
+                    <option value="">None — this is a base unit</option>
+                    {units.filter((unit) => unit.Id !== uom.Id).map((unit) => <option key={unit.Id} value={unit.Id}>{unit.Name}</option>)}
+                  </select>
                 </div>
                 <Button
                   type="submit"

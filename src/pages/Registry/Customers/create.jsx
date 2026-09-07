@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { FaCamera, FaPlus, FaTrash } from "react-icons/fa";
+import { FaCamera, FaEdit, FaPlus, FaTrash } from "react-icons/fa";
 import Swal from "sweetalert2";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,13 +9,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { apiFetch } from "@/lib/api";
 import { apiErrorMessage, readApiResponse } from "@/lib/api-errors";
 import FieldHelp from "@/pages/Accounts/SavingsProducts/FieldHelp";
+import { ID_TYPES, normalizeIdentityNumber, normalizeKraPin, validateIdentityNumber, validateKraPin } from "./customerValidation";
 
 const BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 const CUSTOMER_URL = `${BASE}/api/registry/customer`;
 const TYPES = [[0, "Individual"], [1, "Partnership"], [2, "Corporation"], [3, "Micro-credit"]];
 const SALUTATIONS = [[1, "Mr"], [2, "Mrs"], [3, "Miss"], [4, "Dr"], [5, "Prof"]];
 const GENDERS = [[1, "Male"], [2, "Female"], [3, "Non-Binary"]];
-const ID_TYPES = [[1, "National ID"], [2, "Passport"], [3, "Alien ID"], [4, "Birth Certificate"]];
 // Mirrors Infrastructure.Crosscutting.Framework.Utils.Nationality. The API
 // persists the numeric enum value; registration should expose its description.
 const NATIONALITIES = [
@@ -35,6 +35,27 @@ const NATIONALITIES = [
   [13, "Ethiopia"],
 ];
 const IMAGE_FIELDS = [["passportBuffer", "Passport photograph"], ["signatureBuffer", "Signature"], ["identityCardFrontSideBuffer", "Identity card — front"], ["identityCardBackSideBuffer", "Identity card — back"]];
+const FIELD_HELP = {
+  "Customer Type": "Choose the legal form of the customer. This controls which particulars and member details must be completed.",
+  Branch: "The branch that owns and manages this customer record.",
+  Station: "The station or employer grouping associated with the customer.",
+  "Birth Date": "The customer must be at least 18 years old on the registration date.",
+  "Identity Type": "Select the document represented by the identity number and uploaded identity images.",
+  "Identity Number": "National ID accepts 5–10 digits. Passport accepts 5–20 letters or digits. Alien ID and birth certificate numbers may also contain / or -.",
+  "Identity Serial": "Enter the document serial number when it is different from the identity number.",
+  Nationality: "Select the customer's nationality as recorded on their identification documents.",
+  "KRA PIN": "Use the 11-character format A123456789B. Spaces are removed and letters are saved in uppercase.",
+  "Payroll Numbers": "Enter the payroll or staff number used by the customer's employer, where applicable.",
+  "Employment Designation": "Enter the customer's current job title or employment role.",
+  "Employment Date": "Enter the date the customer began their current employment. It cannot be in the future.",
+  "Registration Number": "Enter the official registration number issued to the organisation or group.",
+  "Registration Serial": "Enter the registration certificate serial number, if one was issued separately.",
+  "Date Established": "Enter the legal establishment or incorporation date. It cannot be in the future.",
+  Mobile: "Use international format beginning with + and the country code, for example +254700000000.",
+  "Mobile (+country code)": "Use international format beginning with + and 7 to 15 digits, for example +254700000000.",
+  Email: "This address may be used for statements and customer notifications.",
+  Remarks: "Add any relevant registration note that should remain with the customer record.",
+};
 const emptyForm = {
   type: 0, branchId: "", stationId: "", personalIdentificationNumber: "", individualType: 0,
   individualFirstName: "", individualLastName: "", individualIdentityCardType: 1,
@@ -66,7 +87,8 @@ function customerValidationErrors(form, partners, corporationMembers) {
   if (form.type === 0) {
     if (!text(form.individualFirstName)) errors.push("First name is required.");
     if (!text(form.individualLastName)) errors.push("Last name is required.");
-    if (!text(form.individualIdentityCardNumber)) errors.push("Identity card number is required.");
+    const identityError = validateIdentityNumber(form.individualIdentityCardNumber, form.individualIdentityCardType);
+    if (identityError) errors.push(identityError);
     if (!form.individualBirthDate) {
       errors.push("Birth date is required.");
     } else {
@@ -88,6 +110,9 @@ function customerValidationErrors(form, partners, corporationMembers) {
     }
   }
 
+  const kraPinError = validateKraPin(form.personalIdentificationNumber);
+  if (kraPinError) errors.push(kraPinError);
+
   if (form.type === 1 && !partners.length) errors.push("Add at least one partnership member.");
   if (form.type === 2 && !corporationMembers.length) errors.push("Add at least one corporation member.");
 
@@ -107,13 +132,16 @@ function customerValidationErrors(form, partners, corporationMembers) {
     const partnerMobile = text(partner.addressMobileLine);
     if (partnerEmail && !EMAIL_PATTERN.test(partnerEmail)) errors.push(`Partnership member ${index + 1} has an invalid email address.`);
     if (partnerMobile && !MOBILE_PATTERN.test(partnerMobile)) errors.push(`Partnership member ${index + 1} mobile number must start with + and contain 7 to 15 digits.`);
+    const identityError = validateIdentityNumber(partner.identityCardNumber, partner.identityCardType);
+    if (identityError) errors.push(`Partnership member ${index + 1}: ${identityError}`);
   });
 
   return { errors, tab };
 }
 
 function Field({ label, required, help, children }) {
-  return <div><div className="flex items-center gap-1"><Label className="text-sm font-semibold text-gray-700">{label}{required && <span className="text-red-600"> *</span>}</Label><FieldHelp label={label}>{help}</FieldHelp></div>{children}</div>;
+  const guidance = help ?? FIELD_HELP[label];
+  return <div><div className="flex items-center gap-1"><Label className="text-sm font-semibold text-gray-700">{label}{required && <span className="text-red-600"> *</span>}</Label><FieldHelp label={label}>{guidance}</FieldHelp></div>{children}</div>;
 }
 function EnumSelect({ value, options, onChange }) {
   return <Select value={String(value)} onValueChange={(v) => onChange(Number(v))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{options.map(([id, label]) => <SelectItem key={id} value={String(id)}>{label}</SelectItem>)}</SelectContent></Select>;
@@ -139,6 +167,7 @@ export default function CreateCustomerDrawer({ open, onClose, onSuccess }) {
   const [selectedDebits, setSelectedDebits] = useState([]), [selectedInvestments, setSelectedInvestments] = useState([]), [selectedSavings, setSelectedSavings] = useState([]);
   const [images, setImages] = useState({});
   const [partner, setPartner] = useState(emptyPartner), [partners, setPartners] = useState([]);
+  const [editingPartnerKey, setEditingPartnerKey] = useState(null);
   const [corporationMembers, setCorporationMembers] = useState([]), [referees, setReferees] = useState([]);
   const [search, setSearch] = useState(""), [results, setResults] = useState([]), [searching, setSearching] = useState(false);
   const typeLabel = TYPES.find(([id]) => id === form.type)?.[1];
@@ -152,7 +181,7 @@ export default function CreateCustomerDrawer({ open, onClose, onSuccess }) {
   useEffect(() => {
     if (!open) return;
     setForm(emptyForm); setTab("particulars"); setSelectedDebits([]); setSelectedInvestments([]); setSelectedSavings([]);
-    setImages({}); setPartners([]); setCorporationMembers([]); setReferees([]); setResults([]); setSearch(""); setUnavailableSources([]);
+    setImages({}); setPartners([]); setPartner(emptyPartner); setEditingPartnerKey(null); setCorporationMembers([]); setReferees([]); setResults([]); setSearch(""); setUnavailableSources([]);
     setLoadingData(true);
     const sources = [["branches", `${BASE}/api/administration/branches`, setBranches], ["stations", `${BASE}/api/registry/station?pageIndex=0&pageSize=1000&text=`, setStations], ["debit types", `${CUSTOMER_URL}/registration/debit-types`, setDebits], ["investment products", `${BASE}/api/accounts/investmentsproducts`, setInvestments], ["savings products", `${BASE}/api/accounts/savingsproducts`, setSavings]];
     Promise.allSettled(sources.map(async ([, url, setter]) => { const response = await apiFetch(url); const body = await readApiResponse(response); setter(list(body)); }))
@@ -162,10 +191,17 @@ export default function CreateCustomerDrawer({ open, onClose, onSuccess }) {
 
   const change = (key, value) => setForm((current) => ({ ...current, [key]: value }));
   const toggle = (setter, id) => setter((current) => current.includes(id) ? current.filter((value) => value !== id) : [...current, id]);
-  const selectType = (type) => { change("type", type); setTab("particulars"); setPartners([]); setCorporationMembers([]); };
-  const addPartner = () => {
-    if (!partner.firstName.trim() || !partner.lastName.trim() || !partner.identityCardNumber.trim()) return Swal.fire("Missing details", "Member first name, last name, and identity card number are required.", "warning");
-    setPartners((items) => [...items, { ...partner, key: crypto.randomUUID() }]); setPartner(emptyPartner);
+  const selectType = (type) => { change("type", type); setTab("particulars"); setPartners([]); setCorporationMembers([]); cancelPartnerEdit(); };
+  const cancelPartnerEdit = () => { setPartner(emptyPartner); setEditingPartnerKey(null); };
+  const editPartner = (member) => { setPartner({ ...member }); setEditingPartnerKey(member.key); };
+  const savePartner = () => {
+    if (!partner.firstName.trim() || !partner.lastName.trim()) return Swal.fire("Missing details", "Member first name and last name are required.", "warning");
+    const identityError = validateIdentityNumber(partner.identityCardNumber, partner.identityCardType);
+    if (identityError) return Swal.fire("Invalid identity number", identityError, "warning");
+    setPartners((items) => editingPartnerKey
+      ? items.map((member) => member.key === editingPartnerKey ? { ...partner, key: member.key } : member)
+      : [...items, { ...partner, key: crypto.randomUUID() }]);
+    cancelPartnerEdit();
   };
   const readImage = (field, file) => {
     if (!file) return;
@@ -185,6 +221,10 @@ export default function CreateCustomerDrawer({ open, onClose, onSuccess }) {
   };
   const submit = async (event) => {
     event.preventDefault();
+    if (editingPartnerKey) {
+      setTab("members");
+      return Swal.fire("Unsaved member changes", "Save or cancel the member edit before registering the customer.", "warning");
+    }
     const validation = customerValidationErrors(form, partners, corporationMembers);
     if (validation.errors.length) {
       setTab(validation.tab);
@@ -198,10 +238,10 @@ export default function CreateCustomerDrawer({ open, onClose, onSuccess }) {
     setLoading(true);
     try {
       const now = new Date().toISOString();
-      const customer = { ...form, individualNationality: Number(form.individualNationality) || 0, individualBirthDate: iso(form.individualBirthDate), individualEmploymentDate: iso(form.individualEmploymentDate), nonIndividualDateEstablished: iso(form.nonIndividualDateEstablished), durationStartDate: now, durationEndDate: now, registrationDate: now, recordStatus: 0, ...Object.fromEntries(IMAGE_FIELDS.map(([field]) => [field, images[field]?.bytes || null])) };
+      const customer = { ...form, personalIdentificationNumber: normalizeKraPin(form.personalIdentificationNumber), individualIdentityCardNumber: normalizeIdentityNumber(form.individualIdentityCardNumber, form.individualIdentityCardType), individualNationality: Number(form.individualNationality) || 0, individualBirthDate: iso(form.individualBirthDate), individualEmploymentDate: iso(form.individualEmploymentDate), nonIndividualDateEstablished: iso(form.nonIndividualDateEstablished), durationStartDate: now, durationEndDate: now, registrationDate: now, recordStatus: 0, ...Object.fromEntries(IMAGE_FIELDS.map(([field]) => [field, images[field]?.bytes || null])) };
       const response = await apiFetch(CUSTOMER_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
         customer, additionalDebitTypes: selectedDebits.map((id) => ({ id })), additionalInvestmentProducts: selectedInvestments.map((id) => ({ id })), additionalSavingsProducts: selectedSavings.map((id) => ({ id })),
-        partnershipMembers: partners.map(({ key, ...member }) => member), corporationMembers: corporationMembers.map((member) => ({ customerId: member.customerId, remarks: member.remarks, signatory: member.signatory })), referees: referees.map((member) => ({ witnessId: member.customerId, remarks: member.remarks })), moduleNavigationItemCode: 21007,
+        partnershipMembers: partners.map(({ key, ...member }) => ({ ...member, identityCardNumber: normalizeIdentityNumber(member.identityCardNumber, member.identityCardType) })), corporationMembers: corporationMembers.map((member) => ({ customerId: member.customerId, remarks: member.remarks, signatory: member.signatory })), referees: referees.map((member) => ({ witnessId: member.customerId, remarks: member.remarks })), moduleNavigationItemCode: 21007,
       }) });
       const body = await readApiResponse(response, { fallbackMessage: "Customer registration failed." });
       await Swal.fire(body.warning ? "Registered with warning" : "Customer registered", body.message || `${typeLabel} customer created successfully.`, body.warning ? "warning" : "success"); onSuccess?.(); onClose();
@@ -209,14 +249,14 @@ export default function CreateCustomerDrawer({ open, onClose, onSuccess }) {
   };
 
   const Lookup = ({ target }) => <div className="space-y-3"><div className="flex gap-2"><Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search registered customers by name" /><Button type="button" onClick={findCustomers}>{searching ? "Searching..." : "Search"}</Button></div>{results.map((customer) => <button type="button" key={pick(customer, "Id", "id")} onClick={() => addExisting(customer, target)} className="w-full flex justify-between border rounded-lg p-3 hover:bg-gray-50"><span><b>{nameOf(customer)}</b><small className="block text-gray-500">ID: {pick(customer, "IndividualIdentityCardNumber", "individualIdentityCardNumber") || "—"}</small></span><FaPlus className="text-indigo-600" /></button>)}</div>;
-  const MemberRows = ({ items, setter, signatory }) => <div className="space-y-2">{items.map((member, index) => <div key={member.customerId || member.key} className="flex items-center gap-3 border rounded-lg p-3"><span className="flex-1 font-semibold">{member.name || `${member.firstName} ${member.lastName}`}</span>{signatory && <label className="text-sm flex gap-2"><input type="checkbox" checked={member.signatory} onChange={(e) => setter((rows) => rows.map((row, i) => i === index ? { ...row, signatory: e.target.checked } : row))} />Signatory</label>}<Button type="button" variant="ghost" onClick={() => setter((rows) => rows.filter((_, i) => i !== index))}><FaTrash className="text-red-600" /></Button></div>)}</div>;
+  const MemberRows = ({ items, setter, signatory, editable = false }) => <div className="space-y-2">{items.map((member, index) => <div key={member.customerId || member.key} className="flex items-center gap-3 border rounded-lg p-3"><span className="flex-1 font-semibold">{member.name || `${member.firstName} ${member.lastName}`}</span>{signatory && <label className="text-sm flex gap-2"><input type="checkbox" checked={member.signatory} disabled={editable && editingPartnerKey === member.key} onChange={(e) => setter((rows) => rows.map((row, i) => i === index ? { ...row, signatory: e.target.checked } : row))} />Signatory</label>}{editable && <Button type="button" variant="outline" disabled={editingPartnerKey !== null} onClick={() => editPartner(member)} aria-label={`Edit ${member.firstName} ${member.lastName}`}><FaEdit /> Edit</Button>}<Button type="button" variant="ghost" aria-label={`Remove ${member.name || `${member.firstName} ${member.lastName}`}`} onClick={() => { setter((rows) => rows.filter((_, i) => i !== index)); if (editable && editingPartnerKey === member.key) cancelPartnerEdit(); }}><FaTrash className="text-red-600" /></Button></div>)}</div>;
 
   return <AnimatePresence>{open && <><motion.div className="fixed inset-0 bg-black z-40" initial={{ opacity: 0 }} animate={{ opacity: 0.4 }} exit={{ opacity: 0 }} onClick={onClose} /><motion.div className="fixed top-3 right-3 w-[90vw] max-w-[1200px] h-[94vh] bg-white shadow-2xl z-50 flex flex-col rounded-2xl overflow-hidden" initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", stiffness: 300, damping: 30 }}>
     <div className="p-4 flex justify-between items-center bg-indigo-700 rounded-2xl m-2 shrink-0"><div><h2 className="font-bold text-lg text-white">Register Customer</h2><p className="text-xs text-indigo-100">Individual, partnership, corporation, and micro-credit registration</p></div><Button type="button" variant="outline" size="sm" onClick={onClose}>Close</Button></div>
     <form onSubmit={submit} className="flex flex-col flex-1 overflow-hidden"><div className="px-5 py-3 grid grid-cols-3 gap-4 shrink-0"><Field label="Customer Type" required><EnumSelect value={form.type} options={TYPES} onChange={selectType} /></Field><Field label="Branch" required><Select value={form.branchId} onValueChange={(v) => change("branchId", v)} disabled={loadingData}><SelectTrigger><SelectValue placeholder="Select branch" /></SelectTrigger><SelectContent>{branches.map((item) => <SelectItem key={pick(item, "Id", "id")} value={pick(item, "Id", "id")}>{pick(item, "Description", "description")}</SelectItem>)}</SelectContent></Select></Field><Field label="Station" required><Select value={form.stationId} onValueChange={(v) => change("stationId", v)} disabled={loadingData}><SelectTrigger><SelectValue placeholder="Select station" /></SelectTrigger><SelectContent>{stations.map((item) => <SelectItem key={pick(item, "Id", "id")} value={pick(item, "Id", "id")}>{pick(item, "Description", "description")}</SelectItem>)}</SelectContent></Select></Field></div>
       <div className="grid grid-cols-12 gap-3 px-3 pb-3 flex-1 overflow-hidden"><aside className="col-span-3 bg-gray-200 p-3 rounded-lg overflow-y-auto">{tabs.map(([id, label]) => <button type="button" key={id} onClick={() => setTab(id)} className={`w-full text-left p-3 mb-2 rounded-md text-sm font-medium ${tab === id ? "bg-indigo-700 text-white" : "bg-white hover:bg-gray-100 text-gray-700"}`}>{label}</button>)}</aside><main className="col-span-9 overflow-y-auto pr-1">
-        {tab === "particulars" && (form.type === 0 ? <div className="grid grid-cols-3 gap-4"><Field label="First Name" required><Input value={form.individualFirstName} onChange={(e) => change("individualFirstName", e.target.value)} /></Field><Field label="Last Name" required><Input value={form.individualLastName} onChange={(e) => change("individualLastName", e.target.value)} /></Field><Field label="Birth Date" required><Input type="date" value={form.individualBirthDate} onChange={(e) => change("individualBirthDate", e.target.value)} /></Field><Field label="Identity Type"><EnumSelect value={form.individualIdentityCardType} options={ID_TYPES} onChange={(v) => change("individualIdentityCardType", v)} /></Field><Field label="Identity Number" required><Input value={form.individualIdentityCardNumber} onChange={(e) => change("individualIdentityCardNumber", e.target.value)} /></Field><Field label="Identity Serial"><Input value={form.individualIdentityCardSerialNumber} onChange={(e) => change("individualIdentityCardSerialNumber", e.target.value)} /></Field><Field label="Salutation"><EnumSelect value={form.individualSalutation} options={SALUTATIONS} onChange={(v) => change("individualSalutation", v)} /></Field><Field label="Gender"><EnumSelect value={form.individualGender} options={GENDERS} onChange={(v) => change("individualGender", v)} /></Field><Field label="Nationality"><EnumSelect value={form.individualNationality} options={NATIONALITIES} onChange={(v) => change("individualNationality", v)} /></Field><Field label="KRA PIN"><Input value={form.personalIdentificationNumber} onChange={(e) => change("personalIdentificationNumber", e.target.value)} /></Field><Field label="Payroll Numbers"><Input value={form.individualPayrollNumbers} onChange={(e) => change("individualPayrollNumbers", e.target.value)} /></Field><Field label="Employment Designation"><Input value={form.individualEmploymentDesignation} onChange={(e) => change("individualEmploymentDesignation", e.target.value)} /></Field><Field label="Employment Date"><Input type="date" value={form.individualEmploymentDate} onChange={(e) => change("individualEmploymentDate", e.target.value)} /></Field><Field label="Remarks"><Input value={form.remarks} onChange={(e) => change("remarks", e.target.value)} /></Field></div> : <div className="grid grid-cols-2 gap-4"><Field label={`${typeLabel} Name`} required><Input value={form.nonIndividualDescription} onChange={(e) => change("nonIndividualDescription", e.target.value)} /></Field><Field label="Registration Number" required><Input value={form.nonIndividualRegistrationNumber} onChange={(e) => change("nonIndividualRegistrationNumber", e.target.value)} /></Field><Field label="Registration Serial"><Input value={form.nonIndividualRegistrationSerialNumber} onChange={(e) => change("nonIndividualRegistrationSerialNumber", e.target.value)} /></Field><Field label="Date Established" required><Input type="date" value={form.nonIndividualDateEstablished} onChange={(e) => change("nonIndividualDateEstablished", e.target.value)} /></Field><Field label="KRA PIN"><Input value={form.personalIdentificationNumber} onChange={(e) => change("personalIdentificationNumber", e.target.value)} /></Field><Field label="Remarks"><Input value={form.remarks} onChange={(e) => change("remarks", e.target.value)} /></Field></div>)}
-        {tab === "members" && form.type === 1 && <div className="space-y-4"><div className="grid grid-cols-3 gap-3"><Field label="First Name" required><Input value={partner.firstName} onChange={(e) => setPartner((p) => ({ ...p, firstName: e.target.value }))} /></Field><Field label="Last Name" required><Input value={partner.lastName} onChange={(e) => setPartner((p) => ({ ...p, lastName: e.target.value }))} /></Field><Field label="Identity Number" required><Input value={partner.identityCardNumber} onChange={(e) => setPartner((p) => ({ ...p, identityCardNumber: e.target.value }))} /></Field><Field label="Mobile"><Input value={partner.addressMobileLine} onChange={(e) => setPartner((p) => ({ ...p, addressMobileLine: e.target.value }))} /></Field><Field label="Email"><Input type="email" value={partner.addressEmail} onChange={(e) => setPartner((p) => ({ ...p, addressEmail: e.target.value }))} /></Field><label className="flex gap-2 items-center pt-5"><input type="checkbox" checked={partner.signatory} onChange={(e) => setPartner((p) => ({ ...p, signatory: e.target.checked }))} />Signatory</label></div><Button type="button" onClick={addPartner} className="bg-indigo-600"><FaPlus /> Add Member</Button><MemberRows items={partners} setter={setPartners} signatory /></div>}
+        {tab === "particulars" && (form.type === 0 ? <div className="grid grid-cols-3 gap-4"><Field label="First Name" required><Input value={form.individualFirstName} onChange={(e) => change("individualFirstName", e.target.value)} /></Field><Field label="Last Name" required><Input value={form.individualLastName} onChange={(e) => change("individualLastName", e.target.value)} /></Field><Field label="Birth Date" required><Input type="date" value={form.individualBirthDate} onChange={(e) => change("individualBirthDate", e.target.value)} /></Field><Field label="Identity Type"><EnumSelect value={form.individualIdentityCardType} options={ID_TYPES} onChange={(v) => change("individualIdentityCardType", v)} /></Field><Field label="Identity Number" required><Input value={form.individualIdentityCardNumber} onChange={(e) => change("individualIdentityCardNumber", e.target.value)} /></Field><Field label="Identity Serial"><Input value={form.individualIdentityCardSerialNumber} onChange={(e) => change("individualIdentityCardSerialNumber", e.target.value)} /></Field><Field label="Salutation"><EnumSelect value={form.individualSalutation} options={SALUTATIONS} onChange={(v) => change("individualSalutation", v)} /></Field><Field label="Gender"><EnumSelect value={form.individualGender} options={GENDERS} onChange={(v) => change("individualGender", v)} /></Field><Field label="Nationality"><EnumSelect value={form.individualNationality} options={NATIONALITIES} onChange={(v) => change("individualNationality", v)} /></Field><Field label="KRA PIN"><Input value={form.personalIdentificationNumber} onChange={(e) => change("personalIdentificationNumber", e.target.value)} /></Field><Field label="Payroll Numbers"><Input value={form.individualPayrollNumbers} onChange={(e) => change("individualPayrollNumbers", e.target.value)} /></Field><Field label="Employment Designation"><Input value={form.individualEmploymentDesignation} onChange={(e) => change("individualEmploymentDesignation", e.target.value)} /></Field><Field label="Employment Date"><Input type="date" value={form.individualEmploymentDate} onChange={(e) => change("individualEmploymentDate", e.target.value)} /></Field><Field label="Remarks"><Input value={form.remarks} onChange={(e) => change("remarks", e.target.value)} /></Field></div> : <div className="grid grid-cols-2 gap-4"><Field label={`${typeLabel} Name`} required help="Enter the organisation or group name exactly as it appears on its registration documents."><Input value={form.nonIndividualDescription} onChange={(e) => change("nonIndividualDescription", e.target.value)} /></Field><Field label="Registration Number" required><Input value={form.nonIndividualRegistrationNumber} onChange={(e) => change("nonIndividualRegistrationNumber", e.target.value)} /></Field><Field label="Registration Serial"><Input value={form.nonIndividualRegistrationSerialNumber} onChange={(e) => change("nonIndividualRegistrationSerialNumber", e.target.value)} /></Field><Field label="Date Established" required><Input type="date" value={form.nonIndividualDateEstablished} onChange={(e) => change("nonIndividualDateEstablished", e.target.value)} /></Field><Field label="KRA PIN"><Input value={form.personalIdentificationNumber} onChange={(e) => change("personalIdentificationNumber", e.target.value)} /></Field><Field label="Remarks"><Input value={form.remarks} onChange={(e) => change("remarks", e.target.value)} /></Field></div>)}
+        {tab === "members" && form.type === 1 && <div className="space-y-4"><div className="grid grid-cols-3 gap-3"><Field label="First Name" required><Input value={partner.firstName} onChange={(e) => setPartner((p) => ({ ...p, firstName: e.target.value }))} /></Field><Field label="Last Name" required><Input value={partner.lastName} onChange={(e) => setPartner((p) => ({ ...p, lastName: e.target.value }))} /></Field><Field label="Identity Number" required><Input value={partner.identityCardNumber} onChange={(e) => setPartner((p) => ({ ...p, identityCardNumber: e.target.value }))} /></Field><Field label="Mobile"><Input value={partner.addressMobileLine} onChange={(e) => setPartner((p) => ({ ...p, addressMobileLine: e.target.value }))} /></Field><Field label="Email"><Input type="email" value={partner.addressEmail} onChange={(e) => setPartner((p) => ({ ...p, addressEmail: e.target.value }))} /></Field><label className="flex gap-2 items-center pt-5"><input type="checkbox" checked={partner.signatory} onChange={(e) => setPartner((p) => ({ ...p, signatory: e.target.checked }))} />Signatory</label></div><div className="flex gap-2"><Button type="button" onClick={savePartner} className="bg-indigo-600 hover:bg-indigo-700">{editingPartnerKey ? <><FaEdit /> Save Changes</> : <><FaPlus /> Add Member</>}</Button>{editingPartnerKey && <Button type="button" variant="outline" onClick={cancelPartnerEdit}>Cancel</Button>}</div><MemberRows items={partners} setter={setPartners} signatory editable /></div>}
         {tab === "members" && form.type === 2 && <div className="space-y-4"><p className="text-sm text-gray-500">Add existing registered customers as corporation members.</p><Lookup target="corporation" /><MemberRows items={corporationMembers} setter={setCorporationMembers} signatory /></div>}
         {tab === "address" && <div className="grid grid-cols-2 gap-4">{[["addressAddressLine1", "Address Line 1"], ["addressAddressLine2", "Address Line 2"], ["addressStreet", "Street"], ["addressCity", "City"], ["addressPostalCode", "Postal Code"], ["addressEmail", "Email"], ["addressMobileLine", "Mobile (+country code)"], ["addressLandLine", "Land Line"]].map(([key, label]) => <Field key={key} label={label}><Input type={key === "addressEmail" ? "email" : "text"} value={form[key]} onChange={(e) => change(key, e.target.value)} /></Field>)}</div>}
         {tab === "referees" && <div className="space-y-4"><p className="text-sm text-gray-500">Add existing registered customers as referees.</p><Lookup target="referee" /><MemberRows items={referees} setter={setReferees} /></div>}
@@ -224,7 +264,7 @@ export default function CreateCustomerDrawer({ open, onClose, onSuccess }) {
         {tab === "debits" && <div><div className="mb-3 flex items-center gap-1 text-sm font-semibold text-gray-700">Additional debit types <FieldHelp label="Debit Types">Recurring or automatic charge instructions made available to the customer. Company-mandatory debit types are attached automatically; selections here are additional.</FieldHelp></div><Options items={debits} selected={selectedDebits} toggle={(id) => toggle(setSelectedDebits, id)} empty="No debit types configured." /></div>}
         {tab === "investments" && <div><div className="mb-3 flex items-center gap-1 text-sm font-semibold text-gray-700">Additional investment products <FieldHelp label="Investment Products">Default, mandatory, and company-attached products are resolved and created by the server. Select only optional extras.</FieldHelp></div>{unavailableSources.includes("investment products") && <p className="mb-3 rounded-md bg-amber-50 p-3 text-sm text-amber-700">Investment products could not be loaded. Reload registration before choosing an optional investment product.</p>}<Options items={investments} selected={selectedInvestments} toggle={(id) => toggle(setSelectedInvestments, id)} empty="No investment products configured." /></div>}
         {tab === "savings" && <div><div className="mb-3 flex items-center gap-1 text-sm font-semibold text-gray-700">Additional savings products <FieldHelp label="Savings Products">The default, mandatory, and company-attached savings products are resolved and created by the server. Select only optional extras.</FieldHelp></div>{unavailableSources.includes("savings products") && <p className="mb-3 rounded-md bg-amber-50 p-3 text-sm text-amber-700">Savings products could not be loaded. Reload registration before choosing an optional savings product.</p>}<Options items={savings} selected={selectedSavings} toggle={(id) => toggle(setSelectedSavings, id)} empty="No savings products configured." /></div>}
-      </main></div><div className="px-5 py-3 border-t bg-gray-50 flex justify-between shrink-0"><div className="flex gap-4"><label className="flex gap-2"><input type="checkbox" checked={form.isLocked} onChange={(e) => change("isLocked", e.target.checked)} />Locked</label><label className="flex gap-2"><input type="checkbox" checked={form.inhibitGuaranteeing} onChange={(e) => change("inhibitGuaranteeing", e.target.checked)} />Inhibit guaranteeing</label></div><Button type="submit" disabled={loading || loadingData} className="bg-indigo-600 hover:bg-indigo-700">{loading ? "Registering..." : `Register ${typeLabel}`}</Button></div>
+      </main></div><div className="px-5 py-3 border-t bg-gray-50 flex justify-between shrink-0"><div className="flex gap-4"><div className="flex items-center gap-1"><label className="flex gap-2"><input type="checkbox" checked={form.isLocked} onChange={(e) => change("isLocked", e.target.checked)} />Locked</label><FieldHelp label="Locked customer">Prevents normal use of the customer record until an authorised user unlocks it.</FieldHelp></div><div className="flex items-center gap-1"><label className="flex gap-2"><input type="checkbox" checked={form.inhibitGuaranteeing} onChange={(e) => change("inhibitGuaranteeing", e.target.checked)} />Inhibit guaranteeing</label><FieldHelp label="Inhibit guaranteeing">Prevents this customer from being selected as a guarantor while the restriction remains active.</FieldHelp></div></div><Button type="submit" disabled={loading || loadingData} className="bg-indigo-600 hover:bg-indigo-700">{loading ? "Registering..." : `Register ${typeLabel}`}</Button></div>
     </form>
   </motion.div></>}</AnimatePresence>;
 }

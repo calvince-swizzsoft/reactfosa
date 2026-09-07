@@ -345,13 +345,17 @@ export const moduleRouteMap = {
   // no lock/unlock and no other fields described in the doc.
   //
   // Everything else in Control/Procurement remains unmapped (see the file
-  // header note above) — Inventory Categories/Unit Of Measure/Tenders/
-  // Evaluation/Bidings/Contracts (30005, 30007-30011) and the
+  // header note above) — Tenders/Evaluation/Bidings/Contracts (30008-30011)
+  // and the
   // Assets/Inventory Operations leaves (30013/30014/30016, all still the
   // literal placeholder ControllerName "Controller").
   30003: "/Control/Suppliers",            // Suppliers (ControllerName: Supplier)
   30004: "/Control/AssetTypes",           // Asset Types (ControllerName: AssetTypes)
+  30005: "/Inventory/invcategories",      // Inventory Categories (ControllerName: Category)
   30006: "/Control/PackageTypes",         // Package Types (ControllerName: PackageType)
+  30007: "/Inventory/invUnitOfMeasure",   // Unit of Measure (ControllerName: UnitOfMeasurement)
+  30013: "/FixedAssets/Catalogue",        // Assets > Catalogue
+  30014: "/FixedAssets/Depreciation",     // Assets > Depreciation
   31003: "/MicroCredit/Officers",
   31004: "/MicroCredit/Groups",
   31005: "/MicroCredit/Apportionment",

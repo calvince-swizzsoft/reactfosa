@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { FaBalanceScale, FaPlus, FaUser, FaEdit, FaTrash } from "react-icons/fa";
+import { FaBalanceScale, FaPlus, FaEdit } from "react-icons/fa";
 import AddInvUomDrawer from "./AddInvUomDrawer";
 import EditInvUomDrawer from "./EditInvUomDrawer";
 import Swal from "sweetalert2";
@@ -18,7 +18,7 @@ export default function InvUom() {
   const fetchUoms = async () => {
     setLoading(true);
     try {
-      const data = await apiJson(`${import.meta.env.VITE_APP_INV_URL}/api/unit-of-measure`, {
+      const data = await apiJson(`${import.meta.env.VITE_APP_FIN_URL}/api/control/unitsofmeasurement?pageIndex=0&pageSize=1000`, {
         headers: { "ngrok-skip-browser-warning": "true" },
       });
       setUoms(normalizeList(data));
@@ -33,35 +33,6 @@ export default function InvUom() {
   useEffect(() => {
     fetchUoms();
   }, []);
-
-  // Delete Handler
-  const handleDelete = async (id) => {
-    Swal.fire({
-      title: "Are you sure?",
-      text: "This action cannot be undone.",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#dc2626",
-      cancelButtonColor: "#6b7280",
-      confirmButtonText: "Yes, delete it!",
-    }).then(async (result) => {
-      if (result.isConfirmed) {
-        try {
-          await apiJson(
-            `${import.meta.env.VITE_APP_INV_URL}/api/unit-of-measure/${id}`,
-            {
-              method: "DELETE",
-              headers: { "ngrok-skip-browser-warning": "true" },
-            }
-          );
-          Swal.fire("Deleted!", "Unit of Measure has been deleted.", "success");
-          fetchUoms();
-        } catch (err) {
-          Swal.fire("Error!", apiErrorMessage(err, "Unable to delete the unit of measure."), "error");
-        }
-      }
-    });
-  };
 
   return (
     <div className="bg-white m-8 px-8 py-8 shadow-2xl rounded-lg relative">
@@ -80,12 +51,12 @@ export default function InvUom() {
 
       {/* Table */}
       <div className="bg-gray-200 p-4 rounded-sm">
-        <div className="grid grid-cols-5 gap-4 bg-gray-700 text-gray-100 font-semibold p-3 rounded-lg mb-4">
-          <span>Code</span>
-          <span>Description</span>
-          <span>Created By</span>
-          <span>Created Date</span>
-          <span className="text-right">Actions</span>
+        <div className="grid grid-cols-12 gap-4 bg-gray-700 text-gray-100 font-semibold p-3 rounded-lg mb-4">
+          <span className="col-span-3">Name</span>
+          <span className="col-span-2">Contains</span>
+          <span className="col-span-3">Of Base Unit</span>
+          <span className="col-span-2">Created Date</span>
+          <span className="col-span-2 text-right">Actions</span>
         </div>
 
         {loading ? (
@@ -105,16 +76,14 @@ export default function InvUom() {
             {uoms.map((uom) => (
               <div
                 key={uom.Id}
-                className="grid grid-cols-5 gap-4 items-center bg-white py-4 px-6 rounded-lg shadow-lg hover:shadow-xl transition-all border"
+                className="grid grid-cols-12 gap-4 items-center bg-white py-4 px-6 rounded-lg shadow-lg hover:shadow-xl transition-all border"
               >
-                <span className="font-semibold text-green-700">{uom.Code}</span>
-                <span className="font-medium">{uom.Description}</span>
-                <span className="flex items-center gap-2">
-                  <FaUser className="text-gray-500" /> {uom.CreatedBy}
-                </span>
-                <span>{new Date(uom.CreatedDate).toLocaleString()}</span>
+                <span className="col-span-3 font-semibold text-indigo-700">{uom.Name}</span>
+                <span className="col-span-2">{uom.Contains ?? "—"}</span>
+                <span className="col-span-3">{uom.BaseUnitName || "Base unit"}</span>
+                <span className="col-span-2">{new Date(uom.CreatedDate).toLocaleString()}</span>
 
-                <div className="flex justify-end gap-2">
+                <div className="col-span-2 flex justify-end gap-2">
                   <Button
                     size="sm"
                     className="bg-blue-600 hover:bg-blue-700"
@@ -124,14 +93,6 @@ export default function InvUom() {
                     }}
                   >
                     <FaEdit /> Edit
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    className="text-white"
-                    onClick={() => handleDelete(uom.Id)}
-                  >
-                    <FaTrash /> Delete
                   </Button>
                 </div>
               </div>
@@ -150,6 +111,7 @@ export default function InvUom() {
         open={addDrawerOpen}
         onClose={() => setAddDrawerOpen(false)}
         onSuccess={fetchUoms}
+        units={uoms}
       />
 
       {/* Edit Drawer */}
@@ -158,6 +120,7 @@ export default function InvUom() {
         onClose={() => setEditDrawerOpen(false)}
         onSuccess={fetchUoms}
         uom={editUom}
+        units={uoms}
       />
     </div>
   );

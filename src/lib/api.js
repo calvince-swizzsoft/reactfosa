@@ -14,6 +14,8 @@ export async function apiFetch(url, options = {}) {
   const headers = new Headers();
   const token = getToken();
   if (token) headers.set("Authorization", `Bearer ${token}`);
+  const deviceId = getClientDeviceId();
+  if (deviceId) headers.set("X-Client-Device-Id", deviceId);
   if (body !== undefined && !(body instanceof FormData)) {
     headers.set("Content-Type", "application/json");
   }
@@ -29,6 +31,20 @@ export async function apiFetch(url, options = {}) {
   }
 
   return response;
+}
+
+function getClientDeviceId() {
+  try {
+    const storageKey = "swiftfin-client-device-id";
+    let deviceId = window.localStorage.getItem(storageKey);
+    if (!deviceId) {
+      deviceId = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      window.localStorage.setItem(storageKey, deviceId);
+    }
+    return deviceId;
+  } catch {
+    return "";
+  }
 }
 
 export async function apiJson(url, options = {}, config = {}) {

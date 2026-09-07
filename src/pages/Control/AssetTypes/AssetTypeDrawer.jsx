@@ -10,11 +10,16 @@ import Swal from "sweetalert2";
 import { FaCubes } from "react-icons/fa";
 import { createAssetType, updateAssetType } from "./api";
 import { DepreciationMethodOptions } from "../lib/controlEnums";
+import { listAllChartOfAccounts } from "@/pages/Accounts/ChartOfAccounts/api";
+import FieldHelp from "@/pages/Accounts/SavingsProducts/FieldHelp";
 
-function FieldGroup({ label, children }) {
+function FieldGroup({ label, help, children }) {
   return (
     <div>
-      <Label className="text-sm font-semibold text-gray-700">{label}</Label>
+      <div className="flex items-center gap-1">
+        <Label className="text-sm font-semibold text-gray-700">{label}</Label>
+        <FieldHelp label={label}>{help}</FieldHelp>
+      </div>
       {children}
     </div>
   );
@@ -25,6 +30,8 @@ const emptyForm = {
   DepreciationMethod: "",
   UsefulLife: 1,
   IsTangible: false,
+  DepreciationExpenseAccountId: "",
+  AccumulatedDepreciationAccountId: "",
 };
 
 // Per Areas/Asset Types.md: create/edit an asset type (name, depreciation
@@ -34,6 +41,11 @@ const emptyForm = {
 export default function AssetTypeDrawer({ open, onClose, onSuccess, item }) {
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [accounts, setAccounts] = useState([]);
+
+  useEffect(() => {
+    if (open) listAllChartOfAccounts().then(setAccounts).catch(() => setAccounts([]));
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -44,6 +56,8 @@ export default function AssetTypeDrawer({ open, onClose, onSuccess, item }) {
         DepreciationMethod: item.DepreciationMethod ? String(item.DepreciationMethod) : "",
         UsefulLife: item.UsefulLife || 1,
         IsTangible: Boolean(item.IsTangible),
+        DepreciationExpenseAccountId: item.DepreciationExpenseAccountId || "",
+        AccumulatedDepreciationAccountId: item.AccumulatedDepreciationAccountId || "",
       });
     } else {
       setForm(emptyForm);
@@ -61,6 +75,15 @@ export default function AssetTypeDrawer({ open, onClose, onSuccess, item }) {
     if (!form.DepreciationMethod) {
       Swal.fire("Missing Field", "Select a depreciation method.", "warning");
       return;
+    }
+    if (Number(form.UsefulLife) < 1) {
+      Swal.fire("Invalid Value", "Useful life must be at least one year.", "warning"); return;
+    }
+    if (!form.DepreciationExpenseAccountId || !form.AccumulatedDepreciationAccountId) {
+      Swal.fire("Missing Field", "Select both depreciation G/L accounts.", "warning"); return;
+    }
+    if (form.DepreciationExpenseAccountId === form.AccumulatedDepreciationAccountId) {
+      Swal.fire("Invalid Accounts", "Expense and accumulated-depreciation accounts must differ.", "warning"); return;
     }
     setSaving(true);
     try {
@@ -97,7 +120,7 @@ export default function AssetTypeDrawer({ open, onClose, onSuccess, item }) {
                   <Input value={form.Name} onChange={(e) => handleChange("Name", e.target.value)} required placeholder="e.g. Motor Vehicles" />
                 </FieldGroup>
 
-                <FieldGroup label="Depreciation Method">
+                <FieldGroup label="Depreciation Method" help="Controls how the monthly depreciation amount is calculated.">
                   <Select value={form.DepreciationMethod ? String(form.DepreciationMethod) : ""} onValueChange={(v) => handleChange("DepreciationMethod", v)}>
                     <SelectTrigger><SelectValue placeholder="Select depreciation method" /></SelectTrigger>
                     <SelectContent>
@@ -108,8 +131,22 @@ export default function AssetTypeDrawer({ open, onClose, onSuccess, item }) {
                   </Select>
                 </FieldGroup>
 
-                <FieldGroup label="Useful Life (Years)">
+                <FieldGroup label="Useful Life (Years)" help="The expected number of years over which assets of this type are depreciated.">
                   <Input type="number" min={1} value={form.UsefulLife} onChange={(e) => handleChange("UsefulLife", e.target.value)} required />
+                </FieldGroup>
+
+                <FieldGroup label="Depreciation Expense G/L Account" help="This expense account is debited when monthly depreciation is posted.">
+                  <select className="w-full rounded-md border p-2" value={form.DepreciationExpenseAccountId} onChange={(e) => handleChange("DepreciationExpenseAccountId", e.target.value)} required>
+                    <option value="">Select expense account</option>
+                    {accounts.map((a) => <option key={a.Id} value={a.Id}>{a.AccountCode} — {a.AccountName}</option>)}
+                  </select>
+                </FieldGroup>
+
+                <FieldGroup label="Accumulated Depreciation G/L Account" help="This contra-asset account is credited when monthly depreciation is posted.">
+                  <select className="w-full rounded-md border p-2" value={form.AccumulatedDepreciationAccountId} onChange={(e) => handleChange("AccumulatedDepreciationAccountId", e.target.value)} required>
+                    <option value="">Select accumulated-depreciation account</option>
+                    {accounts.map((a) => <option key={a.Id} value={a.Id}>{a.AccountCode} — {a.AccountName}</option>)}
+                  </select>
                 </FieldGroup>
 
                 <label className="flex items-center gap-2 text-sm text-gray-700">

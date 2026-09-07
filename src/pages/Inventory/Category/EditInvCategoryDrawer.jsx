@@ -9,16 +9,18 @@ import { apiErrorMessage, apiJson } from "@/lib/api";
 
 export default function EditInvCategoryDrawer({ open, onClose, onSuccess, category }) {
   const [formData, setFormData] = useState({
-    description: "",
-    isLocked: false,
+    Description: "",
+    Remarks: "",
+    IsLocked: false,
   });
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (category) {
       setFormData({
-        description: category.Description,
-        isLocked: category.IsLocked,
+        Description: category.Description,
+        Remarks: category.Remarks || "",
+        IsLocked: category.IsLocked,
       });
     }
   }, [category]);
@@ -29,13 +31,13 @@ export default function EditInvCategoryDrawer({ open, onClose, onSuccess, catego
 
     try {
       await apiJson(
-        `${import.meta.env.VITE_APP_INV_URL}/api/categories/${category.Id}`,
+        `${import.meta.env.VITE_APP_FIN_URL}/api/control/inventory-categories/${category.Id}`,
         {
           method: "PUT",
           headers: {
             "ngrok-skip-browser-warning": "true",
           },
-          body: JSON.stringify(formData),
+          body: JSON.stringify({ ...formData, Id: category.Id }),
         }
       );
 
@@ -78,21 +80,25 @@ export default function EditInvCategoryDrawer({ open, onClose, onSuccess, catego
             <div className="p-3 flex-1">
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <Label>Description</Label>
+                  <Label>Name</Label>
                   <Input
                     placeholder="Enter category name"
-                    value={formData.description}
+                    value={formData.Description}
                     onChange={(e) =>
-                      setFormData({ ...formData, description: e.target.value })
+                      setFormData({ ...formData, Description: e.target.value })
                     }
                     required
                   />
                 </div>
+                <div>
+                  <Label>Remarks</Label>
+                  <textarea className="w-full min-h-24 rounded-md border border-gray-300 p-3 text-sm" value={formData.Remarks} onChange={(e) => setFormData({ ...formData, Remarks: e.target.value })} required />
+                </div>
                 <div className="flex items-center gap-2">
                   <Checkbox
-                    checked={formData.isLocked}
+                    checked={formData.IsLocked}
                     onCheckedChange={(checked) =>
-                      setFormData({ ...formData, isLocked: checked })
+                      setFormData({ ...formData, IsLocked: checked })
                     }
                   />
                   <Label>Locked</Label>
