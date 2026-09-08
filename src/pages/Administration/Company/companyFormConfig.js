@@ -17,7 +17,7 @@ export const TABS = [
   { id: "security", label: "Security & Access" },
   { id: "notifications", label: "Notifications" },
   { id: "products", label: "Mandatory Products" },
-  { id: "debitTypes", label: "Debit Types", stub: true },
+  { id: "debitTypes", label: "Debit Types" },
 ];
 
 // [key, label] — text/string inputs

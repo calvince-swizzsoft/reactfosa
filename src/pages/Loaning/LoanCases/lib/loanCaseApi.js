@@ -70,8 +70,9 @@ export function getRegistrationContext(customerId, loanProductId) {
 // `SerialNumber` is capital-S even though every sibling field here is
 // camelCase (C# anonymous-type member-access shorthand on the server,
 // confirmed against source — not a typo to "fix" client-side).
-export function lookupGuarantorEligibility(guarantorId, loanProductId) {
+export function lookupGuarantorEligibility(guarantorId, loanProductId, loanCaseId) {
   const params = new URLSearchParams({ guarantorId, loanProductId });
+  if (loanCaseId) params.set("loanCaseId", loanCaseId);
   return unwrap(apiFetch(`${BASE}/guarantors/lookup?${params.toString()}`));
 }
 
@@ -168,3 +169,7 @@ export function cancelLoanCase(id, option) {
 }
 
 export { normalizeList };
+
+export function updateLoanCaseGuarantors(id, guarantors) {
+  return unwrap(apiFetch(`${BASE}/${id}/guarantors`, { method: "PUT", body: JSON.stringify(guarantors) }));
+}

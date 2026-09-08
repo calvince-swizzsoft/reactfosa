@@ -30,12 +30,14 @@ export default function CustomerLookupModal({ onSelect, onClose }) {
   const [search, setSearch] = useState("");
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [pageIndex, setPageIndex] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
+    setError("");
     const handle = setTimeout(() => {
       searchCustomers({ text: search.trim(), customerFilter: filter, pageIndex })
         .then(({ items: results, totalPages: pages }) => {
@@ -43,7 +45,7 @@ export default function CustomerLookupModal({ onSelect, onClose }) {
           setItems(results);
           setTotalPages(pages);
         })
-        .catch(() => { if (!cancelled) { setItems([]); setTotalPages(1); } })
+        .catch(() => { if (!cancelled) { setItems([]); setTotalPages(1); setError("Could not load customers. Please search again."); } })
         .finally(() => { if (!cancelled) setLoading(false); });
     }, 300);
     return () => { cancelled = true; clearTimeout(handle); };
@@ -57,7 +59,7 @@ export default function CustomerLookupModal({ onSelect, onClose }) {
       <div className="relative bg-white rounded-2xl shadow-2xl w-[520px] max-h-[80vh] flex flex-col z-10">
         <div className="flex justify-between items-center px-5 py-4 bg-indigo-600 rounded-t-2xl">
           <h3 className="font-bold text-white text-base">Select Customer</h3>
-          <button onClick={onClose} className="text-white/70 hover:text-white transition-colors"><FaTimes /></button>
+          <button type="button" aria-label="Close customer picker" onClick={onClose} className="text-white/70 hover:text-white transition-colors"><FaTimes /></button>
         </div>
         <div className="px-4 py-3 border-b border-gray-100 space-y-2">
           <Select value={String(filter)} onValueChange={(value) => setFilter(Number(value))}>
@@ -76,6 +78,8 @@ export default function CustomerLookupModal({ onSelect, onClose }) {
             <div className="flex items-center justify-center py-10 text-gray-400 gap-2">
               <FaSpinner className="animate-spin" /><span className="text-sm">Searching...</span>
             </div>
+          ) : error ? (
+            <p role="alert" className="text-center text-sm text-red-600 py-8">{error}</p>
           ) : items.length === 0 ? (
             <p className="text-center text-sm text-gray-400 py-8">No customers found.</p>
           ) : (

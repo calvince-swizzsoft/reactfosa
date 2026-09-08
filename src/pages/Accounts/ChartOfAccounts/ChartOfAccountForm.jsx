@@ -25,12 +25,12 @@ function FieldGroup({ label, help, children }) {
 // Depth, TypeDescription }], used both for the Parent picker and to look
 // up the inherited Account Type once a parent is selected.
 export default function ChartOfAccountForm({
-  form, onChange, parentOptions, costCenters, loading, loadingData, submitLabel, onSubmit,
+  form, onChange, parentOptions, costCenters, loading, loadingData, submitLabel, onSubmit, formId, hideSubmit = false, selectContentClassName = "",
 }) {
   const selectedParent = parentOptions.find((p) => p.Id === form.ParentId);
 
   return (
-    <form onSubmit={onSubmit} className="space-y-4">
+    <form id={formId} onSubmit={onSubmit} className="space-y-4">
       <FieldGroup label="Parent Account" help="Places this account in the G/L hierarchy. Child accounts inherit the parent's Account Type; choose No Parent only for a root account.">
         <Select
           value={form.ParentId || "__root__"}
@@ -38,7 +38,7 @@ export default function ChartOfAccountForm({
           disabled={loadingData}
         >
           <SelectTrigger><SelectValue placeholder={loadingData ? "Loading..." : "Select parent"} /></SelectTrigger>
-          <SelectContent className="max-h-60 overflow-y-auto">
+          <SelectContent className={`max-h-60 overflow-y-auto ${selectContentClassName}`}>
             <SelectItem value="__root__">No Parent (Root Account)</SelectItem>
             {parentOptions.map((p) => (
               <SelectItem key={p.Id} value={p.Id}>
@@ -62,7 +62,7 @@ export default function ChartOfAccountForm({
         <FieldGroup label="Account Type" help="Controls the account's major financial-statement classification. This is selected only for root accounts; descendants inherit it.">
           <Select value={String(form.AccountType)} onValueChange={(v) => onChange("AccountType", Number(v))}>
             <SelectTrigger><SelectValue placeholder="Select account type" /></SelectTrigger>
-            <SelectContent>
+            <SelectContent className={selectContentClassName}>
               {CHART_OF_ACCOUNT_TYPE_OPTIONS.map((o) => (
                 <SelectItem key={o.value} value={String(o.value)}>{o.label}</SelectItem>
               ))}
@@ -74,7 +74,7 @@ export default function ChartOfAccountForm({
       <FieldGroup label="Account Category" help="Header accounts organize the hierarchy and are non-postable. Detail accounts are the posting-level ledger accounts used by transactions.">
         <Select value={String(form.AccountCategory)} onValueChange={(v) => onChange("AccountCategory", Number(v))}>
           <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
-          <SelectContent>
+          <SelectContent className={selectContentClassName}>
             {CHART_OF_ACCOUNT_CATEGORY_OPTIONS.map((o) => (
               <SelectItem key={o.value} value={String(o.value)}>{o.label}</SelectItem>
             ))}
@@ -100,7 +100,7 @@ export default function ChartOfAccountForm({
           <SelectTrigger>
             <SelectValue placeholder={form.IsControlAccount ? "Not applicable (control account)" : "None"} />
           </SelectTrigger>
-          <SelectContent className="max-h-60 overflow-y-auto">
+          <SelectContent className={`max-h-60 overflow-y-auto ${selectContentClassName}`}>
             <SelectItem value="__none__">None</SelectItem>
             {costCenters.map((c) => (
               <SelectItem key={c.Id} value={c.Id}>{c.Description}</SelectItem>
@@ -128,9 +128,9 @@ export default function ChartOfAccountForm({
         </div>
       </div>
 
-      <Button type="submit" disabled={loading || loadingData} className="w-full bg-indigo-600 hover:bg-indigo-700">
+      {!hideSubmit && <Button type="submit" disabled={loading || loadingData} className="w-full bg-indigo-600 hover:bg-indigo-700">
         {loading ? "Saving..." : submitLabel}
-      </Button>
+      </Button>}
     </form>
   );
 }

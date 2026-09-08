@@ -6,6 +6,7 @@ import Swal from "sweetalert2";
 import { apiErrorMessage, apiJson } from "@/lib/api";
 import { TABS, companyValidationTab, emptyCompanyForm, validateCompany } from "./companyFormConfig";
 import CompanyFormFields from "./CompanyFormFields";
+import useCompanyDebitTypes from "./useCompanyDebitTypes";
 
 const FIN_BASE = `${import.meta.env.VITE_APP_MEMBERSHIP_URL}`;
 const COMPANY_BASE = `${FIN_BASE}/api/administration/companies`;
@@ -96,6 +97,7 @@ const normalizeCompany = (data) => ({
 });
 
 export default function EditCompanies({ open, onClose, data, refresh }) {
+  const debitTypeSetup = useCompanyDebitTypes(open, data?.Id);
   const [activeTab, setActiveTab] = useState("profile");
   const [form, setForm] = useState({});
   const [loading, setLoading] = useState(false);
@@ -178,6 +180,7 @@ export default function EditCompanies({ open, onClose, data, refresh }) {
         }, { fallbackMessage: "Failed to update mandatory products." });
       }
 
+      await debitTypeSetup.saveDebitTypes();
       Swal.fire("Updated!", respData.message || "Company updated successfully", "success");
       refresh();
       onClose();
@@ -226,6 +229,7 @@ export default function EditCompanies({ open, onClose, data, refresh }) {
 
               <main className="col-span-9 overflow-y-auto pr-1">
                 <CompanyFormFields
+                  {...debitTypeSetup}
                   activeTab={activeTab}
                   form={form}
                   update={update}

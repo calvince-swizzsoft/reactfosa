@@ -1,3 +1,6 @@
+import GuarantorEditor from "./GuarantorEditor";
+import { guarantorDisplayName } from "./guarantorDisplayName";
+import { LoanCaseStatus } from "./loanCaseEnums";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import Swal from "sweetalert2";
@@ -14,7 +17,7 @@ const FIN_BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 // Collateral editing is opt-in via `editableCollaterals` — every existing
 // consumer keeps its current read-only behavior unless it passes that prop
 // (and `onCollateralsSaved`) explicitly.
-export default function LoanCaseSummary({ loanCase, guarantors = [], collaterals = [], editableCollaterals = false, onCollateralsSaved }) {
+export default function LoanCaseSummary({ loanCase, guarantors = [], collaterals = [], editableCollaterals = false, onCollateralsSaved, editableGuarantors = false, onGuarantorsSaved }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(null);
   const [picker, setPicker] = useState(false);
@@ -69,13 +72,15 @@ export default function LoanCaseSummary({ loanCase, guarantors = [], collaterals
         <div><span className="text-gray-400">Received Date</span><p className="font-semibold text-gray-800">{loanCase.ReceivedDate ? new Date(loanCase.ReceivedDate).toLocaleDateString() : "—"}</p></div>
       </div>
 
-      {guarantors.length > 0 && (
+      {editableGuarantors && Number(loanCase.Status) === LoanCaseStatus.Registered ? (
+        <GuarantorEditor loanCase={loanCase} guarantors={guarantors} collaterals={collaterals} onSaved={onGuarantorsSaved} />
+      ) : guarantors.length > 0 && (
         <div>
           <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">Guarantors</p>
           <div className="space-y-1.5">
             {guarantors.map((g) => (
               <div key={g.Id || g.GuarantorId} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2 text-sm">
-                <span className="text-gray-700 truncate">{g.GuarantorFullName || g.CustomerFullName}</span>
+                <span className="text-gray-700 truncate">{guarantorDisplayName(g)}</span>
                 <span className="font-semibold text-gray-800">{g.AmountGuaranteed?.toLocaleString()}</span>
               </div>
             ))}

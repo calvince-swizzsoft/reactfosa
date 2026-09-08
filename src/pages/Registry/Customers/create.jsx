@@ -144,7 +144,17 @@ function Field({ label, required, help, children }) {
   return <div><div className="flex items-center gap-1"><Label className="text-sm font-semibold text-gray-700">{label}{required && <span className="text-red-600"> *</span>}</Label><FieldHelp label={label}>{guidance}</FieldHelp></div>{children}</div>;
 }
 function EnumSelect({ value, options, onChange }) {
-  return <Select value={String(value)} onValueChange={(v) => onChange(Number(v))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{options.map(([id, label]) => <SelectItem key={id} value={String(id)}>{label}</SelectItem>)}</SelectContent></Select>;
+  return (
+    <Select value={String(value)} onValueChange={(v) => onChange(Number(v))}>
+      <SelectTrigger><SelectValue /></SelectTrigger>
+      <SelectContent
+        className="max-h-[min(15rem,var(--radix-select-content-available-height))] overflow-hidden"
+        viewportClassName="max-h-[min(15rem,var(--radix-select-content-available-height))] overflow-y-auto overscroll-contain"
+      >
+        {options.map(([id, label]) => <SelectItem key={id} value={String(id)}>{label}</SelectItem>)}
+      </SelectContent>
+    </Select>
+  );
 }
 function Options({ items, selected, toggle, empty }) {
   if (!items.length) return <p className="text-sm text-gray-400">{empty}</p>;

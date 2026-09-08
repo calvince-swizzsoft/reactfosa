@@ -1,11 +1,9 @@
+import AccountSelect from "../ChartOfAccounts/AccountSelect";
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
 import { FaPiggyBank } from "react-icons/fa";
 import Swal from "sweetalert2";
 import { listAllChartOfAccounts } from "@/pages/Accounts/ChartOfAccounts/api";
@@ -144,16 +142,7 @@ export default function CreateSavingsProduct() {
         </div>
 
         <FieldGroup label="Chart of Account" help="Required G/L control account used for this product's financial postings.">
-          <Select value={form.ChartOfAccountId} onValueChange={(v) => handleChange("ChartOfAccountId", v)} disabled={loadingData}>
-            <SelectTrigger><SelectValue placeholder={loadingData ? "Loading..." : "Select Chart of Account"} /></SelectTrigger>
-            <SelectContent className="max-h-60 overflow-y-auto">
-              {coaList.map((c) => (
-                <SelectItem key={c.Id} value={c.Id}>
-                  {c.AccountCode} — {c.AccountName}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <AccountSelect accounts={coaList} value={form.ChartOfAccountId} onChange={(id) => handleChange("ChartOfAccountId", id)} disabled={loadingData} />
         </FieldGroup>
 
         <div className="grid grid-cols-2 gap-4">

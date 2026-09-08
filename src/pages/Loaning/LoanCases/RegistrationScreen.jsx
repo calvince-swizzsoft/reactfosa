@@ -1,4 +1,6 @@
+import GuarantorRow from "./lib/GuarantorRow";
 import { useState, useEffect } from "react";
+import { validateRegistrationGuarantors } from "./lib/guarantorValidation";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,7 +9,7 @@ import Swal from "sweetalert2";
 import { motion, AnimatePresence } from "framer-motion";
 import { FaPlus, FaChevronDown, FaTrash, FaMoneyBillWave, FaUser, FaFileInvoiceDollar, FaExchangeAlt, FaChartLine, FaFolderOpen, FaShieldAlt, FaUsers } from "react-icons/fa";
 import NotFoundImage from "/assets/scopefinding.png";
-import { listLoanCases, createLoanCase, checkInProcess, ensureAppraisalWorkflow, getRegistrationContext, lookupGuarantorEligibility, normalizeList } from "./lib/loanCaseApi";
+import { listLoanCases, createLoanCase, checkInProcess, ensureAppraisalWorkflow, getRegistrationContext, normalizeList } from "./lib/loanCaseApi";
 import { LoanCaseStatus, RecordStatus } from "./lib/loanCaseEnums";
 import LoanCaseStatusBadge from "./lib/LoanCaseStatusBadge";
 import LoanCaseSummary from "./lib/LoanCaseSummary";
@@ -98,51 +100,6 @@ const emptyForm = {
   AmountApplied: "", ReceivedDate: localDateInputValue(),
 };
 
-function GuarantorRow({ row, index, loanProductId, onChange, onRemove }) {
-  const [picker, setPicker] = useState(false);
-  const [loadingLookup, setLoadingLookup] = useState(false);
-
-  const handlePick = async (customer) => {
-    onChange(index, { ...row, GuarantorId: customer.Id, label: customer.FullName, customer, lookup: null });
-    setLoadingLookup(true);
-    try {
-      const lookup = await lookupGuarantorEligibility(customer.Id, loanProductId);
-      onChange(index, { ...row, GuarantorId: customer.Id, label: customer.FullName, customer, lookup });
-    } catch (err) {
-      Swal.fire("Error", err.message, "error");
-    } finally {
-      setLoadingLookup(false);
-    }
-  };
-
-  return (
-    <div className="bg-white rounded-lg border p-3 space-y-2">
-      <div className="flex items-center justify-between">
-        <PickerField label={`Guarantor ${index + 1}`} value={row.label} placeholder="Pick a customer..." onClick={() => setPicker(true)} />
-        <button type="button" onClick={() => onRemove(index)} className="text-red-400 hover:text-red-600 ml-2 mt-6">
-          <FaTrash className="text-xs" />
-        </button>
-      </div>
-      {loadingLookup && <p className="text-xs text-gray-400">Checking eligibility...</p>}
-      {row.lookup && (
-        <div className="grid grid-cols-2 gap-2 rounded-lg bg-gray-50 p-2 text-xs md:grid-cols-4">
-          <div><span className="block text-gray-400">Identification</span><strong className="text-gray-700">{row.lookup.identificationNumber || row.customer?.IdentificationNumber || row.customer?.IndividualIdentificationNumber || "—"}</strong></div>
-          <div><span className="block text-gray-400">Appraisal factor</span><strong className="text-gray-700">{row.lookup.appraisalFactor ?? 0}</strong></div>
-          <div><span className="block text-gray-400">Total shares</span><strong className="text-gray-700">{Number(row.lookup.totalShares || 0).toLocaleString()}</strong></div>
-          <div><span className="block text-gray-400">Committed shares</span><strong className="text-gray-700">{Number(row.lookup.committedShares || 0).toLocaleString()}</strong></div>
-          <div><span className="block text-gray-400">Available</span><strong className="text-gray-700">{Number(row.lookup.availableToGuarantee || 0).toLocaleString()}</strong></div>
-        </div>
-      )}
-      <FieldGroup label="Amount Guaranteed">
-        <Input type="number" min="0" value={row.AmountGuaranteed} onChange={(e) => onChange(index, { ...row, AmountGuaranteed: e.target.value })} />
-      </FieldGroup>
-      {picker && (
-        <CustomerPickerModal title="Select Guarantor" onSelect={handlePick} onClose={() => setPicker(false)} />
-      )}
-    </div>
-  );
-}
-
 export function CreateLoanCaseDrawer({ open, onClose, onSuccess, title = "Register Loan Case" }) {
   const navigate = useNavigate();
   const [form, setForm] = useState(emptyForm);
@@ -165,7 +122,7 @@ export function CreateLoanCaseDrawer({ open, onClose, onSuccess, title = "Regist
     }
   }, [open]);
 
-  const needsGuarantors = form.loanProduct && !form.loanProduct.LoanRegistrationMicrocredit && form.loanProduct.LoanRegistrationSecurityRequired;
+  const needsGuarantors = Number(form.loanProduct?.LoanRegistrationMinimumGuarantors || 0) > 0;
 
   useEffect(() => {
     if (!form.CustomerId) return;
@@ -208,9 +165,9 @@ export function CreateLoanCaseDrawer({ open, onClose, onSuccess, title = "Regist
     }
   };
 
-  const addGuarantorRow = () => setGuarantors((p) => [...p, { GuarantorId: "", label: "", AmountGuaranteed: "", lookup: null }]);
-  const updateGuarantorRow = (index, next) => setGuarantors((p) => p.map((r, i) => (i === index ? next : r)));
-  const removeGuarantorRow = (index) => setGuarantors((p) => p.filter((_, i) => i !== index));
+  const addGuarantorRow = () => setGuarantors((p) => [...p, { clientId: crypto.randomUUID(), GuarantorId: "", label: "", AmountGuaranteed: "", lookup: null }]);
+  const updateGuarantorRow = (clientId, next) => setGuarantors((p) => p.map((r) => (r.clientId === clientId ? { ...r, ...next } : r)));
+  const removeGuarantorRow = (clientId) => setGuarantors((p) => p.filter((r) => r.clientId !== clientId));
 
   const addCollateral = (doc) => {
     if (collaterals.some((c) => c.Id === doc.Id)) return;
@@ -248,53 +205,12 @@ export function CreateLoanCaseDrawer({ open, onClose, onSuccess, title = "Regist
       Swal.fire("Invalid Received Date", "Received date cannot be in the future.", "warning");
       return;
     }
-    const selectedGuarantors = guarantors.filter((guarantor) => guarantor.GuarantorId);
-    const minimumGuarantors = Number(form.loanProduct?.LoanRegistrationMinimumGuarantors || 0);
-    const maximumGuarantors = Number(form.loanProduct?.LoanRegistrationMaximumGuarantees || 0);
-    if (needsGuarantors && selectedGuarantors.length < minimumGuarantors) {
-      setActiveTab("guarantors");
-      Swal.fire("Missing Guarantors", `This loan product requires at least ${minimumGuarantors} guarantor(s).`, "warning");
-      return;
-    }
-    if (needsGuarantors && maximumGuarantors > 0 && selectedGuarantors.length > maximumGuarantors) {
-      setActiveTab("guarantors");
-      Swal.fire("Too Many Guarantors", `This loan product allows at most ${maximumGuarantors} guarantor(s).`, "warning");
-      return;
-    }
-    if (new Set(selectedGuarantors.map((guarantor) => guarantor.GuarantorId)).size !== selectedGuarantors.length) {
-      Swal.fire("Duplicate Guarantor", "Each guarantor may be added only once.", "warning");
-      return;
-    }
-    if (selectedGuarantors.some((guarantor) => !(Number(guarantor.AmountGuaranteed) > 0))) {
-      setActiveTab("guarantors");
-      Swal.fire("Invalid Guarantee", "Every selected guarantor requires a positive amount guaranteed.", "warning");
-      return;
-    }
-    if (selectedGuarantors.some((guarantor) => !guarantor.lookup)) {
-      Swal.fire("Guarantor Not Verified", "Wait for every guarantor eligibility check to finish, or select the guarantor again.", "warning");
-      return;
-    }
-    if (selectedGuarantors.some((guarantor) => guarantor.lookup && Number(guarantor.AmountGuaranteed) > Number(guarantor.lookup.availableToGuarantee || 0))) {
-      Swal.fire("Guarantee Exceeds Shares", "A guarantor cannot pledge more than their available amount to guarantee.", "warning");
-      return;
-    }
-    const selfGuarantee = selectedGuarantors.find((guarantor) => guarantor.GuarantorId === form.CustomerId);
-    if (selfGuarantee && !form.loanProduct?.LoanRegistrationAllowSelfGuarantee) {
-      Swal.fire("Self-guarantee Not Allowed", "The selected loan product does not allow the applicant to guarantee their own loan.", "warning");
-      return;
-    }
-    if (selfGuarantee) {
-      const maximumSelfGuarantee = amountApplied * Number(form.loanProduct?.LoanRegistrationMaximumSelfGuaranteeEligiblePercentage || 0) / 100;
-      if (Number(selfGuarantee.AmountGuaranteed) > maximumSelfGuarantee) {
-        Swal.fire("Self-guarantee Limit", `Self-guarantee cannot exceed ${maximumSelfGuarantee.toLocaleString()}.`, "warning");
-        return;
-      }
-    }
+    const selectedGuarantors = guarantors;
     const collateralTotal = collaterals.reduce((sum, collateral) => sum + Number(collateral.CollateralValue || 0), 0);
-    const guaranteedTotal = selectedGuarantors.reduce((sum, guarantor) => sum + Number(guarantor.AmountGuaranteed || 0), 0);
-    if (needsGuarantors && Number(form.loanProduct?.LoanRegistrationGuarantorSecurityMode) === 1 && guaranteedTotal + collateralTotal < amountApplied) {
+    const guarantorError = validateRegistrationGuarantors(form.loanProduct, form.CustomerId, amountApplied, selectedGuarantors, collateralTotal);
+    if (guarantorError) {
       setActiveTab("guarantors");
-      Swal.fire("Insufficient Security", "Guaranteed shares and collateral must fully secure the amount applied.", "warning");
+      Swal.fire("Check Guarantors", guarantorError, "warning");
       return;
     }
     setLoading(true);
@@ -326,7 +242,7 @@ export function CreateLoanCaseDrawer({ open, onClose, onSuccess, title = "Regist
       onClose();
       if (nextStep.isConfirmed) navigate("/CommandHub/ApprovalRequests");
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
+      if (requestId === lookupRequest.current) Swal.fire("Error", err.message, "error");
     } finally {
       setLoading(false);
     }
@@ -412,7 +328,7 @@ export function CreateLoanCaseDrawer({ open, onClose, onSuccess, title = "Regist
                   </div>
                   <div className="space-y-2">
                     {guarantors.map((row, i) => (
-                      <GuarantorRow key={i} row={row} index={i} loanProductId={form.LoanProductId} onChange={updateGuarantorRow} onRemove={removeGuarantorRow} />
+                      <GuarantorRow key={row.clientId} row={row} index={i} loanProductId={form.LoanProductId} onChange={updateGuarantorRow} onRemove={removeGuarantorRow} />
                     ))}
                   </div>
                 </div>
@@ -566,7 +482,7 @@ function LoanCaseDetailDrawer({ loanCaseId, onClose, onPrepareAppraisal }) {
           {loading ? (
             <div className="space-y-2 animate-pulse">{[1, 2, 3].map((i) => <div key={i} className="h-10 bg-gray-100 rounded-lg" />)}</div>
           ) : data ? (
-            <LoanCaseSummary loanCase={data.loanCase} guarantors={data.guarantors} collaterals={data.collaterals} editableCollaterals onCollateralsSaved={fetchDetail} />
+            <LoanCaseSummary loanCase={data.loanCase} guarantors={data.guarantors} collaterals={data.collaterals} editableCollaterals onCollateralsSaved={fetchDetail} editableGuarantors onGuarantorsSaved={fetchDetail} />
           ) : (
             <p className="text-sm text-gray-400 text-center py-8">Not found.</p>
           )}

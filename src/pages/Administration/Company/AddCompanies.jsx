@@ -6,6 +6,7 @@ import Swal from "sweetalert2";
 import { apiErrorMessage, apiJson } from "@/lib/api";
 import { TABS, companyValidationTab, emptyCompanyForm, validateCompany } from "./companyFormConfig";
 import CompanyFormFields from "./CompanyFormFields";
+import useCompanyDebitTypes from "./useCompanyDebitTypes";
 
 const FIN_BASE = `${import.meta.env.VITE_APP_MEMBERSHIP_URL}`;
 const COMPANY_BASE = `${FIN_BASE}/api/administration/companies`;
@@ -22,6 +23,7 @@ const normalizeList = (d) => {
 const toTimeSpan = (hhmm) => (hhmm ? `${hhmm}:00` : "00:00:00");
 
 export default function AddCompanies({ open, onClose, refresh }) {
+  const debitTypeSetup = useCompanyDebitTypes(open);
   const [activeTab, setActiveTab] = useState("profile");
   const [form, setForm] = useState(emptyCompanyForm);
   const [loading, setLoading] = useState(false);
@@ -68,6 +70,7 @@ export default function AddCompanies({ open, onClose, refresh }) {
     try {
       const selectedProducts = products.filter((p) => selectedProductIds.includes(p.Id));
       const payload = {
+        mandatoryDebitTypes: debitTypeSetup.payload,
         company: {
           ...form,
           timeDurationStartTime: toTimeSpan(form.timeDurationStartTime),
@@ -132,6 +135,7 @@ export default function AddCompanies({ open, onClose, refresh }) {
 
               <main className="col-span-9 overflow-y-auto pr-1">
                 <CompanyFormFields
+                  {...debitTypeSetup}
                   activeTab={activeTab}
                   form={form}
                   update={update}

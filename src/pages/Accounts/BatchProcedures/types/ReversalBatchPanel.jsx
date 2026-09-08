@@ -18,6 +18,13 @@ import EntryPickerModal from "../lib/EntryPickerModal";
 import { runBatchAction } from "../lib/runBatchAction";
 
 const FIN_BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
+
+function ReversalStatus({ status, entry = false }) {
+  if (Number(status) === BatchStatus.Posted) {
+    return <span className={`rounded px-2 py-1 text-xs font-semibold ${entry ? "bg-green-100 text-green-600" : "bg-blue-100 text-blue-600"}`}>{entry ? "Reversed" : "Authorized"}</span>;
+  }
+  return <BatchStatusBadge status={status} />;
+}
 const MODULE_NAVIGATION_ITEM_CODE = { origination: 23069, verification: 23079, authorization: 23089 };
 
 function FieldGroup({ label, children }) {
@@ -204,7 +211,7 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
 
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
           <div className="grid grid-cols-2 gap-3 text-sm">
-            <div><span className="text-gray-400">Status</span><p><BatchStatusBadge status={batch.Status} /></p></div>
+            <div><span className="text-gray-400">Status</span><p><ReversalStatus status={batch.Status} /></p></div>
             <div><span className="text-gray-400">Priority</span><p className="font-semibold text-gray-800">{batch.PriorityDescription}</p></div>
             <div className="col-span-2"><span className="text-gray-400">Remarks</span><p className="font-semibold text-gray-800">{batch.Remarks}</p></div>
             <div><span className="text-gray-400">Created By</span><p className="font-semibold text-gray-800">{batch.CreatedBy}</p></div>
@@ -231,7 +238,7 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
                   <div key={entry.Id} className="flex items-center justify-between bg-white rounded-lg shadow border px-3 py-2 text-sm">
                     <div className="min-w-0">
                       <p className="font-medium text-gray-800 truncate">{entry.Journal?.Reference || entry.JournalId}</p>
-                      <p className="text-xs text-gray-500">{entry.Journal?.TotalValue?.toLocaleString?.() ?? "—"} · {entry.Remarks} · <BatchStatusBadge status={entry.Status} /></p>
+                      <p className="text-xs text-gray-500">{entry.Journal?.TotalValue?.toLocaleString?.() ?? "—"} · {entry.Remarks} · <ReversalStatus status={entry.Status} entry /></p>
                     </div>
                     {canManageEntries && (
                       <button type="button" onClick={() => handleRemoveEntry(entry)} className="text-red-400 hover:text-red-600 flex-shrink-0 ml-2">
@@ -342,7 +349,7 @@ export default function ReversalBatchPanel({ stage }) {
                   <span className="col-span-4 text-gray-700 truncate">{batch.Remarks}</span>
                   <span className="col-span-2 text-gray-700">{batch.PriorityDescription}</span>
                   <span className="col-span-2 text-xs text-gray-500 truncate">{batch.CreatedBy}</span>
-                  <span className="col-span-2"><BatchStatusBadge status={batch.Status} /></span>
+                  <span className="col-span-2"><ReversalStatus status={batch.Status} /></span>
                 </div>
               </button>
             ))}

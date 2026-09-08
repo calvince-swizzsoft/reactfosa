@@ -1,16 +1,15 @@
+import AccountSelect from "../ChartOfAccounts/AccountSelect";
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
 import { FaChartLine } from "react-icons/fa";
 import Swal from "sweetalert2";
 import { listAllChartOfAccounts } from "@/pages/Accounts/ChartOfAccounts/api";
 import { apiErrorMessage, apiJson } from "@/lib/api";
 import FieldHelp from "../SavingsProducts/FieldHelp";
+import RecoveryPrioritySelect from "./RecoveryPrioritySelect";
 import { investmentProductPayload, investmentProductValidationAlert, validateInvestmentProduct } from "./validation";
 
 const BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
@@ -123,8 +122,8 @@ export default function CreateInvestmentProduct() {
           <FieldGroup label="Annual Percentage Yield (%)" help="Annual return rate, between 0% and 100%.">
             <NumInput field="AnnualPercentageYield" value={form.AnnualPercentageYield} onChange={handleChange} />
           </FieldGroup>
-          <FieldGroup label="Recovery Priority" help="Recovery category: 0 Loans, 1 Investments, 2 Savings, or 3 Direct Debits.">
-            <NumInput field="Priority" value={form.Priority} onChange={handleChange} />
+          <FieldGroup label="Recovery Priority" help="Select the product's recovery category. The company recovery settings determine the order in which categories are processed.">
+            <RecoveryPrioritySelect value={form.Priority} onChange={(value) => handleChange("Priority", value)} />
           </FieldGroup>
           <FieldGroup label="Pool Amount" help="Target amount assigned to the pool; required above zero for pooled products.">
             <NumInput field="PoolAmount" value={form.PoolAmount} onChange={handleChange} />
@@ -132,19 +131,10 @@ export default function CreateInvestmentProduct() {
         </div>
 
         <FieldGroup label="Chart of Account" help="Required G/L control account for this investment product.">
-          <Select value={form.ChartOfAccountId} onValueChange={(v) => handleChange("ChartOfAccountId", v)} disabled={loadingData}>
-            <SelectTrigger><SelectValue placeholder={loadingData ? "Loading..." : "Select Chart of Account"} /></SelectTrigger>
-            <SelectContent className="max-h-60 overflow-y-auto">
-              {coaList.map((c) => (
-                <SelectItem key={c.Id} value={c.Id}>
-                  {c.AccountCode} — {c.AccountName}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <AccountSelect accounts={coaList} value={form.ChartOfAccountId} onChange={(id) => handleChange("ChartOfAccountId", id)} disabled={loadingData} />
         </FieldGroup>
 
-        {form.IsPooled && <FieldGroup label="Pool G/L Account" help="G/L account used for pooled-fund movements."><Select value={form.PoolChartOfAccountId} onValueChange={(v) => handleChange("PoolChartOfAccountId", v)} disabled={loadingData}><SelectTrigger><SelectValue placeholder="Select Pool G/L Account" /></SelectTrigger><SelectContent className="max-h-60 overflow-y-auto">{coaList.map((c) => <SelectItem key={c.Id} value={c.Id}>{c.AccountCode} — {c.AccountName}</SelectItem>)}</SelectContent></Select></FieldGroup>}
+        {form.IsPooled && <FieldGroup label="Pool G/L Account" help="G/L account used for pooled-fund movements."><AccountSelect accounts={coaList} value={form.PoolChartOfAccountId} onChange={(id) => handleChange("PoolChartOfAccountId", id)} disabled={loadingData} label="Pool G/L Account" /></FieldGroup>}
 
         <div className="grid grid-cols-2 gap-3">{[["IsRefundable","Refundable","Allows the investment balance to be refunded."],["IsPooled","Pooled","Uses a separate pooled-funds G/L account."],["IsSuperSaver","Super Saver","Marks the product for Super Saver processing."],["IsMandatory","Mandatory","Automatically attaches this product to eligible members."],["TrackArrears","Track Arrears","Tracks missed scheduled investment contributions."],["ThrottleScheduledArrearsRecovery","Throttle Recovery","Limits scheduled arrears recovery; requires Track Arrears."],["IsLocked","Locked","Prevents the product from normal active use."]].map(([field,label,help]) => <div key={field} className="flex items-center gap-1"><label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={form[field]} onChange={(e) => handleChange(field,e.target.checked)} className="w-4 h-4 accent-indigo-600"/><span className="text-sm font-medium">{label}</span></label><FieldHelp label={label}>{help}</FieldHelp></div>)}</div>
 

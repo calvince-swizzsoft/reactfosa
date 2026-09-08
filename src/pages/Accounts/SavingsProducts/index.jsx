@@ -1,3 +1,4 @@
+import AccountSelect from "../ChartOfAccounts/AccountSelect";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -74,33 +75,10 @@ function NumInput({ field, value, onChange, placeholder }) {
 }
 
 function CoaSelect({ coaList, value, nameFallback, onChange, disabled }) {
-  const selected = coaList.find((c) => c.Id === value);
-  const selectedLabel = selected
-    ? `${selected.AccountCode} — ${selected.AccountName}`
-    : (nameFallback || "");
-
-  const handleValueChange = (v) => {
-    const chosen = coaList.find((c) => c.Id === v);
-    onChange("ChartOfAccountId", v);
-    onChange("ChartOfAccountName", chosen?.AccountName || "");
-  };
-
-  return (
-    <Select value={value} onValueChange={handleValueChange} disabled={disabled}>
-      <SelectTrigger>
-        <SelectValue placeholder={disabled ? "Loading..." : "Select Chart of Account"}>
-          {selectedLabel || (disabled ? "Loading..." : "Select Chart of Account")}
-        </SelectValue>
-      </SelectTrigger>
-      <SelectContent className="max-h-60 overflow-y-auto">
-        {coaList.map((c) => (
-          <SelectItem key={c.Id} value={c.Id}>
-            {c.AccountCode} — {c.AccountName}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  );
+  return <AccountSelect accounts={coaList} value={value} nameFallback={nameFallback} disabled={disabled} onChange={(id, account) => {
+    onChange("ChartOfAccountId", id);
+    onChange("ChartOfAccountName", account?.AccountName || "");
+  }} />;
 }
 
 function DrawerShell({ open, onClose, title, children }) {

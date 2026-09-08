@@ -51,7 +51,7 @@ function PickerField({ label, value, placeholder, onClick }) {
   );
 }
 
-const emptyCreateForm = { DebitTypeId: "", BranchId: "", BranchLabel: "", Reference: "", Priority: 3 };
+const emptyCreateForm = { DebitTypeId: "", DebitTypeLabel: "", BranchId: "", BranchLabel: "", Reference: "", Priority: 3 };
 
 function CreateDebitBatchDrawer({ open, onClose, onSuccess }) {
   const [form, setForm] = useState(emptyCreateForm);
@@ -95,10 +95,7 @@ function CreateDebitBatchDrawer({ open, onClose, onSuccess }) {
               <Button variant="outline" size="sm" onClick={onClose}>Close</Button>
             </div>
             <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
-              <FieldGroup label="Debit Type Id">
-                <Input value={form.DebitTypeId} onChange={(e) => setForm((p) => ({ ...p, DebitTypeId: e.target.value }))} placeholder="Paste the DebitType GUID" required />
-                <p className="text-xs text-gray-400 mt-1">No Debit Type lookup endpoint exists in the backend yet (IDebitTypeAppService.FindDebitTypes has no route) — this field is a plain GUID until one's added.</p>
-              </FieldGroup>
+              <PickerField label="Debit Type" value={form.DebitTypeLabel} placeholder="Select debit type..." onClick={() => setPicker("debitType")} />
               <PickerField label="Branch" value={form.BranchLabel} placeholder="Select branch..." onClick={() => setPicker("branch")} />
               <FieldGroup label="Reference">
                 <Input value={form.Reference} onChange={(e) => setForm((p) => ({ ...p, Reference: e.target.value }))} required />
@@ -118,6 +115,10 @@ function CreateDebitBatchDrawer({ open, onClose, onSuccess }) {
         </>
       )}
 
+      {picker === "debitType" && <EntryPickerModal title="Select Debit Type" fetchUrl={`${FIN_BASE}/api/accounts/debittypes`}
+        filterItems={(item) => !item.IsLocked} getLabel={(item) => item.Description}
+        getSublabel={(item) => item.CustomerAccountTypeTargetProductDescription}
+        onSelect={(item) => setForm((p) => ({ ...p, DebitTypeId: item.Id, DebitTypeLabel: item.Description }))} onClose={() => setPicker(null)} />}
       {picker === "branch" && (
         <EntryPickerModal
           title="Select Branch"

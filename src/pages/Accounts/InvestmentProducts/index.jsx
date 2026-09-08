@@ -1,12 +1,10 @@
+import AccountSelect from "../ChartOfAccounts/AccountSelect";
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
 import Swal from "sweetalert2";
 import NotFoundImage from "/assets/scopefinding.png";
 import { FaEllipsisV, FaEdit, FaPlus, FaChartLine } from "react-icons/fa";
@@ -16,6 +14,7 @@ import {
 import { listAllChartOfAccounts } from "@/pages/Accounts/ChartOfAccounts/api";
 import { apiErrorMessage, apiJson, normalizeList } from "@/lib/api";
 import FieldHelp from "../SavingsProducts/FieldHelp";
+import RecoveryPrioritySelect from "./RecoveryPrioritySelect";
 import { investmentProductPayload, investmentProductValidationAlert, validateInvestmentProduct } from "./validation";
 
 const BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
@@ -53,18 +52,7 @@ function NumInput({ field, value, onChange, placeholder }) {
 }
 
 function CoaSelect({ coaList, value, onChange, disabled }) {
-  return (
-    <Select value={value} onValueChange={(v) => onChange("ChartOfAccountId", v)} disabled={disabled}>
-      <SelectTrigger><SelectValue placeholder={disabled ? "Loading..." : "Select Chart of Account"} /></SelectTrigger>
-      <SelectContent className="max-h-60 overflow-y-auto">
-        {coaList.map((c) => (
-          <SelectItem key={c.Id} value={c.Id}>
-            {c.AccountCode} — {c.AccountName}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  );
+  return <AccountSelect accounts={coaList} value={value} disabled={disabled} onChange={(id) => onChange("ChartOfAccountId", id)} />;
 }
 
 function DrawerShell({ open, onClose, title, children }) {
@@ -116,8 +104,8 @@ function InvestmentProductForm({ form, setForm, coaList, loading, loadingData, s
         <FieldGroup label="Annual Percentage Yield (%)" help="Annual return rate, between 0% and 100%.">
           <NumInput field="AnnualPercentageYield" value={form.AnnualPercentageYield} onChange={handleChange} />
         </FieldGroup>
-        <FieldGroup label="Recovery Priority" help="Recovery category: 0 Loans, 1 Investments, 2 Savings, or 3 Direct Debits.">
-          <NumInput field="Priority" value={form.Priority} onChange={handleChange} />
+        <FieldGroup label="Recovery Priority" help="Select the product's recovery category. The company recovery settings determine the order in which categories are processed.">
+          <RecoveryPrioritySelect value={form.Priority} onChange={(value) => handleChange("Priority", value)} />
         </FieldGroup>
         <FieldGroup label="Pool Amount" help="Required above zero for pooled products.">
           <NumInput field="PoolAmount" value={form.PoolAmount} onChange={handleChange} />

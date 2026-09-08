@@ -54,6 +54,7 @@ function SectionTitle({ children }) {
 export default function CompanyFormFields({
   activeTab, form, update,
   products, loadingProducts, selectedProductIds, toggleProduct,
+  debitTypes = [], selectedDebitTypeIds = [], loadingDebitTypes, debitTypesError, toggleDebitType,
 }) {
   if (activeTab === "profile") {
     return (
@@ -203,10 +204,14 @@ export default function CompanyFormFields({
 
   if (activeTab === "debitTypes") {
     return (
-      <div className="flex items-center justify-center h-64 text-gray-400 text-sm">
-        This section isn't wired up yet — no debit-types list endpoint is documented for this
-        controller to build a picker against. Coming soon.
-      </div>
+      <section>
+        <SectionTitle>Company Debit Types</SectionTitle>
+        {loadingDebitTypes ? <p className="text-sm text-gray-400">Loading debit types...</p> : debitTypesError ? <p role="alert" className="text-sm text-red-600">{debitTypesError} Close and reopen to retry.</p> : !debitTypes.length ? <p className="text-sm text-gray-400">No debit types configured.</p> :
+          <div className="divide-y rounded-lg border">{debitTypes.map((item) => <label key={item.Id} className="flex items-center gap-2 px-3 py-2.5 text-sm text-gray-700">
+            <input type="checkbox" className="h-4 w-4 accent-indigo-600" checked={selectedDebitTypeIds.includes(item.Id)} disabled={item.IsLocked && !selectedDebitTypeIds.includes(item.Id)} onChange={() => toggleDebitType(item.Id)} />
+            {item.Description}{item.IsLocked ? " (Locked)" : ""}
+          </label>)}</div>}
+      </section>
     );
   }
 
