@@ -1,21 +1,25 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Swal from "sweetalert2";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaPlus, FaChevronDown, FaTrash } from "react-icons/fa";
+import { FaPlus, FaChevronDown, FaTrash, FaEdit } from "react-icons/fa";
 import { useAuth } from "@/context/AuthContext";
 import NotFoundImage from "/assets/scopefinding.png";
 import {
   listGeneralLedgers, createGeneralLedger, listGeneralLedgerEntries, addGeneralLedgerEntry,
-  removeGeneralLedgerEntries, auditGeneralLedger, authorizeGeneralLedger,
+  removeGeneralLedgerEntries, auditGeneralLedger, authorizeGeneralLedger, getGeneralLedger, updateGeneralLedgerEntry,
 } from "./generalLedgerApi";
 import { BatchStatus } from "../lib/batchEnums";
 import BatchStatusBadge from "../lib/BatchStatusBadge";
 import BatchAuditModal from "../lib/BatchAuditModal";
 import EntryPickerModal from "../lib/EntryPickerModal";
+import { POSTING_PERIODS_BASE } from "../../PostingPeriods/api";
 import { runBatchAction } from "../lib/runBatchAction";
+
+import LedgerAccountSide from "../lib/LedgerAccountSide";
+import { ledgerEntryPayload, ledgerBalance } from "../lib/generalLedgerEntry";
 
 const FIN_BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 const MODULE_NAVIGATION_ITEM_CODE = { origination: 23069, verification: 23079, authorization: 23089 };
@@ -83,17 +87,17 @@ function CreateGeneralLedgerDrawer({ open, onClose, onSuccess }) {
       {open && (
         <>
           <motion.div className="fixed inset-0 bg-black z-40" initial={{ opacity: 0 }} animate={{ opacity: 0.4 }} exit={{ opacity: 0 }} onClick={onClose} />
-          <motion.div className="fixed top-0 right-0 h-full w-[480px] bg-white shadow-2xl z-50 flex flex-col" initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", stiffness: 300, damping: 30 }}>
+          <motion.div className="fixed top-0 right-0 h-full w-full max-w-[480px] bg-white shadow-2xl z-50 flex flex-col" initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", stiffness: 300, damping: 30 }}>
             <div className="m-2 flex justify-between items-center bg-indigo-600 rounded-2xl px-4 py-3">
               <h2 className="font-bold text-white">New General Ledger</h2>
               <Button variant="outline" size="sm" onClick={onClose}>Close</Button>
             </div>
             <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
-              <p className="text-xs text-gray-400">This is just a container — accounts are set per entry, once created.</p>
+
               <PickerField label="Branch" value={form.BranchLabel} placeholder="Select branch..." onClick={() => setPicker("branch")} />
               <PickerField label="Posting Period" value={form.PostingPeriodLabel} placeholder="Select posting period..." onClick={() => setPicker("postingPeriod")} />
               <FieldGroup label="Total Value">
-                <Input type="number" min="0" value={form.TotalValue} onChange={(e) => setForm((p) => ({ ...p, TotalValue: e.target.value }))} required />
+                <Input type="number" min="0.01" step="0.01" value={form.TotalValue} onChange={(e) => setForm((p) => ({ ...p, TotalValue: e.target.value }))} required />
               </FieldGroup>
               <FieldGroup label="Remarks">
                 <Input value={form.Remarks} onChange={(e) => setForm((p) => ({ ...p, Remarks: e.target.value }))} required />
@@ -113,7 +117,7 @@ function CreateGeneralLedgerDrawer({ open, onClose, onSuccess }) {
           onSelect={(i) => setForm((p) => ({ ...p, BranchId: i.Id, BranchLabel: i.Description }))} onClose={() => setPicker(null)} />
       )}
       {picker === "postingPeriod" && (
-        <EntryPickerModal title="Select Posting Period" fetchUrl={`${FIN_BASE}/api/loaning/GetPostingPeriods`} getLabel={(i) => i.Description}
+        <EntryPickerModal title="Select Posting Period" fetchUrl={POSTING_PERIODS_BASE} getLabel={(i) => i.Description}
           onSelect={(i) => setForm((p) => ({ ...p, PostingPeriodId: i.Id, PostingPeriodLabel: i.Description }))} onClose={() => setPicker(null)} />
       )}
     </AnimatePresence>
@@ -123,7 +127,7 @@ function CreateGeneralLedgerDrawer({ open, onClose, onSuccess }) {
 const emptyEntryForm = {
   ChartOfAccountId: "", ChartOfAccountLabel: "", ContraChartOfAccountId: "", ContraChartOfAccountLabel: "",
   CustomerAccountId: "", CustomerLabel: "", ContraCustomerAccountId: "", ContraCustomerLabel: "",
-  Amount: "", PrimaryDescription: "", SecondaryDescription: "", Reference: "",
+  ValueDate: "", Amount: "", PrimaryDescription: "", SecondaryDescription: "", Reference: "",
 };
 
 function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
@@ -133,49 +137,74 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
   const [addingEntry, setAddingEntry] = useState(false);
   const [picker, setPicker] = useState(null);
   const [auditOpen, setAuditOpen] = useState(false);
+  const [entryPage, setEntryPage] = useState(0);
+  const [entryCount, setEntryCount] = useState(0);
+  const [entriesTotal, setEntriesTotal] = useState(null);
+  const [entriesError, setEntriesError] = useState("");
+  const [editorVersion, setEditorVersion] = useState(0);
+  const [editingEntry, setEditingEntry] = useState(null);
+  const editorRef = useRef(null);
+  const resetEntry = () => {
+    const today = new Date();
+    const date = [today.getFullYear(), String(today.getMonth() + 1).padStart(2, "0"), String(today.getDate()).padStart(2, "0")].join("-");
+    setEditingEntry(null); setEntryForm({ ...emptyEntryForm, ValueDate: date }); setEditorVersion((n) => n + 1);
+  };
 
   const fetchEntries = () => {
     if (!batch) return;
     setLoading(true);
-    listGeneralLedgerEntries(batch.Id, { pageSize: 100 })
-      .then((page) => setEntries(page?.pageCollection || page?.PageCollection || []))
-      .catch(() => setEntries([]))
+    setEntriesError("");
+    listGeneralLedgerEntries(batch.Id, { pageIndex: entryPage, pageSize: 20 })
+      .then((page) => { setEntries(page?.pageCollection || page?.PageCollection || []); setEntryCount(page?.ItemsCount ?? page?.itemsCount ?? 0); setEntriesTotal(Number(page?.TotalApportioned ?? page?.totalApportioned ?? 0)); })
+      .catch((error) => { setEntries([]); setEntriesTotal(null); setEntriesError(error.message); })
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { fetchEntries(); setEntryForm(emptyEntryForm); }, [batch?.Id]);
+  useEffect(() => { fetchEntries(); }, [batch?.Id, entryPage]);
+  useEffect(() => { resetEntry(); }, [batch?.Id]);
 
   if (!batch) return null;
 
   const isMine = batch.CreatedBy === currentUser;
   const canManageEntries = stage === "origination" && batch.Status === BatchStatus.Pending && isMine;
-  const entriesTotal = entries.reduce((sum, e) => sum + (e.Amount || 0), 0);
-  const isBalanced = entriesTotal === batch.TotalValue;
+  const balance = ledgerBalance(batch.TotalValue, entriesTotal);
+  const isBalanced = !!balance?.balanced && entryCount > 0;
+  const draftBalance = ledgerBalance(batch.TotalValue, entriesTotal, entryForm.Amount || 0, editingEntry?.Amount || 0);
+  const editEntry = (entry) => {
+    setEditingEntry(entry);
+    setEntryForm({ ...emptyEntryForm, ...entry, Amount: String(entry.Amount), ValueDate: entry.ValueDate?.slice(0, 10) || "",
+      ChartOfAccountLabel: entry.ChartOfAccountName, ContraChartOfAccountLabel: entry.ContraChartOfAccountName,
+      CustomerLabel: entry.CustomerAccountCustomerFullName, ContraCustomerLabel: entry.ContraCustomerAccountCustomerFullName });
+    setEditorVersion((n) => n + 1);
+    editorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+  const checkCurrentBalance = async () => {
+    try {
+      const [currentBatch, page] = await Promise.all([getGeneralLedger(batch.Id), listGeneralLedgerEntries(batch.Id, { pageSize: 1 })]);
+      const total = Number(page?.TotalApportioned ?? page?.totalApportioned ?? 0);
+      const current = ledgerBalance(currentBatch.TotalValue, total);
+      if (!current?.balanced || !(Number(page?.ItemsCount ?? page?.itemsCount) > 0)) {
+        Swal.fire("Batch is not balanced", "The entries total must equal the batch value before proceeding. Refresh and correct the entries.", "warning");
+        fetchEntries(); return false;
+      }
+      return true;
+    } catch (error) { Swal.fire("Balance check failed", error.message, "error"); return false; }
+  };
 
   const handleAddEntry = async (e) => {
     e.preventDefault();
-    if (!entryForm.ChartOfAccountId || !entryForm.ContraChartOfAccountId || !entryForm.PrimaryDescription || !entryForm.SecondaryDescription || !entryForm.Reference) {
-      Swal.fire("Missing Fields", "Credit account, debit account, both descriptions and reference are required.", "warning");
-      return;
-    }
-    if (!(Number(entryForm.Amount) !== 0)) {
-      Swal.fire("Missing Fields", "Amount must not be zero.", "warning");
-      return;
+    let payload;
+    try { payload = ledgerEntryPayload(entryForm, batch.BranchId); }
+    catch (error) { Swal.fire("Check entry", error.message, "warning"); return; }
+    if (!draftBalance || draftBalance.exceeds) {
+      Swal.fire("Batch value exceeded", draftBalance ? "This change exceeds the batch value by " + Math.abs(draftBalance.difference).toLocaleString() + ". Reduce the entry amount." : "Wait for the batch total to load.", "warning"); return;
     }
     setAddingEntry(true);
     try {
-      await addGeneralLedgerEntry(batch.Id, {
-        BranchId: batch.BranchId,
-        ChartOfAccountId: entryForm.ChartOfAccountId,
-        ContraChartOfAccountId: entryForm.ContraChartOfAccountId,
-        CustomerAccountId: entryForm.CustomerAccountId || null,
-        ContraCustomerAccountId: entryForm.ContraCustomerAccountId || null,
-        Amount: Number(entryForm.Amount),
-        PrimaryDescription: entryForm.PrimaryDescription,
-        SecondaryDescription: entryForm.SecondaryDescription,
-        Reference: entryForm.Reference,
-      });
-      setEntryForm(emptyEntryForm);
+      if (editingEntry) await updateGeneralLedgerEntry(batch.Id, editingEntry.Id, payload);
+      else await addGeneralLedgerEntry(batch.Id, payload);
+      resetEntry();
+      Swal.fire(editingEntry ? "Entry updated" : "Entry added", "The entry has been saved. Balance the batch before verification.", "success");
       fetchEntries();
     } catch (err) {
       Swal.fire("Error", err.message, "error");
@@ -187,11 +216,12 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
   const handleRemoveEntry = (entry) => {
     runBatchAction(
       () => removeGeneralLedgerEntries([entry]),
-      { confirmTitle: "Remove this entry?", successMessage: "Entry removed.", onSuccess: fetchEntries }
+      { confirmTitle: "Remove this entry?", successMessage: "Entry removed.", onSuccess: () => { if (editingEntry?.Id === entry.Id) resetEntry(); fetchEntries(); } }
     );
   };
 
   const handleAudit = async (option, remarks) => {
+    if (option === 1 && !(await checkCurrentBalance())) return;
     await runBatchAction(
       () => auditGeneralLedger(batch.Id, { Option: option, Remarks: remarks, ModuleNavigationItemCode: MODULE_NAVIGATION_ITEM_CODE.verification }),
       { successMessage: option === 1 ? "Ledger verified." : "Ledger rejected.", onSuccess: () => { setAuditOpen(false); onChanged(); onClose(); } }
@@ -199,16 +229,17 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
   };
 
   const handleAuthorize = async (option, remarks) => {
+    if (option === 1 && !(await checkCurrentBalance())) return;
     await runBatchAction(
       () => authorizeGeneralLedger(batch.Id, { Option: option, Remarks: remarks, ModuleNavigationItemCode: MODULE_NAVIGATION_ITEM_CODE.authorization }),
-      { successMessage: option === 1 ? "Ledger authorized and posted — one Journal per entry, synchronous, no background queue." : "Ledger rejected.", onSuccess: () => { setAuditOpen(false); onChanged(); onClose(); } }
+      { successMessage: option === 1 ? "Ledger authorized and posted." : "Ledger rejected.", onSuccess: () => { setAuditOpen(false); onChanged(); onClose(); } }
     );
   };
 
   return (
     <AnimatePresence>
       <motion.div className="fixed inset-0 bg-black z-40" initial={{ opacity: 0 }} animate={{ opacity: 0.4 }} exit={{ opacity: 0 }} onClick={onClose} />
-      <motion.div className="fixed top-0 right-0 h-full w-[640px] bg-white shadow-2xl z-50 flex flex-col" initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", stiffness: 300, damping: 30 }}>
+      <motion.div className="fixed top-0 right-0 h-full w-full max-w-[760px] bg-white shadow-2xl z-50 flex flex-col" initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", stiffness: 300, damping: 30 }}>
         <div className="m-2 flex justify-between items-center bg-indigo-600 rounded-2xl px-4 py-3">
           <h2 className="font-bold text-white">General Ledger #{batch.PaddedLedgerNumber}</h2>
           <Button variant="outline" size="sm" onClick={onClose}>Close</Button>
@@ -220,14 +251,16 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
             <div><span className="text-gray-400">Total Value</span><p className="font-semibold text-indigo-600">{batch.TotalValue?.toLocaleString()}</p></div>
             <div className="col-span-2"><span className="text-gray-400">Remarks</span><p className="font-semibold text-gray-800">{batch.Remarks}</p></div>
             <div><span className="text-gray-400">Created By</span><p className="font-semibold text-gray-800">{batch.CreatedBy}</p></div>
-            <div><span className="text-gray-400">Entries Total</span><p className="font-semibold text-gray-800">{entriesTotal.toLocaleString()}</p></div>
+            <div><span className="text-gray-400">Entries Total</span><p className="font-semibold text-gray-800">{(entriesTotal?.toLocaleString() ?? "—")}</p></div>
           </div>
 
-          {!isBalanced && (
+          {!loading && !entriesError && !isBalanced && (
             <div className="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-              Not balanced yet — entries total {entriesTotal.toLocaleString()}, ledger total is {batch.TotalValue?.toLocaleString()}. Authorize will refuse to post until these match exactly.
+              Entries total {(entriesTotal?.toLocaleString() ?? "—")} / Batch value {batch.TotalValue?.toLocaleString()}. {balance?.exceeds ? "Over by" : "Remaining"}: {Math.abs(balance?.difference || 0).toLocaleString()}. Balance the batch before verification or authorization.
             </div>
           )}
+
+          {!loading && !entriesError && isBalanced && <p className="rounded-lg bg-green-100 text-green-700 p-3 text-sm font-semibold">Balanced — entries total matches the batch value.</p>}
 
           {batch.AuditRemarks && (
             <div className="text-xs bg-gray-50 border rounded-lg p-3">
@@ -241,21 +274,24 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
           )}
 
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">Entries — each posts as its own separate Journal</p>
-            {loading ? (
+            <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">Ledger entries</p>
+            {entriesError ? <div role="alert" className="text-red-600 text-sm">{entriesError} <Button onClick={fetchEntries}>Retry</Button></div> : loading ? (
               <div className="space-y-2 animate-pulse">{[1, 2].map((i) => <div key={i} className="h-10 bg-gray-100 rounded-lg" />)}</div>
             ) : entries.length > 0 ? (
               <div className="space-y-2">
                 {entries.map((entry) => (
                   <div key={entry.Id} className="flex items-center justify-between bg-white rounded-lg shadow border px-3 py-2 text-sm">
                     <div className="min-w-0">
-                      <p className="font-medium text-gray-800 truncate">{entry.ChartOfAccountName} → {entry.ContraChartOfAccountName}</p>
+                      <p className="font-medium text-gray-800 truncate">Debit: {entry.ContraChartOfAccountName}</p>
+                      <p className="font-medium text-gray-800">Credit: {entry.ChartOfAccountName}</p>
+                      <p className="text-xs text-gray-500">{entry.ContraCustomerAccountCustomerFullName || "G/L"} → {entry.CustomerAccountCustomerFullName || "G/L"} · {entry.ValueDate ? new Date(entry.ValueDate).toLocaleDateString() : "—"}</p>
                       <p className="text-xs text-gray-500">{(entry.Amount || 0).toLocaleString()} · {entry.Reference}</p>
                     </div>
                     {canManageEntries && (
-                      <button type="button" onClick={() => handleRemoveEntry(entry)} className="text-red-400 hover:text-red-600 flex-shrink-0 ml-2">
+                      <div className="flex gap-3 ml-2 shrink-0"><button type="button" disabled={addingEntry} aria-label={`Edit entry ${entry.Reference}`} onClick={() => editEntry(entry)} className="text-indigo-600"><FaEdit /></button>
+                      <button type="button" disabled={addingEntry} aria-label={`Remove entry ${entry.Reference}`} onClick={() => handleRemoveEntry(entry)} className="text-red-400 hover:text-red-600 flex-shrink-0 ml-2">
                         <FaTrash className="text-xs" />
-                      </button>
+                      </button></div>
                     )}
                   </div>
                 ))}
@@ -268,16 +304,19 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
             )}
           </div>
 
+          {entryCount > 0 && <div className="flex justify-center items-center gap-3"><Button disabled={loading || entryPage === 0} onClick={() => setEntryPage((n) => n - 1)}>Prev</Button><span className="text-sm">Page {entryPage + 1} of {Math.max(1, Math.ceil(entryCount / 20))}</span><Button disabled={loading || (entryPage + 1) * 20 >= entryCount} onClick={() => setEntryPage((n) => n + 1)}>Next</Button></div>}
           {canManageEntries && (
-            <form onSubmit={handleAddEntry} className="border-t pt-4 space-y-3">
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Add Entry</p>
-              <PickerField label="Credit G/L Account" value={entryForm.ChartOfAccountLabel} placeholder="Search & select G/L account..." onClick={() => setPicker("coa")} />
-              <PickerField label="Credit Customer Account (optional)" value={entryForm.CustomerLabel} placeholder="Optional..." onClick={() => setPicker("customer")} />
-              <PickerField label="Debit G/L Account" value={entryForm.ContraChartOfAccountLabel} placeholder="Search & select G/L account..." onClick={() => setPicker("contraCoa")} />
-              <PickerField label="Debit Customer Account (optional)" value={entryForm.ContraCustomerLabel} placeholder="Optional..." onClick={() => setPicker("contraCustomer")} />
+            <form ref={editorRef} id="general-ledger-entry" onSubmit={handleAddEntry} className="border-t pt-4 space-y-3">
+              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">{editingEntry ? "Edit Entry" : "Add Entry"}</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <LedgerAccountSide key={"debit-" + editorVersion} label="Debit" initialValue={editingEntry ? { ledgerId: editingEntry.ContraChartOfAccountId, ledgerLabel: editingEntry.ContraChartOfAccountName, customerAccountId: editingEntry.ContraCustomerAccountId } : null} disabled={addingEntry} onChange={(value) => setEntryForm((old) => ({ ...old, ContraChartOfAccountId: value?.ledgerId || "", ContraChartOfAccountLabel: value?.ledgerLabel || "", ContraCustomerAccountId: value?.customerAccountId || "", ContraCustomerLabel: value?.customerLabel || "" }))} />
+                <LedgerAccountSide key={"credit-" + editorVersion} label="Credit" initialValue={editingEntry ? { ledgerId: editingEntry.ChartOfAccountId, ledgerLabel: editingEntry.ChartOfAccountName, customerAccountId: editingEntry.CustomerAccountId } : null} disabled={addingEntry} onChange={(value) => setEntryForm((old) => ({ ...old, ChartOfAccountId: value?.ledgerId || "", ChartOfAccountLabel: value?.ledgerLabel || "", CustomerAccountId: value?.customerAccountId || "", CustomerLabel: value?.customerLabel || "" }))} />
+              </div>
+              <FieldGroup label="Value Date"><Input type="date" value={entryForm.ValueDate} onChange={(event) => setEntryForm((old) => ({ ...old, ValueDate: event.target.value }))} required /></FieldGroup>
               <FieldGroup label="Amount">
                 <Input type="number" step="0.01" value={entryForm.Amount} onChange={(e) => setEntryForm((p) => ({ ...p, Amount: e.target.value }))} />
               </FieldGroup>
+              {entryForm.Amount && draftBalance && <p aria-live="polite" className={`text-sm ${draftBalance.exceeds ? "text-red-600" : "text-gray-600"}`}>Total after {editingEntry ? "saving" : "adding"}: {draftBalance.total.toLocaleString()} · {draftBalance.exceeds ? "Over by" : "Remaining"}: {Math.abs(draftBalance.difference).toLocaleString()}</p>}
               <FieldGroup label="Primary Description">
                 <Input value={entryForm.PrimaryDescription} onChange={(e) => setEntryForm((p) => ({ ...p, PrimaryDescription: e.target.value }))} required />
               </FieldGroup>
@@ -287,13 +326,12 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
               <FieldGroup label="Reference">
                 <Input value={entryForm.Reference} onChange={(e) => setEntryForm((p) => ({ ...p, Reference: e.target.value }))} required />
               </FieldGroup>
-              <Button type="submit" disabled={addingEntry} className="w-full bg-indigo-600 hover:bg-indigo-700 flex items-center gap-2">
-                <FaPlus /> {addingEntry ? "Adding..." : "Add Entry"}
-              </Button>
+
             </form>
           )}
         </div>
 
+        {canManageEntries && <div className="shrink-0 px-4 py-3 border-t"><Button type="submit" form="general-ledger-entry" disabled={addingEntry || loading || !!entriesError || !entryForm.ChartOfAccountId || !entryForm.ContraChartOfAccountId} className="w-full bg-indigo-600 hover:bg-indigo-700">{addingEntry ? "Saving..." : editingEntry ? "Save Changes" : "Add Entry"}</Button>{editingEntry && <Button type="button" variant="outline" disabled={addingEntry} onClick={resetEntry} className="w-full mt-2">Cancel Edit</Button>}</div>}
         {(stage === "verification" || stage === "authorization") && (
           <div className="shrink-0 px-4 py-3 border-t">
             <Button onClick={() => setAuditOpen(true)} className="w-full bg-indigo-600 hover:bg-indigo-700">
@@ -303,28 +341,11 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
         )}
       </motion.div>
 
-      {picker === "coa" && (
-        <EntryPickerModal title="Select Credit G/L Account" allowCreateGlAccount fetchUrl={`${FIN_BASE}/api/accounts/chartofaccounts?pageSize=1000`} getLabel={(i) => `${i.AccountCode} — ${i.AccountName}`}
-          onSelect={(i) => setEntryForm((p) => ({ ...p, ChartOfAccountId: i.Id, ChartOfAccountLabel: `${i.AccountCode} — ${i.AccountName}` }))} onClose={() => setPicker(null)} />
-      )}
-      {picker === "contraCoa" && (
-        <EntryPickerModal title="Select Debit G/L Account" allowCreateGlAccount fetchUrl={`${FIN_BASE}/api/accounts/chartofaccounts?pageSize=1000`} getLabel={(i) => `${i.AccountCode} — ${i.AccountName}`}
-          onSelect={(i) => setEntryForm((p) => ({ ...p, ContraChartOfAccountId: i.Id, ContraChartOfAccountLabel: `${i.AccountCode} — ${i.AccountName}` }))} onClose={() => setPicker(null)} />
-      )}
-      {picker === "customer" && (
-        <EntryPickerModal title="Select Credit Customer Account" fetchUrl={`${FIN_BASE}/api/accounts/customer-accounts?pageSize=1000`}
-          getLabel={(i) => i.CustomerFullName || [i.CustomerIndividualFirstName, i.CustomerIndividualLastName].filter(Boolean).join(" ") || i.FullAccountNumber} getSublabel={(i) => [i.FullAccountNumber, i.CustomerAccountTypeTargetProductDescription].filter(Boolean).join(" — ")}
-          onSelect={(i) => setEntryForm((p) => ({ ...p, CustomerAccountId: i.Id, CustomerLabel: `${i.CustomerFullName || ""} — ${i.FullAccountNumber || ""}` }))} onClose={() => setPicker(null)} />
-      )}
-      {picker === "contraCustomer" && (
-        <EntryPickerModal title="Select Debit Customer Account" fetchUrl={`${FIN_BASE}/api/accounts/customer-accounts?pageSize=1000`}
-          getLabel={(i) => i.CustomerFullName || [i.CustomerIndividualFirstName, i.CustomerIndividualLastName].filter(Boolean).join(" ") || i.FullAccountNumber} getSublabel={(i) => [i.FullAccountNumber, i.CustomerAccountTypeTargetProductDescription].filter(Boolean).join(" — ")}
-          onSelect={(i) => setEntryForm((p) => ({ ...p, ContraCustomerAccountId: i.Id, ContraCustomerLabel: `${i.CustomerFullName || ""} — ${i.FullAccountNumber || ""}` }))} onClose={() => setPicker(null)} />
-      )}
-
       <BatchAuditModal
         open={auditOpen}
         title={stage === "verification" ? "Verify General Ledger" : "Authorize General Ledger"}
+        postDisabled={loading || !!entriesError || !isBalanced}
+        postDisabledReason="The batch must contain entries and their total must match the batch value. You can still reject the batch."
         postLabel={stage === "verification" ? "Verify" : "Authorize"}
         onSubmit={stage === "verification" ? handleAudit : handleAuthorize}
         onClose={() => setAuditOpen(false)}
@@ -403,7 +424,7 @@ export default function GeneralLedgerPanel({ stage }) {
       </div>
 
       <CreateGeneralLedgerDrawer open={createOpen} onClose={() => setCreateOpen(false)} onSuccess={fetchList} />
-      <BatchDetailDrawer batch={selected} stage={stage} currentUser={userName} onClose={() => setSelected(null)} onChanged={fetchList} />
+      <BatchDetailDrawer key={selected?.Id || "closed"} batch={selected} stage={stage} currentUser={userName} onClose={() => setSelected(null)} onChanged={fetchList} />
     </div>
   );
 }

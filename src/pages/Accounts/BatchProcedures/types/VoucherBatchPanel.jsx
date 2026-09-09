@@ -15,6 +15,7 @@ import { BatchStatus } from "../lib/batchEnums";
 import BatchStatusBadge from "../lib/BatchStatusBadge";
 import BatchAuditModal from "../lib/BatchAuditModal";
 import EntryPickerModal from "../lib/EntryPickerModal";
+import { POSTING_PERIODS_BASE } from "../../PostingPeriods/api";
 import { runBatchAction } from "../lib/runBatchAction";
 
 const FIN_BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
@@ -144,7 +145,7 @@ function CreateVoucherBatchDrawer({ open, onClose, onSuccess }) {
           onSelect={(i) => setForm((p) => ({ ...p, BranchId: i.Id, BranchLabel: i.Description }))} onClose={() => setPicker(null)} />
       )}
       {picker === "postingPeriod" && (
-        <EntryPickerModal title="Select Posting Period" fetchUrl={`${FIN_BASE}/api/loaning/GetPostingPeriods`} getLabel={(i) => i.Description}
+        <EntryPickerModal title="Select Posting Period" fetchUrl={POSTING_PERIODS_BASE} getLabel={(i) => i.Description}
           onSelect={(i) => setForm((p) => ({ ...p, PostingPeriodId: i.Id, PostingPeriodLabel: i.Description }))} onClose={() => setPicker(null)} />
       )}
       {picker === "coa" && (

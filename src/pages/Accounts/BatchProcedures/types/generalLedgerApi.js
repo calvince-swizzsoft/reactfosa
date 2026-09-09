@@ -38,6 +38,14 @@ export function createGeneralLedger(dto) {
   return unwrap(apiFetch(BASE, { method: "POST", body: JSON.stringify(dto) }));
 }
 
+export function getGeneralLedger(id) {
+  return unwrap(apiFetch(`${BASE}/${id}`));
+}
+
+export function updateGeneralLedgerEntry(id, entryId, dto) {
+  return unwrap(apiFetch(`${BASE}/${id}/entries/${entryId}`, { method: "PUT", body: JSON.stringify(dto) }));
+}
+
 // { Option, Remarks } — GeneralLedgerAuthOption: 1=Post (-> Audited), 2=Reject.
 export function auditGeneralLedger(id, request) {
   return unwrap(apiFetch(`${BASE}/${id}/audit`, { method: "POST", body: JSON.stringify(request) }));
@@ -56,7 +64,7 @@ export function listGeneralLedgerEntries(id, { pageIndex = 0, pageSize = 50 } = 
 
 // entryDTO: { BranchId, ChartOfAccountId, ContraChartOfAccountId,
 // CustomerAccountId?, ContraCustomerAccountId?, Amount, PrimaryDescription,
-// SecondaryDescription, Reference }
+// SecondaryDescription, Reference, ValueDate }
 export function addGeneralLedgerEntry(id, entryDTO) {
   return unwrap(apiFetch(`${BASE}/${id}/entries`, { method: "POST", body: JSON.stringify(entryDTO) }));
 }

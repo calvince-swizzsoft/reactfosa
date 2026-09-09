@@ -1,0 +1,26 @@
+import assert from 'node:assert/strict';
+import { ledgerEntryPayload, ledgerBalance } from '../src/pages/Accounts/BatchProcedures/lib/generalLedgerEntry.js';
+const form = { ChartOfAccountId: 'loan-ledger', ContraChartOfAccountId: 'savings-ledger', CustomerAccountId: 'loan-account', ContraCustomerAccountId: 'savings-account', Amount: '100.25', ValueDate: '2026-09-09', PrimaryDescription: 'Repayment', SecondaryDescription: 'September', Reference: 'GL-TEST' };
+const payload = ledgerEntryPayload(form, 'branch');
+assert.equal(payload.ChartOfAccountId, 'loan-ledger');
+assert.equal(payload.ContraChartOfAccountId, 'savings-ledger');
+assert.equal(payload.CustomerAccountId, 'loan-account');
+assert.equal(payload.ContraCustomerAccountId, 'savings-account');
+assert.equal(payload.ValueDate, '2026-09-09T00:00:00');
+assert.equal(payload.Amount, 100.25);
+const gl = ledgerEntryPayload({ ...form, CustomerAccountId: '', ContraCustomerAccountId: '' }, 'branch');
+assert.equal(gl.CustomerAccountId, null); assert.equal(gl.ContraCustomerAccountId, null);
+for (const Amount of ['0', '', 'abc', Infinity]) assert.throws(() => ledgerEntryPayload({ ...form, Amount }, 'branch'), /non-zero/);
+assert.throws(() => ledgerEntryPayload({ ...form, ValueDate: '' }, 'branch'), /value date/);
+assert.throws(() => ledgerEntryPayload({ ...form, ChartOfAccountId: '' }, 'branch'), /both debit and credit/);
+assert.throws(() => ledgerEntryPayload({ ...form, Reference: ' ' }, 'branch'), /reference/);
+assert.equal(ledgerEntryPayload({ ...form, Amount: '-1' }, 'branch').Amount, -1); // Existing API supports signed adjustments.
+console.log('General ledger entry tests passed: debit/credit mapping, customer and G/L destinations, decimal amounts, value date and required fields.');
+assert.equal(ledgerBalance(0.3, 0.1 + 0.2).balanced, true);
+assert.deepEqual(ledgerBalance(1000, 900, 200, 100), { total: 1000, difference: 0, balanced: true, exceeds: false });
+assert.equal(ledgerBalance(1000, 900, 200).exceeds, true);
+assert.equal(ledgerBalance(1000, 900, 50, 100).difference, 150);
+assert.equal(ledgerBalance(1000, 850).balanced, false);
+assert.equal(ledgerBalance(1000, null), null);
+assert.equal(ledgerBalance(1000, 0, 'abc'), null);
+console.log('Balance tests passed: decimal equality, replacement rather than double-counting, over-allocation, partial batches and unavailable totals.');

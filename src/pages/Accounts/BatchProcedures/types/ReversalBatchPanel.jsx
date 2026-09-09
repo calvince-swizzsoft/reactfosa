@@ -8,13 +8,14 @@ import { FaPlus, FaChevronDown, FaTrash } from "react-icons/fa";
 import { useAuth } from "@/context/AuthContext";
 import NotFoundImage from "/assets/scopefinding.png";
 import {
-  listReversalBatches, createReversalBatch, listReversalBatchEntries, addReversalBatchEntry,
+  listReversalBatches, createReversalBatch, listReversalBatchEntries,
   removeReversalBatchEntries, auditReversalBatch, authorizeReversalBatch,
 } from "./reversalBatchApi";
 import { BatchStatus } from "../lib/batchEnums";
 import BatchStatusBadge from "../lib/BatchStatusBadge";
 import BatchAuditModal from "../lib/BatchAuditModal";
 import EntryPickerModal from "../lib/EntryPickerModal";
+import ReversalJournalLookup from "../lib/ReversalJournalLookup";
 import { runBatchAction } from "../lib/runBatchAction";
 
 const FIN_BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
@@ -136,48 +137,33 @@ function CreateReversalBatchDrawer({ open, onClose, onSuccess }) {
   );
 }
 
-const emptyEntryForm = { JournalId: "", Remarks: "" };
+
 
 function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [entryForm, setEntryForm] = useState(emptyEntryForm);
-  const [addingEntry, setAddingEntry] = useState(false);
+  const [lookupOpen, setLookupOpen] = useState(false);
+  const [entriesError, setEntriesError] = useState("");
+  const [entryPage, setEntryPage] = useState(0);
+  const [entryCount, setEntryCount] = useState(0);
   const [auditOpen, setAuditOpen] = useState(false);
 
   const fetchEntries = () => {
     if (!batch) return;
     setLoading(true);
-    listReversalBatchEntries(batch.Id, { pageSize: 100 })
-      .then((page) => setEntries(page?.pageCollection || page?.PageCollection || []))
-      .catch(() => setEntries([]))
+    setEntriesError("");
+    listReversalBatchEntries(batch.Id, { pageIndex: entryPage, pageSize: 20 })
+      .then((page) => { setEntries(page?.pageCollection || page?.PageCollection || []); setEntryCount(page?.ItemsCount ?? page?.itemsCount ?? 0); })
+      .catch((err) => { setEntries([]); setEntriesError(err.message); })
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { fetchEntries(); setEntryForm(emptyEntryForm); }, [batch?.Id]);
+  useEffect(() => { fetchEntries(); }, [batch?.Id, entryPage]);
 
   if (!batch) return null;
 
   const isMine = batch.CreatedBy === currentUser;
   const canManageEntries = stage === "origination" && batch.Status === BatchStatus.Pending && isMine;
-
-  const handleAddEntry = async (e) => {
-    e.preventDefault();
-    if (!entryForm.JournalId) {
-      Swal.fire("Missing Fields", "A Journal Id is required.", "warning");
-      return;
-    }
-    setAddingEntry(true);
-    try {
-      await addReversalBatchEntry(batch.Id, { JournalId: entryForm.JournalId, Remarks: entryForm.Remarks });
-      setEntryForm(emptyEntryForm);
-      fetchEntries();
-    } catch (err) {
-      Swal.fire("Error", err.message, "error");
-    } finally {
-      setAddingEntry(false);
-    }
-  };
 
   const handleRemoveEntry = (entry) => {
     runBatchAction(
@@ -203,7 +189,7 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
   return (
     <AnimatePresence>
       <motion.div className="fixed inset-0 bg-black z-40" initial={{ opacity: 0 }} animate={{ opacity: 0.4 }} exit={{ opacity: 0 }} onClick={onClose} />
-      <motion.div className="fixed top-0 right-0 h-full w-[600px] bg-white shadow-2xl z-50 flex flex-col" initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", stiffness: 300, damping: 30 }}>
+      <motion.div className="fixed top-0 right-0 h-full w-full max-w-[720px] bg-white shadow-2xl z-50 flex flex-col" initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", stiffness: 300, damping: 30 }}>
         <div className="m-2 flex justify-between items-center bg-indigo-600 rounded-2xl px-4 py-3">
           <h2 className="font-bold text-white">Reversal Batch #{batch.PaddedBatchNumber}</h2>
           <Button variant="outline" size="sm" onClick={onClose}>Close</Button>
@@ -230,18 +216,19 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
 
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">Entries (Journals to reverse)</p>
-            {loading ? (
+            {entriesError ? <div role="alert" className="text-red-600 text-sm">{entriesError} <Button onClick={fetchEntries}>Retry</Button></div> : loading ? (
               <div className="space-y-2 animate-pulse">{[1, 2].map((i) => <div key={i} className="h-10 bg-gray-100 rounded-lg" />)}</div>
             ) : entries.length > 0 ? (
               <div className="space-y-2">
                 {entries.map((entry) => (
                   <div key={entry.Id} className="flex items-center justify-between bg-white rounded-lg shadow border px-3 py-2 text-sm">
                     <div className="min-w-0">
-                      <p className="font-medium text-gray-800 truncate">{entry.Journal?.Reference || entry.JournalId}</p>
+                      <p className="font-medium text-gray-800 truncate">{entry.Journal?.Reference || entry.Journal?.PrimaryDescription || "Transaction details unavailable"}</p>
+                      <p className="text-xs text-gray-500">{entry.Journal?.PrimaryDescription} · {entry.Journal?.CreatedDate ? new Date(entry.Journal.CreatedDate).toLocaleString() : ""}</p>
                       <p className="text-xs text-gray-500">{entry.Journal?.TotalValue?.toLocaleString?.() ?? "—"} · {entry.Remarks} · <ReversalStatus status={entry.Status} entry /></p>
                     </div>
                     {canManageEntries && (
-                      <button type="button" onClick={() => handleRemoveEntry(entry)} className="text-red-400 hover:text-red-600 flex-shrink-0 ml-2">
+                      <button type="button" aria-label={`Remove ${entry.Journal?.Reference || "transaction"} from batch`} onClick={() => handleRemoveEntry(entry)} className="text-red-400 hover:text-red-600 flex-shrink-0 ml-2">
                         <FaTrash className="text-xs" />
                       </button>
                     )}
@@ -256,22 +243,11 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
             )}
           </div>
 
-          {canManageEntries && (
-            <form onSubmit={handleAddEntry} className="border-t pt-4 space-y-3">
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Add Entry</p>
-              <FieldGroup label="Journal Id">
-                <Input value={entryForm.JournalId} onChange={(e) => setEntryForm((p) => ({ ...p, JournalId: e.target.value }))} placeholder="Paste the Journal GUID to reverse" required />
-                <p className="text-xs text-gray-400 mt-1">No journal-search endpoint exists in the backend yet — paste the Id from wherever the journal was found (e.g. a G/L statement).</p>
-              </FieldGroup>
-              <FieldGroup label="Remarks">
-                <Input value={entryForm.Remarks} onChange={(e) => setEntryForm((p) => ({ ...p, Remarks: e.target.value }))} />
-              </FieldGroup>
-              <Button type="submit" disabled={addingEntry} className="w-full bg-indigo-600 hover:bg-indigo-700 flex items-center gap-2">
-                <FaPlus /> {addingEntry ? "Adding..." : "Add Entry"}
-              </Button>
-            </form>
-          )}
+          {entryCount > 0 && <div className="flex justify-center items-center gap-3"><Button disabled={loading || entryPage === 0} onClick={() => setEntryPage((page) => page - 1)}>Prev</Button><span className="text-sm">Page {entryPage + 1} of {Math.max(1, Math.ceil(entryCount / 20))}</span><Button disabled={loading || (entryPage + 1) * 20 >= entryCount} onClick={() => setEntryPage((page) => page + 1)}>Next</Button></div>}
+
         </div>
+
+        {canManageEntries && <div className="shrink-0 px-4 py-3 border-t"><Button onClick={() => setLookupOpen(true)} className="w-full bg-indigo-600 hover:bg-indigo-700"><FaPlus className="mr-2" /> Lookup Target Journals</Button></div>}
 
         {(stage === "verification" || stage === "authorization") && (
           <div className="shrink-0 px-4 py-3 border-t">
@@ -281,6 +257,8 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
           </div>
         )}
       </motion.div>
+
+      {lookupOpen && <ReversalJournalLookup batch={batch} onClose={() => setLookupOpen(false)} onAdded={fetchEntries} />}
 
       <BatchAuditModal
         open={auditOpen}
@@ -363,7 +341,7 @@ export default function ReversalBatchPanel({ stage }) {
       </div>
 
       <CreateReversalBatchDrawer open={createOpen} onClose={() => setCreateOpen(false)} onSuccess={fetchList} />
-      <BatchDetailDrawer batch={selected} stage={stage} currentUser={userName} onClose={() => setSelected(null)} onChanged={fetchList} />
+      <BatchDetailDrawer key={selected?.Id || "closed"} batch={selected} stage={stage} currentUser={userName} onClose={() => setSelected(null)} onChanged={fetchList} />
     </div>
   );
 }

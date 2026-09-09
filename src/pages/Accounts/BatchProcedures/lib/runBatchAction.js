@@ -1,4 +1,5 @@
 import Swal from "sweetalert2";
+import { apiErrorMessage } from "@/lib/api";
 
 // Generic maker-checker action runner, genericized from
 // CustomerAccountDetailDrawer.jsx's closure-bound `runAction` — this version
@@ -22,6 +23,6 @@ export async function runBatchAction(fn, { confirmTitle, confirmText, successMes
     Swal.fire("Success", successMessage, "success");
     onSuccess?.();
   } catch (err) {
-    Swal.fire("Error", err.message, "error");
+    Swal.fire("Error", apiErrorMessage(err), "error");
   }
 }

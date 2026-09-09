@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { FaPlus, FaSearch, FaTimes, FaSpinner } from "react-icons/fa";
-import { apiFetch, normalizeList } from "@/lib/api";
+import { apiJson, apiErrorMessage, normalizeList } from "@/lib/api";
+import { Button } from "@/components/ui/button";
 import QuickCreateDrawer from "../../ChartOfAccounts/QuickCreateDrawer";
 
 // A single `pageSize=1000`-style request only ever returns one page — most
@@ -21,8 +22,7 @@ async function fetchAllPages(fetchUrl) {
   while (pageIndex < MAX_PAGES) {
     const url = new URL(fetchUrl);
     url.searchParams.set("pageIndex", String(pageIndex));
-    const res = await apiFetch(url.toString());
-    const body = await res.json();
+    const body = await apiJson(url.toString());
     const payload = body?.data ?? body?.Data ?? body;
 
     if (Array.isArray(payload)) {
@@ -52,16 +52,19 @@ export default function EntryPickerModal({ title, fetchUrl, getLabel, getSublabe
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [creatingAccount, setCreatingAccount] = useState(false);
+  const [error, setError] = useState("");
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
+    setError("");
     fetchAllPages(fetchUrl)
       .then((all) => { if (!cancelled) setItems(normalizeList(all)); })
-      .catch(() => { if (!cancelled) setItems([]); })
+      .catch((err) => { if (!cancelled) { setItems([]); setError(apiErrorMessage(err)); } })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [fetchUrl]);
+  }, [fetchUrl, retry]);
 
   const filtered = useMemo(() => {
     const eligible = filterItems ? items.filter(filterItems) : items;
@@ -92,6 +95,11 @@ export default function EntryPickerModal({ title, fetchUrl, getLabel, getSublabe
           {loading ? (
             <div className="flex items-center justify-center py-10 text-gray-400 gap-2">
               <FaSpinner className="animate-spin" /><span className="text-sm">Loading...</span>
+            </div>
+          ) : error ? (
+            <div role="alert" className="text-center py-6 space-y-3">
+              <p className="text-sm text-red-600 whitespace-pre-line">{error}</p>
+              <Button onClick={() => setRetry((value) => value + 1)}>Retry</Button>
             </div>
           ) : filtered.length === 0 ? (
             <p className="text-center text-sm text-gray-400 py-8">{emptyText}</p>

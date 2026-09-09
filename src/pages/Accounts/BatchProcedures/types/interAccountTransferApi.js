@@ -11,17 +11,26 @@ import { apiJson as apiFetch, normalizeList } from "@/lib/api";
 // ChartOfAccountId/CustomerAccountId doesn't apply), unlike Voucher's
 // lookalike-but-dead per-entry fields.
 //
-// No control-total validation exists for this type at all — nothing
-// server-side stops entries' Principal+Interest from exceeding what the
-// source account can actually cover. The reference app's
-// AvailableBalance field has no backing column and there's no endpoint in
-// this backend that returns a real, trustworthy balance for a customer
-// account (CustomerAccountsController.Get uses a no-balance projection on
-// purpose), so this client deliberately does not show a fake "you're
-// over-transferring" warning — see the panel's own note on this gap.
+// The dedicated balance lookup fetches current balances through the
+// AppService. Loan limits are checked cumulatively at entry save and again
+// at authorization. These checks do not reserve source funds or fees.
 
 const FIN_BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 const BASE = `${FIN_BASE}/api/accounts/interaccounttransferbatches`;
+
+export function getTransferAccountBalances(accountId) {
+  return unwrap(apiFetch(`${BASE}/accounts/${accountId}/balances`));
+}
+
+export async function allTransferEntries(id) {
+  const entries = [];
+  for (let pageIndex = 0; ; pageIndex++) {
+    const page = await listInterAccountTransferBatchEntries(id, { pageIndex, pageSize: 100 });
+    const rows = page?.PageCollection || page?.pageCollection || [];
+    entries.push(...rows);
+    if (!rows.length || entries.length >= (page?.ItemsCount ?? page?.itemsCount ?? entries.length)) return entries;
+  }
+}
 
 async function unwrap(responsePromise) {
   const body = await responsePromise;
@@ -40,6 +49,8 @@ export function listInterAccountTransferBatches({ status, text = "", startDate, 
 // Only BranchId/CustomerAccountId/Reference actually persist — everything
 // else on the DTO (AvailableBalance, StartDate/EndDate, denormalized
 // customer fields) is display-only, not stored.
+// CustomerId is nevertheless required by the DTO validator; create callers
+// must supply the owner of the selected source account.
 export function createInterAccountTransferBatch(dto) {
   return unwrap(apiFetch(BASE, { method: "POST", body: JSON.stringify(dto) }));
 }

@@ -6,8 +6,7 @@ import { apiJson as apiFetch, normalizeList } from "@/lib/api";
 // §4. An entry is just { JournalId, Remarks } — no amount, no tariffs; the
 // amount reversed is implicitly the referenced Journal's own amount, and
 // GetByBatch returns each entry with its full Journal populated so the list
-// can show real detail even though there's no dedicated "browse journals"
-// endpoint to search one out by (see the panel's own note on that gap).
+// can show real detail. Target lookup delegates to FindReversibleJournals.
 // Remarks2 is required by validation but has no backing column — send
 // anything, don't expect it to persist.
 
@@ -47,6 +46,18 @@ export function listReversalBatchEntries(id, { text = "", pageIndex = 0, pageSiz
 // entryDTO: { JournalId, Remarks }
 export function addReversalBatchEntry(id, entryDTO) {
   return unwrap(apiFetch(`${BASE}/${id}/entries`, { method: "POST", body: JSON.stringify(entryDTO) }));
+}
+
+export function reversalLookupOptions() {
+  return unwrap(apiFetch(`${BASE}/lookup-options`));
+}
+
+export function findReversibleJournals(query, signal) {
+  return unwrap(apiFetch(`${BASE}/reversible-journals?${new URLSearchParams(query)}`, { signal }));
+}
+
+export function addReversalBatchEntries(id, entries) {
+  return unwrap(apiFetch(`${BASE}/${id}/entries/bulk`, { method: "POST", body: JSON.stringify(entries) }));
 }
 
 export function removeReversalBatchEntries(entries) {

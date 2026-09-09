@@ -6,6 +6,7 @@ import GuarantorRow from "./GuarantorRow";
 import { getRegistrationContext, lookupGuarantorEligibility, updateLoanCaseGuarantors } from "./loanCaseApi";
 import { validateRegistrationGuarantors } from "./guarantorValidation";
 import { guarantorDisplayName } from "./guarantorDisplayName";
+import { createGuarantorRowId } from "./guarantorRowId";
 
 export default function GuarantorEditor({ loanCase, guarantors, collaterals, onSaved }) {
   const [rows, setRows] = useState(null);
@@ -20,7 +21,7 @@ export default function GuarantorEditor({ loanCase, guarantors, collaterals, onS
       if (!context.loanProduct) throw new Error("The loan product could not be loaded.");
       setProduct(context.loanProduct);
       const existing = guarantors.map((g) => ({
-        clientId: crypto.randomUUID(), GuarantorId: g.CustomerId || g.GuarantorId,
+        clientId: createGuarantorRowId(), GuarantorId: g.CustomerId || g.GuarantorId,
         label: guarantorDisplayName(g), AmountGuaranteed: g.AmountGuaranteed, lookup: null,
       }));
       const lookups = await Promise.allSettled(existing.map((row) => lookupGuarantorEligibility(row.GuarantorId, loanCase.LoanProductId, loanCase.Id)));
@@ -66,7 +67,7 @@ export default function GuarantorEditor({ loanCase, guarantors, collaterals, onS
         {rows.map((row, index) => <GuarantorRow key={row.clientId} row={row} index={index} loanProductId={loanCase.LoanProductId} loanCaseId={loanCase.Id}
           onChange={(id, change) => setRows((current) => current.map((item) => item.clientId === id ? { ...item, ...change } : item))}
           onRemove={(id) => setRows((current) => current.filter((item) => item.clientId !== id))} />)}
-        <Button type="button" size="sm" variant="outline" onClick={() => setRows((current) => [...current, { clientId: crypto.randomUUID(), GuarantorId: "", AmountGuaranteed: "", label: "", lookup: null }])}>
+        <Button type="button" size="sm" variant="outline" onClick={() => setRows((current) => [...current, { clientId: createGuarantorRowId(), GuarantorId: "", AmountGuaranteed: "", label: "", lookup: null }])}>
           <FaPlus className="mr-1" /> Add Guarantor
         </Button>
       </fieldset>

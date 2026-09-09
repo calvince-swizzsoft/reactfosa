@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import { validateTransferEntry as validate } from '../src/pages/Accounts/BatchProcedures/lib/transferValidation.js';
+const source = { Id: 'savings', CustomerId: 'member' };
+const loan = { Id: 'loan', CustomerId: 'member', CustomerAccountTypeProductCode: 2, PrincipalBalance: 100, InterestBalance: 10 };
+const row = { ApportionTo: 1, Principal: 60, Interest: 5 };
+assert.equal(validate(row, source, loan, []), '');
+assert.equal(validate({ ...row, Principal: 100, Interest: 10 }, source, loan, []), '');
+assert.match(validate(row, source, loan, [{ CustomerAccountId: 'loan', Principal: 50, Interest: 0 }]), /principal/);
+assert.match(validate(row, source, loan, [{ CustomerAccountId: 'loan', Principal: 0, Interest: 6 }]), /interest/);
+assert.match(validate(row, source, { ...loan, InterestBalance: 0 }, []), /interest/);
+assert.match(validate(row, source, { ...loan, CustomerId: 'another member' }, []), /belonging/);
+assert.match(validate(row, source, { ...loan, Id: source.Id }, []), /differ/);
+assert.match(validate({ ...row, Interest: -1 }, source, loan, []), /non-negative/);
+assert.match(validate({ ...row, Principal: 'not a number' }, source, loan, []), /non-negative/);
+assert.equal(validate({ ...row, Principal: 200 }, source, { ...loan, CustomerAccountTypeProductCode: 3 }, []), '');
+assert.equal(validate({ ...row, ApportionTo: 2 }, source, null, []), '');
+console.log('Transfer validation passed: exact loan limits, cumulative rows, zero interest, same-customer accounts, and invalid amounts.');

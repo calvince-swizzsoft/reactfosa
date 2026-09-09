@@ -7,13 +7,14 @@ import { FaTimes } from "react-icons/fa";
 // moduleNavigationItemCode } is identical across all 9 batch types
 // (BatchAuthOption/JournalVoucherAuthOption/GeneralLedgerAuthOption are
 // separate C# enums with identical values: 1=Post, 2=Reject).
-export default function BatchAuditModal({ open, title, postLabel = "Post", onSubmit, onClose }) {
+export default function BatchAuditModal({ open, title, postLabel = "Post", onSubmit, onClose, postDisabled = false, postDisabledReason = "" }) {
   const [remarks, setRemarks] = useState("");
   const [loading, setLoading] = useState(false);
 
   if (!open) return null;
 
   const submit = async (option) => {
+    if (option === 1 && postDisabled) return;
     setLoading(true);
     try {
       await onSubmit(option, remarks);
@@ -43,13 +44,14 @@ export default function BatchAuditModal({ open, title, postLabel = "Post", onSub
             />
           </div>
           <div className="flex gap-2">
-            <Button disabled={loading} onClick={() => submit(1)} className="flex-1 bg-indigo-600 hover:bg-indigo-700">
+            <Button disabled={loading || postDisabled} onClick={() => submit(1)} className="flex-1 bg-indigo-600 hover:bg-indigo-700">
               {loading ? "Working..." : postLabel}
             </Button>
             <Button disabled={loading} onClick={() => submit(2)} variant="outline" className="flex-1 border-red-300 text-red-600 hover:bg-red-50">
               Reject
             </Button>
           </div>
+          {postDisabled && postDisabledReason && <p className="text-sm text-amber-700">{postDisabledReason}</p>}
         </div>
       </div>
     </div>

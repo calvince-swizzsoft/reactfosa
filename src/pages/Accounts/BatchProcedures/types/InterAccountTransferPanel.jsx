@@ -12,7 +12,7 @@ import {
   addInterAccountTransferBatchEntry, removeInterAccountTransferBatchEntries,
   auditInterAccountTransferBatch, authorizeInterAccountTransferBatch,
   getInterAccountTransferDynamicCharges, replaceInterAccountTransferDynamicCharges,
-  normalizeList,
+  normalizeList, getTransferAccountBalances, allTransferEntries,
 } from "./interAccountTransferApi";
 import { BatchStatus, ApportionTo } from "../lib/batchEnums";
 import BatchStatusBadge from "../lib/BatchStatusBadge";
@@ -20,6 +20,10 @@ import BatchAuditModal from "../lib/BatchAuditModal";
 import EntryPickerModal from "../lib/EntryPickerModal";
 import { runBatchAction } from "../lib/runBatchAction";
 import DynamicChargePicker from "../../lib/DynamicChargePicker";
+
+import TransferAccountLookup from "../lib/TransferAccountLookup";
+import TransferBalances from "../lib/TransferBalances";
+import { validateTransferEntry } from "../lib/transferValidation";
 
 const FIN_BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 const MODULE_NAVIGATION_ITEM_CODE = { origination: 23069, verification: 23079, authorization: 23089 };
@@ -55,12 +59,13 @@ function CreateInterAccountTransferDrawer({ open, onClose, onSuccess }) {
   const [form, setForm] = useState(emptyCreateForm);
   const [loading, setLoading] = useState(false);
   const [picker, setPicker] = useState(null);
+  const [sourceAccount, setSourceAccount] = useState(null);
 
-  useEffect(() => { if (open) setForm(emptyCreateForm); }, [open]);
+  useEffect(() => { if (open) { setForm(emptyCreateForm); setSourceAccount(null); } }, [open]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.BranchId || !form.CustomerAccountId) {
+    if (!form.BranchId || !form.CustomerAccountId || !sourceAccount?.CustomerId) {
       Swal.fire("Missing Fields", "Branch and source customer account are required.", "warning");
       return;
     }
@@ -68,6 +73,7 @@ function CreateInterAccountTransferDrawer({ open, onClose, onSuccess }) {
     try {
       await createInterAccountTransferBatch({
         BranchId: form.BranchId,
+        CustomerId: sourceAccount.CustomerId,
         CustomerAccountId: form.CustomerAccountId,
         Reference: form.Reference,
       });
@@ -86,17 +92,15 @@ function CreateInterAccountTransferDrawer({ open, onClose, onSuccess }) {
       {open && (
         <>
           <motion.div className="fixed inset-0 bg-black z-40" initial={{ opacity: 0 }} animate={{ opacity: 0.4 }} exit={{ opacity: 0 }} onClick={onClose} />
-          <motion.div className="fixed top-0 right-0 h-full w-[480px] bg-white shadow-2xl z-50 flex flex-col" initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", stiffness: 300, damping: 30 }}>
+          <motion.div className="fixed top-0 right-0 h-full w-full max-w-[520px] bg-white shadow-2xl z-50 flex flex-col" initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", stiffness: 300, damping: 30 }}>
             <div className="m-2 flex justify-between items-center bg-indigo-600 rounded-2xl px-4 py-3">
               <h2 className="font-bold text-white">New Inter Account Transfer</h2>
               <Button variant="outline" size="sm" onClick={onClose}>Close</Button>
             </div>
             <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
-              <p className="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                No control-total check exists for this type — nothing server-side stops entries from exceeding the source account's real balance. This app has no endpoint that returns a trustworthy balance figure to check against, so verify manually before authorizing.
-              </p>
               <PickerField label="Branch" value={form.BranchLabel} placeholder="Select branch..." onClick={() => setPicker("branch")} />
               <PickerField label="Source Customer Account" value={form.CustomerLabel} placeholder="Pick the account to transfer out of..." onClick={() => setPicker("customer")} />
+              <TransferBalances account={sourceAccount} />
               <FieldGroup label="Reference">
                 <Input value={form.Reference} onChange={(e) => setForm((p) => ({ ...p, Reference: e.target.value }))} />
               </FieldGroup>
@@ -115,9 +119,14 @@ function CreateInterAccountTransferDrawer({ open, onClose, onSuccess }) {
           onSelect={(i) => setForm((p) => ({ ...p, BranchId: i.Id, BranchLabel: i.Description }))} onClose={() => setPicker(null)} />
       )}
       {picker === "customer" && (
-        <EntryPickerModal title="Select Source Customer Account" fetchUrl={`${FIN_BASE}/api/accounts/customer-accounts?pageSize=1000`}
-          getLabel={(i) => i.CustomerFullName || [i.CustomerIndividualFirstName, i.CustomerIndividualLastName].filter(Boolean).join(" ") || i.FullAccountNumber} getSublabel={(i) => [i.FullAccountNumber, i.CustomerAccountTypeTargetProductDescription].filter(Boolean).join(" — ")}
-          onSelect={(i) => setForm((p) => ({ ...p, CustomerAccountId: i.Id, CustomerLabel: `${i.CustomerFullName || ""} — ${i.FullAccountNumber || ""}` }))} onClose={() => setPicker(null)} />
+        <TransferAccountLookup onSelect={async (item) => {
+          setPicker(null); setSourceAccount(null); setForm((old) => ({ ...old, CustomerAccountId: "", CustomerLabel: "Loading account balances..." }));
+          try {
+            const account = await getTransferAccountBalances(item.Id);
+            setSourceAccount(account);
+            setForm((old) => ({ ...old, CustomerAccountId: account.Id, CustomerLabel: [account.CustomerFullName, account.FullAccountNumber].filter(Boolean).join(" — ") }));
+          } catch (error) { setForm((old) => ({ ...old, CustomerLabel: "" })); Swal.fire("Account unavailable", error.message, "error"); }
+        }} onClose={() => setPicker(null)} />
       )}
     </AnimatePresence>
   );
@@ -138,18 +147,34 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
   const [dynamicCharges, setDynamicCharges] = useState([]);
   const [loadingCharges, setLoadingCharges] = useState(false);
   const [savingCharges, setSavingCharges] = useState(false);
+  const [sourceAccount, setSourceAccount] = useState(null);
+  const [targetAccount, setTargetAccount] = useState(null);
+  const [balanceError, setBalanceError] = useState("");
+  const [entriesError, setEntriesError] = useState("");
+  const [balanceLoading, setBalanceLoading] = useState(false);
+  const refreshBalances = async () => {
+    if (!batch) return;
+    setBalanceLoading(true); setBalanceError("");
+    try {
+      setSourceAccount(await getTransferAccountBalances(batch.CustomerAccountId));
+      if (entryForm.CustomerAccountId) setTargetAccount(await getTransferAccountBalances(entryForm.CustomerAccountId));
+    } catch (error) { setBalanceError(error.message); }
+    finally { setBalanceLoading(false); }
+  };
 
   const fetchEntries = () => {
     if (!batch) return;
     setLoading(true);
-    listInterAccountTransferBatchEntries(batch.Id, { pageSize: 100 })
-      .then((page) => setEntries(page?.pageCollection || page?.PageCollection || []))
-      .catch(() => setEntries([]))
+    setEntriesError("");
+    allTransferEntries(batch.Id)
+      .then(setEntries)
+      .catch((error) => { setEntries([]); setEntriesError(error.message); })
       .finally(() => setLoading(false));
   };
 
   useEffect(() => {
     fetchEntries();
+    refreshBalances();
     setEntryForm(emptyEntryForm);
     if (!batch) return;
     setLoadingCharges(true);
@@ -162,7 +187,7 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
 
   const isMine = batch.CreatedBy === currentUser;
   const canManageEntries = stage === "origination" && batch.Status === BatchStatus.Pending && isMine;
-  const entriesTotal = entries.reduce((sum, e) => sum + (e.Principal || 0) + (e.Interest || 0), 0);
+  const entriesTotal = entries.reduce((sum, e) => sum + Number(e.Principal || 0) + Number(e.Interest || 0), 0);
   const isGL = Number(entryForm.ApportionTo) === ApportionTo.GeneralLedgerAccount;
 
   const handleAddEntry = async (e) => {
@@ -179,6 +204,8 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
       Swal.fire("Missing Fields", "Principal or interest must be greater than zero.", "warning");
       return;
     }
+    const validation = validateTransferEntry(entryForm, sourceAccount, targetAccount, entries);
+    if (validation) { Swal.fire("Check transfer", validation, "warning"); return; }
     setAddingEntry(true);
     try {
       await addInterAccountTransferBatchEntry(batch.Id, {
@@ -192,7 +219,9 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
         Reference: entryForm.Reference,
       });
       setEntryForm(emptyEntryForm);
+      setTargetAccount(null);
       fetchEntries();
+      Swal.fire("Entry added", "The allocation has been saved to this batch.", "success");
     } catch (err) {
       Swal.fire("Error", err.message, "error");
     } finally {
@@ -228,14 +257,14 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
   const handleAuthorize = async (option, remarks) => {
     await runBatchAction(
       () => authorizeInterAccountTransferBatch(batch.Id, { Option: option, Remarks: remarks, ModuleNavigationItemCode: MODULE_NAVIGATION_ITEM_CODE.authorization }),
-      { successMessage: option === 1 ? "Batch authorized and posted — one Journal per entry, synchronous, no background queue." : "Batch rejected.", onSuccess: () => { setAuditOpen(false); onChanged(); onClose(); } }
+      { successMessage: option === 1 ? "Batch authorized and transfers posted." : "Batch rejected.", onSuccess: () => { setAuditOpen(false); onChanged(); onClose(); } }
     );
   };
 
   return (
     <AnimatePresence>
       <motion.div className="fixed inset-0 bg-black z-40" initial={{ opacity: 0 }} animate={{ opacity: 0.4 }} exit={{ opacity: 0 }} onClick={onClose} />
-      <motion.div className="fixed top-0 right-0 h-full w-[620px] bg-white shadow-2xl z-50 flex flex-col" initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", stiffness: 300, damping: 30 }}>
+      <motion.div className="fixed top-0 right-0 h-full w-full max-w-[720px] bg-white shadow-2xl z-50 flex flex-col" initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", stiffness: 300, damping: 30 }}>
         <div className="m-2 flex justify-between items-center bg-indigo-600 rounded-2xl px-4 py-3">
           <h2 className="font-bold text-white">Inter Account Transfer #{batch.PaddedBatchNumber}</h2>
           <Button variant="outline" size="sm" onClick={onClose}>Close</Button>
@@ -251,10 +280,13 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
             <div><span className="text-gray-400">Entries Total</span><p className="font-semibold text-gray-800">{entriesTotal.toLocaleString()}</p></div>
           </div>
 
-          <p className="text-xs text-gray-400">No control-total check exists for this type — verify the source account can cover {entriesTotal.toLocaleString()} before authorizing.</p>
+          <TransferBalances account={sourceAccount} />
+          <Button variant="outline" disabled={balanceLoading} onClick={refreshBalances}>{balanceLoading ? "Refreshing balances..." : "Refresh balances"}</Button>
+          {balanceError && <p role="alert" className="text-red-600 text-sm">{balanceError}</p>}
+          <p className="text-xs text-gray-500">Review the source balance and applicable transfer charges before verification.</p>
 
           <div className="rounded-lg border border-gray-200 p-3">
-            <DynamicChargePicker value={dynamicCharges} onChange={setDynamicCharges} disabled={!canManageEntries || loadingCharges} />
+            <DynamicChargePicker value={dynamicCharges} onChange={setDynamicCharges} disabled={!canManageEntries || loadingCharges || savingCharges} />
             {canManageEntries && <Button type="button" onClick={saveDynamicCharges} disabled={loadingCharges || savingCharges} className="mt-3 w-full bg-indigo-600 hover:bg-indigo-700">{savingCharges ? "Updating charges..." : "Update Transfer Charges"}</Button>}
             {!canManageEntries && <p className="mt-2 text-xs text-gray-400">Charges can only be changed by the batch creator while the batch is pending.</p>}
           </div>
@@ -272,7 +304,7 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
 
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">Entries</p>
-            {loading ? (
+            {entriesError ? <p role="alert" className="text-red-600 text-sm">{entriesError} <Button onClick={fetchEntries}>Retry</Button></p> : loading ? (
               <div className="space-y-2 animate-pulse">{[1, 2].map((i) => <div key={i} className="h-10 bg-gray-100 rounded-lg" />)}</div>
             ) : entries.length > 0 ? (
               <div className="space-y-2">
@@ -280,7 +312,7 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
                   <div key={entry.Id} className="flex items-center justify-between bg-white rounded-lg shadow border px-3 py-2 text-sm">
                     <div className="min-w-0">
                       <p className="font-medium text-gray-800 truncate">{entry.ApportionToDescription}: {entry.CustomerAccountCustomerFullName || entry.ChartOfAccountName || "—"}</p>
-                      <p className="text-xs text-gray-500">{((entry.Principal || 0) + (entry.Interest || 0)).toLocaleString()} · {entry.Reference}</p>
+                      <p className="text-xs text-gray-500">{(Number(entry.Principal || 0) + Number(entry.Interest || 0)).toLocaleString()} · {entry.Reference}</p>
                     </div>
                     {canManageEntries && (
                       <button type="button" onClick={() => handleRemoveEntry(entry)} className="text-red-400 hover:text-red-600 flex-shrink-0 ml-2">
@@ -299,13 +331,13 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
           </div>
 
           {canManageEntries && (
-            <form onSubmit={handleAddEntry} className="border-t pt-4 space-y-3">
+            <form id="transfer-entry-form" onSubmit={handleAddEntry} className="border-t pt-4 space-y-3">
               <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Add Entry</p>
               <FieldGroup label="Apportion To">
                 <select
                   className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
                   value={entryForm.ApportionTo}
-                  onChange={(e) => setEntryForm((p) => ({ ...p, ApportionTo: e.target.value, ChartOfAccountId: "", ChartOfAccountLabel: "", CustomerAccountId: "", CustomerLabel: "" }))}
+                  onChange={(e) => { setTargetAccount(null); setEntryForm((p) => ({ ...p, ApportionTo: e.target.value, ChartOfAccountId: "", ChartOfAccountLabel: "", CustomerAccountId: "", CustomerLabel: "" })); }}
                 >
                   <option value={ApportionTo.CustomerAccount}>Customer Account</option>
                   <option value={ApportionTo.GeneralLedgerAccount}>G/L Account</option>
@@ -316,12 +348,13 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
               ) : (
                 <PickerField label="Target Customer Account" value={entryForm.CustomerLabel} placeholder="Pick the target account..." onClick={() => setPicker(true)} />
               )}
+              {!isGL && <TransferBalances account={targetAccount} />}
               <div className="grid grid-cols-2 gap-3">
                 <FieldGroup label="Principal">
-                  <Input type="number" min="0" value={entryForm.Principal} onChange={(e) => setEntryForm((p) => ({ ...p, Principal: e.target.value }))} />
+                  <Input type="number" min="0" step="0.01" value={entryForm.Principal} onChange={(e) => setEntryForm((p) => ({ ...p, Principal: e.target.value }))} />
                 </FieldGroup>
                 <FieldGroup label="Interest">
-                  <Input type="number" min="0" value={entryForm.Interest} onChange={(e) => setEntryForm((p) => ({ ...p, Interest: e.target.value }))} />
+                  <Input type="number" min="0" step="0.01" value={entryForm.Interest} onChange={(e) => setEntryForm((p) => ({ ...p, Interest: e.target.value }))} />
                 </FieldGroup>
               </div>
               <FieldGroup label="Primary Description">
@@ -333,12 +366,12 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
               <FieldGroup label="Reference">
                 <Input value={entryForm.Reference} onChange={(e) => setEntryForm((p) => ({ ...p, Reference: e.target.value }))} required />
               </FieldGroup>
-              <Button type="submit" disabled={addingEntry} className="w-full bg-indigo-600 hover:bg-indigo-700 flex items-center gap-2">
-                <FaPlus /> {addingEntry ? "Adding..." : "Add Entry"}
-              </Button>
+
             </form>
           )}
         </div>
+
+        {canManageEntries && <div className="shrink-0 px-4 py-3 border-t"><Button form="transfer-entry-form" type="submit" disabled={addingEntry || loading || !!entriesError || balanceLoading || !!balanceError || !sourceAccount || (!isGL && !targetAccount)} className="w-full bg-indigo-600 hover:bg-indigo-700"><FaPlus className="mr-2" />{addingEntry ? "Adding..." : "Add Entry"}</Button></div>}
 
         {(stage === "verification" || stage === "authorization") && (
           <div className="shrink-0 px-4 py-3 border-t">
@@ -353,10 +386,14 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
         <EntryPickerModal title="Select G/L Account" allowCreateGlAccount fetchUrl={`${FIN_BASE}/api/accounts/chartofaccounts?pageSize=1000`} getLabel={(i) => `${i.AccountCode} — ${i.AccountName}`}
           onSelect={(i) => setEntryForm((p) => ({ ...p, ChartOfAccountId: i.Id, ChartOfAccountLabel: `${i.AccountCode} — ${i.AccountName}` }))} onClose={() => setPicker(false)} />
       )}
-      {picker && !isGL && (
-        <EntryPickerModal title="Select Target Customer Account" fetchUrl={`${FIN_BASE}/api/accounts/customer-accounts?pageSize=1000`}
-          getLabel={(i) => i.CustomerFullName || [i.CustomerIndividualFirstName, i.CustomerIndividualLastName].filter(Boolean).join(" ") || i.FullAccountNumber} getSublabel={(i) => [i.FullAccountNumber, i.CustomerAccountTypeTargetProductDescription].filter(Boolean).join(" — ")}
-          onSelect={(i) => setEntryForm((p) => ({ ...p, CustomerAccountId: i.Id, CustomerLabel: `${i.CustomerFullName || ""} — ${i.FullAccountNumber || ""}` }))} onClose={() => setPicker(false)} />
+      {picker && !isGL && sourceAccount && (
+        <TransferAccountLookup customerId={sourceAccount.CustomerId} excludeAccountId={sourceAccount.Id} onSelect={async (item) => {
+          setPicker(false); setTargetAccount(null); setBalanceLoading(true); setBalanceError("");
+          setEntryForm((old) => ({ ...old, CustomerAccountId: item.Id, CustomerLabel: [item.CustomerFullName, item.FullAccountNumber].filter(Boolean).join(" — ") }));
+          try { setTargetAccount(await getTransferAccountBalances(item.Id)); }
+          catch (error) { setBalanceError(error.message); }
+          finally { setBalanceLoading(false); }
+        }} onClose={() => setPicker(false)} />
       )}
 
       <BatchAuditModal
@@ -438,7 +475,7 @@ export default function InterAccountTransferPanel({ stage }) {
       </div>
 
       <CreateInterAccountTransferDrawer open={createOpen} onClose={() => setCreateOpen(false)} onSuccess={fetchList} />
-      <BatchDetailDrawer batch={selected} stage={stage} currentUser={userName} onClose={() => setSelected(null)} onChanged={fetchList} />
+      <BatchDetailDrawer key={selected?.Id || "closed"} batch={selected} stage={stage} currentUser={userName} onClose={() => setSelected(null)} onChanged={fetchList} />
     </div>
   );
 }

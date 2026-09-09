@@ -1,4 +1,5 @@
 import GuarantorRow from "./lib/GuarantorRow";
+import { createGuarantorRowId } from "./lib/guarantorRowId";
 import { useState, useEffect } from "react";
 import { validateRegistrationGuarantors } from "./lib/guarantorValidation";
 import { useNavigate } from "react-router-dom";
@@ -165,7 +166,7 @@ export function CreateLoanCaseDrawer({ open, onClose, onSuccess, title = "Regist
     }
   };
 
-  const addGuarantorRow = () => setGuarantors((p) => [...p, { clientId: crypto.randomUUID(), GuarantorId: "", label: "", AmountGuaranteed: "", lookup: null }]);
+  const addGuarantorRow = () => setGuarantors((p) => [...p, { clientId: createGuarantorRowId(), GuarantorId: "", label: "", AmountGuaranteed: "", lookup: null }]);
   const updateGuarantorRow = (clientId, next) => setGuarantors((p) => p.map((r) => (r.clientId === clientId ? { ...r, ...next } : r)));
   const removeGuarantorRow = (clientId) => setGuarantors((p) => p.filter((r) => r.clientId !== clientId));
 

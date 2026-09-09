@@ -1,5 +1,19 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { runInNewContext } from "node:vm";
 import { validateRegistrationGuarantors as validate } from "../src/pages/Loaning/LoanCases/lib/guarantorValidation.js";
+
+// Reproduce HTTP browsers where randomUUID is unavailable, including browsers
+// with no Web Crypto object. Removed rows must not cause key reuse.
+const rowIdSource = readFileSync(new URL("../src/pages/Loaning/LoanCases/lib/guarantorRowId.js", import.meta.url), "utf8");
+for (const browserGlobals of [{}, { crypto: {} }]) {
+  const createId = runInNewContext(rowIdSource.replace("export function", "function") + "\ncreateGuarantorRowId;", browserGlobals);
+  const ids = Array.from({ length: 1000 }, () => createId());
+  assert.equal(new Set(ids).size, ids.length, "Guarantor row keys must be unique without randomUUID");
+  const removed = ids.pop();
+  const added = createId();
+  assert.ok(added && added !== removed && !ids.includes(added), "Adding after removing must use a fresh row key");
+}
 const product = { LoanRegistrationMinimumGuarantors: 1, LoanRegistrationMaximumGuarantees: 2, LoanRegistrationGuarantorSecurityMode: 0 };
 const row = { GuarantorId: "member", AmountGuaranteed: "1000", lookup: { securityMode: 0, availableToGuarantee: null } };
 assert.equal(validate(product, "borrower", 1000, [row]), null, "Income guarantees must not be limited by zero shares");
