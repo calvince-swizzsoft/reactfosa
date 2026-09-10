@@ -62,9 +62,7 @@ export const CashWithdrawalCategory = {
 };
 
 // GeneralTransactionType — SundryPaymentsController.Create's own switch
-// only handles the first five of these (SundryPayment=16 has no case and
-// falls through to "Unsupported transaction type", so it's listed here for
-// completeness/decoding but not offered as a picker option).
+// handles the teller's manual and credit-batch payment/receipt operations.
 // CashPaymentAccountClosure=32 is only ever sent from the Account Closure
 // settle flow, not chosen free-form by a teller.
 export const GeneralTransactionType = {

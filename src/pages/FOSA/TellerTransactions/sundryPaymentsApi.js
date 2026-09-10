@@ -6,7 +6,7 @@ import { apiJson } from "@/lib/api";
 // No dedicated app service backs this — a single-line GL voucher posted
 // straight through IJournalAppService against the caller's own teller cash
 // account. No GET/list endpoint exists for this controller itself — Cash
-// Pickup and Cash Payment (Account Closure) instead browse an existing
+// Pickup, Sundry Payment, and Cash Payment (Account Closure) instead browse an existing
 // queue on a DIFFERENT controller (credit batches / account closures) and
 // resolve chartOfAccountId/totalValue off the picked row before posting
 // here.
@@ -18,8 +18,8 @@ const CREDIT_BATCHES_BASE = `${FIN_BASE}/api/accounts/creditbatches`;
 // request: { TransactionType, ChartOfAccountId, TotalValue, Reference,
 // PrimaryDescription, ModuleNavigationItemCode, CreditBatchEntryId } —
 // PascalCase, confirmed against the real SundryPaymentRequest C# class.
-// CreditBatchEntryId is required (and validated server-side) only when
-// TransactionType is CashPickup (8); ignored otherwise. Plain
+// CreditBatchEntryId is required (and validated server-side) when
+// TransactionType is CashPickup (8) or SundryPayment (16); ignored otherwise. Plain
 // BadRequest(string) failures (missing teller, unsupported type, ...)
 // serialize as { Message }, capital M — same as CashDepositController's
 // requestsApi.js.
@@ -28,10 +28,9 @@ export async function createSundryPayment(request) {
   return body?.data ?? body;
 }
 
-// The Cash Pickup picker queue — CreditBatchController.GetByType. Not
-// filtered by entry status server-side (only date range/type/text), so
-// the caller must filter the result for Status === BatchEntryStatus.Pending
-// itself. creditBatchType must be CreditBatchType's own numeric value
+// Credit-batch teller-payment queue — CreditBatchController.GetByType.
+// Cash Pickup/Sundry Payment results are filtered server-side to Pending
+// entries from authorized batches. creditBatchType must be CreditBatchType's own numeric value
 // (56028 for CashPickup), NOT GeneralTransactionType.CashPickup (8) —
 // the two enums share a name but not a value, confirmed against source.
 export async function listCreditBatchEntriesByType(creditBatchType, { startDate, endDate, text = "", pageIndex = 0, pageSize = 100 } = {}) {

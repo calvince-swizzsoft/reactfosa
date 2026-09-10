@@ -48,8 +48,7 @@ export function auditCreditBatch(id, request) {
 
 // { Option, Remarks, ModuleNavigationItemCode } — Option: 1=Post (-> Posted;
 // for Payout/CheckOff this also queues every entry for async GL posting),
-// 2=Reject. NOT gated on the batch already being Audited server-side (a
-// known reference-app quirk, not something to work around client-side).
+// 2=Reject. The server requires the batch to have been Audited first.
 export function authorizeCreditBatch(id, request) {
   return unwrap(apiFetch(`${BASE}/${id}/authorize`, { method: "POST", body: JSON.stringify(request) }));
 }
@@ -59,8 +58,8 @@ export function listCreditBatchEntries(id, { text = "", filter = 0, pageIndex = 
   return unwrap(apiFetch(`${BASE}/${id}/entries?${params.toString()}`));
 }
 
-// entryDTO: { CustomerAccountId?, Beneficiary?, Principal, Interest,
-// Reference } — CreditBatchId is set from `id`, everything else
+// entryDTO: { CustomerAccountId?, ChartOfAccountId?, Beneficiary?, Principal,
+// Interest, Reference } — CreditBatchId is set from `id`, everything else
 // (CreditBatchCreditTypeChartOfAccountId etc.) is resolved server-side from
 // the batch header.
 export function addCreditBatchEntry(id, entryDTO) {

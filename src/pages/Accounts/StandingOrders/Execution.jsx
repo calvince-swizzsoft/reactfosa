@@ -70,7 +70,7 @@ function ActionCard({ icon, title, description, children, submitLabel, onSubmit,
         {icon}
         <h3 className="font-semibold text-slate-800">{title}</h3>
       </div>
-      <p className="text-xs text-slate-500">{description}</p>
+      {description && <p className="text-sm text-gray-500">{description}</p>}
       <div className="space-y-3">{children}</div>
       <Button
         type="button"
@@ -158,7 +158,7 @@ export default function StandingOrderExecution() {
   };
 
   const runExecute = async () => {
-    const r = await confirmRun("Run due standing orders?", "This executes every standing order due as of the target date.");
+    const r = await confirmRun("Queue due standing orders?", "Eligible orders will be sent to the background posting queue.");
     if (!r.isConfirmed) return;
     setExecuteLoading(true);
     try {
@@ -170,20 +170,16 @@ export default function StandingOrderExecution() {
         pageSize: Number(executeForm.pageSize) || 100,
       });
       Swal.fire({
-        title: ran ? "Standing Orders Queued" : "No Standing Orders Queued",
+        title: ran ? "Orders queued" : "Nothing queued",
         icon: ran ? "success" : "info",
         html: `
           <p class="mb-3">${result.detail || message}</p>
           <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-left text-sm">
-            <span>Total inspected</span><strong>${result.totalStandingOrders}</strong>
-            <span>Eligible</span><strong>${result.eligibleCount}</strong>
+            <span>Checked</span><strong>${result.totalStandingOrders}</strong>
+            <span>Due</span><strong>${result.eligibleCount}</strong>
             <span>Queued</span><strong>${result.queuedCount}</strong>
-            <span>Locked</span><strong>${result.lockedCount}</strong>
-            <span>Wrong trigger</span><strong>${result.wrongTriggerCount}</strong>
-            <span>Not yet due</span><strong>${result.notYetDueCount}</strong>
-            <span>Eligible but overdue</span><strong>${result.overdueCount}</strong>
-            <span>Expired</span><strong>${result.expiredCount}</strong>
           </div>
+          ${!ran ? `<details class="mt-3 text-left text-xs text-gray-500"><summary class="cursor-pointer font-semibold">Why none were queued</summary><div class="mt-2 grid grid-cols-2 gap-1"><span>Not scheduled</span><strong>${result.wrongTriggerCount}</strong><span>Locked</span><strong>${result.lockedCount}</strong><span>Not due yet</span><strong>${result.notYetDueCount}</strong><span>Expired</span><strong>${result.expiredCount}</strong></div></details>` : ""}
           ${result.recurringBatchId ? `<p class="mt-3 text-xs text-gray-500">Recurring batch: ${result.recurringBatchId}</p>` : ""}
         `,
       });
@@ -195,7 +191,7 @@ export default function StandingOrderExecution() {
   };
 
   const runFixSkipped = async () => {
-    const r = await confirmRun("Fix skipped standing orders?", "This resets the retry count for standing orders skipped on/before the target date.");
+    const r = await confirmRun("Retry skipped orders?", "This resets their attempt count. Run Queue Due Orders afterward.");
     if (!r.isConfirmed) return;
     setFixLoading(true);
     try {
@@ -212,7 +208,7 @@ export default function StandingOrderExecution() {
   };
 
   const runSweep = async () => {
-    const r = await confirmRun("Run sweeping standing orders?", "This moves the full balance for every Sweep-trigger standing order.");
+    const r = await confirmRun("Queue sweep orders?", "This queues full-balance transfers for Sweep standing orders.");
     if (!r.isConfirmed) return;
     setSweepLoading(true);
     try {
@@ -262,74 +258,65 @@ export default function StandingOrderExecution() {
         </div>
       </div>
 
-      <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
-        Admin/ops only. Every action below runs a batch operation across potentially many accounts —
-        the same runs a scheduled service fires on a cron, exposed here to re-trigger on demand.
+      <div className="mb-6 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700">
+        These actions create background work. A queued order may post later through the Windows service.
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <ActionCard
           icon={<FaPlay />}
-          title="Execute Due"
-          description="Runs standing orders due as of the target date, retrying up to the attempt ceiling before an order counts as skipped."
-          submitLabel="Run Execute"
+          title="Queue Due Orders"
+          description="Queue scheduled orders due by the selected date."
+          submitLabel="Queue Due Orders"
           onSubmit={runExecute}
           loading={executeLoading}
         >
-          <FieldGroup label="Target Date (default: today)">
+          <FieldGroup label="Due by (defaults to today)">
             <Input type="date" value={executeForm.targetDate} onChange={(e) => setExecuteForm((p) => ({ ...p, targetDate: e.target.value }))} />
           </FieldGroup>
-          <FieldGroup label="Target Date Option">
+          <FieldGroup label="Use schedule date">
             <EnumSelect value={executeForm.targetDateOption} options={TARGET_DATE_OPTION_OPTIONS} onChange={(v) => setExecuteForm((p) => ({ ...p, targetDateOption: v }))} />
           </FieldGroup>
-          <FieldGroup label="Priority">
-            <EnumSelect value={executeForm.priority} options={PRIORITY_OPTIONS} onChange={(v) => setExecuteForm((p) => ({ ...p, priority: v }))} />
-          </FieldGroup>
-          <FieldGroup label="Max Attempt Count">
-            <Input type="number" min="1" value={executeForm.maximumStandingOrderExecuteAttemptCount} onChange={(e) => setExecuteForm((p) => ({ ...p, maximumStandingOrderExecuteAttemptCount: e.target.value }))} />
-          </FieldGroup>
-          <FieldGroup label="Page Size">
-            <Input type="number" min="1" value={executeForm.pageSize} onChange={(e) => setExecuteForm((p) => ({ ...p, pageSize: e.target.value }))} />
-          </FieldGroup>
+          <details className="rounded-lg border border-gray-200 px-3 py-2">
+            <summary className="cursor-pointer text-sm font-semibold text-gray-600">Advanced settings</summary>
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              <FieldGroup label="Queue priority"><EnumSelect value={executeForm.priority} options={PRIORITY_OPTIONS} onChange={(v) => setExecuteForm((p) => ({ ...p, priority: v }))} /></FieldGroup>
+              <FieldGroup label="Retry limit"><Input type="number" min="1" value={executeForm.maximumStandingOrderExecuteAttemptCount} onChange={(e) => setExecuteForm((p) => ({ ...p, maximumStandingOrderExecuteAttemptCount: e.target.value }))} /></FieldGroup>
+              <FieldGroup label="Batch size"><Input type="number" min="1" value={executeForm.pageSize} onChange={(e) => setExecuteForm((p) => ({ ...p, pageSize: e.target.value }))} /></FieldGroup>
+            </div>
+          </details>
         </ActionCard>
 
         <ActionCard
           icon={<FaWrench />}
-          title="Fix Skipped"
-          description="Resets the execute-attempt count for standing orders skipped on/before the target date, so the next Execute run retries them."
-          submitLabel="Run Fix Skipped"
+          title="Retry Skipped Orders"
+          description="Reset failed-attempt counts so skipped orders can be queued again."
+          submitLabel="Reset Attempts"
           onSubmit={runFixSkipped}
           loading={fixLoading}
         >
-          <FieldGroup label="Target Date (default: yesterday)">
+          <FieldGroup label="Skipped by (defaults to yesterday)">
             <Input type="date" value={fixForm.targetDate} onChange={(e) => setFixForm((p) => ({ ...p, targetDate: e.target.value }))} />
           </FieldGroup>
-          <FieldGroup label="Page Size">
-            <Input type="number" min="1" value={fixForm.pageSize} onChange={(e) => setFixForm((p) => ({ ...p, pageSize: e.target.value }))} />
-          </FieldGroup>
+          <details className="rounded-lg border border-gray-200 px-3 py-2"><summary className="cursor-pointer text-sm font-semibold text-gray-600">Advanced settings</summary><div className="mt-3"><FieldGroup label="Batch size"><Input type="number" min="1" value={fixForm.pageSize} onChange={(e) => setFixForm((p) => ({ ...p, pageSize: e.target.value }))} /></FieldGroup></div></details>
         </ActionCard>
 
         <ActionCard
           icon={<FaBroom />}
           title="Sweep"
-          description="Processes every standing order with Trigger = Sweep, moving each account's full balance rather than a fixed amount."
-          submitLabel="Run Sweep"
+          description="Queue full-balance transfers for Sweep orders."
+          submitLabel="Queue Sweeps"
           onSubmit={runSweep}
           loading={sweepLoading}
         >
-          <FieldGroup label="Priority">
-            <EnumSelect value={sweepForm.priority} options={PRIORITY_OPTIONS} onChange={(v) => setSweepForm((p) => ({ ...p, priority: v }))} />
-          </FieldGroup>
-          <FieldGroup label="Page Size">
-            <Input type="number" min="1" value={sweepForm.pageSize} onChange={(e) => setSweepForm((p) => ({ ...p, pageSize: e.target.value }))} />
-          </FieldGroup>
+          <details className="rounded-lg border border-gray-200 px-3 py-2"><summary className="cursor-pointer text-sm font-semibold text-gray-600">Advanced settings</summary><div className="mt-3 grid grid-cols-2 gap-3"><FieldGroup label="Queue priority"><EnumSelect value={sweepForm.priority} options={PRIORITY_OPTIONS} onChange={(v) => setSweepForm((p) => ({ ...p, priority: v }))} /></FieldGroup><FieldGroup label="Batch size"><Input type="number" min="1" value={sweepForm.pageSize} onChange={(e) => setSweepForm((p) => ({ ...p, pageSize: e.target.value }))} /></FieldGroup></div></details>
         </ActionCard>
 
         <ActionCard
           icon={<FaMoneyCheckAlt />}
           title="Payout"
-          description="Runs a single benefactor account's payout for a chosen month on demand — no scheduled job triggers this one."
-          submitLabel="Run Payout"
+          description="Queue a payout for one source account and month."
+          submitLabel="Queue Payout"
           onSubmit={runPayout}
           loading={payoutLoading}
         >
@@ -348,7 +335,7 @@ export default function StandingOrderExecution() {
               </SelectContent>
             </Select>
           </FieldGroup>
-          <FieldGroup label="Benefactor Account">
+          <FieldGroup label="Source Account">
             <Select
               value={payoutForm.benefactorCustomerAccountId ? String(payoutForm.benefactorCustomerAccountId) : ""}
               onValueChange={(v) => setPayoutForm((p) => ({ ...p, benefactorCustomerAccountId: v }))}
@@ -369,9 +356,7 @@ export default function StandingOrderExecution() {
           <FieldGroup label="Month">
             <EnumSelect value={payoutForm.month} options={MONTH_OPTIONS} onChange={(v) => setPayoutForm((p) => ({ ...p, month: v }))} />
           </FieldGroup>
-          <FieldGroup label="Priority">
-            <EnumSelect value={payoutForm.priority} options={PRIORITY_OPTIONS} onChange={(v) => setPayoutForm((p) => ({ ...p, priority: v }))} />
-          </FieldGroup>
+          <details className="rounded-lg border border-gray-200 px-3 py-2"><summary className="cursor-pointer text-sm font-semibold text-gray-600">Advanced settings</summary><div className="mt-3"><FieldGroup label="Queue priority"><EnumSelect value={payoutForm.priority} options={PRIORITY_OPTIONS} onChange={(v) => setPayoutForm((p) => ({ ...p, priority: v }))} /></FieldGroup></div></details>
         </ActionCard>
       </div>
     </div>

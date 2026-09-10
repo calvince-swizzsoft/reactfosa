@@ -2,6 +2,15 @@
 
 Guidance for Claude Code when working in this repository.
 
+## Build configuration
+
+- Use development/Debug configuration for all routine compilation, testing,
+  debugging, and verification.
+- Never create or refresh a Release/production build or deployment artifact
+  unless the user expressly requests it for that task.
+- A command-line verification build must not change the IDE's selected build
+  configuration or copy development configuration into production artifacts.
+
 ## Backend architecture
 
 - The `Application.MainBoundedContext` AppService layer is the canonical

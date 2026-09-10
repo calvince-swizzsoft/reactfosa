@@ -225,6 +225,7 @@ export const moduleRouteMap = {
   23026: "/Accounts/DebitTypes",          // DebitType — canonical target product, flags and commissions; docs/api/debit-types.md
   23028: "/Accounts/UnpayReasons",        // Unpay Reasons (ControllerName: UnpayReason) — real, documented controller (docs/api/unpayreason-api-spec.md); was previously unmapped, with FOSA/TellerTransactions/UnpayReasons.jsx calling an undocumented /api/unpay endpoint instead of this one
   23029: "/Accounts/FixedDepositTypes",   // Fixed Deposit Types (ControllerName: FixedDepositType) — controller was built 2026-08-16 (previously didn't exist at all, zero rows in swiftFin_FixedDepositTypes); closes the FixedDepositTypeId picker gap noted in FOSA/TellerTransactions/TODO.md
+  23030: "/Accounts/WireTransferTypes",   // Wire Transfer Types — G/L mapping, transaction ownership and applicable charges
   // Operations (23002) > Transactions Journal (23031). Both journal views
   // use the GeneralLedgerStatement API, whose controller delegates all
   // querying to IJournalEntryAppService. Separate routes preserve the two

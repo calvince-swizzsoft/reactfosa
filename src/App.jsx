@@ -218,6 +218,7 @@ import ChequeTypes from "./pages/Accounts/ChequeTypes/index.jsx";
 import CreateChequeType from "./pages/Accounts/ChequeTypes/create.jsx";
 import DebitTypes from "./pages/Accounts/DebitTypes/index.jsx";
 import CreditTypes from "./pages/Accounts/CreditTypes/index.jsx";
+import WireTransferTypes from "./pages/Accounts/WireTransferTypes/index.jsx";
 import DirectDebits from "./pages/Accounts/DirectDebits/index.jsx";
 import Commissions from "./pages/Accounts/Commissions/index.jsx";
 import CreateCommission from "./pages/Accounts/Commissions/create.jsx";
@@ -520,6 +521,7 @@ export default function App() {
           <Route path="Accounts/ChequeTypes/create" element={<CreateChequeType />} />
           <Route path="Accounts/DebitTypes" element={<DebitTypes />} />
           <Route path="Accounts/CreditTypes" element={<CreditTypes />} />
+          <Route path="Accounts/WireTransferTypes" element={<WireTransferTypes />} />
           <Route path="Accounts/DirectDebits" element={<DirectDebits />} />
           <Route path="Accounts/Commissions" element={<Commissions />} />
           <Route path="Accounts/Commissions/create" element={<CreateCommission />} />

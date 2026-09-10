@@ -125,6 +125,7 @@ function CreditTypeDrawer({ item, options, optionsLoading, onClose, onSaved }) {
       </motion.div>
       {accountPickerOpen && <EntryPickerModal
         title="Select G/L Account"
+        allowCreateGlAccount
         fetchUrl={`${FIN_BASE}/api/accounts/chartofaccounts?pageIndex=0&pageSize=100&text=`}
         filterItems={(account) => Number(account.AccountCategory) !== 4096}
         getLabel={(account) => account.AccountName || account.Description}

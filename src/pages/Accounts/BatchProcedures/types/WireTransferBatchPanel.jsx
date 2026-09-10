@@ -18,7 +18,9 @@ import EntryPickerModal from "../lib/EntryPickerModal";
 import { runBatchAction } from "../lib/runBatchAction";
 
 const FIN_BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
-const MODULE_NAVIGATION_ITEM_CODE = { origination: 23069, verification: 23079, authorization: 23089 };
+// Stage-level navigation items; the retired per-type child IDs are not
+// guaranteed to exist in newly seeded environments.
+const MODULE_NAVIGATION_ITEM_CODE = { origination: 69, verification: 79, authorization: 89 };
 
 // WireTransferBatchType — label only, not used to gate anything server-side.
 const WIRE_TYPE_OPTIONS = [
@@ -32,6 +34,8 @@ const PRIORITY_OPTIONS = [
   { value: 3, label: "Normal" }, { value: 4, label: "Above Normal" }, { value: 5, label: "High" },
   { value: 6, label: "Very High" }, { value: 7, label: "Highest" },
 ];
+
+const sameUser = (left, right) => !!left && !!right && left.toLowerCase() === right.toLowerCase();
 
 function FieldGroup({ label, children }) {
   return (
@@ -58,7 +62,7 @@ function PickerField({ label, value, placeholder, onClick }) {
   );
 }
 
-const emptyCreateForm = { WireTransferTypeId: "", BranchId: "", BranchLabel: "", Type: 0, Reference: "", TotalValue: "", Priority: 3 };
+const emptyCreateForm = { WireTransferTypeId: "", WireTransferTypeLabel: "", BranchId: "", BranchLabel: "", Type: 0, Reference: "", TotalValue: "", Priority: 3 };
 
 function CreateWireTransferBatchDrawer({ open, onClose, onSuccess }) {
   const [form, setForm] = useState(emptyCreateForm);
@@ -69,7 +73,7 @@ function CreateWireTransferBatchDrawer({ open, onClose, onSuccess }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.WireTransferTypeId || !form.BranchId || !form.Reference || !(Number(form.TotalValue) > 0)) {
+    if (!form.WireTransferTypeId || !form.BranchId || !form.Reference.trim() || !(Number(form.TotalValue) > 0)) {
       Swal.fire("Missing Fields", "Wire transfer type, branch, reference and a positive total value are required.", "warning");
       return;
     }
@@ -79,7 +83,7 @@ function CreateWireTransferBatchDrawer({ open, onClose, onSuccess }) {
         WireTransferTypeId: form.WireTransferTypeId,
         BranchId: form.BranchId,
         Type: Number(form.Type),
-        Reference: form.Reference,
+        Reference: form.Reference.trim(),
         TotalValue: Number(form.TotalValue),
         Priority: Number(form.Priority),
       });
@@ -104,10 +108,7 @@ function CreateWireTransferBatchDrawer({ open, onClose, onSuccess }) {
               <Button variant="outline" size="sm" onClick={onClose}>Close</Button>
             </div>
             <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
-              <FieldGroup label="Wire Transfer Type Id">
-                <Input value={form.WireTransferTypeId} onChange={(e) => setForm((p) => ({ ...p, WireTransferTypeId: e.target.value }))} placeholder="Paste the WireTransferType GUID" required />
-                <p className="text-xs text-gray-400 mt-1">No lookup endpoint exists for Wire Transfer Types yet — plain GUID until one's added.</p>
-              </FieldGroup>
+              <PickerField label="Wire Transfer Type" value={form.WireTransferTypeLabel} placeholder="Select wire transfer type..." onClick={() => setPicker("wireTransferType")} />
               <PickerField label="Branch" value={form.BranchLabel} placeholder="Select branch..." onClick={() => setPicker("branch")} />
               <FieldGroup label="Wire Method">
                 <select className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm" value={form.Type} onChange={(e) => setForm((p) => ({ ...p, Type: e.target.value }))}>
@@ -119,7 +120,7 @@ function CreateWireTransferBatchDrawer({ open, onClose, onSuccess }) {
                 <Input value={form.Reference} onChange={(e) => setForm((p) => ({ ...p, Reference: e.target.value }))} required />
               </FieldGroup>
               <FieldGroup label="Total Value">
-                <Input type="number" min="0" value={form.TotalValue} onChange={(e) => setForm((p) => ({ ...p, TotalValue: e.target.value }))} required />
+                <Input type="number" min="0.01" step="0.01" value={form.TotalValue} onChange={(e) => setForm((p) => ({ ...p, TotalValue: e.target.value }))} required />
               </FieldGroup>
               <FieldGroup label="Priority">
                 <select className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm" value={form.Priority} onChange={(e) => setForm((p) => ({ ...p, Priority: e.target.value }))}>
@@ -142,6 +143,18 @@ function CreateWireTransferBatchDrawer({ open, onClose, onSuccess }) {
           fetchUrl={`${FIN_BASE}/api/administration/branches/all`}
           getLabel={(i) => i.Description}
           onSelect={(i) => setForm((p) => ({ ...p, BranchId: i.Id, BranchLabel: i.Description }))}
+          onClose={() => setPicker(null)}
+        />
+      )}
+      {picker === "wireTransferType" && (
+        <EntryPickerModal
+          title="Select Wire Transfer Type"
+          fetchUrl={`${FIN_BASE}/api/accounts/wiretransfertypes/all`}
+          filterItems={(item) => !item.IsLocked}
+          getLabel={(item) => item.Description}
+          getSublabel={(item) => `${item.ChartOfAccountName || item.ChartOfAccountAccountName || "No G/L account label"} · ${item.TransactionOwnershipDescription || ""}`}
+          emptyText="No active wire transfer types are configured."
+          onSelect={(item) => setForm((previous) => ({ ...previous, WireTransferTypeId: item.Id, WireTransferTypeLabel: item.Description }))}
           onClose={() => setPicker(null)}
         />
       )}
@@ -172,18 +185,22 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
 
   if (!batch) return null;
 
-  const isMine = batch.CreatedBy === currentUser;
+  const isMine = sameUser(batch.CreatedBy, currentUser);
   const canManageEntries = stage === "origination" && batch.Status === BatchStatus.Pending && isMine;
   const entriesTotal = entries.reduce((sum, e) => sum + (e.Amount || 0), 0);
 
   const handleAddEntry = async (e) => {
     e.preventDefault();
-    if (!entryForm.CustomerAccountId || !entryForm.Payee || !entryForm.AccountNumber) {
-      Swal.fire("Missing Fields", "Customer account, payee and account number are required.", "warning");
+    if (!entryForm.CustomerAccountId || !entryForm.Payee.trim() || !entryForm.AccountNumber.trim() || !entryForm.Reference.trim()) {
+      Swal.fire("Missing Fields", "Customer account, payee, payee account number and reference are required.", "warning");
       return;
     }
     if (!(Number(entryForm.Amount) > 0)) {
       Swal.fire("Missing Fields", "Amount must be greater than zero.", "warning");
+      return;
+    }
+    if (entriesTotal + Number(entryForm.Amount) > batch.TotalValue) {
+      Swal.fire("Control Total Exceeded", "This entry would make the entries total exceed the batch total value.", "warning");
       return;
     }
     setAddingEntry(true);
@@ -191,9 +208,9 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
       await addWireTransferBatchEntry(batch.Id, {
         CustomerAccountId: entryForm.CustomerAccountId,
         Amount: Number(entryForm.Amount),
-        Payee: entryForm.Payee,
-        AccountNumber: entryForm.AccountNumber,
-        Reference: entryForm.Reference,
+        Payee: entryForm.Payee.trim(),
+        AccountNumber: entryForm.AccountNumber.trim(),
+        Reference: entryForm.Reference.trim(),
       });
       setEntryForm(emptyEntryForm);
       fetchEntries();
@@ -221,7 +238,7 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
   const handleAuthorize = async (option, remarks) => {
     await runBatchAction(
       () => authorizeWireTransferBatch(batch.Id, { Option: option, Remarks: remarks, ModuleNavigationItemCode: MODULE_NAVIGATION_ITEM_CODE.authorization }),
-      { successMessage: option === 1 ? "Batch authorized. Entries post off a background queue — a customer whose balance can't cover Amount + tariffs gets auto-rejected, not partially processed." : "Batch rejected.", onSuccess: () => { setAuditOpen(false); onChanged(); onClose(); } }
+      { successMessage: option === 1 ? "Batch authorized and its entries processed. Any entry without enough available balance is rejected rather than partially processed." : "Batch rejected.", onSuccess: () => { setAuditOpen(false); onChanged(); onClose(); } }
     );
   };
 
@@ -237,6 +254,7 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
           <div className="grid grid-cols-2 gap-3 text-sm">
             <div><span className="text-gray-400">Method</span><p className="font-semibold text-gray-800">{batch.TypeDescription}</p></div>
+            <div><span className="text-gray-400">Transfer Type</span><p className="font-semibold text-gray-800">{batch.WireTransferTypeDescription}</p></div>
             <div><span className="text-gray-400">Status</span><p><BatchStatusBadge status={batch.Status} /></p></div>
             <div><span className="text-gray-400">Reference</span><p className="font-semibold text-gray-800">{batch.Reference}</p></div>
             <div><span className="text-gray-400">Total Value</span><p className="font-semibold text-indigo-600">{batch.TotalValue?.toLocaleString()}</p></div>
@@ -288,16 +306,16 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
               <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Add Entry</p>
               <PickerField label="Customer Account" value={entryForm.CustomerLabel} placeholder="Pick an account holder..." onClick={() => setPicker(true)} />
               <FieldGroup label="Amount">
-                <Input type="number" min="0" value={entryForm.Amount} onChange={(e) => setEntryForm((p) => ({ ...p, Amount: e.target.value }))} />
+                <Input type="number" min="0.01" step="0.01" max={Math.max(0, batch.TotalValue - entriesTotal)} value={entryForm.Amount} onChange={(e) => setEntryForm((p) => ({ ...p, Amount: e.target.value }))} required />
               </FieldGroup>
               <FieldGroup label="Payee">
-                <Input value={entryForm.Payee} onChange={(e) => setEntryForm((p) => ({ ...p, Payee: e.target.value }))} placeholder="Recipient name" />
+                <Input required value={entryForm.Payee} onChange={(e) => setEntryForm((p) => ({ ...p, Payee: e.target.value }))} placeholder="Recipient name" />
               </FieldGroup>
               <FieldGroup label="Payee Account Number">
-                <Input value={entryForm.AccountNumber} onChange={(e) => setEntryForm((p) => ({ ...p, AccountNumber: e.target.value }))} />
+                <Input required value={entryForm.AccountNumber} onChange={(e) => setEntryForm((p) => ({ ...p, AccountNumber: e.target.value }))} />
               </FieldGroup>
               <FieldGroup label="Reference">
-                <Input value={entryForm.Reference} onChange={(e) => setEntryForm((p) => ({ ...p, Reference: e.target.value }))} />
+                <Input required value={entryForm.Reference} onChange={(e) => setEntryForm((p) => ({ ...p, Reference: e.target.value }))} />
               </FieldGroup>
               <Button type="submit" disabled={addingEntry} className="w-full bg-indigo-600 hover:bg-indigo-700 flex items-center gap-2">
                 <FaPlus /> {addingEntry ? "Adding..." : "Add Entry"}
@@ -332,6 +350,8 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
         postLabel={stage === "verification" ? "Verify" : "Authorize"}
         onSubmit={stage === "verification" ? handleAudit : handleAuthorize}
         onClose={() => setAuditOpen(false)}
+        postDisabled={entriesTotal <= 0 || entriesTotal > batch.TotalValue}
+        postDisabledReason={entriesTotal <= 0 ? "Add at least one entry before continuing." : "The entries total exceeds the batch total value."}
       />
     </AnimatePresence>
   );
@@ -368,9 +388,10 @@ export default function WireTransferBatchPanel({ stage }) {
 
       <div className="bg-gray-200 p-4 rounded-sm">
         <div className="grid grid-cols-12 gap-4 bg-gray-700 text-gray-100 font-semibold p-3 rounded-lg mb-4 text-sm">
-          <span className="col-span-2">Batch No</span>
+          <span className="col-span-1">Batch No</span>
           <span className="col-span-2">Method</span>
-          <span className="col-span-3">Reference</span>
+          <span className="col-span-2">Transfer Type</span>
+          <span className="col-span-2">Reference</span>
           <span className="col-span-2">Total Value</span>
           <span className="col-span-2">Created By</span>
           <span className="col-span-1">Status</span>
@@ -390,9 +411,10 @@ export default function WireTransferBatchPanel({ stage }) {
                 className="w-full text-left bg-white rounded-lg shadow-lg border hover:shadow-xl transition-all"
               >
                 <div className="grid grid-cols-12 gap-2 items-center py-3 px-6 text-sm">
-                  <span className="col-span-2 font-medium text-indigo-700">{batch.PaddedBatchNumber}</span>
+                  <span className="col-span-1 font-medium text-indigo-700">{batch.PaddedBatchNumber}</span>
                   <span className="col-span-2 text-gray-700">{batch.TypeDescription}</span>
-                  <span className="col-span-3 text-gray-700 truncate">{batch.Reference}</span>
+                  <span className="col-span-2 text-gray-700 truncate">{batch.WireTransferTypeDescription || "—"}</span>
+                  <span className="col-span-2 text-gray-700 truncate">{batch.Reference}</span>
                   <span className="col-span-2 font-semibold text-gray-800">{batch.TotalValue?.toLocaleString()}</span>
                   <span className="col-span-2 text-xs text-gray-500 truncate">{batch.CreatedBy}</span>
                   <span className="col-span-1"><BatchStatusBadge status={batch.Status} /></span>

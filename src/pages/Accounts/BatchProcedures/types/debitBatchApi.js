@@ -36,8 +36,8 @@ export function auditDebitBatch(id, request) {
   return unwrap(apiFetch(`${BASE}/${id}/audit`, { method: "POST", body: JSON.stringify(request) }));
 }
 
-// { Option, Remarks, ModuleNavigationItemCode } — 1=Post (-> Posted, queues
-// every entry for async posting), 2=Reject. Refuses if not already Audited.
+// { Option, Remarks, ModuleNavigationItemCode } — 1=Post (-> Posted and posts
+// every entry synchronously), 2=Reject. Refuses if not already Audited.
 export function authorizeDebitBatch(id, request) {
   return unwrap(apiFetch(`${BASE}/${id}/authorize`, { method: "POST", body: JSON.stringify(request) }));
 }

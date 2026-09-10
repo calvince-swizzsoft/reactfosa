@@ -190,14 +190,17 @@ function CreateCreditBatchDrawer({ open, onClose, onSuccess }) {
   );
 }
 
-const emptyEntryForm = { CustomerAccountId: "", CustomerLabel: "", Beneficiary: "", Principal: "", Interest: "", Reference: "" };
+const emptyEntryForm = {
+  CustomerAccountId: "", CustomerLabel: "", ChartOfAccountId: "", ChartOfAccountLabel: "",
+  Beneficiary: "", Principal: "", Interest: "", Reference: "",
+};
 
 function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [entryForm, setEntryForm] = useState(emptyEntryForm);
   const [addingEntry, setAddingEntry] = useState(false);
-  const [picker, setPicker] = useState(false);
+  const [picker, setPicker] = useState(null);
   const [auditOpen, setAuditOpen] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState(null);
@@ -237,6 +240,9 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
 
   const isMine = batch.CreatedBy === currentUser;
   const canManageEntries = stage === "origination" && batch.Status === BatchStatus.Pending && isMine;
+  const isCashPickup = batch.Type === CreditBatchType.CashPickup;
+  const isSundryPayment = batch.Type === CreditBatchType.SundryPayments;
+  const requiresCustomerAccount = batch.Type === CreditBatchType.Payout || batch.Type === CreditBatchType.CheckOff;
   const entriesTotal = entries.reduce((sum, e) => sum + (e.Principal || 0) + (e.Interest || 0), 0);
   const pendingDiscrepancies = discrepancies.filter((d) => d.Status === BatchStatus.Pending);
   const discrepancyFields = DISCREPANCY_FIELDS[batch.Type] || [];
@@ -266,8 +272,16 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
 
   const handleAddEntry = async (e) => {
     e.preventDefault();
-    if (!entryForm.CustomerAccountId && !entryForm.Beneficiary) {
-      Swal.fire("Missing Fields", "Pick a customer account or type a beneficiary name.", "warning");
+    if (isCashPickup && !entryForm.Beneficiary.trim()) {
+      Swal.fire("Missing Fields", "Enter the name of the person collecting the cash.", "warning");
+      return;
+    }
+    if (requiresCustomerAccount && !entryForm.CustomerAccountId) {
+      Swal.fire("Missing Fields", "Select the customer account to be credited.", "warning");
+      return;
+    }
+    if (isSundryPayment && !entryForm.ChartOfAccountId) {
+      Swal.fire("Missing Fields", "Select the G/L account to debit for this sundry payment.", "warning");
       return;
     }
     if (!(Number(entryForm.Principal) > 0)) {
@@ -277,10 +291,11 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
     setAddingEntry(true);
     try {
       await addCreditBatchEntry(batch.Id, {
-        CustomerAccountId: entryForm.CustomerAccountId || null,
-        Beneficiary: entryForm.Beneficiary,
+        CustomerAccountId: (isCashPickup || isSundryPayment) ? null : (entryForm.CustomerAccountId || null),
+        ChartOfAccountId: isSundryPayment ? entryForm.ChartOfAccountId : null,
+        Beneficiary: entryForm.Beneficiary.trim(),
         Principal: Number(entryForm.Principal),
-        Interest: Number(entryForm.Interest) || 0,
+        Interest: (isCashPickup || isSundryPayment) ? 0 : (Number(entryForm.Interest) || 0),
         Reference: entryForm.Reference,
       });
       setEntryForm(emptyEntryForm);
@@ -333,9 +348,14 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
   };
 
   const handleAuthorize = async (option, remarks) => {
+    const postedMessage = batch.Type === CreditBatchType.CashPickup
+      ? "Batch authorized. Its pending entries are now available under Teller Transactions → Sundry Payments → Cash Pickup."
+      : batch.Type === CreditBatchType.SundryPayments
+        ? "Batch authorized. Its pending entries are now available under Teller Transactions → Sundry Payments → Sundry Payment."
+        : "Batch authorized. Payout and Check-Off entries are now being processed in the background.";
     await runBatchAction(
       () => authorizeCreditBatch(batch.Id, { Option: option, Remarks: remarks, ModuleNavigationItemCode: MODULE_NAVIGATION_ITEM_CODE.authorization }),
-      { successMessage: option === 1 ? "Batch authorized. Async types post off a background queue — check the entries list for real posting status." : "Batch rejected.", onSuccess: () => { setAuditOpen(false); onChanged(); onClose(); } }
+      { successMessage: option === 1 ? postedMessage : "Batch rejected.", onSuccess: () => { setAuditOpen(false); onChanged(); onClose(); } }
     );
   };
 
@@ -444,7 +464,7 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
                 {entries.map((entry) => (
                   <div key={entry.Id} className="flex items-center justify-between bg-white rounded-lg shadow border px-3 py-2 text-sm">
                     <div className="min-w-0">
-                      <p className="font-medium text-gray-800 truncate">{entry.Beneficiary || entry.CustomerFullName || "—"}</p>
+                      <p className="font-medium text-gray-800 truncate">{entry.Beneficiary || entry.CustomerFullName || entry.ChartOfAccountName || entry.Reference || "—"}</p>
                       <p className="text-xs text-gray-500">{((entry.Principal || 0) + (entry.Interest || 0)).toLocaleString()} · <BatchStatusBadge status={entry.Status} /></p>
                     </div>
                     {canManageEntries && (
@@ -466,17 +486,22 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
           {canManageEntries && (
             <form onSubmit={handleAddEntry} className="border-t pt-4 space-y-3">
               <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Add Entry</p>
-              <PickerField label="Customer Account (optional)" value={entryForm.CustomerLabel} placeholder="Pick an account holder..." onClick={() => setPicker(true)} />
-              <FieldGroup label="Beneficiary (for non-account holders)">
-                <Input value={entryForm.Beneficiary} onChange={(e) => setEntryForm((p) => ({ ...p, Beneficiary: e.target.value }))} placeholder="Name" />
-              </FieldGroup>
-              <div className="grid grid-cols-2 gap-3">
+              {isCashPickup ? (
+                <FieldGroup label="Cash Pickup Beneficiary">
+                  <Input value={entryForm.Beneficiary} onChange={(e) => setEntryForm((p) => ({ ...p, Beneficiary: e.target.value }))} placeholder="Full name of the person collecting cash" required />
+                </FieldGroup>
+              ) : isSundryPayment ? (
+                <PickerField label="Debit G/L Account" value={entryForm.ChartOfAccountLabel} placeholder="Select the expense or payable account..." onClick={() => setPicker("chartOfAccount")} />
+              ) : (
+                <PickerField label={requiresCustomerAccount ? "Customer Account" : "Customer Account (optional)"} value={entryForm.CustomerLabel} placeholder="Pick an account holder..." onClick={() => setPicker("customerAccount")} />
+              )}
+              <div className={`grid gap-3 ${(isCashPickup || isSundryPayment) ? "grid-cols-1" : "grid-cols-2"}`}>
                 <FieldGroup label="Principal">
                   <Input type="number" min="0" value={entryForm.Principal} onChange={(e) => setEntryForm((p) => ({ ...p, Principal: e.target.value }))} />
                 </FieldGroup>
-                <FieldGroup label="Interest">
+                {!isCashPickup && !isSundryPayment && <FieldGroup label="Interest">
                   <Input type="number" min="0" value={entryForm.Interest} onChange={(e) => setEntryForm((p) => ({ ...p, Interest: e.target.value }))} />
-                </FieldGroup>
+                </FieldGroup>}
               </div>
               <FieldGroup label="Reference">
                 <Input value={entryForm.Reference} onChange={(e) => setEntryForm((p) => ({ ...p, Reference: e.target.value }))} />
@@ -497,14 +522,28 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
         )}
       </motion.div>
 
-      {picker && (
+      {picker === "customerAccount" && (
         <EntryPickerModal
           title="Select Customer Account"
           fetchUrl={`${FIN_BASE}/api/accounts/customer-accounts?pageSize=1000`}
           getLabel={(i) => i.CustomerFullName || [i.CustomerIndividualFirstName, i.CustomerIndividualLastName].filter(Boolean).join(" ") || i.FullAccountNumber}
           getSublabel={(i) => [i.FullAccountNumber, i.CustomerAccountTypeTargetProductDescription].filter(Boolean).join(" — ")}
           onSelect={(i) => setEntryForm((p) => ({ ...p, CustomerAccountId: i.Id, CustomerLabel: `${i.CustomerFullName || ""} — ${i.FullAccountNumber || ""}` }))}
-          onClose={() => setPicker(false)}
+          onClose={() => setPicker(null)}
+        />
+      )}
+
+      {picker === "chartOfAccount" && (
+        <EntryPickerModal
+          title="Select Debit G/L Account"
+          fetchUrl={`${FIN_BASE}/api/accounts/chartofaccounts?pageSize=1000`}
+          getLabel={(i) => `${i.AccountCode || ""} — ${i.AccountName || ""}`}
+          getSublabel={(i) => i.CostCenterDescription || "Postable G/L account"}
+          filterItems={(i) => Number(i.AccountCategory) === 4097}
+          emptyText="No postable G/L accounts found."
+          allowCreateGlAccount
+          onSelect={(i) => setEntryForm((p) => ({ ...p, ChartOfAccountId: i.Id, ChartOfAccountLabel: `${i.AccountCode || ""} — ${i.AccountName || ""}` }))}
+          onClose={() => setPicker(null)}
         />
       )}
 

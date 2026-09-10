@@ -20,6 +20,12 @@ import { runBatchAction } from "../lib/runBatchAction";
 
 const FIN_BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 const MODULE_NAVIGATION_ITEM_CODE = { origination: 23069, verification: 23079, authorization: 23089 };
+const toDateInput = (date) => {
+  const offset = date.getTimezoneOffset() * 60000;
+  return new Date(date.getTime() - offset).toISOString().slice(0, 10);
+};
+const today = new Date();
+const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
 
 // JournalVoucherType — governs the header leg AND every entry leg's
 // direction at once; there is no independent per-entry direction.
@@ -58,7 +64,7 @@ function PickerField({ label, value, placeholder, onClick }) {
 const emptyCreateForm = {
   BranchId: "", BranchLabel: "", PostingPeriodId: "", PostingPeriodLabel: "",
   ChartOfAccountId: "", ChartOfAccountLabel: "", CustomerAccountId: "", CustomerLabel: "",
-  Type: 0, TotalValue: "", PrimaryDescription: "", Reference: "", Remarks: "",
+  Type: 0, TotalValue: "", PrimaryDescription: "", SecondaryDescription: "", Reference: "", ValueDate: "", Remarks: "",
 };
 
 function CreateVoucherBatchDrawer({ open, onClose, onSuccess }) {
@@ -70,8 +76,9 @@ function CreateVoucherBatchDrawer({ open, onClose, onSuccess }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.BranchId || !form.PostingPeriodId || !form.ChartOfAccountId || !form.Remarks || !(Number(form.TotalValue) > 0)) {
-      Swal.fire("Missing Fields", "Branch, posting period, G/L account, remarks and a positive total value are required.", "warning");
+    const usesCustomerAccount = Number(form.Type) >= 2;
+    if (!form.BranchId || !form.PostingPeriodId || !form.ChartOfAccountId || (usesCustomerAccount && !form.CustomerAccountId) || !form.Reference || !form.ValueDate || !form.Remarks || !(Number(form.TotalValue) > 0)) {
+      Swal.fire("Missing Fields", "Branch, posting period, account, value date, reference, remarks and a positive principal are required.", "warning");
       return;
     }
     setLoading(true);
@@ -84,7 +91,9 @@ function CreateVoucherBatchDrawer({ open, onClose, onSuccess }) {
         Type: Number(form.Type),
         TotalValue: Number(form.TotalValue),
         PrimaryDescription: form.PrimaryDescription,
+        SecondaryDescription: form.SecondaryDescription,
         Reference: form.Reference,
+        ValueDate: form.ValueDate,
         Remarks: form.Remarks,
       });
       Swal.fire("Success", "Voucher created — it's now in the Pending queue.", "success");
@@ -110,22 +119,31 @@ function CreateVoucherBatchDrawer({ open, onClose, onSuccess }) {
             <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
               <PickerField label="Branch" value={form.BranchLabel} placeholder="Select branch..." onClick={() => setPicker("branch")} />
               <PickerField label="Posting Period" value={form.PostingPeriodLabel} placeholder="Select posting period..." onClick={() => setPicker("postingPeriod")} />
-              <FieldGroup label="Direction">
-                <select className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm" value={form.Type} onChange={(e) => setForm((p) => ({ ...p, Type: e.target.value }))}>
+              <FieldGroup label="Type">
+                <select className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm" value={form.Type} onChange={(e) => setForm((p) => ({ ...p, Type: e.target.value, ChartOfAccountId: "", ChartOfAccountLabel: "", CustomerAccountId: "", CustomerLabel: "" }))}>
                   {VOUCHER_TYPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
                 <p className="text-xs text-gray-400 mt-1">Governs this account AND every entry's account at once — there's no independent per-entry direction.</p>
               </FieldGroup>
-              <PickerField label="G/L Account" value={form.ChartOfAccountLabel} placeholder="Search & select G/L account..." onClick={() => setPicker("coa")} />
-              <PickerField label="Customer Account (optional)" value={form.CustomerLabel} placeholder="Only for Debit/Credit Customer Account..." onClick={() => setPicker("customer")} />
-              <FieldGroup label="Total Value">
+              {Number(form.Type) < 2 ? (
+                <PickerField label="G/L Account" value={form.ChartOfAccountLabel} placeholder="Search & select G/L account..." onClick={() => setPicker("coa")} />
+              ) : (
+                <PickerField label="Customer Account" value={form.CustomerLabel} placeholder="Search & select customer account..." onClick={() => setPicker("customer")} />
+              )}
+              <FieldGroup label="Value Date">
+                <Input type="date" value={form.ValueDate} onChange={(e) => setForm((p) => ({ ...p, ValueDate: e.target.value }))} required />
+              </FieldGroup>
+              <FieldGroup label="Principal">
                 <Input type="number" min="0" value={form.TotalValue} onChange={(e) => setForm((p) => ({ ...p, TotalValue: e.target.value }))} required />
               </FieldGroup>
-              <FieldGroup label="Description">
+              <FieldGroup label="Primary Description">
                 <Input value={form.PrimaryDescription} onChange={(e) => setForm((p) => ({ ...p, PrimaryDescription: e.target.value }))} />
               </FieldGroup>
+              <FieldGroup label="Secondary Description">
+                <Input value={form.SecondaryDescription} onChange={(e) => setForm((p) => ({ ...p, SecondaryDescription: e.target.value }))} />
+              </FieldGroup>
               <FieldGroup label="Reference">
-                <Input value={form.Reference} onChange={(e) => setForm((p) => ({ ...p, Reference: e.target.value }))} />
+                <Input value={form.Reference} onChange={(e) => setForm((p) => ({ ...p, Reference: e.target.value }))} required />
               </FieldGroup>
               <FieldGroup label="Remarks">
                 <Input value={form.Remarks} onChange={(e) => setForm((p) => ({ ...p, Remarks: e.target.value }))} required />
@@ -155,13 +173,13 @@ function CreateVoucherBatchDrawer({ open, onClose, onSuccess }) {
       {picker === "customer" && (
         <EntryPickerModal title="Select Customer Account" fetchUrl={`${FIN_BASE}/api/accounts/customer-accounts?pageSize=1000`}
           getLabel={(i) => i.CustomerFullName || [i.CustomerIndividualFirstName, i.CustomerIndividualLastName].filter(Boolean).join(" ") || i.FullAccountNumber} getSublabel={(i) => [i.FullAccountNumber, i.CustomerAccountTypeTargetProductDescription].filter(Boolean).join(" — ")}
-          onSelect={(i) => setForm((p) => ({ ...p, CustomerAccountId: i.Id, CustomerLabel: `${i.CustomerFullName || ""} — ${i.FullAccountNumber || ""}` }))} onClose={() => setPicker(null)} />
+          onSelect={(i) => setForm((p) => ({ ...p, CustomerAccountId: i.Id, CustomerLabel: `${i.CustomerFullName || ""} — ${i.FullAccountNumber || ""}`, ChartOfAccountId: i.CustomerAccountTypeTargetProductChartOfAccountId, ChartOfAccountLabel: i.CustomerAccountTypeTargetProductDescription || "Customer product G/L" }))} onClose={() => setPicker(null)} />
       )}
     </AnimatePresence>
   );
 }
 
-const emptyEntryForm = { ChartOfAccountId: "", ChartOfAccountLabel: "", CustomerAccountId: "", CustomerLabel: "", Amount: "", PrimaryDescription: "", Reference: "", Remarks: "" };
+const emptyEntryForm = { AccountKind: "gl", BranchId: "", BranchLabel: "", ChartOfAccountId: "", ChartOfAccountLabel: "", CustomerAccountId: "", CustomerLabel: "", Amount: "", PrimaryDescription: "", SecondaryDescription: "", Reference: "", Remarks: "" };
 
 function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
   const [entries, setEntries] = useState([]);
@@ -191,8 +209,8 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
 
   const handleAddEntry = async (e) => {
     e.preventDefault();
-    if (!entryForm.ChartOfAccountId || !entryForm.Remarks) {
-      Swal.fire("Missing Fields", "G/L account and remarks are required.", "warning");
+    if (!entryForm.BranchId || !entryForm.ChartOfAccountId || (entryForm.AccountKind === "customer" && !entryForm.CustomerAccountId) || !entryForm.Reference || !entryForm.Remarks) {
+      Swal.fire("Missing Fields", "Account, branch, reference and remarks are required.", "warning");
       return;
     }
     if (!(Number(entryForm.Amount) > 0)) {
@@ -203,12 +221,13 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
     try {
       await addVoucherBatchEntry(batch.Id, {
         PostingPeriodId: batch.PostingPeriodId,
-        BranchId: batch.BranchId,
+        BranchId: entryForm.BranchId,
         ChartOfAccountId: entryForm.ChartOfAccountId,
         CustomerAccountId: entryForm.CustomerAccountId || null,
         Amount: Number(entryForm.Amount),
         PrimaryDescription: entryForm.PrimaryDescription,
-        Reference: entryForm.Reference || batch.Reference,
+        SecondaryDescription: entryForm.SecondaryDescription,
+        Reference: entryForm.Reference,
         Remarks: entryForm.Remarks,
       });
       setEntryForm(emptyEntryForm);
@@ -308,13 +327,29 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
           {canManageEntries && (
             <form onSubmit={handleAddEntry} className="border-t pt-4 space-y-3">
               <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Add Entry</p>
-              <PickerField label="G/L Account" value={entryForm.ChartOfAccountLabel} placeholder="Search & select G/L account..." onClick={() => setPicker("coa")} />
-              <PickerField label="Customer Account (optional)" value={entryForm.CustomerLabel} placeholder="Only for Debit/Credit Customer Account..." onClick={() => setPicker("customer")} />
-              <FieldGroup label="Amount">
+              <FieldGroup label="Account Type">
+                <select className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm" value={entryForm.AccountKind} onChange={(e) => setEntryForm((p) => ({ ...p, AccountKind: e.target.value, ChartOfAccountId: "", ChartOfAccountLabel: "", CustomerAccountId: "", CustomerLabel: "" }))}>
+                  <option value="gl">G/L Account</option>
+                  <option value="customer">Customer Account</option>
+                </select>
+              </FieldGroup>
+              {entryForm.AccountKind === "gl" ? (
+                <PickerField label="G/L Account" value={entryForm.ChartOfAccountLabel} placeholder="Search & select G/L account..." onClick={() => setPicker("coa")} />
+              ) : (
+                <PickerField label="Customer Account" value={entryForm.CustomerLabel} placeholder="Search & select customer account..." onClick={() => setPicker("customer")} />
+              )}
+              <PickerField label="Branch" value={entryForm.BranchLabel} placeholder="Select account branch..." onClick={() => setPicker("entryBranch")} />
+              <FieldGroup label="Principal">
                 <Input type="number" min="0" value={entryForm.Amount} onChange={(e) => setEntryForm((p) => ({ ...p, Amount: e.target.value }))} />
               </FieldGroup>
-              <FieldGroup label="Description">
+              <FieldGroup label="Primary Description">
                 <Input value={entryForm.PrimaryDescription} onChange={(e) => setEntryForm((p) => ({ ...p, PrimaryDescription: e.target.value }))} />
+              </FieldGroup>
+              <FieldGroup label="Secondary Description">
+                <Input value={entryForm.SecondaryDescription} onChange={(e) => setEntryForm((p) => ({ ...p, SecondaryDescription: e.target.value }))} />
+              </FieldGroup>
+              <FieldGroup label="Reference">
+                <Input value={entryForm.Reference} onChange={(e) => setEntryForm((p) => ({ ...p, Reference: e.target.value }))} required />
               </FieldGroup>
               <FieldGroup label="Remarks">
                 <Input value={entryForm.Remarks} onChange={(e) => setEntryForm((p) => ({ ...p, Remarks: e.target.value }))} required />
@@ -342,7 +377,11 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
       {picker === "customer" && (
         <EntryPickerModal title="Select Customer Account" fetchUrl={`${FIN_BASE}/api/accounts/customer-accounts?pageSize=1000`}
           getLabel={(i) => i.CustomerFullName || [i.CustomerIndividualFirstName, i.CustomerIndividualLastName].filter(Boolean).join(" ") || i.FullAccountNumber} getSublabel={(i) => [i.FullAccountNumber, i.CustomerAccountTypeTargetProductDescription].filter(Boolean).join(" — ")}
-          onSelect={(i) => setEntryForm((p) => ({ ...p, CustomerAccountId: i.Id, CustomerLabel: `${i.CustomerFullName || ""} — ${i.FullAccountNumber || ""}` }))} onClose={() => setPicker(null)} />
+          onSelect={(i) => setEntryForm((p) => ({ ...p, CustomerAccountId: i.Id, CustomerLabel: `${i.CustomerFullName || ""} — ${i.FullAccountNumber || ""}`, ChartOfAccountId: i.CustomerAccountTypeTargetProductChartOfAccountId, ChartOfAccountLabel: i.CustomerAccountTypeTargetProductDescription || "Customer product G/L", BranchId: i.BranchId || p.BranchId, BranchLabel: i.BranchDescription || p.BranchLabel }))} onClose={() => setPicker(null)} />
+      )}
+      {picker === "entryBranch" && (
+        <EntryPickerModal title="Select Entry Branch" fetchUrl={`${FIN_BASE}/api/administration/branches/all`} getLabel={(i) => i.Description}
+          onSelect={(i) => setEntryForm((p) => ({ ...p, BranchId: i.Id, BranchLabel: i.Description }))} onClose={() => setPicker(null)} />
       )}
 
       <BatchAuditModal
@@ -362,12 +401,14 @@ export default function VoucherBatchPanel({ stage }) {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [startDate, setStartDate] = useState(toDateInput(monthStart));
+  const [endDate, setEndDate] = useState(toDateInput(today));
 
   const statusForStage = stage === "authorization" ? BatchStatus.Audited : BatchStatus.Pending;
 
   const fetchList = () => {
     setLoading(true);
-    listVoucherBatches({ status: statusForStage, pageSize: 100 })
+    listVoucherBatches({ status: statusForStage, startDate, endDate, pageSize: 100 })
       .then((page) => setItems(page?.pageCollection || page?.PageCollection || []))
       .catch(() => setItems([]))
       .finally(() => setLoading(false));
@@ -384,6 +425,19 @@ export default function VoucherBatchPanel({ stage }) {
           </Button>
         </div>
       )}
+
+      <div className="mb-4 flex flex-wrap items-end gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
+        <FieldGroup label="Start Date">
+          <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+        </FieldGroup>
+        <FieldGroup label="End Date">
+          <Input type="date" min={startDate} value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+        </FieldGroup>
+        <Button type="button" onClick={fetchList} disabled={loading} className="bg-indigo-600 hover:bg-indigo-700">
+          {loading ? "Refreshing..." : "Refresh"}
+        </Button>
+        <p className="pb-2 text-xs text-gray-500">Showing {stage === "authorization" ? "verified" : "pending"} journal vouchers.</p>
+      </div>
 
       <div className="bg-gray-200 p-4 rounded-sm">
         <div className="grid grid-cols-12 gap-4 bg-gray-700 text-gray-100 font-semibold p-3 rounded-lg mb-4 text-sm">

@@ -2,9 +2,10 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import Swal from "sweetalert2";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaPlus, FaChevronDown, FaTrash } from "react-icons/fa";
+import { FaPlus, FaChevronDown, FaTrash, FaInfoCircle } from "react-icons/fa";
 import { useAuth } from "@/context/AuthContext";
 import NotFoundImage from "/assets/scopefinding.png";
 import {
@@ -26,19 +27,38 @@ const PRIORITY_OPTIONS = [
   { value: 6, label: "Very High" }, { value: 7, label: "Highest" },
 ];
 
-function FieldGroup({ label, children }) {
+function InfoPopover({ label, children }) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button type="button" aria-label={`Information about ${label}`} className="text-gray-400 hover:text-indigo-600 rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500">
+          <FaInfoCircle className="text-xs" aria-hidden="true" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-72 text-sm leading-5 text-gray-600">{children}</PopoverContent>
+    </Popover>
+  );
+}
+
+function FieldGroup({ label, help, children }) {
   return (
     <div>
-      <Label className="text-sm font-semibold text-gray-700">{label}</Label>
+      <div className="mb-1 flex items-center gap-1.5">
+        <Label className="text-sm font-semibold text-gray-700">{label}</Label>
+        {help && <InfoPopover label={label}>{help}</InfoPopover>}
+      </div>
       {children}
     </div>
   );
 }
 
-function PickerField({ label, value, placeholder, onClick }) {
+function PickerField({ label, value, placeholder, onClick, help }) {
   return (
     <div>
-      <Label className="text-sm font-semibold text-gray-700 mb-1 block">{label}</Label>
+      <div className="mb-1 flex items-center gap-1.5">
+        <Label className="text-sm font-semibold text-gray-700">{label}</Label>
+        {help && <InfoPopover label={label}>{help}</InfoPopover>}
+      </div>
       <button
         type="button"
         onClick={onClick}
@@ -95,12 +115,16 @@ function CreateDebitBatchDrawer({ open, onClose, onSuccess }) {
               <Button variant="outline" size="sm" onClick={onClose}>Close</Button>
             </div>
             <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
-              <PickerField label="Debit Type" value={form.DebitTypeLabel} placeholder="Select debit type..." onClick={() => setPicker("debitType")} />
-              <PickerField label="Branch" value={form.BranchLabel} placeholder="Select branch..." onClick={() => setPicker("branch")} />
-              <FieldGroup label="Reference">
+              <div className="flex gap-2 rounded-lg border border-indigo-100 bg-indigo-50 p-3 text-sm text-indigo-900">
+                <FaInfoCircle className="mt-0.5 shrink-0" aria-hidden="true" />
+                <p>This creates the batch header only. Open the Pending batch afterwards to add one customer-account entry for each account to be debited.</p>
+              </div>
+              <PickerField label="Debit Type" help="Defines the configured debit or charge and the tariff rules used to calculate each entry's deduction." value={form.DebitTypeLabel} placeholder="Select debit type..." onClick={() => setPicker("debitType")} />
+              <PickerField label="Branch" help="The branch that owns and processes this batch. Customer accounts are selected separately when adding entries." value={form.BranchLabel} placeholder="Select branch..." onClick={() => setPicker("branch")} />
+              <FieldGroup label="Reference" help="A recognizable identifier used to trace this batch in lists, journals, and audit records.">
                 <Input value={form.Reference} onChange={(e) => setForm((p) => ({ ...p, Reference: e.target.value }))} required />
               </FieldGroup>
-              <FieldGroup label="Priority">
+              <FieldGroup label="Priority" help="Controls processing order when queued work is enabled; Normal is suitable for routine batches.">
                 <select className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm" value={form.Priority} onChange={(e) => setForm((p) => ({ ...p, Priority: e.target.value }))}>
                   {PRIORITY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
@@ -202,7 +226,7 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
   const handleAuthorize = async (option, remarks) => {
     await runBatchAction(
       () => authorizeDebitBatch(batch.Id, { Option: option, Remarks: remarks, ModuleNavigationItemCode: MODULE_NAVIGATION_ITEM_CODE.authorization }),
-      { successMessage: option === 1 ? "Batch authorized. Entries post off a background queue — check the entries list for real posting status." : "Batch rejected.", onSuccess: () => { setAuditOpen(false); onChanged(); onClose(); } }
+      { successMessage: option === 1 ? "Batch authorized and its debit entries processed." : "Batch rejected.", onSuccess: () => { setAuditOpen(false); onChanged(); onClose(); } }
     );
   };
 
@@ -266,16 +290,16 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
           {canManageEntries && (
             <form onSubmit={handleAddEntry} className="border-t pt-4 space-y-3">
               <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Add Entry</p>
-              <PickerField label="Customer Account" value={entryForm.CustomerLabel} placeholder="Pick an account holder..." onClick={() => setPicker(true)} />
+              <PickerField label="Customer Account" help="The specific member or customer account that this entry will debit. Add another entry for every additional account." value={entryForm.CustomerLabel} placeholder="Pick an account holder..." onClick={() => setPicker(true)} />
               <div className="grid grid-cols-2 gap-3">
-                <FieldGroup label="Multiplier">
+                <FieldGroup label="Multiplier" help="The number of charge units applied to this account. It must be greater than zero.">
                   <Input type="number" min="0" step="0.01" value={entryForm.Multiplier} onChange={(e) => setEntryForm((p) => ({ ...p, Multiplier: e.target.value }))} />
                 </FieldGroup>
-                <FieldGroup label="Basis Value">
+                <FieldGroup label="Basis Value" help="The value against which percentage- or band-based tariff rules are calculated. It is not necessarily the final debit amount.">
                   <Input type="number" min="0" value={entryForm.BasisValue} onChange={(e) => setEntryForm((p) => ({ ...p, BasisValue: e.target.value }))} />
                 </FieldGroup>
               </div>
-              <FieldGroup label="Reference">
+              <FieldGroup label="Reference" help="An optional account-level reference for tracing this individual debit entry.">
                 <Input value={entryForm.Reference} onChange={(e) => setEntryForm((p) => ({ ...p, Reference: e.target.value }))} />
               </FieldGroup>
               <Button type="submit" disabled={addingEntry} className="w-full bg-indigo-600 hover:bg-indigo-700 flex items-center gap-2">

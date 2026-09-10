@@ -18,13 +18,12 @@ import ReceiptModal from "../lib/ReceiptModal";
 // One screen, six tabs, two shapes:
 // - Shape A (Cash Payment/Cash Receipt/Cheque Receipt): teller types a G/L
 //   account + amount, posts directly.
-// - Shape B (Cash Payment (Account Closure)/Cash Pickup): teller browses an
+// - Shape B (Cash Payment (Account Closure)/Cash Pickup/Sundry Payment): teller browses an
 //   existing queue on a DIFFERENT controller (account closures / credit
 //   batches) and the client resolves chartOfAccountId/totalValue off the
 //   picked row — no typed amount, no typed account.
-// Sundry Payment (16) has no server-side implementation at all
-// (SundryPaymentsController.Create's switch has no case for it, falls to
-// "Unsupported transaction type") — shown as a disabled tab, not built.
+// Credit-batch payment values are re-resolved server-side from the selected
+// entry, so a changed browser request cannot substitute its amount/account.
 const FIN_BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 const MODULE_NAVIGATION_ITEM_CODE = 25007;
 
@@ -301,9 +300,9 @@ function AccountClosurePickPanel({ onPosted }) {
   );
 }
 
-/* ══════════════════════ Shape B: Cash Pickup ══════════════════════ */
+/* ══════════════════════ Shape B: Credit-batch teller payments ══════════════════════ */
 
-function CashPickupPickPanel({ onPosted }) {
+function CreditBatchPaymentPickPanel({ onPosted, batchType, transactionType, title }) {
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
@@ -313,21 +312,21 @@ function CashPickupPickPanel({ onPosted }) {
 
   const fetchQueue = () => {
     setLoading(true);
-    listCreditBatchEntriesByType(CreditBatchType.CashPickup, { pageSize: 200 })
+    listCreditBatchEntriesByType(batchType, { pageSize: 200 })
       .then((page) => {
         const all = page?.pageCollection || page?.PageCollection || [];
-        // Not filtered by status server-side — only Pending entries are
-        // actually still payable (Posted ones were already picked up).
+        // The API returns only Pending entries from authorized teller-payment
+        // batches. Retain the client check as a defensive contract guard.
         setEntries(all.filter((e) => e.Status === BatchEntryStatus.Pending));
       })
       .catch((error) => {
         setEntries([]);
-        Swal.fire("Error", apiErrorMessage(error, "Unable to load cash-pickup entries."), "error");
+        Swal.fire("Error", apiErrorMessage(error, `Unable to load ${title.toLowerCase()} entries.`), "error");
       })
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { fetchQueue(); }, []);
+  useEffect(() => { fetchQueue(); }, [batchType]);
 
   // Principal + Interest, not entry.Amount — CreditBatchEntry has no Amount
   // column, AutoMapper always leaves it 0 (confirmed against source, a
@@ -337,14 +336,16 @@ function CashPickupPickPanel({ onPosted }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!selected) {
-      Swal.fire("Missing Selection", "Pick a pickup entry first.", "warning");
+      Swal.fire("Missing Selection", `Pick a ${title.toLowerCase()} entry first.`, "warning");
       return;
     }
     setSubmitting(true);
     try {
       const journal = await createSundryPayment({
-        TransactionType: GeneralTransactionType.CashPickup,
-        ChartOfAccountId: selected.CreditBatchCreditTypeChartOfAccountId,
+        TransactionType: transactionType,
+        ChartOfAccountId: transactionType === GeneralTransactionType.CashPickup
+          ? selected.CreditBatchCreditTypeChartOfAccountId
+          : selected.ChartOfAccountId,
         TotalValue: payAmount(selected),
         CreditBatchEntryId: selected.Id,
         Reference: reference,
@@ -357,7 +358,7 @@ function CashPickupPickPanel({ onPosted }) {
       setDescription("");
       fetchQueue();
     } catch (err) {
-      Swal.fire("Error", apiErrorMessage(err, "Unable to post the cash pickup."), "error");
+      Swal.fire("Error", apiErrorMessage(err, `Unable to post the ${title.toLowerCase()}.`), "error");
     } finally {
       setSubmitting(false);
     }
@@ -366,12 +367,12 @@ function CashPickupPickPanel({ onPosted }) {
   return (
     <div className="max-w-3xl space-y-4">
       <p className="text-xs text-gray-400">
-        Pending cash-pickup entries pre-captured under Accounts &gt; Credit Batch. If a batch's entries are expected but missing here, the batch likely hasn't been authorized (Posted) yet.
+        Pending {title.toLowerCase()} entries pre-captured under Accounts &gt; Credit Batch. If expected entries are missing, the batch likely has not been authorized yet.
       </p>
 
       <div className="bg-gray-200 p-4 rounded-sm">
         <div className="grid grid-cols-12 gap-4 bg-gray-700 text-gray-100 font-semibold p-3 rounded-lg mb-4 text-sm">
-          <span className="col-span-5">Beneficiary</span>
+          <span className="col-span-5">{transactionType === GeneralTransactionType.CashPickup ? "Beneficiary" : "Reference"}</span>
           <span className="col-span-4">G/L Account</span>
           <span className="col-span-3">Amount</span>
         </div>
@@ -392,8 +393,8 @@ function CashPickupPickPanel({ onPosted }) {
                   className={`w-full text-left rounded-lg shadow-lg border transition-all ${isSelected ? "bg-indigo-50 border-indigo-300" : "bg-white hover:shadow-xl"}`}
                 >
                   <div className="grid grid-cols-12 gap-2 items-center py-3 px-6 text-sm">
-                    <span className="col-span-5 font-medium text-indigo-700 truncate">{entry.Beneficiary || entry.CreditCustomerAccountFullName || "—"}</span>
-                    <span className="col-span-4 text-xs text-gray-500 truncate">{entry.CreditBatchCreditTypeChartOfAccountAccountName || "—"}</span>
+                    <span className="col-span-5 font-medium text-indigo-700 truncate">{entry.Beneficiary || entry.Reference || "—"}</span>
+                    <span className="col-span-4 text-xs text-gray-500 truncate">{transactionType === GeneralTransactionType.CashPickup ? entry.CreditBatchCreditTypeChartOfAccountAccountName : entry.ChartOfAccountName || "—"}</span>
                     <span className="col-span-3 font-semibold text-gray-800">{payAmount(entry).toLocaleString()}</span>
                   </div>
                 </button>
@@ -401,7 +402,7 @@ function CashPickupPickPanel({ onPosted }) {
             })}
           </div>
         ) : (
-          <p className="text-sm text-gray-400 text-center py-4">No pending cash-pickup entries found.</p>
+          <p className="text-sm text-gray-400 text-center py-4">No pending {title.toLowerCase()} entries found.</p>
         )}
       </div>
 
@@ -432,8 +433,8 @@ const TABS = [
   { id: "chequeReceipt", label: "Cheque Receipt", transactionType: GeneralTransactionType.ChequeReceipt,
     hint: "This only posts the G/L journal — it does not register the physical cheque (number, drawer, drawer's bank) anywhere. If you need those recorded, put them in Reference/Description as free text for now; real cheque capture on this screen is a backend gap." },
   { id: "accountClosure", label: "Cash Payment (Account Closure)", shapeB: "accountClosure" },
-  { id: "cashPickup", label: "Cash Pickup", shapeB: "cashPickup" },
-  { id: "sundryPayment", label: "Sundry Payment", disabled: true },
+  { id: "cashPickup", label: "Cash Pickup", shapeB: "creditBatch", batchType: CreditBatchType.CashPickup, transactionType: GeneralTransactionType.CashPickup },
+  { id: "sundryPayment", label: "Sundry Payment", shapeB: "creditBatch", batchType: CreditBatchType.SundryPayments, transactionType: GeneralTransactionType.SundryPayment },
 ];
 
 export default function SundryPayments() {
@@ -456,13 +457,9 @@ export default function SundryPayments() {
           <button
             key={t.id}
             type="button"
-            disabled={t.disabled}
             onClick={() => setActiveTab(t.id)}
-            title={t.disabled ? "Not available yet — no server-side implementation for this transaction type." : undefined}
             className={`px-4 py-1.5 text-sm font-semibold rounded-md transition-all whitespace-nowrap ${
-              t.disabled
-                ? "text-gray-300 cursor-not-allowed"
-                : activeTab === t.id
+              activeTab === t.id
                   ? "bg-white shadow text-indigo-700"
                   : "text-gray-500 hover:text-indigo-600"
             }`}
@@ -473,7 +470,15 @@ export default function SundryPayments() {
       </div>
 
       {tab?.shapeB === "accountClosure" && <AccountClosurePickPanel onPosted={handlePosted} />}
-      {tab?.shapeB === "cashPickup" && <CashPickupPickPanel onPosted={handlePosted} />}
+      {tab?.shapeB === "creditBatch" && (
+        <CreditBatchPaymentPickPanel
+          key={tab.id}
+          onPosted={handlePosted}
+          batchType={tab.batchType}
+          transactionType={tab.transactionType}
+          title={tab.label}
+        />
+      )}
       {!tab?.shapeB && !tab?.disabled && (
         <ManualEntryPanel
           key={tab.id}
