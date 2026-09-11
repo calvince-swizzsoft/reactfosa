@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import BatchFieldLabel from "../lib/BatchFieldLabel";
 import Swal from "sweetalert2";
 import { motion, AnimatePresence } from "framer-motion";
 import { FaPlus, FaChevronDown, FaTrash } from "react-icons/fa";
@@ -32,19 +32,19 @@ const PRIORITY_OPTIONS = [
   { value: 6, label: "Very High" }, { value: 7, label: "Highest" },
 ];
 
-function FieldGroup({ label, children }) {
+function FieldGroup({ label, help, children }) {
   return (
     <div>
-      <Label className="text-sm font-semibold text-gray-700">{label}</Label>
+      <BatchFieldLabel label={label} help={help} />
       {children}
     </div>
   );
 }
 
-function PickerField({ label, value, placeholder, onClick }) {
+function PickerField({ label, help, value, placeholder, onClick }) {
   return (
     <div>
-      <Label className="text-sm font-semibold text-gray-700 mb-1 block">{label}</Label>
+      <BatchFieldLabel label={label} help={help} />
       <button
         type="button"
         onClick={onClick}
@@ -102,22 +102,22 @@ function CreateDisbursementBatchDrawer({ open, onClose, onSuccess }) {
               <Button variant="outline" size="sm" onClick={onClose}>Close</Button>
             </div>
             <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
-              <PickerField label="Branch" value={form.BranchLabel} placeholder="Select branch..." onClick={() => setPicker(true)} />
-              <FieldGroup label="Disbursement Type">
+              <PickerField label="Branch" help="The branch responsible for this batch. Check it before adding entries." value={form.BranchLabel} placeholder="Select branch..." onClick={() => setPicker(true)} />
+              <FieldGroup label="Disbursement Type" help="The disbursement category for this batch. Choose the option that matches the loans you intend to release.">
                 <select className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm" value={form.Type} onChange={(e) => setForm((p) => ({ ...p, Type: e.target.value }))}>
                   {DISBURSEMENT_TYPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
               </FieldGroup>
-              <FieldGroup label="Loan Product Category">
+              <FieldGroup label="Loan Product Category" help="The loan product category used to select eligible loans for this batch.">
                 <select className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm" value={form.LoanProductCategory} onChange={(e) => setForm((p) => ({ ...p, LoanProductCategory: e.target.value }))}>
                   {LOAN_PRODUCT_CATEGORY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
                 <p className="text-xs text-gray-400 mt-1">Immutable after creation — only loan cases in this category can be attached.</p>
               </FieldGroup>
-              <FieldGroup label="Reference">
+              <FieldGroup label="Reference" help="A recognizable reference for tracing this batch or entry, such as a document number or payment reference.">
                 <Input value={form.Reference} onChange={(e) => setForm((p) => ({ ...p, Reference: e.target.value }))} />
               </FieldGroup>
-              <FieldGroup label="Priority">
+              <FieldGroup label="Priority" help="The requested processing priority. Normal is suitable for routine batches; higher priority does not bypass verification or authorization.">
                 <select className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm" value={form.Priority} onChange={(e) => setForm((p) => ({ ...p, Priority: e.target.value }))}>
                   {PRIORITY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
@@ -309,9 +309,9 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
           {canManageEntries && (
             <form onSubmit={handleAddEntry} className="border-t pt-4 space-y-3">
               <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Add Entry</p>
-              <PickerField label="Audited Loan Case" value={entryForm.LoanCaseLabel} placeholder="Search eligible audited loan cases..." onClick={() => setLoanCasePickerOpen(true)} />
+              <PickerField label="Audited Loan Case" help="Choose a verified loan case that is eligible for disbursement. Review the borrower, approved amount and product before adding it." value={entryForm.LoanCaseLabel} placeholder="Search eligible audited loan cases..." onClick={() => setLoanCasePickerOpen(true)} />
               {entryForm.LoanCaseId && <div className="rounded-lg border border-indigo-100 bg-indigo-50 px-3 py-2 text-xs text-indigo-700">Selected case: <span className="font-semibold">{entryForm.LoanCaseLabel}</span></div>}
-              <FieldGroup label="Reference">
+              <FieldGroup label="Reference" help="A recognizable reference for tracing this batch or entry, such as a document number or payment reference.">
                 <Input value={entryForm.Reference} onChange={(e) => setEntryForm((p) => ({ ...p, Reference: e.target.value }))} />
               </FieldGroup>
               <Button type="submit" disabled={addingEntry} className="w-full bg-indigo-600 hover:bg-indigo-700 flex items-center gap-2">

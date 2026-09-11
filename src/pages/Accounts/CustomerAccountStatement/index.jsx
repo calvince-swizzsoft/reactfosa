@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -7,8 +7,9 @@ import {
 } from "@/components/ui/select";
 import Swal from "sweetalert2";
 import NotFoundImage from "/assets/scopefinding.png";
-import { FaFileInvoiceDollar, FaFilePdf, FaChevronLeft, FaChevronRight } from "react-icons/fa";
-import { apiFetch } from "@/lib/api";
+import { FaFileInvoiceDollar, FaFilePdf, FaChevronLeft, FaChevronRight, FaSearch } from "react-icons/fa";
+import { apiJson, normalizeList } from "@/lib/api";
+import CustomerLookupModal from "@/pages/Registry/Customers/Documents/CustomerLookupModal";
 import {
   JOURNAL_ENTRY_FILTER_OPTIONS,
   DEFAULT_JOURNAL_ENTRY_FILTER,
@@ -40,13 +41,20 @@ const lastMonthIso = () => {
 };
 
 export default function CustomerAccountStatement() {
-  const [customers, setCustomers] = useState([]);
-  const [loadingCustomers, setLoadingCustomers] = useState(false);
-  const [customerId, setCustomerId] = useState("");
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [customerPickerOpen, setCustomerPickerOpen] = useState(false);
+  const customerId = selectedCustomer?.Id ?? selectedCustomer?.id ?? "";
+  const selectedCustomerName = selectedCustomer
+    ? [selectedCustomer.IndividualFirstName, selectedCustomer.IndividualLastName].filter(Boolean).join(" ") || selectedCustomer.NonIndividualDescription || selectedCustomer.Description || "Selected customer"
+    : "";
+  const customerReference = selectedCustomer?.IndividualIdentityCardNumber || selectedCustomer?.NonIndividualRegistrationNumber || selectedCustomer?.SerialNumber;
 
   const [accounts, setAccounts] = useState([]);
   const [loadingAccounts, setLoadingAccounts] = useState(false);
   const [accountId, setAccountId] = useState("");
+  const [accountsError, setAccountsError] = useState("");
+  const [accountsRetry, setAccountsRetry] = useState(0);
+  const statementRequest = useRef(0);
 
   const [mode, setMode] = useState("mini");
   const [loadingLines, setLoadingLines] = useState(false);
@@ -68,57 +76,68 @@ export default function CustomerAccountStatement() {
   const [chargeForPrinting, setChargeForPrinting] = useState(false);
   const [includeInterestStatement, setIncludeInterestStatement] = useState(false);
 
-  const normalizeList = (d) => {
-    const payload = d?.data ?? d?.Data ?? d;
-    if (Array.isArray(payload)) return payload;
-    if (Array.isArray(payload?.PageCollection)) return payload.PageCollection;
-    if (Array.isArray(payload?.pageCollection)) return payload.pageCollection;
-    return [];
+  const handleCustomerChange = (customer) => {
+    statementRequest.current++;
+    setSelectedCustomer(customer);
+    setAccountId("");
+    setAccounts([]);
+    setAccountsError("");
+    setLoadingAccounts(true);
+    setLines([]);
+    setItemsCount(0);
+    setPageIndex(0);
+    setLoadingLines(false);
+    setPrintOpen(false);
+    setCustomerPickerOpen(false);
+    setAccountsRetry((retry) => retry + 1);
   };
 
   useEffect(() => {
-    setLoadingCustomers(true);
-    apiFetch(`${FIN_BASE}/api/registry/customers`)
-      .then((r) => r.json())
-      .then((d) => setCustomers(normalizeList(d)))
-      .catch(() => setCustomers([]))
-      .finally(() => setLoadingCustomers(false));
-  }, []);
-
-  const handleCustomerChange = (id) => {
-    setCustomerId(id);
-    setAccountId("");
-    setAccounts([]);
-    setLines([]);
-    if (!id) return;
+    if (!customerId) return;
+    let cancelled = false;
     setLoadingAccounts(true);
-    apiFetch(`${FIN_BASE}/api/accounts/customer-accounts/${id}/accounts`)
-      .then((r) => r.json())
-      .then((d) => setAccounts(normalizeList(d)))
-      .catch(() => setAccounts([]))
-      .finally(() => setLoadingAccounts(false));
+    setAccountsError("");
+    apiJson(`${FIN_BASE}/api/accounts/customer-accounts/${customerId}/accounts`)
+      .then((data) => { if (!cancelled) setAccounts(normalizeList(data?.data ?? data?.Data ?? data)); })
+      .catch((err) => { if (!cancelled) { setAccounts([]); setAccountsError(err.message || "Could not load this customer's accounts."); } })
+      .finally(() => { if (!cancelled) setLoadingAccounts(false); });
+    return () => { cancelled = true; };
+  }, [customerId, accountsRetry]);
+
+  useEffect(() => () => { statementRequest.current++; }, []);
+
+  const handleAccountChange = (id) => {
+    statementRequest.current++;
+    setAccountId(id);
+    setPageIndex(0);
+    setLines([]);
+    setItemsCount(0);
+    setPrintOpen(false);
   };
 
-  const fetchStatement = () => {
+  const fetchStatement = (requestedPage = pageIndex) => {
     if (!accountId) return;
+    const request = ++statementRequest.current;
     setLoadingLines(true);
     const call = mode === "mini"
       ? getMiniStatement(accountId, { lastXDays, lastXItems })
-      : getFullStatement(accountId, { startDate, endDate, pageIndex, pageSize, text, journalEntryFilter });
+      : getFullStatement(accountId, { startDate, endDate, pageIndex: requestedPage, pageSize, text, journalEntryFilter });
 
     call
       .then((page) => {
+        if (request !== statementRequest.current) return;
         // Server returns PascalCase (PageCollection/ItemsCount) — confirmed
         // against a real response, not the lowercase this used to assume.
         setLines(page?.PageCollection || page?.pageCollection || []);
         setItemsCount(page?.ItemsCount || page?.itemsCount || 0);
       })
       .catch((err) => {
+        if (request !== statementRequest.current) return;
         setLines([]);
         setItemsCount(0);
         Swal.fire("Error", err.message, "error");
       })
-      .finally(() => setLoadingLines(false));
+      .finally(() => { if (request === statementRequest.current) setLoadingLines(false); });
   };
 
   useEffect(() => {
@@ -129,7 +148,7 @@ export default function CustomerAccountStatement() {
 
   const handleSearch = () => {
     setPageIndex(0);
-    fetchStatement();
+    fetchStatement(0);
   };
 
   const handlePrint = async () => {
@@ -181,35 +200,29 @@ export default function CustomerAccountStatement() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         <FieldGroup label="Customer">
-          <Select value={customerId ? String(customerId) : ""} onValueChange={handleCustomerChange} disabled={loadingCustomers}>
-            <SelectTrigger><SelectValue placeholder={loadingCustomers ? "Loading..." : "Search & select customer"} /></SelectTrigger>
-            <SelectContent className="max-h-60 overflow-y-auto">
-              {customers.map((c) => {
-                const name = [c.IndividualFirstName, c.IndividualLastName]
-                  .filter(Boolean)
-                  .join(" ") || c.NonIndividualDescription || c.Description || `Customer ${c.Id}`;
-                return (
-                  <SelectItem key={String(c.Id)} value={String(c.Id)}>{name}</SelectItem>
-                );
-              })}
-            </SelectContent>
-          </Select>
+          <Button type="button" aria-label={selectedCustomer ? `Change customer: ${selectedCustomerName}` : "Search and select customer"} aria-haspopup="dialog" onClick={() => setCustomerPickerOpen(true)} className="w-full h-auto min-h-10 justify-start gap-2 border border-gray-300 bg-white px-3 py-2 text-left text-gray-700 hover:bg-indigo-50">
+            <FaSearch className="shrink-0 text-indigo-600" aria-hidden="true" />
+            <span className="min-w-0"><span className="block whitespace-normal break-words">{selectedCustomerName || "Search & select customer"}</span>{customerReference && <span className="block text-xs font-normal text-gray-500">{customerReference}</span>}</span>
+          </Button>
         </FieldGroup>
         <FieldGroup label="Account">
-          <Select value={accountId ? String(accountId) : ""} onValueChange={setAccountId} disabled={!customerId || loadingAccounts}>
+          <Select value={accountId ? String(accountId) : ""} onValueChange={handleAccountChange} disabled={!customerId || loadingAccounts || !!accountsError || !accounts.length}>
             <SelectTrigger>
               <SelectValue placeholder={loadingAccounts ? "Loading..." : !customerId ? "Select a customer first" : "Select account"} />
             </SelectTrigger>
             <SelectContent className="max-h-60 overflow-y-auto">
               {accounts.map((a) => (
                 <SelectItem key={String(a.Id)} value={String(a.Id)}>
-                  {a.CustomerAccountTypeTargetProductDescription || a.FullAccountNumber || a.Id}
+                  {[a.FullAccountNumber, a.CustomerAccountTypeTargetProductDescription].filter(Boolean).join(" — ") || a.Id}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
+          {accountsError ? <div role="alert" className="mt-2 text-sm text-red-600">{accountsError}<button type="button" className="ml-2 rounded underline focus:outline-none focus:ring-2 focus:ring-indigo-500" onClick={() => setAccountsRetry((retry) => retry + 1)}>Retry</button></div> : customerId && !loadingAccounts && !accounts.length && <p className="mt-2 text-sm text-gray-500">No accounts found for this customer.</p>}
         </FieldGroup>
       </div>
+
+      {customerPickerOpen && <CustomerLookupModal onSelect={handleCustomerChange} onClose={() => setCustomerPickerOpen(false)} />}
 
       {accountId && (
         <>
@@ -237,7 +250,7 @@ export default function CustomerAccountStatement() {
               <FieldGroup label="Last X Items">
                 <Input type="number" min="1" value={lastXItems} onChange={(e) => setLastXItems(Number(e.target.value))} className="w-32" />
               </FieldGroup>
-              <Button type="button" onClick={fetchStatement} className="bg-indigo-600 hover:bg-indigo-700">Refresh</Button>
+              <Button type="button" onClick={() => fetchStatement()} className="bg-indigo-600 hover:bg-indigo-700">Refresh</Button>
             </div>
           ) : (
             <div className="flex flex-wrap items-end gap-3 mb-4">

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import BatchFieldLabel from "../lib/BatchFieldLabel";
 import Swal from "sweetalert2";
 import { motion, AnimatePresence } from "framer-motion";
 import { FaPlus, FaChevronDown, FaTrash } from "react-icons/fa";
@@ -37,19 +37,19 @@ const PRIORITY_OPTIONS = [
 
 const sameUser = (left, right) => !!left && !!right && left.toLowerCase() === right.toLowerCase();
 
-function FieldGroup({ label, children }) {
+function FieldGroup({ label, help, children }) {
   return (
     <div>
-      <Label className="text-sm font-semibold text-gray-700">{label}</Label>
+      <BatchFieldLabel label={label} help={help} />
       {children}
     </div>
   );
 }
 
-function PickerField({ label, value, placeholder, onClick }) {
+function PickerField({ label, help, value, placeholder, onClick }) {
   return (
     <div>
-      <Label className="text-sm font-semibold text-gray-700 mb-1 block">{label}</Label>
+      <BatchFieldLabel label={label} help={help} />
       <button
         type="button"
         onClick={onClick}
@@ -108,21 +108,21 @@ function CreateWireTransferBatchDrawer({ open, onClose, onSuccess }) {
               <Button variant="outline" size="sm" onClick={onClose}>Close</Button>
             </div>
             <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
-              <PickerField label="Wire Transfer Type" value={form.WireTransferTypeLabel} placeholder="Select wire transfer type..." onClick={() => setPicker("wireTransferType")} />
-              <PickerField label="Branch" value={form.BranchLabel} placeholder="Select branch..." onClick={() => setPicker("branch")} />
-              <FieldGroup label="Wire Method">
+              <PickerField label="Wire Transfer Type" help="The configured transfer category, including the applicable posting accounts and charges." value={form.WireTransferTypeLabel} placeholder="Select wire transfer type..." onClick={() => setPicker("wireTransferType")} />
+              <PickerField label="Branch" help="The branch responsible for this batch. Check it before adding entries." value={form.BranchLabel} placeholder="Select branch..." onClick={() => setPicker("branch")} />
+              <FieldGroup label="Wire Method" help="The intended transfer method. Selecting a method does not itself confirm that a payment has been sent to the recipient.">
                 <select className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm" value={form.Type} onChange={(e) => setForm((p) => ({ ...p, Type: e.target.value }))}>
                   {WIRE_TYPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
                 <p className="text-xs text-gray-400 mt-1">Label only — no external gateway is called by this system regardless of method.</p>
               </FieldGroup>
-              <FieldGroup label="Reference">
+              <FieldGroup label="Reference" help="A recognizable reference for tracing this batch or entry, such as a document number or payment reference.">
                 <Input value={form.Reference} onChange={(e) => setForm((p) => ({ ...p, Reference: e.target.value }))} required />
               </FieldGroup>
-              <FieldGroup label="Total Value">
+              <FieldGroup label="Total Value" help="The control total for the batch. Reconcile the amounts entered against this total before sending it for approval.">
                 <Input type="number" min="0.01" step="0.01" value={form.TotalValue} onChange={(e) => setForm((p) => ({ ...p, TotalValue: e.target.value }))} required />
               </FieldGroup>
-              <FieldGroup label="Priority">
+              <FieldGroup label="Priority" help="The requested processing priority. Normal is suitable for routine batches; higher priority does not bypass verification or authorization.">
                 <select className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm" value={form.Priority} onChange={(e) => setForm((p) => ({ ...p, Priority: e.target.value }))}>
                   {PRIORITY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
@@ -304,17 +304,17 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
           {canManageEntries && (
             <form onSubmit={handleAddEntry} className="border-t pt-4 space-y-3">
               <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Add Entry</p>
-              <PickerField label="Customer Account" value={entryForm.CustomerLabel} placeholder="Pick an account holder..." onClick={() => setPicker(true)} />
-              <FieldGroup label="Amount">
+              <PickerField label="Customer Account" help="The customer account from which this transfer will be deducted." value={entryForm.CustomerLabel} placeholder="Pick an account holder..." onClick={() => setPicker(true)} />
+              <FieldGroup label="Amount" help="The amount assigned to this entry. Enter a positive value and check the selected account before saving.">
                 <Input type="number" min="0.01" step="0.01" max={Math.max(0, batch.TotalValue - entriesTotal)} value={entryForm.Amount} onChange={(e) => setEntryForm((p) => ({ ...p, Amount: e.target.value }))} required />
               </FieldGroup>
-              <FieldGroup label="Payee">
+              <FieldGroup label="Payee" help="The name of the person or organisation receiving the transfer.">
                 <Input required value={entryForm.Payee} onChange={(e) => setEntryForm((p) => ({ ...p, Payee: e.target.value }))} placeholder="Recipient name" />
               </FieldGroup>
-              <FieldGroup label="Payee Account Number">
+              <FieldGroup label="Payee Account Number" help="The recipient’s destination account number. Check it carefully against the payment instruction.">
                 <Input required value={entryForm.AccountNumber} onChange={(e) => setEntryForm((p) => ({ ...p, AccountNumber: e.target.value }))} />
               </FieldGroup>
-              <FieldGroup label="Reference">
+              <FieldGroup label="Reference" help="A recognizable reference for tracing this batch or entry, such as a document number or payment reference.">
                 <Input required value={entryForm.Reference} onChange={(e) => setEntryForm((p) => ({ ...p, Reference: e.target.value }))} />
               </FieldGroup>
               <Button type="submit" disabled={addingEntry} className="w-full bg-indigo-600 hover:bg-indigo-700 flex items-center gap-2">

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import BatchFieldLabel, { BatchFieldHelp } from "../lib/BatchFieldLabel";
 import Swal from "sweetalert2";
 import { motion, AnimatePresence } from "framer-motion";
 import { FaPlus, FaChevronDown, FaTrash } from "react-icons/fa";
@@ -36,19 +36,19 @@ const VOUCHER_TYPE_OPTIONS = [
   { value: 3, label: "Credit Customer Account" },
 ];
 
-function FieldGroup({ label, children }) {
+function FieldGroup({ label, help, children }) {
   return (
     <div>
-      <Label className="text-sm font-semibold text-gray-700">{label}</Label>
+      <BatchFieldLabel label={label} help={help} />
       {children}
     </div>
   );
 }
 
-function PickerField({ label, value, placeholder, onClick }) {
+function PickerField({ label, help, value, placeholder, onClick }) {
   return (
     <div>
-      <Label className="text-sm font-semibold text-gray-700 mb-1 block">{label}</Label>
+      <BatchFieldLabel label={label} help={help} />
       <button
         type="button"
         onClick={onClick}
@@ -117,35 +117,34 @@ function CreateVoucherBatchDrawer({ open, onClose, onSuccess }) {
               <Button variant="outline" size="sm" onClick={onClose}>Close</Button>
             </div>
             <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
-              <PickerField label="Branch" value={form.BranchLabel} placeholder="Select branch..." onClick={() => setPicker("branch")} />
-              <PickerField label="Posting Period" value={form.PostingPeriodLabel} placeholder="Select posting period..." onClick={() => setPicker("postingPeriod")} />
-              <FieldGroup label="Type">
+              <PickerField label="Branch" help="The branch that owns the voucher and its journal posting." value={form.BranchLabel} placeholder="Select branch..." onClick={() => setPicker("branch")} />
+              <PickerField label="Posting Period" help="The accounting period in which these transactions will be recorded. Choose the period that includes the value date." value={form.PostingPeriodLabel} placeholder="Select posting period..." onClick={() => setPicker("postingPeriod")} />
+              <FieldGroup label="Type" help="Choose whether the main account is debited or credited, and whether it is a G/L or customer account. All balancing entries take the opposite direction. For example, Debit G/L with Equity as the main account debits Equity and credits the entry accounts.">
                 <select className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm" value={form.Type} onChange={(e) => setForm((p) => ({ ...p, Type: e.target.value, ChartOfAccountId: "", ChartOfAccountLabel: "", CustomerAccountId: "", CustomerLabel: "" }))}>
                   {VOUCHER_TYPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
-                <p className="text-xs text-gray-400 mt-1">Governs this account AND every entry's account at once — there's no independent per-entry direction.</p>
               </FieldGroup>
               {Number(form.Type) < 2 ? (
-                <PickerField label="G/L Account" value={form.ChartOfAccountLabel} placeholder="Search & select G/L account..." onClick={() => setPicker("coa")} />
+                <PickerField label="G/L Account" help="The main account on one side of the voucher. The selected Type determines whether it is debited or credited." value={form.ChartOfAccountLabel} placeholder="Search & select G/L account..." onClick={() => setPicker("coa")} />
               ) : (
-                <PickerField label="Customer Account" value={form.CustomerLabel} placeholder="Search & select customer account..." onClick={() => setPicker("customer")} />
+                <PickerField label="Customer Account" help="The main customer account to debit or credit. Its product supplies the related G/L account." value={form.CustomerLabel} placeholder="Search & select customer account..." onClick={() => setPicker("customer")} />
               )}
-              <FieldGroup label="Value Date">
+              <FieldGroup label="Value Date" help="The effective accounting date of the transaction. It must fall within the applicable posting period.">
                 <Input type="date" value={form.ValueDate} onChange={(e) => setForm((p) => ({ ...p, ValueDate: e.target.value }))} required />
               </FieldGroup>
-              <FieldGroup label="Principal">
+              <FieldGroup label="Principal" help="The total amount for the main account. All entry amounts must add up to exactly this value before the voucher can post. For a 1,000 voucher, entries of 600 and 400 balance.">
                 <Input type="number" min="0" value={form.TotalValue} onChange={(e) => setForm((p) => ({ ...p, TotalValue: e.target.value }))} required />
               </FieldGroup>
-              <FieldGroup label="Primary Description">
+              <FieldGroup label="Primary Description" help="The main narration shared by every posted line of this voucher. Use a clear purpose, such as Commission receipt.">
                 <Input value={form.PrimaryDescription} onChange={(e) => setForm((p) => ({ ...p, PrimaryDescription: e.target.value }))} />
               </FieldGroup>
-              <FieldGroup label="Secondary Description">
+              <FieldGroup label="Secondary Description" help="Additional narration shared by every posted line. Use supporting detail here instead of repeating the primary description.">
                 <Input value={form.SecondaryDescription} onChange={(e) => setForm((p) => ({ ...p, SecondaryDescription: e.target.value }))} />
               </FieldGroup>
-              <FieldGroup label="Reference">
+              <FieldGroup label="Reference" help="Your document or transaction reference. The system appends the journal voucher number, for example JV#000003, to the posted reference.">
                 <Input value={form.Reference} onChange={(e) => setForm((p) => ({ ...p, Reference: e.target.value }))} required />
               </FieldGroup>
-              <FieldGroup label="Remarks">
+              <FieldGroup label="Remarks" help="Explain why this batch or entry is needed so the verifier and authorizer can review it.">
                 <Input value={form.Remarks} onChange={(e) => setForm((p) => ({ ...p, Remarks: e.target.value }))} required />
               </FieldGroup>
             </form>
@@ -271,12 +270,12 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
 
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
           <div className="grid grid-cols-2 gap-3 text-sm">
-            <div><span className="text-gray-400">Direction</span><p className="font-semibold text-gray-800">{batch.TypeDescription}</p></div>
-            <div><span className="text-gray-400">Status</span><p><BatchStatusBadge status={batch.Status} /></p></div>
-            <div><span className="text-gray-400">G/L Account</span><p className="font-semibold text-gray-800 truncate">{batch.ChartOfAccountName}</p></div>
-            <div><span className="text-gray-400">Total Value</span><p className="font-semibold text-indigo-600">{batch.TotalValue?.toLocaleString()}</p></div>
+            <div><span className="inline-flex items-center gap-1 text-gray-400">Direction<BatchFieldHelp label="Direction">The selected debit or credit direction for the main account. Balancing entry accounts take the opposite direction.</BatchFieldHelp></span><p className="font-semibold text-gray-800">{batch.TypeDescription}</p></div>
+            <div><span className="inline-flex items-center gap-1 text-gray-400">Status<BatchFieldHelp label="Status">Pending vouchers await review. Verified vouchers proceed to authorization, which posts the voucher when its entries balance.</BatchFieldHelp></span><p><BatchStatusBadge status={batch.Status} /></p></div>
+            <div><span className="inline-flex items-center gap-1 text-gray-400">G/L Account<BatchFieldHelp label="G/L Account">The main ledger account for the voucher. For a customer voucher, this is the ledger linked to the customer product.</BatchFieldHelp></span><p className="font-semibold text-gray-800 truncate">{batch.ChartOfAccountName}</p></div>
+            <div><span className="inline-flex items-center gap-1 text-gray-400">Total Value<BatchFieldHelp label="Total Value">The voucher principal. The sum of all balancing entries must equal this amount before posting.</BatchFieldHelp></span><p className="font-semibold text-indigo-600">{batch.TotalValue?.toLocaleString()}</p></div>
             <div><span className="text-gray-400">Created By</span><p className="font-semibold text-gray-800">{batch.CreatedBy}</p></div>
-            <div><span className="text-gray-400">Entries Total</span><p className="font-semibold text-gray-800">{entriesTotal.toLocaleString()}</p></div>
+            <div><span className="inline-flex items-center gap-1 text-gray-400">Entries Total<BatchFieldHelp label="Entries Total">The sum of the entry amounts currently displayed. Compare it with Total Value to check whether the voucher balances.</BatchFieldHelp></span><p className="font-semibold text-gray-800">{entriesTotal.toLocaleString()}</p></div>
           </div>
 
           {!isBalanced && (
@@ -327,31 +326,31 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
           {canManageEntries && (
             <form onSubmit={handleAddEntry} className="border-t pt-4 space-y-3">
               <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Add Entry</p>
-              <FieldGroup label="Account Type">
+              <FieldGroup label="Account Type" help="Choose a G/L account or a customer account for this balancing entry. This choice selects the account category; debit or credit direction comes from the voucher Type.">
                 <select className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm" value={entryForm.AccountKind} onChange={(e) => setEntryForm((p) => ({ ...p, AccountKind: e.target.value, ChartOfAccountId: "", ChartOfAccountLabel: "", CustomerAccountId: "", CustomerLabel: "" }))}>
                   <option value="gl">G/L Account</option>
                   <option value="customer">Customer Account</option>
                 </select>
               </FieldGroup>
               {entryForm.AccountKind === "gl" ? (
-                <PickerField label="G/L Account" value={entryForm.ChartOfAccountLabel} placeholder="Search & select G/L account..." onClick={() => setPicker("coa")} />
+                <PickerField label="G/L Account" help="A balancing account on the opposite side of the main account. For Debit G/L vouchers this account is credited; for Credit G/L vouchers it is debited." value={entryForm.ChartOfAccountLabel} placeholder="Search & select G/L account..." onClick={() => setPicker("coa")} />
               ) : (
-                <PickerField label="Customer Account" value={entryForm.CustomerLabel} placeholder="Search & select customer account..." onClick={() => setPicker("customer")} />
+                <PickerField label="Customer Account" help="The customer account for this balancing entry. It takes the opposite debit or credit direction to the main account." value={entryForm.CustomerLabel} placeholder="Search & select customer account..." onClick={() => setPicker("customer")} />
               )}
-              <PickerField label="Branch" value={entryForm.BranchLabel} placeholder="Select account branch..." onClick={() => setPicker("entryBranch")} />
-              <FieldGroup label="Principal">
+              <PickerField label="Branch" help="The branch associated with this entry. Check it against the selected account." value={entryForm.BranchLabel} placeholder="Select account branch..." onClick={() => setPicker("entryBranch")} />
+              <FieldGroup label="Principal" help="The amount allocated to this balancing account. Use a positive amount; the voucher Type controls its direction. All entries together must equal the voucher principal.">
                 <Input type="number" min="0" value={entryForm.Amount} onChange={(e) => setEntryForm((p) => ({ ...p, Amount: e.target.value }))} />
               </FieldGroup>
-              <FieldGroup label="Primary Description">
+              <FieldGroup label="Primary Description" help="A description stored with this voucher entry. Posted transaction lines currently use the voucher header descriptions, so put the narration you need on statements in the header.">
                 <Input value={entryForm.PrimaryDescription} onChange={(e) => setEntryForm((p) => ({ ...p, PrimaryDescription: e.target.value }))} />
               </FieldGroup>
-              <FieldGroup label="Secondary Description">
+              <FieldGroup label="Secondary Description" help="Additional detail stored with this entry. Posted transaction lines currently use the voucher header secondary description.">
                 <Input value={entryForm.SecondaryDescription} onChange={(e) => setEntryForm((p) => ({ ...p, SecondaryDescription: e.target.value }))} />
               </FieldGroup>
-              <FieldGroup label="Reference">
+              <FieldGroup label="Reference" help="A reference stored with this entry. Posted transaction lines use the voucher header reference together with the voucher number.">
                 <Input value={entryForm.Reference} onChange={(e) => setEntryForm((p) => ({ ...p, Reference: e.target.value }))} required />
               </FieldGroup>
-              <FieldGroup label="Remarks">
+              <FieldGroup label="Remarks" help="Explain why this batch or entry is needed so the verifier and authorizer can review it.">
                 <Input value={entryForm.Remarks} onChange={(e) => setEntryForm((p) => ({ ...p, Remarks: e.target.value }))} required />
               </FieldGroup>
               <Button type="submit" disabled={addingEntry} className="w-full bg-indigo-600 hover:bg-indigo-700 flex items-center gap-2">
@@ -427,10 +426,10 @@ export default function VoucherBatchPanel({ stage }) {
       )}
 
       <div className="mb-4 flex flex-wrap items-end gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
-        <FieldGroup label="Start Date">
+        <FieldGroup label="Start Date" help="The first date to include when searching for vouchers.">
           <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
         </FieldGroup>
-        <FieldGroup label="End Date">
+        <FieldGroup label="End Date" help="The last date to include when searching for vouchers. Choose a date on or after the start date.">
           <Input type="date" min={startDate} value={endDate} onChange={(e) => setEndDate(e.target.value)} />
         </FieldGroup>
         <Button type="button" onClick={fetchList} disabled={loading} className="bg-indigo-600 hover:bg-indigo-700">

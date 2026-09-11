@@ -1,4 +1,5 @@
 import { ApiError, apiErrorFromResponse, apiFetch, apiJson, normalizeList } from "@/lib/api";
+import { customerLookupPage } from "./customerLookupPage";
 
 // Client for WebApplication1's CustomerDocumentController
 // (Areas/Registry/Controllers/CustomerDocumentController.cs). Browse/Create/
@@ -34,11 +35,7 @@ export async function listDocuments({ text = "", pageIndex = 0, pageSize = 20 } 
 export async function searchCustomers({ text = "", customerFilter = 2, pageIndex = 0, pageSize = 20 } = {}) {
   const params = new URLSearchParams({ pageIndex: String(pageIndex), pageSize: String(pageSize), text, customerFilter: String(customerFilter) });
   const body = await apiJson(`${CUSTOMERS_BASE}?${params.toString()}`);
-  const page = body?.data ?? body?.Data ?? body;
-  return {
-    items: normalizeList(page?.PageCollection ?? page?.pageCollection ?? page),
-    totalPages: Math.max(1, Number(page?.TotalPages ?? page?.totalPages ?? 1)),
-  };
+  return customerLookupPage(body, pageSize);
 }
 
 /**

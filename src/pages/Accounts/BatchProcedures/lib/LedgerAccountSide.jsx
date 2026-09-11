@@ -1,10 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
+import BatchFieldLabel, { BatchFieldHelp } from "./BatchFieldLabel";
 import { Button } from "@/components/ui/button";
 import EntryPickerModal from "./EntryPickerModal";
 import TransferAccountLookup from "./TransferAccountLookup";
 import { getTransferAccountBalances } from "../types/interAccountTransferApi";
 
 export default function LedgerAccountSide({ label, onChange, disabled, initialValue }) {
+  const fieldId = useId();
   const [kind, setKind] = useState(initialValue?.customerAccountId ? "customer" : "gl");
   const [picker, setPicker] = useState(false);
   const [account, setAccount] = useState(null);
@@ -36,18 +38,20 @@ export default function LedgerAccountSide({ label, onChange, disabled, initialVa
     onChange({ ledgerId, ledgerLabel: name, customerAccountId: item.Id, customerLabel: [item.CustomerFullName, item.FullAccountNumber].filter(Boolean).join(" — ") });
   };
   return <section className="border rounded-lg p-3 space-y-3">
-    <h3 className="text-sm font-semibold text-gray-700">{label}</h3>
-    <label className="block text-sm text-gray-700">Account type
-      <select className="w-full border border-gray-300 rounded-md p-2 bg-white" value={kind} disabled={disabled || loading} onChange={(e) => { setKind(e.target.value); setAccount(null); setLedgerLabel(""); setPart("principal"); setError(""); onChange(null); }}>
+    <div className="flex items-center gap-1.5"><h3 className="text-sm font-semibold text-gray-700">{label}</h3><BatchFieldHelp label={`${label} account`}>Choose the account for this side of the entry. The same amount is posted as a debit to the Debit account and as a credit to the Credit account.</BatchFieldHelp></div>
+    <div>
+      <BatchFieldLabel label="Account type" htmlFor={`${fieldId}-kind`} help="Choose a G/L account for a ledger-only entry, or a customer account to include the customer’s account balance in this posting." />
+      <select id={`${fieldId}-kind`} className="w-full border border-gray-300 rounded-md p-2 bg-white" value={kind} disabled={disabled || loading} onChange={(e) => { setKind(e.target.value); setAccount(null); setLedgerLabel(""); setPart("principal"); setError(""); onChange(null); }}>
         <option value="gl">G/L Account</option><option value="customer">Customer Account</option>
       </select>
-    </label>
+    </div>
     <Button type="button" variant="outline" disabled={disabled || loading} onClick={() => setPicker(true)} className="w-full justify-start whitespace-normal text-left h-auto py-2">
       {loading ? "Loading account..." : account ? [account.CustomerFullName, account.FullAccountNumber, account.CustomerAccountTypeTargetProductDescription].filter(Boolean).join(" — ") : ledgerLabel || `Select ${kind === "gl" ? "G/L" : "customer"} account`}
     </Button>
-    {account && Number(account.CustomerAccountTypeProductCode) === 2 && <label className="block text-sm text-gray-700">Loan component
-      <select className="w-full border border-gray-300 rounded-md p-2 bg-white" value={part} disabled={disabled || loading} onChange={(e) => { setPart(e.target.value); applyAccount(account, e.target.value); }}><option value="principal">Principal</option><option value="interest">Interest</option></select>
-    </label>}
+    {account && Number(account.CustomerAccountTypeProductCode) === 2 && <div>
+      <BatchFieldLabel label="Loan component" htmlFor={`${fieldId}-part`} help="Choose whether this posting affects loan principal or interest receivable. The selection determines which of the loan product’s ledgers is used." />
+      <select id={`${fieldId}-part`} className="w-full border border-gray-300 rounded-md p-2 bg-white" value={part} disabled={disabled || loading} onChange={(e) => { setPart(e.target.value); applyAccount(account, e.target.value); }}><option value="principal">Principal</option><option value="interest">Interest</option></select>
+    </div>}
     {account && ledgerLabel && <p className="text-xs text-gray-500">Ledger: {ledgerLabel}</p>}
     {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
     {picker && kind === "gl" && <EntryPickerModal title={`Select ${label} G/L Account`} fetchUrl={`${import.meta.env.VITE_APP_FIN_URL}/api/accounts/chartofaccounts?pageSize=100`} getLabel={(item) => `${item.AccountCode} — ${item.AccountName}`} onClose={() => setPicker(false)} onSelect={(item) => { const name = `${item.AccountCode} — ${item.AccountName}`; setLedgerLabel(name); onChange({ ledgerId: item.Id, ledgerLabel: name, customerAccountId: null, customerLabel: "" }); }} />}

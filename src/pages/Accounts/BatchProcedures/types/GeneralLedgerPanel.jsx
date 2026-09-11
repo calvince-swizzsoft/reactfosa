@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import BatchFieldLabel from "../lib/BatchFieldLabel";
 import Swal from "sweetalert2";
 import { motion, AnimatePresence } from "framer-motion";
 import { FaPlus, FaChevronDown, FaTrash, FaEdit } from "react-icons/fa";
@@ -24,19 +24,19 @@ import { ledgerEntryPayload, ledgerBalance } from "../lib/generalLedgerEntry";
 const FIN_BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 const MODULE_NAVIGATION_ITEM_CODE = { origination: 23069, verification: 23079, authorization: 23089 };
 
-function FieldGroup({ label, children }) {
+function FieldGroup({ label, help, children }) {
   return (
     <div>
-      <Label className="text-sm font-semibold text-gray-700">{label}</Label>
+      <BatchFieldLabel label={label} help={help} />
       {children}
     </div>
   );
 }
 
-function PickerField({ label, value, placeholder, onClick }) {
+function PickerField({ label, help, value, placeholder, onClick }) {
   return (
     <div>
-      <Label className="text-sm font-semibold text-gray-700 mb-1 block">{label}</Label>
+      <BatchFieldLabel label={label} help={help} />
       <button
         type="button"
         onClick={onClick}
@@ -94,12 +94,12 @@ function CreateGeneralLedgerDrawer({ open, onClose, onSuccess }) {
             </div>
             <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
 
-              <PickerField label="Branch" value={form.BranchLabel} placeholder="Select branch..." onClick={() => setPicker("branch")} />
-              <PickerField label="Posting Period" value={form.PostingPeriodLabel} placeholder="Select posting period..." onClick={() => setPicker("postingPeriod")} />
-              <FieldGroup label="Total Value">
+              <PickerField label="Branch" help="The branch responsible for this batch. Check it before adding entries." value={form.BranchLabel} placeholder="Select branch..." onClick={() => setPicker("branch")} />
+              <PickerField label="Posting Period" help="The accounting period in which these transactions will be recorded. Choose the period that includes the value date." value={form.PostingPeriodLabel} placeholder="Select posting period..." onClick={() => setPicker("postingPeriod")} />
+              <FieldGroup label="Total Value" help="The total of all entry amounts in this batch, counted once per debit/credit pair. Entries must match this control total before posting.">
                 <Input type="number" min="0.01" step="0.01" value={form.TotalValue} onChange={(e) => setForm((p) => ({ ...p, TotalValue: e.target.value }))} required />
               </FieldGroup>
-              <FieldGroup label="Remarks">
+              <FieldGroup label="Remarks" help="Explain why this batch or entry is needed so the verifier and authorizer can review it.">
                 <Input value={form.Remarks} onChange={(e) => setForm((p) => ({ ...p, Remarks: e.target.value }))} required />
               </FieldGroup>
             </form>
@@ -312,18 +312,18 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
                 <LedgerAccountSide key={"debit-" + editorVersion} label="Debit" initialValue={editingEntry ? { ledgerId: editingEntry.ContraChartOfAccountId, ledgerLabel: editingEntry.ContraChartOfAccountName, customerAccountId: editingEntry.ContraCustomerAccountId } : null} disabled={addingEntry} onChange={(value) => setEntryForm((old) => ({ ...old, ContraChartOfAccountId: value?.ledgerId || "", ContraChartOfAccountLabel: value?.ledgerLabel || "", ContraCustomerAccountId: value?.customerAccountId || "", ContraCustomerLabel: value?.customerLabel || "" }))} />
                 <LedgerAccountSide key={"credit-" + editorVersion} label="Credit" initialValue={editingEntry ? { ledgerId: editingEntry.ChartOfAccountId, ledgerLabel: editingEntry.ChartOfAccountName, customerAccountId: editingEntry.CustomerAccountId } : null} disabled={addingEntry} onChange={(value) => setEntryForm((old) => ({ ...old, ChartOfAccountId: value?.ledgerId || "", ChartOfAccountLabel: value?.ledgerLabel || "", CustomerAccountId: value?.customerAccountId || "", CustomerLabel: value?.customerLabel || "" }))} />
               </div>
-              <FieldGroup label="Value Date"><Input type="date" value={entryForm.ValueDate} onChange={(event) => setEntryForm((old) => ({ ...old, ValueDate: event.target.value }))} required /></FieldGroup>
-              <FieldGroup label="Amount">
+              <FieldGroup label="Value Date" help="The effective accounting date of the transaction. It must fall within the applicable posting period."><Input type="date" value={entryForm.ValueDate} onChange={(event) => setEntryForm((old) => ({ ...old, ValueDate: event.target.value }))} required /></FieldGroup>
+              <FieldGroup label="Amount" help="The amount posted equally to this entry’s debit and credit accounts. For 1,000, the debit is 1,000 and the credit is 1,000; the batch total increases by 1,000.">
                 <Input type="number" step="0.01" value={entryForm.Amount} onChange={(e) => setEntryForm((p) => ({ ...p, Amount: e.target.value }))} />
               </FieldGroup>
               {entryForm.Amount && draftBalance && <p aria-live="polite" className={`text-sm ${draftBalance.exceeds ? "text-red-600" : "text-gray-600"}`}>Total after {editingEntry ? "saving" : "adding"}: {draftBalance.total.toLocaleString()} · {draftBalance.exceeds ? "Over by" : "Remaining"}: {Math.abs(draftBalance.difference).toLocaleString()}</p>}
-              <FieldGroup label="Primary Description">
+              <FieldGroup label="Primary Description" help="The main narration describing the purpose of the transaction.">
                 <Input value={entryForm.PrimaryDescription} onChange={(e) => setEntryForm((p) => ({ ...p, PrimaryDescription: e.target.value }))} required />
               </FieldGroup>
-              <FieldGroup label="Secondary Description">
+              <FieldGroup label="Secondary Description" help="Additional narration to help identify or explain the transaction.">
                 <Input value={entryForm.SecondaryDescription} onChange={(e) => setEntryForm((p) => ({ ...p, SecondaryDescription: e.target.value }))} required />
               </FieldGroup>
-              <FieldGroup label="Reference">
+              <FieldGroup label="Reference" help="A recognizable reference for tracing this batch or entry, such as a document number or payment reference.">
                 <Input value={entryForm.Reference} onChange={(e) => setEntryForm((p) => ({ ...p, Reference: e.target.value }))} required />
               </FieldGroup>
 

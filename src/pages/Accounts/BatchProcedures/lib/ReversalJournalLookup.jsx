@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import BatchFieldLabel from "./BatchFieldLabel";
+import { useEffect, useId, useState } from "react";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +11,7 @@ const localDate = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1)
 const fieldClass = "w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-white";
 
 export default function ReversalJournalLookup({ batch, onClose, onAdded }) {
+  const fieldId = useId();
   const [options, setOptions] = useState(null);
   const [filters, setFilters] = useState(() => {
     const now = new Date();
@@ -88,20 +90,20 @@ export default function ReversalJournalLookup({ batch, onClose, onAdded }) {
       <div className="flex-1 overflow-y-auto space-y-4">
         {optionError ? <div role="alert" className="text-red-600 text-sm">{optionError} <Button variant="outline" onClick={() => setRetry((n) => n + 1)}>Retry</Button></div> :
           <form onSubmit={search} className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <label className="text-sm font-semibold text-gray-700">Transaction type
-              <select className={fieldClass} value={filters.systemTransactionCode} onChange={(e) => update("systemTransactionCode", e.target.value)} required disabled={!options || saving}>
+            <div><BatchFieldLabel label="Transaction type" htmlFor={fieldId + "-type"} help="Choose the category of original transactions to find. Only eligible journals can be added for reversal." />
+              <select id={fieldId + "-type"} className={fieldClass} value={filters.systemTransactionCode} onChange={(e) => update("systemTransactionCode", e.target.value)} required disabled={!options || saving}>
                 <option value="">{options ? "Select transaction type" : "Loading transaction types..."}</option>
                 {options?.TransactionTypes?.map((item) => <option key={item.Value} value={item.Value}>{item.Label}</option>)}
               </select>
-            </label>
-            <label className="text-sm font-semibold text-gray-700">From transaction date<Input type="date" value={filters.startDate} onChange={(e) => update("startDate", e.target.value)} required /></label>
-            <label className="text-sm font-semibold text-gray-700">To transaction date<Input type="date" value={filters.endDate} onChange={(e) => update("endDate", e.target.value)} min={filters.startDate} required /></label>
-            <label className="text-sm font-semibold text-gray-700">Search by
-              <select className={fieldClass} value={filters.journalFilter} onChange={(e) => update("journalFilter", e.target.value)}>
+            </div>
+            <div><BatchFieldLabel label="From transaction date" htmlFor={fieldId + "-from"} help="The earliest original transaction date to include in the search." /><Input id={fieldId + "-from"} type="date" value={filters.startDate} onChange={(e) => update("startDate", e.target.value)} required /></div>
+            <div><BatchFieldLabel label="To transaction date" htmlFor={fieldId + "-to"} help="The latest original transaction date to include. It must be on or after the start date." /><Input id={fieldId + "-to"} type="date" value={filters.endDate} onChange={(e) => update("endDate", e.target.value)} min={filters.startDate} required /></div>
+            <div><BatchFieldLabel label="Search by" htmlFor={fieldId + "-search-by"} help="Choose which transaction field your search text should match, such as reference or description." />
+              <select id={fieldId + "-search-by"} className={fieldClass} value={filters.journalFilter} onChange={(e) => update("journalFilter", e.target.value)}>
                 {options?.SearchFields?.map((item) => <option key={item.Value} value={item.Value}>{item.Label}</option>)}
               </select>
-            </label>
-            <label className="text-sm font-semibold text-gray-700">Search text<Input value={filters.text} onChange={(e) => update("text", e.target.value)} placeholder="Enter search text" /></label>
+            </div>
+            <div><BatchFieldLabel label="Search text" htmlFor={fieldId + "-search-text"} help="Enter the text to match in the selected search field. Leave it blank to search by type and dates only." /><Input id={fieldId + "-search-text"} value={filters.text} onChange={(e) => update("text", e.target.value)} placeholder="Enter search text" /></div>
             <Button type="submit" disabled={!options || loading || saving} className="self-end bg-indigo-600 hover:bg-indigo-700">{loading ? "Searching..." : "Refresh transactions"}</Button>
           </form>}
         {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
@@ -117,14 +119,14 @@ export default function ReversalJournalLookup({ batch, onClose, onAdded }) {
                 <span className="col-span-3 text-gray-700">{new Date(row.CreatedDate).toLocaleString()}<span className="block text-xs text-gray-500">{row.BranchDescription}</span></span>
                 <span className="col-span-5 text-gray-800 break-words">{row.PrimaryDescription || row.TransactionCodeDescription}<span className="block text-xs text-gray-500">{row.Reference || "No reference"} · {row.SecondaryDescription}</span><span className="block text-xs text-gray-500">{row.ApplicationUserName}</span></span>
                 <span className="col-span-3 text-right font-semibold text-gray-700">{money(row.TotalValue)}</span>
-              </label>)}</div> : <div className="text-center py-6"><img src={NotFoundImage} alt="" className="mx-auto w-32" /><p className="text-sm text-gray-500 mt-2">{query ? "No eligible transactions found. Check the type and dates; locked transactions and your own postings are excluded." : "Choose a transaction type and dates, then refresh."}</p></div>}
+              </label>)}</div> : <div className="text-center py-6"><img src={NotFoundImage} alt="" className="mx-auto w-32" /><p className="text-sm text-gray-500 mt-2">{query ? "No eligible transactions found. Check the type and dates; locked transactions are excluded." : "Choose a transaction type and dates, then refresh."}</p></div>}
           </div>
         </div>
         {query && <div className="text-center space-y-2"><div className="flex justify-center items-center gap-3"><Button disabled={loading || saving || query.pageIndex === 0} onClick={() => setQuery((old) => ({ ...old, pageIndex: old.pageIndex - 1 }))}>Prev</Button><span className="text-sm">Page {query.pageIndex + 1} of {Math.max(1, Math.ceil(count / 20))}</span><Button disabled={loading || saving || (query.pageIndex + 1) * 20 >= count} onClick={() => setQuery((old) => ({ ...old, pageIndex: old.pageIndex + 1 }))}>Next</Button></div><p className="text-xs text-gray-500">{count} matching transactions</p></div>}
         {chosen.length > 0 && <div className="border rounded-lg p-3 space-y-2"><p className="font-semibold text-sm text-gray-700">Selected transactions ({chosen.length})</p>{chosen.map((row) => <div key={row.Id} className="flex justify-between gap-3 text-sm"><span>{row.Reference || row.PrimaryDescription} · {money(row.TotalValue)}</span><button type="button" disabled={saving} onClick={() => toggle(row)} className="text-red-600">Remove</button></div>)}</div>}
       </div>
       <div className="shrink-0 border-t pt-3 space-y-3">
-        <label className="block text-sm font-semibold text-gray-700">Reversal remarks<Input value={remarks} onChange={(e) => setRemarks(e.target.value)} disabled={saving} required /></label>
+        <div><BatchFieldLabel label="Reversal remarks" htmlFor={fieldId + "-remarks"} help="Explain why the selected journals should be reversed. These remarks are saved with the reversal entries for review." /><Input id={fieldId + "-remarks"} value={remarks} onChange={(e) => setRemarks(e.target.value)} disabled={saving} required /></div>
         <div className="flex justify-between gap-3 items-center"><span className="text-sm text-gray-600">{chosen.length} selected · {money(chosen.reduce((sum, row) => sum + Number(row.TotalValue || 0), 0))}</span><Button onClick={add} disabled={saving || !chosen.length || !remarks.trim()} className="bg-indigo-600 hover:bg-indigo-700">{saving ? "Adding..." : "Add selected to batch"}</Button></div>
       </div>
     </DialogContent>

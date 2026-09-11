@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
+import BatchFieldLabel from "./BatchFieldLabel";
 import { FaTimes } from "react-icons/fa";
 
 // Shared Audit/Authorize remarks modal — request shape { option: 1|2, remarks,
@@ -10,6 +10,7 @@ import { FaTimes } from "react-icons/fa";
 export default function BatchAuditModal({ open, title, postLabel = "Post", onSubmit, onClose, postDisabled = false, postDisabledReason = "" }) {
   const [remarks, setRemarks] = useState("");
   const [loading, setLoading] = useState(false);
+  const remarksId = useId();
 
   if (!open) return null;
 
@@ -34,8 +35,9 @@ export default function BatchAuditModal({ open, title, postLabel = "Post", onSub
         </div>
         <div className="p-5 space-y-4">
           <div>
-            <Label className="text-sm font-semibold text-gray-700">Remarks</Label>
+            <BatchFieldLabel label="Remarks" htmlFor={remarksId} help="Record the reason for your verification, authorization or rejection. These remarks help explain the decision in the batch’s review history." />
             <textarea
+              id={remarksId}
               className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm mt-1"
               rows={3}
               value={remarks}

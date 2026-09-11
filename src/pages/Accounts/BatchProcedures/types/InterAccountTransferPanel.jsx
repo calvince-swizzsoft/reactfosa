@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import BatchFieldLabel from "../lib/BatchFieldLabel";
 import Swal from "sweetalert2";
 import { motion, AnimatePresence } from "framer-motion";
 import { FaPlus, FaChevronDown, FaTrash } from "react-icons/fa";
@@ -28,19 +28,19 @@ import { validateTransferEntry } from "../lib/transferValidation";
 const FIN_BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 const MODULE_NAVIGATION_ITEM_CODE = { origination: 23069, verification: 23079, authorization: 23089 };
 
-function FieldGroup({ label, children }) {
+function FieldGroup({ label, help, children }) {
   return (
     <div>
-      <Label className="text-sm font-semibold text-gray-700">{label}</Label>
+      <BatchFieldLabel label={label} help={help} />
       {children}
     </div>
   );
 }
 
-function PickerField({ label, value, placeholder, onClick }) {
+function PickerField({ label, help, value, placeholder, onClick }) {
   return (
     <div>
-      <Label className="text-sm font-semibold text-gray-700 mb-1 block">{label}</Label>
+      <BatchFieldLabel label={label} help={help} />
       <button
         type="button"
         onClick={onClick}
@@ -98,10 +98,10 @@ function CreateInterAccountTransferDrawer({ open, onClose, onSuccess }) {
               <Button variant="outline" size="sm" onClick={onClose}>Close</Button>
             </div>
             <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
-              <PickerField label="Branch" value={form.BranchLabel} placeholder="Select branch..." onClick={() => setPicker("branch")} />
-              <PickerField label="Source Customer Account" value={form.CustomerLabel} placeholder="Pick the account to transfer out of..." onClick={() => setPicker("customer")} />
+              <PickerField label="Branch" help="The branch responsible for this batch. Check it before adding entries." value={form.BranchLabel} placeholder="Select branch..." onClick={() => setPicker("branch")} />
+              <PickerField label="Source Customer Account" help="The account from which the transfers and applicable charges will be deducted. Check the available balance before approval." value={form.CustomerLabel} placeholder="Pick the account to transfer out of..." onClick={() => setPicker("customer")} />
               <TransferBalances account={sourceAccount} />
-              <FieldGroup label="Reference">
+              <FieldGroup label="Reference" help="A recognizable reference for tracing this batch or entry, such as a document number or payment reference.">
                 <Input value={form.Reference} onChange={(e) => setForm((p) => ({ ...p, Reference: e.target.value }))} />
               </FieldGroup>
             </form>
@@ -333,7 +333,7 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
           {canManageEntries && (
             <form id="transfer-entry-form" onSubmit={handleAddEntry} className="border-t pt-4 space-y-3">
               <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Add Entry</p>
-              <FieldGroup label="Apportion To">
+              <FieldGroup label="Apportion To" help="Choose the destination category for this allocation. It determines which account picker is shown and whether principal and interest apply.">
                 <select
                   className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
                   value={entryForm.ApportionTo}
@@ -344,26 +344,26 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
                 </select>
               </FieldGroup>
               {isGL ? (
-                <PickerField label="G/L Account" value={entryForm.ChartOfAccountLabel} placeholder="Search & select G/L account..." onClick={() => setPicker(true)} />
+                <PickerField label="G/L Account" help="The general ledger account receiving this allocation from the source account." value={entryForm.ChartOfAccountLabel} placeholder="Search & select G/L account..." onClick={() => setPicker(true)} />
               ) : (
-                <PickerField label="Target Customer Account" value={entryForm.CustomerLabel} placeholder="Pick the target account..." onClick={() => setPicker(true)} />
+                <PickerField label="Target Customer Account" help="The customer account receiving this allocation from the source account." value={entryForm.CustomerLabel} placeholder="Pick the target account..." onClick={() => setPicker(true)} />
               )}
               {!isGL && <TransferBalances account={targetAccount} />}
               <div className="grid grid-cols-2 gap-3">
-                <FieldGroup label="Principal">
+                <FieldGroup label="Principal" help="The main amount for this entry, excluding any amount entered separately as interest.">
                   <Input type="number" min="0" step="0.01" value={entryForm.Principal} onChange={(e) => setEntryForm((p) => ({ ...p, Principal: e.target.value }))} />
                 </FieldGroup>
-                <FieldGroup label="Interest">
+                <FieldGroup label="Interest" help="The interest portion of this entry. Keep it separate from principal and enter zero when no interest applies.">
                   <Input type="number" min="0" step="0.01" value={entryForm.Interest} onChange={(e) => setEntryForm((p) => ({ ...p, Interest: e.target.value }))} />
                 </FieldGroup>
               </div>
-              <FieldGroup label="Primary Description">
+              <FieldGroup label="Primary Description" help="The main narration describing the purpose of the transaction.">
                 <Input value={entryForm.PrimaryDescription} onChange={(e) => setEntryForm((p) => ({ ...p, PrimaryDescription: e.target.value }))} required />
               </FieldGroup>
-              <FieldGroup label="Secondary Description">
+              <FieldGroup label="Secondary Description" help="Additional narration to help identify or explain the transaction.">
                 <Input value={entryForm.SecondaryDescription} onChange={(e) => setEntryForm((p) => ({ ...p, SecondaryDescription: e.target.value }))} required />
               </FieldGroup>
-              <FieldGroup label="Reference">
+              <FieldGroup label="Reference" help="A recognizable reference for tracing this batch or entry, such as a document number or payment reference.">
                 <Input value={entryForm.Reference} onChange={(e) => setEntryForm((p) => ({ ...p, Reference: e.target.value }))} required />
               </FieldGroup>
 

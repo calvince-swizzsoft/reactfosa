@@ -1,11 +1,10 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import BatchFieldLabel from "../lib/BatchFieldLabel";
 import Swal from "sweetalert2";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaPlus, FaChevronDown, FaTrash, FaInfoCircle } from "react-icons/fa";
+import { FaPlus, FaChevronDown, FaTrash } from "react-icons/fa";
 import { useAuth } from "@/context/AuthContext";
 import NotFoundImage from "/assets/scopefinding.png";
 import {
@@ -27,26 +26,10 @@ const PRIORITY_OPTIONS = [
   { value: 6, label: "Very High" }, { value: 7, label: "Highest" },
 ];
 
-function InfoPopover({ label, children }) {
-  return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <button type="button" aria-label={`Information about ${label}`} className="text-gray-400 hover:text-indigo-600 rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500">
-          <FaInfoCircle className="text-xs" aria-hidden="true" />
-        </button>
-      </PopoverTrigger>
-      <PopoverContent align="start" className="w-72 text-sm leading-5 text-gray-600">{children}</PopoverContent>
-    </Popover>
-  );
-}
-
 function FieldGroup({ label, help, children }) {
   return (
     <div>
-      <div className="mb-1 flex items-center gap-1.5">
-        <Label className="text-sm font-semibold text-gray-700">{label}</Label>
-        {help && <InfoPopover label={label}>{help}</InfoPopover>}
-      </div>
+      <BatchFieldLabel label={label} help={help} />
       {children}
     </div>
   );
@@ -55,10 +38,7 @@ function FieldGroup({ label, help, children }) {
 function PickerField({ label, value, placeholder, onClick, help }) {
   return (
     <div>
-      <div className="mb-1 flex items-center gap-1.5">
-        <Label className="text-sm font-semibold text-gray-700">{label}</Label>
-        {help && <InfoPopover label={label}>{help}</InfoPopover>}
-      </div>
+      <BatchFieldLabel label={label} help={help} />
       <button
         type="button"
         onClick={onClick}

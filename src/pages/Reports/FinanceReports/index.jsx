@@ -9,12 +9,14 @@ import { saveAs } from "file-saver";
 import { FaBalanceScale, FaChevronLeft, FaChevronRight, FaDownload, FaSearch } from "react-icons/fa";
 import NotFoundImage from "/assets/scopefinding.png";
 import { getBranchFinancialStatement, getFinancialStatement } from "./api";
+import CashFlowReport from "./CashFlowReport";
 
 const REPORTS = [
   { id: "trial-balance", label: "Trial Balance" },
   { id: "income-expenditure", label: "Income & Expenditure" },
   { id: "balance-sheet", label: "Balance Sheet" },
   { id: "branch", label: "Branch Financial Statement" },
+  { id: "cash-flow", label: "Cash Flow" },
 ];
 const todayIso = () => new Date().toISOString().slice(0, 10);
 const money = (value) => Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -84,10 +86,10 @@ export default function FinanceReports() {
   return <div className="bg-white m-8 px-8 py-8 shadow-2xl rounded-lg relative">
     <div className="flex justify-between items-center mb-6 bg-indigo-800 px-6 py-3 rounded-2xl">
       <h2 className="text-xl font-bold text-white flex items-center gap-2"><FaBalanceScale /> Financial Statements</h2>
-      <Button onClick={exportExcel} disabled={!rows.length} className="bg-indigo-600 hover:bg-indigo-700 flex items-center gap-2"><FaDownload /> Export Excel</Button>
+      {reportId !== "cash-flow" && <Button onClick={exportExcel} disabled={!rows.length} className="bg-indigo-600 hover:bg-indigo-700 flex items-center gap-2"><FaDownload /> Export Excel</Button>}
     </div>
     <div className="flex flex-wrap gap-2 mb-5">{REPORTS.map((item) => <button key={item.id} type="button" onClick={() => setReportId(item.id)} className={`px-4 py-2 rounded-md text-sm font-semibold ${reportId === item.id ? "bg-indigo-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>{item.label}</button>)}</div>
-    <div className="flex flex-wrap items-end gap-4 bg-gray-100 p-4 rounded-lg mb-5">
+    {reportId === "cash-flow" ? <CashFlowReport branches={branches} /> : <><div className="flex flex-wrap items-end gap-4 bg-gray-100 p-4 rounded-lg mb-5">
       <FieldGroup label="As at date"><Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-44" /></FieldGroup>
       {isBranch && <FieldGroup label="Branch"><select value={branchId} onChange={(e) => setBranchId(e.target.value)} className="h-10 min-w-64 border border-gray-300 rounded-md bg-white px-3"><option value="">Select branch</option>{branches.map((b) => <option key={b.Id ?? b.id} value={b.Id ?? b.id}>{b.Description ?? b.description}</option>)}</select></FieldGroup>}
       <Button onClick={loadReport} disabled={loading} className="bg-indigo-600 hover:bg-indigo-700">{loading ? "Generating..." : "Generate"}</Button>
@@ -105,5 +107,6 @@ export default function FinanceReports() {
       {loading ? <div className="space-y-2 animate-pulse">{[1, 2, 3].map((i) => <div key={i} className="grid grid-cols-12 gap-3 bg-gray-50 p-5 rounded-lg">{Array.from({ length: 12 }).map((_, j) => <div key={j} className="h-4 bg-gray-200 rounded" />)}</div>)}</div> : visibleRows.length ? <div className="space-y-2">{visibleRows.map((row, index) => <div key={`${valueOf(row, "accountCode") ?? valueOf(row, "shortCode")}-${index}`} className="grid grid-cols-12 gap-3 items-center bg-white rounded-lg shadow-lg border p-4 hover:shadow-xl transition-all text-sm text-gray-700">{isBranch ? <><span className="col-span-2">{valueOf(row, "accountTypeCode")}</span><span className="col-span-2 font-medium text-indigo-700">{valueOf(row, "shortCode")}</span><span className="col-span-6 whitespace-pre-wrap">{valueOf(row, "code")}</span><span className="col-span-2 text-right tabular-nums">{money(valueOf(row, "balance"))}</span></> : <><span className="col-span-2 font-medium text-indigo-700">{valueOf(row, "accountCode")}</span><span className="col-span-3">{valueOf(row, "accountName")}</span><span className="col-span-2 text-gray-500">{valueOf(row, "parentCode")} {valueOf(row, "parentName")}</span><span className="col-span-2">{valueOf(row, "costCenter")}</span><span className="col-span-1">{valueOf(row, "typeName")}</span><span className="col-span-1 text-right tabular-nums">{money(valueOf(row, "debit"))}</span><span className="col-span-1 text-right tabular-nums">{money(valueOf(row, "credit"))}</span></>}</div>)}</div> : <div className="text-center py-8"><img src={NotFoundImage} alt="No records" className="mx-auto w-32" /><p className="text-gray-400 font-medium">Generate a statement to view financial balances.</p></div>}
       {rows.length > 0 && <><p className="text-center text-sm text-gray-500 mt-4">Showing {visibleRows.length} of {filteredRows.length} matching rows{isBranch ? ` · Total balance ${money(totalBalance)}` : ""}</p><div className="flex justify-center items-center mt-2"><Button size="sm" disabled={pageIndex === 0} onClick={() => setPageIndex((p) => p - 1)} className="m-2 flex gap-1"><FaChevronLeft /> Prev</Button><span>Page {pageIndex + 1} of {pageCount}</span><Button size="sm" disabled={pageIndex + 1 >= pageCount} onClick={() => setPageIndex((p) => p + 1)} className="m-2 flex gap-1">Next <FaChevronRight /></Button></div></>}
     </div>
+    </>}
   </div>;
 }
