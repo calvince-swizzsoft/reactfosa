@@ -325,6 +325,7 @@ export const moduleRouteMap = {
   26013: "/Accounts/AccountStatuses",     // Account Statuses — read-only customer account and related-facilities inquiry
   26014: "/Reports/UserDefinedReports",   // User-Defined Reports — secured SSRS catalogue and viewer launcher
   26015: "/CommandHub/ApprovalRequests",  // Approval Requests (ControllerName: Workflow, AreaName: Workflows)
+  26016: "/Reports/GenerateSasraForm",    // SASRA Reports — reporting setup; all nested SASRA pages share this grant
 
   // ── Control / Procurement (0x00007530 = 30000) ───────────────────
   // Setup (30001). Suppliers had no domain/AppService/controller of its own

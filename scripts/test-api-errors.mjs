@@ -64,4 +64,15 @@ const nestedError = apiErrorFromResponse(response(400, null), {
 assert.equal(nestedError.message, "The customer must have at least one account before being linked.");
 assert.equal(nestedError.code, "MAKER_CHECKER_VIOLATION");
 
+const budgetFields = { "request.Entries[0].ChartOfAccountId": ["Line 1: select a valid G/L account."] };
+const budgetError = apiErrorFromResponse(response(400, null), {
+  success: false,
+  message: "Check the highlighted budget fields.",
+  error: { code: "VALIDATION_FAILED", validationErrors: budgetFields },
+  correlationId: "budget-validation-reference",
+});
+assert.deepEqual(budgetError.validationErrors, budgetFields);
+assert.equal(budgetError.correlationId, "budget-validation-reference");
+assert.equal(budgetError.code, "VALIDATION_FAILED");
+
 console.log("All frontend API error-handling tests passed.");

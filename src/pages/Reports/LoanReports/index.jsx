@@ -1,4 +1,6 @@
-import React from "react";
+import React, { useState } from "react";
+import LoanAgeing from "../LoanAgeing";
+import { Button } from "@/components/ui/button";
 import {
     FaFileExcel,
     FaFilePdf,
@@ -220,11 +222,14 @@ const downloadCICYearlyRenewExcel = async () => {
 };
 
 export default function LoanReports() {
+    const [ageing, setAgeing] = useState(false);
+    if (ageing) return <LoanAgeing onClose={() => setAgeing(false)} />;
     return (
-        <div className="p-6 bg-gray-50 min-h-screen m-8 rounded-2xl shadow-2xl">
+        <div className="bg-white m-8 px-8 py-8 shadow-2xl rounded-lg relative">
             {/* Header */}
             <div className="flex justify-between items-center mb-6 bg-indigo-800 px-6 py-3 rounded-2xl">
-                <h2 className="text-xl font-semibold text-white flex items-center gap-2">Loan Reports</h2>
+                <h2 className="text-xl font-bold text-white flex items-center gap-2"><FaFileExcel />Loan Reports</h2>
+                <Button className="bg-indigo-600 hover:bg-indigo-700" onClick={() => setAgeing(true)}>Loan ageing</Button>
             </div>
 
             {/* Files Grid */}

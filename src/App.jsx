@@ -142,6 +142,7 @@ import Insurance from "./pages/Membership/Insurance/index.jsx";
 import MemberExit from "./pages/Membership/MemberExit/index.jsx";
 //import InterTransfer from "./pages/Finance/InterTransfer/index.jsx";
 import GenerateSasraForm from "./pages/Reports/GenerateSasraForm/index.jsx";
+import SasraSetup from "./pages/Reports/GenerateSasraForm/Setup.jsx";
 import MemberStatement from "./pages/Reports/MemberStatement/index.jsx";
 import Reports from "./pages/Reports/index.jsx";
 import UserDefinedReports from "./pages/Reports/UserDefinedReports/index.jsx";
@@ -214,6 +215,7 @@ import PostingPeriods from "./pages/Accounts/PostingPeriods/index.jsx";
 import PostingPeriodClosing from "./pages/Accounts/PostingPeriodClosing/index.jsx";
 import BankReconciliation from "./pages/Accounts/BankReconciliation/index.jsx";
 import BudgetManagement from "./pages/Accounts/BudgetManagement/index.jsx";
+import BudgetActualsReport from "./pages/Accounts/BudgetManagement/BudgetActualsReport.jsx";
 import ChequeTypes from "./pages/Accounts/ChequeTypes/index.jsx";
 import CreateChequeType from "./pages/Accounts/ChequeTypes/create.jsx";
 import DebitTypes from "./pages/Accounts/DebitTypes/index.jsx";
@@ -443,6 +445,7 @@ export default function App() {
           <Route path="Reports/LoanReports" element={<LoanReports />} />
           <Route path="Reports/FinancialReports" element={<FinanceReports />} />
           <Route path="Reports/GenerateSasraForm" element={<GenerateSasraForm />} />
+          <Route path="Reports/GenerateSasraForm/Setup" element={<SasraSetup />} />
           <Route path="Reports/MemberStatement" element={<MemberStatement />} />
           <Route path="Reports/UserDefinedReports" element={<UserDefinedReports />} />
 
@@ -516,6 +519,7 @@ export default function App() {
           <Route path="Accounts/BankReconciliation/Closing" element={<BankReconciliation mode="closing" />} />
           <Route path="Accounts/BankReconciliation/Catalogue" element={<BankReconciliation mode="catalogue" />} />
           <Route path="Accounts/BudgetManagement/Periods" element={<BudgetManagement mode="periods" />} />
+          <Route path="Accounts/BudgetManagement/Actuals" element={<BudgetActualsReport />} />
           <Route path="Accounts/BudgetManagement/Appropriation" element={<BudgetManagement mode="appropriation" />} />
           <Route path="Accounts/ChequeTypes" element={<ChequeTypes />} />
           <Route path="Accounts/ChequeTypes/create" element={<CreateChequeType />} />

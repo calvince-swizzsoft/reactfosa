@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import { entryRequest } from '../src/pages/Accounts/BankReconciliation/entryRequest.js';
+const entry = { AdjustmentType: 0, Value: '125.50', ChartOfAccountId: '', ChequeDate: '', ChequeNumber: '', Remarks: 'Timing difference' };
+const request = entryRequest(entry, 'period-id');
+assert.equal(request.BankReconciliationPeriodId, 'period-id');
+assert.equal(request.ChequeDate, null);
+assert.equal(request.ChartOfAccountId, null);
+assert.equal(request.Value, 125.5);
+assert.equal(entry.Value, '125.50');
+assert.throws(() => entryRequest({ ...entry, AdjustmentType: 2 }, 'period-id'), /contra/);
+for (const value of ['', '0', '-1', 'invalid', 'Infinity']) assert.throws(() => entryRequest({ ...entry, Value: value }, 'period-id'), /value/);
+assert.equal(entryRequest({ ...entry, AdjustmentType: 2, ChartOfAccountId: 'account-id', ChequeDate: '2026-09-13' }, 'period-id').ChequeDate, '2026-09-13');
+console.log('PASS: reconciliation period ID, optional cheque date, amount and contra-account validation.');

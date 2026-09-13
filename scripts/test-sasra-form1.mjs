@@ -1,0 +1,11 @@
+import assert from "node:assert/strict";
+import { validateCapitalInputs } from "../src/pages/Reports/GenerateSasraForm/form1Model.js";
+const zero = { surplusAdjustment: "0", investmentDeduction: "0", otherDeductions: "0", offBalanceSheetAssets: "0", reviewNotes: "" };
+assert.equal(validateCapitalInputs(zero, "2026-01-01", "2026-12-31"), "");
+assert.ok(validateCapitalInputs({ ...zero, investmentDeduction: "" }, "2026-01-01", "2026-12-31"));
+assert.ok(validateCapitalInputs({ ...zero, offBalanceSheetAssets: "-1" }, "2026-01-01", "2026-12-31"));
+assert.ok(validateCapitalInputs({ ...zero, surplusAdjustment: "-100" }, "2026-01-01", "2026-12-31"));
+assert.equal(validateCapitalInputs({ ...zero, surplusAdjustment: "-100", reviewNotes: "Proposed dividends" }, "2026-01-01", "2026-12-31"), "");
+assert.ok(validateCapitalInputs({ ...zero, otherDeductions: "Infinity" }, "2026-01-01", "2026-12-31"));
+assert.ok(validateCapitalInputs(zero, "2026-01-01", "2027-01-01"));
+console.log("PASS: Form 1 explicit-zero, sign, amount, supporting-note and financial-year validation.");

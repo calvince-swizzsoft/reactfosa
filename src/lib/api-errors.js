@@ -89,7 +89,8 @@ export function apiErrorFromResponse(response, body, fallbackMessage) {
   const payload = body && typeof body === "object" ? body : {};
   const status = response?.status || 0;
   const validationErrors =
-    payload.validationErrors || payload.ValidationErrors || payload.errors || payload.Errors || payload.ModelState || null;
+    payload.validationErrors || payload.ValidationErrors || payload.errors || payload.Errors || payload.ModelState ||
+    payload.error?.validationErrors || payload.Error?.ValidationErrors || null;
 
   return new ApiError({
     status,

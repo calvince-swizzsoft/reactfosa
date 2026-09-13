@@ -10,7 +10,7 @@ import { cashFlowRequest, field, unwrap } from "./cashFlowApi";
 const sections = { Cash: "Cash and cash equivalents", Operating: "Operating activities", Investing: "Investing activities", Financing: "Financing activities", Exchange: "Exchange-rate effects" };
 const buttonClass = "bg-indigo-600 hover:bg-indigo-700";
 
-function AccountLookup({ onSelect, onClose }) {
+export function AccountLookup({ onSelect, onClose }) {
   const [text, setText] = useState("");
   const [page, setPage] = useState(0);
   const [result, setResult] = useState({ items: [], total: 0 });
