@@ -10,7 +10,7 @@ const tree = buildModuleTree([
 const path = '/Reports/GenerateSasraForm';
 assert.equal(moduleRouteMap[26016], path);
 assert.equal(findFirstBuiltPath(tree[0], moduleRouteMap), path);
-for (const url of [path, path + '/Setup']) {
+for (const url of [path, path + '/Setup', path + '/DT', path + '/NWDT']) {
   assert.equal(findActiveRoot(tree, url, moduleRouteMap).Code, 26000);
   assert.equal(isModuleControlledPath(url, moduleRouteMap), true);
   assert.equal(isPathGranted(tree, url, moduleRouteMap), true);

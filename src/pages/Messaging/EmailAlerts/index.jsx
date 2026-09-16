@@ -7,11 +7,9 @@ import { statusBadgeClass } from "@/lib/workflowFormat";
 import NotFoundImage from "/assets/scopefinding.png";
 import { DLRStatus, listEmailAlerts } from "./api";
 import { ComposeEmailDrawer, EmailAlertDetailsDrawer } from "./EmailAlertDrawers";
+import { emailStatuses as statuses, emailStatusLabel, emailStatusHelp } from "./statusModel";
+import { BatchFieldHelp } from "@/pages/Accounts/BatchProcedures/lib/BatchFieldLabel";
 
-const statuses = [
-  [DLRStatus.UnKnown, "Unknown"], [DLRStatus.Failed, "Failed"], [DLRStatus.Pending, "Pending"],
-  [DLRStatus.Delivered, "Delivered"], [DLRStatus.NotApplicable, "Not Applicable"], [DLRStatus.Submitted, "Submitted"],
-];
 
 const pick = (item, camel, pascal) => item?.[camel] ?? item?.[pascal];
 const formatDate = (value) => value && !Number.isNaN(new Date(value).getTime()) ? new Date(value).toLocaleString() : "—";
@@ -77,17 +75,17 @@ export default function EmailAlerts() {
 
       <div className="rounded-sm bg-gray-200 p-4">
         <div className="mb-4 grid grid-cols-12 gap-4 rounded-lg bg-gray-700 p-3 font-semibold text-gray-100">
-          <span className="col-span-3">Recipient</span><span className="col-span-3">Subject</span><span className="col-span-2">Company</span><span className="col-span-2">Status</span><span className="col-span-2">Created</span>
+          <span className="col-span-3">Recipient</span><span className="col-span-3">Subject</span><span className="col-span-2">Company</span><span className="col-span-2 flex items-center gap-1">Status<BatchFieldHelp label="Email status">{emailStatusHelp}</BatchFieldHelp></span><span className="col-span-2">Created</span>
         </div>
         {loading ? <div className="space-y-2 animate-pulse">{[1, 2, 3].map((i) => <div key={i} className="h-14 rounded-lg bg-gray-50" />)}</div> : items.length ? (
           <div className="space-y-2">{items.map((item) => {
             const id = pick(item, "id", "Id");
-            const status = pick(item, "mailMessageDLRStatusDescription", "MailMessageDLRStatusDescription");
+            const status = emailStatusLabel(item);
             return <button key={id} type="button" onClick={() => setSelectedId(id)} className="grid w-full grid-cols-12 items-center gap-4 rounded-lg border bg-white px-6 py-4 text-left shadow-lg transition-all hover:shadow-xl">
               <span className="col-span-3 break-all text-sm font-medium text-indigo-700">{pick(item, "mailMessageTo", "MailMessageTo") || "—"}</span>
               <span className="col-span-3 truncate text-sm text-gray-700">{pick(item, "mailMessageSubject", "MailMessageSubject") || "—"}</span>
               <span className="col-span-2 truncate text-sm text-gray-600">{pick(item, "branchCompanyDescription", "BranchCompanyDescription") || "—"}</span>
-              <span className="col-span-2"><span className={`rounded px-2 py-1 text-xs font-semibold ${statusBadgeClass(status)}`}>{status || "—"}</span></span>
+              <span className="col-span-2"><span className={`rounded px-2 py-1 text-xs font-semibold ${status === "Sent" ? "bg-green-100 text-green-600" : status === "Failed" ? "bg-red-100 text-red-600" : statusBadgeClass(status)}`}>{status}</span></span>
               <span className="col-span-2 text-sm text-gray-500">{formatDate(pick(item, "createdDate", "CreatedDate"))}</span>
             </button>;
           })}</div>

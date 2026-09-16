@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { FaChevronDown, FaChevronUp, FaClipboardList, FaDesktop, FaHistory, FaSearch, FaUser } from "react-icons/fa";
 import NotFoundImage from "/assets/scopefinding.png";
-import Swal from "sweetalert2";
+import { Button } from "@/components/ui/button";
 import { apiErrorMessage, apiJson, normalizeList } from "@/lib/api";
 
 const tabs = [
@@ -68,45 +68,41 @@ function AuditRow({ item, isEntries, open, onToggle }) {
 
 export default function AuditLogs() {
   const [activeTab, setActiveTab] = useState("logs");
-  const [records, setRecords] = useState({ logs: [], entries: [] });
-  const [loading, setLoading] = useState({ logs: true, entries: false });
-  const [loaded, setLoaded] = useState({ logs: false, entries: false });
-  const [expandedId, setExpandedId] = useState(null);
-  const [searchQuery, setSearchQuery] = useState("");
-
-  useEffect(() => {
-    if (loaded[activeTab]) return;
-    let cancelled = false;
-    const path = activeTab === "logs" ? "" : "/entries";
-    const fetchRecords = async () => {
-      setLoading((current) => ({ ...current, [activeTab]: true }));
-      try {
-        const data = await apiJson(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/auditlogs${path}`);
-        if (!cancelled) {
-          setRecords((current) => ({ ...current, [activeTab]: normalizeList(data) }));
-          setLoaded((current) => ({ ...current, [activeTab]: true }));
-        }
-      } catch (error) {
-        if (!cancelled) {
-          setRecords((current) => ({ ...current, [activeTab]: [] }));
-          Swal.fire("Error", apiErrorMessage(error, `Unable to load audit ${activeTab}.`), "error");
-        }
-      } finally {
-        if (!cancelled) setLoading((current) => ({ ...current, [activeTab]: false }));
-      }
-    };
-    fetchRecords();
-    return () => { cancelled = true; };
-  }, [activeTab, loaded]);
-
+  const [records, setRecords] = useState([]), [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true), [error, setError] = useState("");
+  const [expandedId, setExpandedId] = useState(null), [searchQuery, setSearchQuery] = useState("");
+  const [pageIndex, setPageIndex] = useState(0), [pageSize, setPageSize] = useState(20), [reload, setReload] = useState(0);
+  const [startDate, setStartDate] = useState(""), [endDate, setEndDate] = useState("");
+  const dateError = startDate && endDate && startDate > endDate ? "Start date must be on or before end date." : "";
   const isEntries = activeTab === "entries";
-  const filteredRecords = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-    if (!query) return records[activeTab];
-    return records[activeTab].filter((item) => [item.EventType, item.TableName, item.RecordID, item.ApplicationUserName, item.ApplicationUserDesignation, item.AdditionalNarration, item.Activity, item.CustomerId].some((value) => String(value || "").toLowerCase().includes(query)));
-  }, [activeTab, records, searchQuery]);
+  const pages = Math.max(1, Math.ceil(total / pageSize));
+  useEffect(() => {
+    const controller = new AbortController();
+    setLoading(true); setError(""); setRecords([]); setExpandedId(null);
+    if (dateError) { setLoading(false); return () => controller.abort(); }
+    const timer = setTimeout(async () => {
+      try {
+        const query = new URLSearchParams({ pageIndex: String(pageIndex), pageSize: String(pageSize) });
+        if (searchQuery.trim()) query.set("text", searchQuery.trim());
+        if (startDate) query.set("startDate", startDate);
+        if (endDate) query.set("endDate", endDate);
+        const response = await apiJson(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/auditlogs${isEntries ? "/entries" : ""}?${query}`, { signal: controller.signal });
+        if (controller.signal.aborted) return;
+        const page = response.data ?? response.Data ?? response;
+        const count = Number(page?.itemsCount ?? page?.ItemsCount ?? 0);
+        setTotal(count);
+        const lastPage = Math.max(0, Math.ceil(count / pageSize) - 1);
+        if (pageIndex > lastPage) { setPageIndex(lastPage); return; }
+        setRecords(normalizeList(response).map(item => Object.fromEntries(Object.entries(item).map(([key, value]) => [key[0].toUpperCase() + key.slice(1), value]))));
+      } catch (e) {
+        if (!controller.signal.aborted) { setError(apiErrorMessage(e, "Unable to load audit records.")); setTotal(0); }
+      } finally { if (!controller.signal.aborted) setLoading(false); }
+    }, 300);
+    return () => { clearTimeout(timer); controller.abort(); };
+  }, [activeTab, isEntries, pageIndex, pageSize, searchQuery, startDate, endDate, dateError, reload]);
 
-  const selectTab = (tabId) => { setActiveTab(tabId); setExpandedId(null); setSearchQuery(""); };
+  const selectTab = tabId => { setActiveTab(tabId); setPageIndex(0); setExpandedId(null); };
+  const changeFilter = (setter, value) => { setter(value); setPageIndex(0); };
 
   return (
     <main className="min-h-screen bg-slate-100 p-6 md:p-10">
@@ -116,10 +112,19 @@ export default function AuditLogs() {
           {tabs.map((tab) => { const Icon = tab.icon; const selected = activeTab === tab.id; return <button key={tab.id} type="button" onClick={() => selectTab(tab.id)} className={`flex items-center gap-3 rounded-t-lg border-b-2 px-4 py-3 text-left transition ${selected ? "border-indigo-700 bg-indigo-50 text-indigo-800" : "border-transparent text-slate-600 hover:bg-slate-50 hover:text-slate-900"}`} aria-current={selected ? "page" : undefined}><Icon /><span><span className="block text-sm font-semibold">{tab.label}</span><span className="hidden text-xs font-normal sm:block">{tab.description}</span></span></button>; })}
         </nav>
         <section className="p-6 md:p-8">
-          <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="text-lg font-semibold text-slate-900">{isEntries ? "Audit Entries" : "Audit Logs"}</h2><p className="text-sm text-slate-500">{filteredRecords.length} {filteredRecords.length === 1 ? "record" : "records"}</p></div><label className="relative block w-full sm:max-w-md"><span className="sr-only">Search audit records</span><FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" /><input type="search" placeholder={isEntries ? "Search event, activity, user, or customer..." : "Search event, table, record, user, or narration..."} className="w-full rounded-lg border border-slate-300 py-2.5 pl-10 pr-4 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200" value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} /></label></div>
+          <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="text-lg font-semibold text-slate-900">{isEntries ? "Audit Entries" : "Audit Logs"}</h2><p className="text-sm text-slate-500">{loading ? "Loading…" : `${total.toLocaleString()} matching records`}</p></div><label className="relative block w-full sm:max-w-md"><span className="sr-only">Search audit records</span><FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" /><input type="search" placeholder={isEntries ? "Search event, activity, user, or customer..." : "Search event, table, record, user, or narration..."} className="w-full rounded-lg border border-slate-300 py-2.5 pl-10 pr-4 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200" maxLength={256} value={searchQuery} onChange={(event) => changeFilter(setSearchQuery, event.target.value)} /></label></div>
+          <div className="mb-4 flex flex-wrap items-end gap-3">
+            <label className="text-sm text-slate-700">From<input aria-label="Audit start date" type="date" min="1753-01-01" max="9998-12-31" value={startDate} onChange={e => changeFilter(setStartDate, e.target.value)} className="mt-1 block border border-slate-300 rounded-md p-2" /></label>
+            <label className="text-sm text-slate-700">To<input aria-label="Audit end date" type="date" min={startDate || "1753-01-01"} max="9998-12-31" value={endDate} onChange={e => changeFilter(setEndDate, e.target.value)} className="mt-1 block border border-slate-300 rounded-md p-2" /></label>
+            <label className="text-sm text-slate-700">Rows per page<select aria-label="Audit rows per page" value={pageSize} onChange={e => changeFilter(setPageSize, Number(e.target.value))} className="mt-1 block border border-slate-300 rounded-md p-2">{[20, 50, 100].map(size => <option key={size} value={size}>{size}</option>)}</select></label>
+            <Button variant="outline" disabled={loading} onClick={() => setReload(n => n + 1)}>Refresh</Button>
+            {(startDate || endDate || searchQuery) && <Button variant="outline" onClick={() => { setStartDate(""); setEndDate(""); setSearchQuery(""); setPageIndex(0); }}>Clear filters</Button>}
+          </div>
+          {(error || dateError) && <div role="alert" className="mb-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">{dateError || error}{error && <button className="ml-3 underline" onClick={() => setReload(n => n + 1)}>Retry</button>}</div>}
           <div className="overflow-x-auto rounded-xl border border-slate-200"><table className="min-w-full divide-y divide-slate-200 text-sm"><thead className="bg-slate-100 text-left text-xs font-semibold uppercase tracking-wide text-slate-600"><tr><th className="px-5 py-3">Event</th><th className="px-5 py-3">{isEntries ? "Activity" : "Table"}</th><th className="px-5 py-3">{isEntries ? "Customer" : "Record ID"}</th><th className="px-5 py-3">Application user</th>{isEntries && <th className="px-5 py-3">Designation</th>}<th className="px-5 py-3">Created</th><th className="px-5 py-3 text-right">Details</th></tr></thead><tbody className="divide-y divide-slate-200 bg-white">
-            {loading[activeTab] ? [1, 2, 3].map((row) => <tr key={row} className="animate-pulse">{Array.from({ length: isEntries ? 7 : 6 }).map((_, column) => <td key={column} className="px-5 py-5"><div className="h-4 rounded bg-slate-200" /></td>)}</tr>) : filteredRecords.length ? filteredRecords.map((item) => <AuditRow key={item.Id} item={item} isEntries={isEntries} open={expandedId === item.Id} onToggle={() => setExpandedId(expandedId === item.Id ? null : item.Id)} />) : <tr><td colSpan={isEntries ? 7 : 6} className="px-6 py-12 text-center text-slate-500"><img src={NotFoundImage} alt="" className="mx-auto mb-3 w-36" />{searchQuery ? "No audit records match your search." : `No audit ${isEntries ? "entries" : "logs"} found.`}</td></tr>}
+            {loading ? [1, 2, 3].map((row) => <tr key={row} className="animate-pulse">{Array.from({ length: isEntries ? 7 : 6 }).map((_, column) => <td key={column} className="px-5 py-5"><div className="h-4 rounded bg-slate-200" /></td>)}</tr>) : records.length ? records.map((item) => <AuditRow key={item.Id} item={item} isEntries={isEntries} open={expandedId === item.Id} onToggle={() => setExpandedId(expandedId === item.Id ? null : item.Id)} />) : <tr><td colSpan={isEntries ? 7 : 6} className="px-6 py-12 text-center text-slate-500"><img src={NotFoundImage} alt="" className="mx-auto mb-3 w-36" />{error || dateError ? "Resolve the error above to load audit records." : searchQuery || startDate || endDate ? "No audit records match your filters." : `No audit ${isEntries ? "entries" : "logs"} found.`}</td></tr>}
           </tbody></table></div>
+          <div className="mt-4 flex justify-center items-center gap-3"><Button disabled={loading || !!dateError || !!error || pageIndex === 0} onClick={() => setPageIndex(n => n - 1)}>Prev</Button><span className="text-sm text-slate-600">Page {pageIndex + 1} of {pages}</span><Button disabled={loading || !!dateError || !!error || pageIndex + 1 >= pages} onClick={() => setPageIndex(n => n + 1)}>Next</Button></div>
         </section>
       </div>
     </main>

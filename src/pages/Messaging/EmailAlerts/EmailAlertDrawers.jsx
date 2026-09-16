@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { emailStatusLabel } from "./statusModel";
 import { AnimatePresence, motion } from "framer-motion";
 import Swal from "sweetalert2";
 import { Button } from "@/components/ui/button";
@@ -165,7 +166,7 @@ export function EmailAlertDetailsDrawer({ id, onClose }) {
     ["To", value(item, "mailMessageTo", "MailMessageTo")],
     ["CC", value(item, "mailMessageCC", "MailMessageCC")],
     ["Subject", value(item, "mailMessageSubject", "MailMessageSubject")],
-    ["Status", value(item, "mailMessageDLRStatusDescription", "MailMessageDLRStatusDescription")],
+    ["Status", emailStatusLabel(item)],
     ["Origin", value(item, "mailMessageOriginDescription", "MailMessageOriginDescription")],
     ["Priority", value(item, "mailMessagePriorityDescription", "MailMessagePriorityDescription")],
     ["Created By", value(item, "createdBy", "CreatedBy")],

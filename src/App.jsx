@@ -450,7 +450,9 @@ export default function App() {
           <Route path="Reports/LoanReports" element={<LoanReports />} />
           <Route path="Reports/FinancialReports" element={<FinanceReports />} />
           <Route path="Reports/GenerateSasraForm" element={<GenerateSasraForm />} />
-          <Route path="Reports/GenerateSasraForm/Setup" element={<SasraSetup />} />
+          <Route path="Reports/GenerateSasraForm/Setup" element={<Navigate to="/Reports/GenerateSasraForm/DT" replace />} />
+          <Route path="Reports/GenerateSasraForm/DT" element={<SasraSetup key="DT" profile="DT" />} />
+          <Route path="Reports/GenerateSasraForm/NWDT" element={<SasraSetup key="NWDT" profile="NWDT" />} />
           <Route path="Reports/MemberStatement" element={<MemberStatement />} />
           <Route path="Reports/UserDefinedReports" element={<UserDefinedReports />} />
 
