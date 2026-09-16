@@ -5,10 +5,20 @@ import { Input } from "@/components/ui/input";
 import { FaUserShield, FaPlus, FaSearch } from "react-icons/fa";
 import NotFoundImage from "/assets/scopefinding.png";
 import { listLoanGuarantors } from "./api";
+import { AttachPanel, HistoryPanel, SubstitutePanel } from "../GuarantorAttachment";
+
+const tabs = [
+  {id: 'guarantors', label: 'Guarantors'},
+  {id: 'attach', label: 'Attach', Panel: AttachPanel},
+  {id: 'substitute', label: 'Substitute', Panel: SubstitutePanel},
+  {id: 'history', label: 'History / Relieve', Panel: HistoryPanel},
+];
 
 // api/backoffice/loanguarantors — docs/api/loan-guarantor-api-spec.md.
 // NavigationMenu code 70017 ("Guarantor Management").
-export default function Guarantors() {
+export default function Guarantors({initialTab = 'guarantors'}) {
+  const [activeTab, setActiveTab] = useState(initialTab);
+  const Panel = tabs.find(tab => tab.id === activeTab)?.Panel;
   const navigate = useNavigate();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -42,10 +52,15 @@ export default function Guarantors() {
         <h2 className="text-xl font-bold text-white flex items-center gap-2">
           <FaUserShield /> Guarantor Management
         </h2>
-        <Button onClick={() => navigate("/Loaning/Guarantors/create")} className="bg-indigo-600 hover:bg-indigo-700 flex items-center gap-2">
-          <FaPlus /> Attach Guarantor
-        </Button>
+        {activeTab === 'guarantors' && <Button onClick={() => navigate("/Loaning/Guarantors/create")} className="bg-indigo-600 hover:bg-indigo-700 flex items-center gap-2">
+          <FaPlus /> Add Guarantor
+        </Button>}
       </div>
+
+      <div role="tablist" aria-label="Guarantor management" className="flex flex-wrap gap-1 mb-6 bg-gray-100 rounded-lg p-1 w-fit">
+        {tabs.map(tab => <button key={tab.id} type="button" role="tab" aria-selected={activeTab === tab.id} onClick={() => setActiveTab(tab.id)} className={`px-4 py-1.5 text-sm font-semibold rounded-md transition-all ${activeTab === tab.id ? 'bg-white shadow text-indigo-700' : 'text-gray-500 hover:text-indigo-600'}`}>{tab.label}</button>)}
+      </div>
+      {Panel ? <Panel/> : <>
 
       <form onSubmit={handleSearch} className="mb-4 flex gap-2">
         <div className="relative flex-1 max-w-sm">
@@ -97,6 +112,7 @@ export default function Guarantors() {
           <Button variant="default" disabled={(pageIndex + 1) * pageSize >= itemsCount} onClick={() => setPageIndex((p) => p + 1)}>Next</Button>
         </div>
       )}
+      </>}
     </div>
   );
 }

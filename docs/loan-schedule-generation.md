@@ -1,8 +1,16 @@
 # Historical repayment schedule generation
 
-Implemented in Loan Ageing: generate proposals for unconfirmed cases on the current server-paged list, inspect their saved terms and instalments, then confirm selected schedules together. Individual loan drawers also have **Generate from saved loan terms**.
+Navigation: **Back Office → Operations → Loaning** has separate **Loan Ageing** (`70023`, `/Loaning/LoanAgeing`) and **Repayment Schedules** (`70024`, `/Loaning/RepaymentSchedules`) items, both under parent `70012`. Each page loads only its own data, and the former combined-screen tabs are removed. The SASRA Reports and Loan Reports shortcuts have been removed. Run the rebuilt Utility's normal navigation sync to install these items in the database; its standard Administrator-role seeding grants access. Other roles use the existing module-permission administration.
+
+Repayment Schedules now provides a read-only, server-paged list with **Loan**, **Loanee** and **Disbursed amount**. Each row has a **View schedule** button that opens its latest saved schedule as a non-editable table. If no instalments are saved, the page requests a calculated schedule from the existing proposal endpoint. A compact basis label and info popover distinguish calculated/unconfirmed terms and explain interest exceptions. Viewing does not save or confirm schedules, change ageing eligibility or post transactions. Schedule rows are paginated. For a calculated fallback only, **Save schedule** persists and confirms the proposal through the existing generated-schedules endpoint. It is disabled with an explanation when generation issues prevent confirmation. Existing saved schedules have no save action. The server rechecks the proposal hash and revision to reject stale previews and duplicate saves. No editable schedule inputs are added.
+
+The paged loan-case response includes `loaneeName`, drawn from the customer's individual first/last names or organisation description. This is a DTO/query change only, with no database-schema migration.
 
 The AppService reads the terms stored on the loan case and identifies its original posted disbursement. Current product rates do not replace historical loan rates. Original principal includes the linked capitalized charges and is not reduced by subsequent repayments.
+
+Historical loans saved with periodic charging and upfront recovery are reproduced with periodic interest due on each instalment date. The interpretation is recorded in the proposal terms and saved evidence; the loan's original settings are preserved. This combination never entered the upfront-interest deduction block at disbursement. Product create/edit now rejects it in the client and AppService validation. Upfront charging with periodic recovery remains a separate supported product setting. Other schedule warnings and posting-reconciliation checks still apply.
+
+Periodic schedules apply the loan case's saved minimum interest as a floor for each repayment period (`max(calculated interest, minimum interest)`), followed by its saved rounding rule and currency rounding. The minimum is not added to interest or multiplied by the term for each instalment. Principal allocations and original due dates remain intact. A positive minimum no longer blocks confirmation on its own; the proposal terms and saved evidence record the rule used.
 
 Dates use the original disbursement plus saved grace days. End-of-period payments start one interval later; beginning-of-period payments start at that anchor. Calendar-month intervals retain the anchor day, capped at month end. Numeric payment frequency determines the interval (four payments per year means three months). The legacy generator's Today-based dates are discarded without changing other existing callers.
 
@@ -27,10 +35,10 @@ These operations use the existing repayment-plan entities and repositories. No s
 
 Case 9 combines periodic interest charging with upfront recovery and has no matching original upfront charge. The proposal does not claim the calculated interest was paid. No live schedules were confirmed by the verification.
 
-## Pending Form 4 integration
+## Form 4 Excel adjustments
 
-The requested Excel-only adjustment workflow is prepared and tested, but **not applied**: the backend filesystem write permission was declined. The current Form 4 export gate and UI therefore still remain in place.
+Form 4 now uses system classifications without requiring dated UI credit reviews. The account list is read-only; adjustments are made in the downloaded workbook.
 
-The prepared change removes UI credit-review and adjustment prerequisites. It exports system classifications and principal exposure as a labelled working copy, including every account and any unresolved exceptions. Blue Excel category, exposure-adjustment, account-inclusion and explanation cells feed the return formulas. Blank categories remain unclassified; exceptions and reconciliation differences remain visible. Excel edits do not update the database.
+It exports system classifications and principal exposure as a labelled working copy, including every account and any unresolved exceptions. Blue Excel category, exposure-adjustment, account-inclusion and explanation cells feed the return formulas. Blank categories remain unclassified; exceptions and reconciliation differences remain visible. Excel edits do not update the database.
 
-The prepared patch and matching UI are under `tmp/implement-form4-working-copy.py` and `tmp/form4-working-copy-stage`. Generation/API Debug build, frontend development build, client checks, and 25 generation/staged-workbook assertions passed. Native Excel visual verification has not been performed.
+Regression tests cover removal of the review prerequisite and recalculation after Excel category, exposure and inclusion changes.

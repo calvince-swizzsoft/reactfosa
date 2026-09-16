@@ -1,3 +1,4 @@
+import DefaulterNotices from "./pages/Loaning/DefaulterNotices/index.jsx";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 
 import Layout from "./components/Layout";
@@ -114,6 +115,8 @@ import Stations from "./pages/Membership/Stations/index.jsx";
 import Administrative from "./pages/Membership/Administrative/index.jsx";
 import Products from "./pages/Membership/Products/index.jsx";
 import Loaning from "./pages/Loaning/index.jsx";
+import LoanAgeing from "./pages/Reports/LoanAgeing/index.jsx";
+import RepaymentSchedules from "./pages/Loaning/RepaymentSchedules/index.jsx";
 import LoanProducts from "./pages/Loaning/LoanProducts/index.jsx";
 import LoanApplication from "./pages/Loaning/LoanApplication/index.jsx";
 import LoanCaseRegistration from "./pages/Loaning/LoanCases/RegistrationScreen.jsx";
@@ -125,7 +128,6 @@ import LoanRestructuring from "./pages/Loaning/Restructuring/index.jsx";
 import CheckOffDataCapture from "./pages/Loaning/CheckOffDataCapture/index.jsx";
 import Guarantors from "./pages/Loaning/Guarantors/index.jsx";
 import CreateLoanGuarantor from "./pages/Loaning/Guarantors/create.jsx";
-import GuarantorAttachment from "./pages/Loaning/GuarantorAttachment/index.jsx";
 import LoanRequests from "./pages/Loaning/LoanRequests/index.jsx";
 import CreateLoanRequest from "./pages/Loaning/LoanRequests/create.jsx";
 import { LoanPurposes, LoaningRemarks, IncomeAdjustments } from "./pages/Loaning/LoanMasters/index.jsx";
@@ -418,6 +420,9 @@ export default function App() {
 
           {/**Loaning */}
           <Route path="Loaning" element={<Loaning />} />
+          <Route path="Loaning/DefaulterNotices" element={<DefaulterNotices />} />
+          <Route path="Loaning/LoanAgeing" element={<LoanAgeing />} />
+          <Route path="Loaning/RepaymentSchedules" element={<RepaymentSchedules />} />
           <Route path="Loaning/LoanProducts" element={<LoanProducts />} />
           <Route path="Loaning/LoanApplication" element={<LoanApplication />} />
           <Route path="Loaning/LoanPurposes" element={<LoanPurposes />} />
@@ -431,7 +436,7 @@ export default function App() {
           <Route path="Loaning/Restructuring" element={<LoanRestructuring />} />
           <Route path="Loaning/Guarantors" element={<Guarantors />} />
           <Route path="Loaning/Guarantors/create" element={<CreateLoanGuarantor />} />
-          <Route path="Loaning/GuarantorAttachment" element={<GuarantorAttachment />} />
+          <Route path="Loaning/GuarantorAttachment" element={<Navigate to="/Loaning/Guarantors" replace />} />
           <Route path="Loaning/LoanRequests" element={<LoanRequests />} />
           <Route path="Loaning/LoanRequests/create" element={<CreateLoanRequest />} />
           <Route path="Loaning/LoanSector" element={<LoanSector />} />

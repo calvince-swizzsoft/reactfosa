@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { apiErrorMessage, apiJson } from "@/lib/api";
-import { buildModuleTree } from "@/lib/moduleTree";
+import { buildModuleTree, consolidateGuarantorNavigation } from "@/lib/moduleTree";
 
 // The by-role endpoint already returns exactly the navigation items a role
 // may see — full node data, not just ids — so there's no separate
@@ -19,7 +19,7 @@ function cacheKey(userName, roles) {
 function readCachedTree(userName, roles) {
   try {
     const value = JSON.parse(sessionStorage.getItem(cacheKey(userName, roles)));
-    return Array.isArray(value) ? value : null;
+    return Array.isArray(value) ? consolidateGuarantorNavigation(value) : null;
   } catch {
     return null;
   }
@@ -84,7 +84,7 @@ export function ModuleTreeProvider({ children }) {
 
     const request = fetchModulesForCurrentUser()
       .then((moduleList) => {
-        const nextTree = buildModuleTree(moduleList);
+        const nextTree = consolidateGuarantorNavigation(buildModuleTree(moduleList));
         setTree(nextTree);
         sessionStorage.setItem(cacheKey(requestedUserName ?? userName, requestedRoles ?? roles), JSON.stringify(nextTree));
         return nextTree;

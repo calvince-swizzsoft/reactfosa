@@ -30,6 +30,8 @@ const fromTimeSpan = (ts) => (typeof ts === "string" ? ts.split(".").pop().slice
 const normalizeCompany = (data) => ({
   ...emptyCompanyForm,
   id: data.Id,
+  defaulterNoticePolicyJson: data.DefaulterNoticePolicyJson ?? data.defaulterNoticePolicyJson ?? null,
+  defaulterNoticePolicyRevision: data.DefaulterNoticePolicyRevision ?? data.defaulterNoticePolicyRevision ?? 0,
   description: data.Description || "",
   vision: data.Vision || "",
   mission: data.Mission || "",

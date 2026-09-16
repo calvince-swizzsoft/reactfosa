@@ -1,3 +1,4 @@
+import DefaulterNoticeSettings from "./DefaulterNoticeSettings";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -56,6 +57,7 @@ export default function CompanyFormFields({
   products, loadingProducts, selectedProductIds, toggleProduct,
   debitTypes = [], selectedDebitTypeIds = [], loadingDebitTypes, debitTypesError, toggleDebitType,
 }) {
+  if (activeTab === "defaulterNotices") return <DefaulterNoticeSettings form={form} update={update}/>;
   if (activeTab === "profile") {
     return (
       <section>

@@ -1,3 +1,4 @@
+import { validateNoticePolicy } from "./noticePolicy";
 // Shared field config for AddCompanies.jsx / EditCompanies.jsx, sourced
 // directly from Application.MainBoundedContext.DTO.AdministrationModule/CompanyDTO.cs
 // (60+ fields, only a subset of which were previously exposed as inputs —
@@ -14,6 +15,7 @@ export const TABS = [
   { id: "schedule", label: "Schedule & Limits" },
   { id: "verification", label: "Verification & Batch Audits" },
   { id: "operational", label: "Operational Policies" },
+  { id: "defaulterNotices", label: "Defaulter Notice Settings" },
   { id: "security", label: "Security & Access" },
   { id: "notifications", label: "Notifications" },
   { id: "products", label: "Mandatory Products" },
@@ -131,6 +133,8 @@ const allToggleKeys = [
 ].map(([key]) => key);
 
 export const emptyCompanyForm = {
+  defaulterNoticePolicyJson: null,
+  defaulterNoticePolicyRevision: 0,
   description: "", vision: "", mission: "", motto: "",
   registrationNumber: "", personalIdentificationNumber: "",
   applicationDisplayName: "",
@@ -180,10 +184,11 @@ export function validateCompany(form) {
     errors.push("The mobile number should start with a plus sign, followed by the country code and national number.");
   }
 
-  return errors;
+  return [...errors, ...validateNoticePolicy(form.defaulterNoticePolicyJson)];
 }
 
 export function companyValidationTab(errors) {
+  if (errors.some(message => message.startsWith("Defaulter notices:"))) return "defaulterNotices";
   return errors.some((message) => /Address|Postal|City|E-mail|Land Line|mobile/i.test(message))
     ? "address"
     : "profile";

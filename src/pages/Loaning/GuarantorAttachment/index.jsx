@@ -64,7 +64,7 @@ function PickerField({ label, value, placeholder, onClick }) {
 
 /* ══════════════════════ Attach ══════════════════════ */
 
-function AttachPanel() {
+export function AttachPanel() {
   const [sourceCustomerAccountId, setSourceCustomerAccountId] = useState("");
   const [sourceLabel, setSourceLabel] = useState("");
   const [destinationLoanProductId, setDestinationLoanProductId] = useState("");
@@ -179,7 +179,7 @@ function AttachPanel() {
 
 /* ══════════════════════ History / Relieve ══════════════════════ */
 
-function HistoryPanel() {
+export function HistoryPanel() {
   const [status, setStatus] = useState(HISTORY_STATUS.Attached);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -306,7 +306,7 @@ function HistoryPanel() {
 
 /* ══════════════════════ Substitute ══════════════════════ */
 
-function SubstitutePanel() {
+export function SubstitutePanel() {
   const [substituteCustomerId, setSubstituteCustomerId] = useState("");
   const [substituteLabel, setSubstituteLabel] = useState("");
   const [allGuarantors, setAllGuarantors] = useState([]);
@@ -406,7 +406,7 @@ export default function GuarantorAttachment() {
     <div className="bg-white m-8 px-8 py-8 shadow-2xl rounded-lg relative">
       <div className="flex justify-between items-center mb-6 bg-indigo-800 px-6 py-3 rounded-2xl">
         <h2 className="text-xl font-bold text-white flex items-center gap-2">
-          <FaHandshake /> Guarantor Attachment
+          <FaHandshake /> Guarantor Services
         </h2>
       </div>
 

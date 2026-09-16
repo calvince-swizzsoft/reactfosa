@@ -287,14 +287,17 @@ export const moduleRouteMap = {
   70011: "/Loaning/LoanCases/cancellation", // Cancellation (ControllerName: LoanCancellation) — api/backoffice/loancases/{id}/cancel, docs/api/loan-case-api-spec.md §13. Only cases already Audited (awaiting disbursement) — a different queue from Verification's own.
   // 70012 is the "Loaning" area/folder node (IsArea: true, no ControllerName) — nothing to route directly, same pattern as the 22007 gotcha documented above.
   70013: "/Loaning/Restructuring",         // Restructuring (ControllerName: LoanRestructuring) — api/backoffice/loanrestructuring, keyed by CustomerAccountId not LoanCaseId
-  70014: "/Loaning/GuarantorAttachment",   // Guarantor Attachment — api/backoffice/loanguarantorattachments, same unified 3-tab screen as 70015/70016
-  70015: "/Loaning/GuarantorAttachment",   // Guarantor Substitution — same controller/screen as 70014, Substitute tab
-  70016: "/Loaning/GuarantorAttachment",   // Guarantor Relieving — same controller/screen as 70014, History/Relieve tab
+  70014: "/Loaning/Guarantors",           // Attachment, substitution and relieving share Guarantor Management.
+  70015: "/Loaning/Guarantors",
+  70016: "/Loaning/Guarantors",
   70017: "/Loaning/Guarantors",            // Guarantor Management (ControllerName: GuarantorManagement) — api/backoffice/loanguarantors, adds one more guarantor to an already-registered case
   70019: "/Loaning/CheckOff/DataPeriods",    // Open and amend payroll/checkoff capture periods
   70020: "/Loaning/CheckOff/DataProcessing", // Capture checkoff entries against customer product accounts
   70021: "/Loaning/CheckOff/Closing",        // Close an open capture period
   70022: "/Loaning/CheckOff/Catalogue",      // Read-only captured-entry catalogue
+  70023: "/Loaning/LoanAgeing",             // Operations > Loaning > Loan Ageing
+  70025: "/Loaning/DefaulterNotices",       // Operations > Loaning > Defaulter Notices
+  70024: "/Loaning/RepaymentSchedules",     // Operations > Loaning > Repayment Schedules
 
   // ── Front-Office (0x000061A8 = 25000) ────────────────────────────
   // Operations (25001) > Treasury (25002)

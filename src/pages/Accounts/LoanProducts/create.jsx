@@ -37,7 +37,7 @@ const FIELD_HELP = {
   "Annual Percentage Rate": "The annual interest rate used by the selected calculation mode when generating loan interest and repayment schedules.",
   "Calculation Mode": "Determines whether interest is calculated on a reducing balance, straight-line basis, amortized basis, or as fixed interest.",
   "Charge Mode": "Controls whether interest is charged upfront or periodically during the loan term.",
-  "Recovery Mode": "Controls whether charged interest is recovered upfront or through periodic repayments.",
+  "Recovery Mode": "Controls whether charged interest is recovered upfront or through periodic repayments. Periodic charging requires periodic recovery. Upfront recovery requires upfront charging. Product edits apply to new loan terms; historical repayment schedules use the terms saved on each loan.",
   "Term (Months)": "The standard repayment duration used when scheduling this product.",
   "Payment Frequency Per Year": "The number of scheduled repayments in a year, such as 12 for monthly or 52 for weekly.",
   "Minimum Principal Amount": "The smallest principal amount that may be registered under this product.",
@@ -272,10 +272,14 @@ export default function CreateLoanProduct() {
   }, [id, isEditing, navigate]);
 
   const set = (field) => (value) => setForm((p) => ({ ...p, [field]: value }));
+  const interestModeError = Number(form.LoanInterestChargeMode) === InterestChargeMode.Periodic && Number(form.LoanInterestRecoveryMode) === InterestRecoveryMode.Upfront
+    ? "Periodic interest charging requires periodic recovery. Select Periodic recovery, or change charging to Upfront if the full-term interest must be collected at disbursement."
+    : "";
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     const errors = [];
+    if (interestModeError) errors.push(interestModeError);
     if (!form.Description?.trim()) errors.push("Name is required.");
     if (!form.ChartOfAccountId) errors.push("Principal G/L Account is required.");
     if (!form.InterestReceivedChartOfAccountId) errors.push("Interest Received G/L Account is required.");
@@ -393,6 +397,7 @@ export default function CreateLoanProduct() {
           </FieldGroup>
           <FieldGroup label="Recovery Mode">
             <EnumSelect options={INTEREST_RECOVERY_MODE_OPTIONS} value={form.LoanInterestRecoveryMode} onChange={set("LoanInterestRecoveryMode")} />
+            {interestModeError && <p role="alert" className="text-sm text-red-700 mt-1">{interestModeError}</p>}
           </FieldGroup>
         </Section>
 

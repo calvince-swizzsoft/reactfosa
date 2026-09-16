@@ -3,7 +3,6 @@ import { FaFileAlt } from "react-icons/fa";
 import { Button } from "@/components/ui/button";
 import { apiJson } from "@/lib/api";
 import { availableReportRows } from "./reportListModel";
-import LoanAgeing from "../LoanAgeing";
 import Form3 from "./Form3";
 import Form4 from "./Form4";
 import Form2 from "./Form2";
@@ -35,12 +34,10 @@ export default function SasraSetup() {
     load().catch(e => { if (active) setError(e.message); }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [reload]);
-  if (selected?.endpoint === "loanAgeing") return <LoanAgeing onClose={() => setSelected(null)} />;
   const Report = screens[selected?.endpoint];
-  if (Report) return <Report savedVersionId={selected.id} savedForm6VersionId={rows.find(r => r.endpoint === "form6")?.id} onLoanAgeing={() => setSelected({endpoint:"loanAgeing"})} onClose={() => { setSelected(null); setReload(n => n + 1); }} />;
+  if (Report) return <Report savedVersionId={selected.id} savedForm6VersionId={rows.find(r => r.endpoint === "form6")?.id} onClose={() => { setSelected(null); setReload(n => n + 1); }} />;
   return <main className="bg-white m-8 px-8 py-8 shadow-2xl rounded-lg relative">
     <header className="bg-indigo-800 px-6 py-3 rounded-2xl flex justify-between items-center gap-3"><h1 className="text-xl font-bold text-white flex items-center gap-2"><FaFileAlt />SASRA Reports</h1><Button variant="outline" disabled={loading} onClick={() => setReload(n => n + 1)}>Refresh</Button></header>
-    <div className="mt-4"><Button variant="outline" onClick={() => setSelected({ endpoint: "loanAgeing" })}>Loan ageing and repayment schedules</Button></div>
     <p className="my-4 text-sm text-gray-500">Select a report to open its mappings or review loan classification.</p>
     {error && <p role="alert" className="mb-4 p-3 bg-red-50 text-red-700 border border-red-200 rounded-lg">{error}</p>}
     <div className="bg-gray-200 p-4 rounded-sm">

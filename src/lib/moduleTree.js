@@ -28,6 +28,23 @@ export function buildModuleTree(items) {
   return roots;
 }
 
+// These granted modules share one tabbed page. Keep a granted code (rather
+// than inventing a grant) while presenting a single navigation entry.
+// Their database codes remain available for role administration and auditing.
+export function consolidateGuarantorNavigation(nodes) {
+  const codes = new Set([70014, 70015, 70016, 70017]);
+  const granted = nodes.filter(node => codes.has(Number(node.Code)));
+  const preferred = granted.slice().sort((a, b) => Number(a.Code) - Number(b.Code))[0];
+  return nodes.flatMap(node => {
+    if (codes.has(Number(node.Code)) && node !== preferred) return [];
+    return [{
+      ...node,
+      ...(codes.has(Number(node.Code)) ? { Description: 'Guarantor Management' } : {}),
+      Children: consolidateGuarantorNavigation(node.Children || []),
+    }];
+  });
+}
+
 export function nodeMatches(node, query) {
   return node.Description?.toLowerCase().includes(query) || String(node.Code).includes(query);
 }
