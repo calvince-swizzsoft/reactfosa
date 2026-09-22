@@ -17,6 +17,7 @@ import CustomerLookupModal from "@/pages/Registry/Customers/Documents/CustomerLo
 
 const defaultFormData = {
   CustomerId: "",
+  EmploymentStartDate: "",
   BranchId: "",
   DesignationId: "",
   DepartmentId: "",
@@ -134,6 +135,7 @@ export default function AddEmployeeDrawer({ open, onClose, onSuccess }) {
     try {
       const payload = {
         CustomerId: formData.CustomerId,
+        EmploymentStartDate: formData.EmploymentStartDate || null,
         BranchId: formData.BranchId,
         DesignationId: formData.DesignationId,
         DepartmentId: formData.DepartmentId,
@@ -204,7 +206,8 @@ export default function AddEmployeeDrawer({ open, onClose, onSuccess }) {
                 <LookupSelect field="DepartmentId" label="Department" items={departments} placeholder="Select Department" {...fp} disabled={loadingData} />
                 <LookupSelect field="EmployeeTypeId" label="Employee Type" items={employeeTypes} placeholder="Select Employee Type" {...fp} disabled={loadingData} />
 
-                <TextInput field="NationalSocialSecurityFundNumber" label="N.S.S.F Number" required {...fp} />
+                <Field label="Employment Start Date"><Input type="date" value={formData.EmploymentStartDate} onChange={(e) => handleChange("EmploymentStartDate", e.target.value)} /></Field>
+              <TextInput field="NationalSocialSecurityFundNumber" label="N.S.S.F Number" required {...fp} />
                 <TextInput field="NationalHospitalInsuranceFundNumber" label="N.H.I.F Number" required {...fp} />
 
                 <Field label="Blood Group">

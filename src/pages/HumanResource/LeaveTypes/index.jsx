@@ -10,7 +10,7 @@ import {
 import Swal from "sweetalert2";
 import NotFoundImage from "/assets/scopefinding.png";
 import { FaEdit, FaPlus, FaChevronLeft, FaChevronRight, FaUmbrellaBeach } from "react-icons/fa";
-import { listLeaveTypes, updateLeaveType } from "../Leave/lib/api";
+import { leaveSetupCapabilities, listLeaveTypes, updateLeaveType } from "../Leave/lib/api";
 import { LEAVE_UNIT_TYPE_LABEL, LEAVE_TARGET_GENDER_LABEL } from "../Leave/lib/enums";
 import FieldHelp from "@/pages/Accounts/SavingsProducts/FieldHelp";
 
@@ -39,7 +39,7 @@ function LeaveTypeForm({ form, setForm, loading, submitLabel, onSubmit }) {
       </FieldGroup>
 
       <FieldGroup label="Unit Type" help="Determines whether entitlement is granted weekly, monthly, or yearly.">
-        <Select value={String(form.UnitType)} onValueChange={(v) => set("UnitType", Number(v))}>
+        <Select value={String(form.UnitType)} onValueChange={(v) => { if (v) set("UnitType", Number(v)); }}>
           <SelectTrigger><SelectValue /></SelectTrigger>
           <SelectContent>
             {Object.entries(LEAVE_UNIT_TYPE_LABEL).map(([value, label]) => (
@@ -62,7 +62,7 @@ function LeaveTypeForm({ form, setForm, loading, submitLabel, onSubmit }) {
 
       <div className="flex items-center gap-2">
         <input type="checkbox" id="leavetype-accrued" checked={form.IsAccrued} onChange={(e) => set("IsAccrued", e.target.checked)} className="w-4 h-4 accent-indigo-600" />
-        <Label htmlFor="leavetype-accrued">Is Accrued?</Label>
+        <Label htmlFor="leavetype-accrued">Is Accrued?</Label><FieldHelp label="Accrued leave">Earns the stated days after each completed service week, month or year, measured from Employment Start Date. Leave this off to grant the entitlement at the beginning of each calendar cycle. Unused non-accrued entitlement resets each cycle.</FieldHelp>
       </div>
       <div className="flex items-center gap-2">
         <input type="checkbox" id="leavetype-excludeholidays" checked={form.ExcludeHolidays} onChange={(e) => set("ExcludeHolidays", e.target.checked)} className="w-4 h-4 accent-indigo-600" />
@@ -86,7 +86,7 @@ function LeaveTypeForm({ form, setForm, loading, submitLabel, onSubmit }) {
 }
 
 function EditLeaveTypeDrawer({ open, onClose, onSuccess, item }) {
-  const [form, setForm] = useState(emptyForm);
+  const [form, setForm] = useState(() => item ? { ...emptyForm, ...item } : emptyForm);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -138,6 +138,8 @@ function EditLeaveTypeDrawer({ open, onClose, onSuccess, item }) {
 }
 
 export default function LeaveTypes() {
+  const [canManage, setCanManage] = useState(false);
+  useEffect(() => { leaveSetupCapabilities().then((x) => setCanManage(x.CanManage)).catch(() => setCanManage(false)); }, []);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editItem, setEditItem] = useState(null);
@@ -180,12 +182,12 @@ export default function LeaveTypes() {
             &larr; Back to Leave Applications
           </Link>
         </div>
-        <Link
+        {canManage && <Link
           to="/HumanResource/LeaveTypes/create"
           className="inline-flex items-center gap-2 rounded-md bg-indigo-600 hover:bg-indigo-700 px-4 py-2 text-sm font-medium text-white"
         >
           <FaPlus /> Add Leave Type
-        </Link>
+        </Link>}
       </div>
 
       <div className="flex flex-wrap justify-between items-center mb-4 gap-3">
@@ -228,7 +230,7 @@ export default function LeaveTypes() {
                   <span className="col-span-2 text-sm text-gray-600">{item.TargetGenderDescription || LEAVE_TARGET_GENDER_LABEL[item.TargetGender] || "—"}</span>
                   <span className="col-span-1"><span className={`px-2 py-1 rounded text-xs font-semibold ${item.IsLocked ? "bg-red-100 text-red-600" : "bg-green-100 text-green-600"}`}>{item.IsLocked ? "Locked" : "Active"}</span></span>
                   <div className="col-span-2 flex justify-end">
-                    <Button size="sm" variant="outline" onClick={() => setEditItem(item)} className="flex items-center gap-1">
+                    <Button size="sm" variant="outline" disabled={!canManage} onClick={() => setEditItem(item)} className="flex items-center gap-1">
                       <FaEdit className="text-indigo-600" /> Edit
                     </Button>
                   </div>
@@ -254,7 +256,7 @@ export default function LeaveTypes() {
         </div>
       </div>
 
-      <EditLeaveTypeDrawer open={!!editItem} onClose={() => setEditItem(null)} onSuccess={fetchItems} item={editItem} />
+      <EditLeaveTypeDrawer key={editItem?.Id || "closed"} open={!!editItem} onClose={() => setEditItem(null)} onSuccess={fetchItems} item={editItem} />
     </div>
   );
 }

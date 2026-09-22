@@ -10,8 +10,11 @@ import {
 import Swal from "sweetalert2";
 import NotFoundImage from "/assets/scopefinding.png";
 import { FaEdit, FaPlus, FaChevronLeft, FaChevronRight, FaClipboardList, FaCog } from "react-icons/fa";
-import { listLeaveApplications, listLeaveTypes, updateLeaveApplication } from "../lib/api";
+import { listLeaveApplications, listLeaveTypes, updateLeaveApplication, withdrawLeave, retryLeaveNotification, leaveSetupCapabilities } from "../lib/api";
 import { LeaveApplicationStatus, LEAVE_STATUS_LABEL, LEAVE_STATUS_BADGE_CLASS } from "../lib/enums";
+
+import LeaveStatisticsDrawer from "../lib/LeaveStatisticsDrawer";
+import LeaveBalancePreview from "../lib/LeaveBalancePreview";
 
 const formatDate = (iso) => {
   if (!iso) return "—";
@@ -30,7 +33,8 @@ function FieldGroup({ label, children }) {
 }
 
 function EditLeaveApplicationDrawer({ open, onClose, onSuccess, item }) {
-  const [form, setForm] = useState({ LeaveTypeId: "", DurationStartDate: "", DurationEndDate: "", Reason: "" });
+  const [form, setForm] = useState({ LeaveTypeId: item?.LeaveTypeId || "", DurationStartDate: toDateInput(item?.DurationStartDate), DurationEndDate: toDateInput(item?.DurationEndDate), Reason: item?.Reason || "" });
+  const [preview, setPreview] = useState(null);
   const [loading, setLoading] = useState(false);
   const [leaveTypes, setLeaveTypes] = useState([]);
   const [loadingData, setLoadingData] = useState(false);
@@ -84,7 +88,7 @@ function EditLeaveApplicationDrawer({ open, onClose, onSuccess, item }) {
       {open && (
         <>
           <motion.div className="fixed inset-0 bg-black z-40" initial={{ opacity: 0 }} animate={{ opacity: 0.4 }} exit={{ opacity: 0 }} onClick={onClose} />
-          <motion.div className="fixed top-5 right-3 w-[420px] bg-white shadow-xl z-50 flex flex-col rounded-2xl p-3" initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", stiffness: 300, damping: 30 }}>
+          <motion.div className="fixed top-5 right-3 w-[420px] bg-white shadow-xl z-50 flex flex-col rounded-2xl p-3 max-h-[95vh] overflow-y-auto" initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", stiffness: 300, damping: 30 }}>
             <div className="p-4 flex justify-between items-center bg-indigo-600 rounded-2xl m-2">
               <h2 className="font-bold text-lg text-white">Edit Leave Application</h2>
               <Button variant="outline" size="sm" onClick={onClose}>Close</Button>
@@ -93,7 +97,7 @@ function EditLeaveApplicationDrawer({ open, onClose, onSuccess, item }) {
               <p className="text-xs text-gray-400">{item?.EmployeeCustomerFullName?.trim()}</p>
 
               <FieldGroup label="Leave Type">
-                <Select value={form.LeaveTypeId} onValueChange={(v) => setForm((p) => ({ ...p, LeaveTypeId: v }))} disabled={loadingData}>
+                <Select value={form.LeaveTypeId} onValueChange={(v) => { if (v) setForm((p) => ({ ...p, LeaveTypeId: v })); }} disabled={loadingData}>
                   <SelectTrigger><SelectValue placeholder={loadingData ? "Loading..." : "Select Leave Type"} /></SelectTrigger>
                   <SelectContent className="max-h-60 overflow-y-auto">
                     {leaveTypes.map((lt) => (
@@ -115,7 +119,8 @@ function EditLeaveApplicationDrawer({ open, onClose, onSuccess, item }) {
                 <Input value={form.Reason} onChange={(e) => setForm((p) => ({ ...p, Reason: e.target.value }))} required placeholder="Reason for leave" />
               </FieldGroup>
 
-              <Button type="submit" disabled={loading || loadingData} className="w-full bg-indigo-600 hover:bg-indigo-700">
+              <LeaveBalancePreview employeeId={item?.EmployeeId} leaveTypeId={form.LeaveTypeId} start={form.DurationStartDate} end={form.DurationEndDate} excludedId={item?.Id} onChange={setPreview} />
+              <Button type="submit" disabled={loading || loadingData || !preview?.CanSubmit} className="w-full bg-indigo-600 hover:bg-indigo-700">
                 {loading ? "Saving..." : "Update Application"}
               </Button>
             </form>
@@ -130,6 +135,16 @@ export default function LeaveApplicationList() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editItem, setEditItem] = useState(null);
+  const [statisticsItem, setStatisticsItem] = useState(null);
+  const [canManage, setCanManage] = useState(false);
+  useEffect(() => { leaveSetupCapabilities().then((x) => setCanManage(x.CanManage)).catch(() => setCanManage(false)); }, []);
+  const withdraw = async (item) => {
+    if (!(await Swal.fire({ title: "Withdraw this application?", showCancelButton: true, confirmButtonText: "Withdraw" })).isConfirmed) return;
+    try { await withdrawLeave(item.Id); fetchItems(); } catch (error) { Swal.fire("Error", error.message, "error"); }
+  };
+  const retryNotification = async (item) => {
+    try { const saved = await retryLeaveNotification(item.Id); Swal.fire(saved.NotificationPending ? "Notification pending" : "Notification queued", saved.NotificationPending ? "Delivery could not be queued. Please retry later." : "", saved.NotificationPending ? "warning" : "success"); fetchItems(); } catch (error) { Swal.fire("Error", error.message, "error"); }
+  };
   const [search, setSearch] = useState("");
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize] = useState(20);
@@ -171,7 +186,7 @@ export default function LeaveApplicationList() {
           </h2>
         </div>
         <div className="flex items-center gap-2">
-          <Link to="/HumanResource/LeaveTypes" className="inline-flex items-center gap-2 rounded-md border border-indigo-300 bg-white px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-50"><FaCog /> Leave Configuration</Link>
+          {canManage && <Link to="/HumanResource/LeaveTypes" className="inline-flex items-center gap-2 rounded-md border border-indigo-300 bg-white px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-50"><FaCog /> Leave Configuration</Link>}
           <Link to="/HumanResource/Leave/Application/create" className="inline-flex items-center gap-2 rounded-md bg-indigo-600 hover:bg-indigo-700 px-4 py-2 text-sm font-medium text-white"><FaPlus /> Apply for Leave</Link>
         </div>
       </div>
@@ -217,7 +232,10 @@ export default function LeaveApplicationList() {
                       {item.StatusDescription || LEAVE_STATUS_LABEL[item.Status] || "—"}
                     </span>
                   </span>
-                  <div className="col-span-2 flex justify-end">
+                  <div className="col-span-2 flex justify-end flex-wrap gap-2">
+                    <Button size="sm" variant="outline" onClick={() => setStatisticsItem(item)}>Statistics</Button>
+                    {item.Status === LeaveApplicationStatus.Pending && <Button size="sm" variant="outline" onClick={() => withdraw(item)}>Withdraw</Button>}
+                    {item.NotificationPending && <Button size="sm" variant="outline" onClick={() => retryNotification(item)}>Retry notification</Button>}
                     {item.Status === LeaveApplicationStatus.Pending ? (
                       <Button size="sm" variant="outline" onClick={() => setEditItem(item)} className="flex items-center gap-1">
                         <FaEdit className="text-indigo-600" /> Edit
@@ -248,7 +266,8 @@ export default function LeaveApplicationList() {
         </div>
       </div>
 
-      <EditLeaveApplicationDrawer open={!!editItem} onClose={() => setEditItem(null)} onSuccess={fetchItems} item={editItem} />
+      {statisticsItem && <LeaveStatisticsDrawer item={statisticsItem} onClose={() => setStatisticsItem(null)} />}
+      <EditLeaveApplicationDrawer key={editItem?.Id || "closed"} open={!!editItem} onClose={() => setEditItem(null)} onSuccess={fetchItems} item={editItem} />
     </div>
   );
 }

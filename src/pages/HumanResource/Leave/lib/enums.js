@@ -5,6 +5,7 @@ export const LeaveApplicationStatus = {
   Approved: 2,
   Rejected: 4,
   Recalled: 8,
+  Withdrawn: 16,
 };
 
 export const LEAVE_STATUS_LABEL = {
@@ -12,6 +13,7 @@ export const LEAVE_STATUS_LABEL = {
   [LeaveApplicationStatus.Approved]: "Approved",
   [LeaveApplicationStatus.Rejected]: "Rejected",
   [LeaveApplicationStatus.Recalled]: "Recalled",
+  [LeaveApplicationStatus.Withdrawn]: "Withdrawn",
 };
 
 export const LEAVE_STATUS_BADGE_CLASS = {
@@ -19,6 +21,7 @@ export const LEAVE_STATUS_BADGE_CLASS = {
   [LeaveApplicationStatus.Approved]: "bg-green-100 text-green-600",
   [LeaveApplicationStatus.Rejected]: "bg-red-100 text-red-600",
   [LeaveApplicationStatus.Recalled]: "bg-gray-100 text-gray-500",
+  [LeaveApplicationStatus.Withdrawn]: "bg-gray-100 text-gray-500",
 };
 
 // LeaveUnitTypes — Application.MainBoundedContext.DTO's LeaveType.UnitType

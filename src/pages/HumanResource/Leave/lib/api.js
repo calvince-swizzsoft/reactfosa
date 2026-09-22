@@ -62,10 +62,10 @@ export function authorizeLeaveApplication(id, decision, remarks) {
 }
 
 /** POST /{id}/recall — only reachable from Approved (server-enforced). */
-export function recallLeaveApplication(id, remarks) {
+export function recallLeaveApplication(id, remarks, effectiveReturnDate) {
   return unwrapJson(apiFetch(`${LEAVE_APPLICATIONS_BASE}/${id}/recall`, {
     method: "POST",
-    body: JSON.stringify({ Remarks: remarks }),
+    body: JSON.stringify({ Remarks: remarks, EffectiveReturnDate: effectiveReturnDate }),
   }));
 }
 
@@ -89,3 +89,16 @@ export async function listEmployees() {
   const body = await apiFetch(EMPLOYEES_BASE);
   return Array.isArray(body) ? body : [];
 }
+
+export function getEmployeeLeaveStatistics(employeeId, leaveTypeId, asAt, pageIndex = 0) {
+  return apiFetch(LEAVE_APPLICATIONS_BASE + "/employee-statistics?" + new URLSearchParams({ employeeId, leaveTypeId, asAt, pageIndex }));
+}
+
+export function previewLeave(employeeId, leaveTypeId, start, end, excludedId) {
+  const params = new URLSearchParams({ employeeId, leaveTypeId, start, end });
+  if (excludedId) params.set("excludedId", excludedId);
+  return apiFetch(LEAVE_APPLICATIONS_BASE + "/preview?" + params);
+}
+export const withdrawLeave = (id) => apiFetch(LEAVE_APPLICATIONS_BASE + "/" + id + "/withdraw", { method: "POST" });
+export const retryLeaveNotification = (id) => apiFetch(LEAVE_APPLICATIONS_BASE + "/" + id + "/retry-notification", { method: "POST" });
+export const leaveSetupCapabilities = () => apiFetch(LEAVE_TYPES_BASE + "/capabilities");

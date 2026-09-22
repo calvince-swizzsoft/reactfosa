@@ -27,6 +27,7 @@ const emptyForm = {
   NationalHospitalInsuranceFundNumber: "",
   BloodGroup: "",
   Remarks: "",
+  EmploymentStartDate: "",
   OnlineNotificationsEnabled: false,
   EnforceBiometricsForLogin: false,
   IsLocked: false,
@@ -52,6 +53,7 @@ function toForm(employee) {
     NationalHospitalInsuranceFundNumber: value(employee, "NationalHospitalInsuranceFundNumber", "nationalHospitalInsuranceFundNumber") || "",
     BloodGroup: String(value(employee, "BloodGroup", "bloodGroup") || ""),
     Remarks: value(employee, "Remarks", "remarks") || "",
+    EmploymentStartDate: (value(employee, "EmploymentStartDate", "employmentStartDate") || "").slice(0, 10),
     OnlineNotificationsEnabled: Boolean(value(employee, "OnlineNotificationsEnabled", "onlineNotificationsEnabled")),
     EnforceBiometricsForLogin: Boolean(value(employee, "EnforceBiometricsForLogin", "enforceBiometricsForLogin")),
     IsLocked: Boolean(value(employee, "IsLocked", "isLocked")),
@@ -150,7 +152,7 @@ export default function EditEmployee() {
     try {
       const response = await apiFetch(`${BASE}/api/humanresource/employees/${id}`, {
         method: "PUT",
-        body: JSON.stringify({ ...form, Id: id, BloodGroup: Number(form.BloodGroup) || 0 }),
+        body: JSON.stringify({ ...form, EmploymentStartDate: form.EmploymentStartDate || null, Id: id, BloodGroup: Number(form.BloodGroup) || 0 }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok || data === false) {
@@ -212,6 +214,7 @@ export default function EditEmployee() {
               <SelectContent>{bloodGroups.map(([idValue, label]) => <SelectItem key={idValue} value={String(idValue)}>{label}</SelectItem>)}</SelectContent>
             </Select>
           </Field>
+          <Field label="Employment Start Date"><Input type="date" value={form.EmploymentStartDate} onChange={(event) => change("EmploymentStartDate", event.target.value)} /></Field>
           <Field label="Remarks">
             <Input value={form.Remarks} onChange={(event) => change("Remarks", event.target.value)} />
           </Field>

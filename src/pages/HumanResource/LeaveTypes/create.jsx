@@ -88,7 +88,7 @@ export default function CreateLeaveType() {
 
         <div className="flex items-center gap-2">
           <input type="checkbox" id="leavetype-accrued" checked={form.IsAccrued} onChange={(e) => set("IsAccrued", e.target.checked)} className="w-4 h-4 accent-indigo-600" />
-          <Label htmlFor="leavetype-accrued">Is Accrued?</Label>
+          <Label htmlFor="leavetype-accrued">Is Accrued?</Label><FieldHelp label="Accrued leave">Earns the stated days after each completed service week, month or year, measured from Employment Start Date. Leave this off to grant the entitlement at the beginning of each calendar cycle. Unused non-accrued entitlement resets each cycle.</FieldHelp>
         </div>
         <div className="flex items-center gap-2">
           <input type="checkbox" id="leavetype-excludeholidays" checked={form.ExcludeHolidays} onChange={(e) => set("ExcludeHolidays", e.target.checked)} className="w-4 h-4 accent-indigo-600" />

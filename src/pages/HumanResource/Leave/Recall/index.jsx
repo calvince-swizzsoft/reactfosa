@@ -14,6 +14,7 @@ const formatDate = (iso) => {
 };
 
 export default function LeaveRecallList() {
+  const [loadError, setLoadError] = useState("");
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -24,12 +25,13 @@ export default function LeaveRecallList() {
 
   const fetchItems = () => {
     setLoading(true);
+    setLoadError("");
     listLeaveApplications({ text: search, status: LeaveApplicationStatus.Approved, pageIndex, pageSize })
       .then((page) => {
         setItems(page?.PageCollection || page?.pageCollection || []);
         setItemsCount(page?.ItemsCount || page?.itemsCount || 0);
       })
-      .catch(() => { setItems([]); setItemsCount(0); })
+      .catch((error) => { setItems([]); setItemsCount(0); setLoadError(error.message); })
       .finally(() => setLoading(false));
   };
 
@@ -44,9 +46,13 @@ export default function LeaveRecallList() {
   };
 
   const handleRecall = async (item) => {
+    const today = new Date().toLocaleDateString("en-CA");
+    const earliest = item.DurationStartDate.slice(0, 10) > today ? item.DurationStartDate.slice(0, 10) : today;
+    const picked = await Swal.fire({ title: "Return-to-work date", input: "date", inputValue: earliest, inputAttributes: { min: earliest, max: item.DurationEndDate.slice(0, 10) }, showCancelButton: true, inputValidator: (value) => !value || value < earliest || value > item.DurationEndDate.slice(0, 10) ? "Select a date within the remaining leave period." : undefined });
+    if (!picked.isConfirmed) return;
     const { value: remarks, isConfirmed } = await Swal.fire({
       title: `Recall leave for ${item.EmployeeCustomerFullName?.trim()}?`,
-      text: "This returns the applied days back to their balance.",
+      text: "Only unused days from the return date will be restored.",
       input: "textarea",
       inputPlaceholder: "Optional remarks",
       icon: "warning",
@@ -58,7 +64,7 @@ export default function LeaveRecallList() {
 
     setActingIds((prev) => new Set(prev).add(item.Id));
     try {
-      await recallLeaveApplication(item.Id, remarks);
+      await recallLeaveApplication(item.Id, remarks, picked.value);
       Swal.fire("Recalled", "Leave application recalled.", "success");
       fetchItems();
     } catch (err) {
@@ -87,6 +93,7 @@ export default function LeaveRecallList() {
         />
       </div>
 
+      {loadError && <p role="alert" className="text-red-600 mb-4">{loadError}</p>}
       <div className="bg-gray-200 p-4 rounded-sm">
         <div className="grid grid-cols-12 gap-4 bg-gray-700 text-gray-100 font-semibold p-3 rounded-lg mb-4">
           <span className="col-span-3">Employee</span>
@@ -119,7 +126,7 @@ export default function LeaveRecallList() {
                     <Button
                       size="sm"
                       variant="outline"
-                      disabled={actingIds.has(item.Id)}
+                      disabled={actingIds.has(item.Id) || item.DurationEndDate.slice(0, 10) < new Date().toLocaleDateString("en-CA")}
                       onClick={() => handleRecall(item)}
                       className="text-red-600 border-red-200 hover:bg-red-50 flex items-center gap-1"
                     >
@@ -130,7 +137,7 @@ export default function LeaveRecallList() {
               </div>
             ))}
           </div>
-        ) : (
+        ) : loadError ? null : (
           <div className="text-gray-500 text-center mt-4">
             <img src={NotFoundImage} alt="Not Found" className="mx-auto w-42" />
             <p className="font-medium text-gray-400">No approved leave applications to recall.</p>

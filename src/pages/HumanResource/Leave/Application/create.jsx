@@ -8,7 +8,8 @@ import {
 } from "@/components/ui/select";
 import { FaClipboardList } from "react-icons/fa";
 import Swal from "sweetalert2";
-import { listEmployees, listLeaveTypes, getLeaveBalance, createLeaveApplication } from "../lib/api";
+import LeaveBalancePreview from "../lib/LeaveBalancePreview";
+import { listEmployees, listLeaveTypes, createLeaveApplication } from "../lib/api";
 
 const employeeLabel = (e) => `${e.CustomerIndividualFirstName ?? ""} ${e.CustomerIndividualLastName ?? ""}`.trim() || "—";
 
@@ -34,8 +35,7 @@ export default function CreateLeaveApplication() {
   const [leaveTypes, setLeaveTypes] = useState([]);
   const [loadingData, setLoadingData] = useState(true);
 
-  const [balance, setBalance] = useState(null);
-  const [loadingBalance, setLoadingBalance] = useState(false);
+  const [preview, setPreview] = useState(null);
 
   useEffect(() => {
     Promise.all([
@@ -54,18 +54,6 @@ export default function CreateLeaveApplication() {
       .finally(() => setLoadingData(false));
   }, []);
 
-  useEffect(() => {
-    if (!employeeId || !leaveTypeId) {
-      setBalance(null);
-      return;
-    }
-    setLoadingBalance(true);
-    getLeaveBalance(employeeId, leaveTypeId)
-      .then((res) => setBalance(res?.Balance ?? res?.balance ?? 0))
-      .catch(() => setBalance(null))
-      .finally(() => setLoadingBalance(false));
-  }, [employeeId, leaveTypeId]);
-
   const selectedEmployee = useMemo(() => employees.find((employee) => employee.Id === employeeId), [employees, employeeId]);
   const eligibleLeaveTypes = useMemo(() => leaveTypes.filter((leaveType) =>
     !leaveType.TargetGender || Number(leaveType.TargetGender) === Number(selectedEmployee?.CustomerIndividualGender)
@@ -79,14 +67,15 @@ export default function CreateLeaveApplication() {
     e.preventDefault();
     setLoading(true);
     try {
-      await createLeaveApplication({
+      if (!preview?.CanSubmit) return;
+      const saved = await createLeaveApplication({
         EmployeeId: employeeId,
         LeaveTypeId: leaveTypeId,
         DurationStartDate: durationStartDate,
         DurationEndDate: durationEndDate,
         Reason: reason,
       });
-      Swal.fire("Success", "Leave application submitted successfully", "success");
+      Swal.fire("Success", saved.NotificationPending ? "Leave application saved. Approver notification is pending; retry it from the applications list." : "Leave application submitted successfully", "success");
       navigate("/HumanResource/Leave/Application");
     } catch (err) {
       Swal.fire("Error", err.message, "error");
@@ -130,12 +119,6 @@ export default function CreateLeaveApplication() {
           </Select>
         </FieldGroup>
 
-        {employeeId && leaveTypeId && (
-          <div className={`rounded-lg p-3 text-sm ${loadingBalance ? "bg-gray-100 text-gray-500" : "bg-blue-100 text-blue-700"}`}>
-            {loadingBalance ? "Checking balance..." : `Current balance: ${balance ?? "—"} day(s)`}
-          </div>
-        )}
-
         <FieldGroup label="Start Date">
           <Input type="date" value={durationStartDate} min={new Date().toISOString().slice(0, 10)} onChange={(e) => setDurationStartDate(e.target.value)} required />
         </FieldGroup>
@@ -148,7 +131,9 @@ export default function CreateLeaveApplication() {
           <Input value={reason} onChange={(e) => setReason(e.target.value)} required placeholder="Reason for leave" />
         </FieldGroup>
 
-        <Button type="submit" disabled={loading || loadingData || !employeeId || !leaveTypeId} className="bg-indigo-600 hover:bg-indigo-700">
+        <LeaveBalancePreview employeeId={employeeId} leaveTypeId={leaveTypeId} start={durationStartDate} end={durationEndDate} onChange={setPreview} />
+
+        <Button type="submit" disabled={loading || loadingData || !employeeId || !leaveTypeId || !preview?.CanSubmit} className="bg-indigo-600 hover:bg-indigo-700">
           {loading ? "Submitting..." : "Submit Application"}
         </Button>
       </form>

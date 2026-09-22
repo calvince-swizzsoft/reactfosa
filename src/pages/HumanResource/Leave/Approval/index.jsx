@@ -7,6 +7,8 @@ import { FaCheck, FaTimes, FaChevronLeft, FaChevronRight, FaThumbsUp, FaExclamat
 import { listLeaveApplications, authorizeLeaveApplication, getLeaveApprovalReadiness } from "../lib/api";
 import { LeaveApplicationStatus } from "../lib/enums";
 
+import ReviewDrawer from "./ReviewDrawer";
+
 const formatDate = (iso) => {
   if (!iso) return "—";
   const d = new Date(iso);
@@ -36,16 +38,19 @@ export default function LeaveApprovalList() {
   const [pageSize] = useState(20);
   const [itemsCount, setItemsCount] = useState(0);
   const [actingIds, setActingIds] = useState(new Set());
+  const [review, setReview] = useState(null);
+  const [loadError, setLoadError] = useState("");
   const [readiness, setReadiness] = useState(null);
 
   const fetchItems = () => {
     setLoading(true);
+    setLoadError("");
     listLeaveApplications({ text: search, status: LeaveApplicationStatus.Pending, pageIndex, pageSize })
       .then((page) => {
         setItems(page?.PageCollection || page?.pageCollection || []);
         setItemsCount(page?.ItemsCount || page?.itemsCount || 0);
       })
-      .catch(() => { setItems([]); setItemsCount(0); })
+      .catch((error) => { setItems([]); setItemsCount(0); setLoadError(error.message); })
       .finally(() => setLoading(false));
   };
 
@@ -68,6 +73,7 @@ export default function LeaveApprovalList() {
     try {
       await authorizeLeaveApplication(item.Id, decision, remarks);
       Swal.fire("Success", `Leave application ${decision === "approve" ? "approved" : "rejected"}.`, "success");
+      setReview(null);
       fetchItems();
     } catch (err) {
       Swal.fire("Error", err.message, "error");
@@ -86,6 +92,8 @@ export default function LeaveApprovalList() {
         </h2>
       </div>
 
+      {review && <ReviewDrawer key={review.Id} item={review} onClose={() => setReview(null)} onApprove={(item) => handleDecision(item, "approve")} busy={actingIds.has(review.Id)} />}
+      {loadError && <p role="alert" className="text-red-600 mb-4">{loadError}</p>}
       {readiness && !(readiness.HasEligibleApprover ?? readiness.hasEligibleApprover) && (readiness.PendingApplications ?? readiness.pendingApplications) > 0 ? (
         <div role="alert" className="mb-4 flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-800">
           <FaExclamationTriangle className="mt-0.5 shrink-0" />
@@ -134,10 +142,10 @@ export default function LeaveApprovalList() {
                     <Button
                       size="sm"
                       disabled={actingIds.has(item.Id)}
-                      onClick={() => handleDecision(item, "approve")}
+                      onClick={() => setReview(item)}
                       className="bg-indigo-600 hover:bg-indigo-700 flex items-center gap-1"
                     >
-                      <FaCheck /> Approve
+                      <FaCheck /> Review
                     </Button>
                     <Button
                       size="sm"
@@ -153,7 +161,7 @@ export default function LeaveApprovalList() {
               </div>
             ))}
           </div>
-        ) : (
+        ) : loadError ? null : (
           <div className="text-gray-500 text-center mt-4">
             <img src={NotFoundImage} alt="Not Found" className="mx-auto w-42" />
             <p className="font-medium text-gray-400">No pending leave applications.</p>

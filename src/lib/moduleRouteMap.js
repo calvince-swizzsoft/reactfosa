@@ -126,6 +126,7 @@ export const moduleRouteMap = {
   // applications point to) has no NavigationMenu leaf of its own anywhere
   // in this tree — reachable only via a link from the Application screen,
   // same ungated-utility-page pattern as Administration/Roles/Create.
+  22028: "/HumanResource/LeaveTypes",
   22016: "/HumanResource/Leave/Application", // Application (ControllerName: LeaveApplication)
   22017: "/HumanResource/Leave/Approval",    // Approval (ControllerName: LeaveApproval)
   22018: "/HumanResource/Leave/Recall",      // Recall (ControllerName: LeaveRecall)
