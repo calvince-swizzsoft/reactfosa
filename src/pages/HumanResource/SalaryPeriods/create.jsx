@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import FieldHelp from "@/pages/Accounts/SavingsProducts/FieldHelp";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -11,10 +12,13 @@ import Swal from "sweetalert2";
 import { createSalaryPeriod, listPostingPeriods } from "./lib/api";
 import { MONTH_LABEL, EMPLOYEE_CATEGORY_LABEL } from "./lib/enums";
 
-function FieldGroup({ label, children }) {
+function FieldGroup({ label, help, htmlFor, children }) {
   return (
     <div>
-      <Label className="text-sm font-semibold text-gray-700">{label}</Label>
+      <div className="mb-1 flex items-center gap-1.5">
+        <Label htmlFor={htmlFor} className="text-sm font-semibold text-gray-700">{label}</Label>
+        <FieldHelp label={label}>{help}</FieldHelp>
+      </div>
       {children}
     </div>
   );
@@ -22,7 +26,7 @@ function FieldGroup({ label, children }) {
 
 const emptyForm = {
   PostingPeriodId: "", Month: new Date().getMonth() + 1, EmployeeCategory: 1,
-  TaxReliefAmount: 0, MaximumProvidentFundReliefAmount: 0, MaximumInsuranceReliefAmount: 0,
+  TaxReliefAmount: 2400, MaximumProvidentFundReliefAmount: 30000, MaximumInsuranceReliefAmount: 5000,
   EnforceMonthValueDate: false, ExecutePayoutStandingOrders: false, Remarks: "",
 };
 
@@ -70,9 +74,9 @@ export default function CreateSalaryPeriod() {
       </div>
 
       <form onSubmit={handleSubmit} className="max-w-xl space-y-4">
-        <FieldGroup label="Posting Period">
+        <FieldGroup label="Posting Period" htmlFor="salary-period-posting" help="The accounting period for this payroll. Its ending year is used with the selected salary month when enforcing the month value date.">
           <Select value={form.PostingPeriodId} onValueChange={(v) => set("PostingPeriodId", v)} disabled={loadingData}>
-            <SelectTrigger><SelectValue placeholder={loadingData ? "Loading..." : "Select Posting Period"} /></SelectTrigger>
+            <SelectTrigger id="salary-period-posting"><SelectValue placeholder={loadingData ? "Loading..." : "Select Posting Period"} /></SelectTrigger>
             <SelectContent>
               {postingPeriods.map((p) => (
                 <SelectItem key={p.Id} value={p.Id}>{p.Description}</SelectItem>
@@ -82,9 +86,9 @@ export default function CreateSalaryPeriod() {
         </FieldGroup>
 
         <div className="grid grid-cols-2 gap-3">
-          <FieldGroup label="Month">
+          <FieldGroup label="Month" htmlFor="salary-period-month" help="The month this payroll covers. Salary periods are identified by posting period, month and employee category.">
             <Select value={String(form.Month)} onValueChange={(v) => set("Month", Number(v))}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger id="salary-period-month"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {Object.entries(MONTH_LABEL).map(([value, label]) => (
                   <SelectItem key={value} value={value}>{label}</SelectItem>
@@ -93,9 +97,9 @@ export default function CreateSalaryPeriod() {
             </Select>
           </FieldGroup>
 
-          <FieldGroup label="Employee Category">
+          <FieldGroup label="Employee Category" htmlFor="salary-period-category" help="Choose the employee group for this payroll: full-time, part-time or contract.">
             <Select value={String(form.EmployeeCategory)} onValueChange={(v) => set("EmployeeCategory", Number(v))}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger id="salary-period-category"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {Object.entries(EMPLOYEE_CATEGORY_LABEL).map(([value, label]) => (
                   <SelectItem key={value} value={value}>{label}</SelectItem>
@@ -105,33 +109,32 @@ export default function CreateSalaryPeriod() {
           </FieldGroup>
         </div>
 
-        <FieldGroup label="Tax Relief Amount">
-          <Input type="number" min="0" step="0.01" value={form.TaxReliefAmount} onChange={(e) => set("TaxReliefAmount", e.target.value)} />
+        <FieldGroup label="Tax Relief Amount" htmlFor="salary-period-tax" help="The relief amount deducted from each employee’s calculated income tax for this salary period. The default KSh 2,400 is monthly personal relief for eligible Kenyan residents. Use zero where personal relief does not apply. Enter an amount, not a percentage.">
+          <Input id="salary-period-tax" type="number" min="0" step="0.01" value={form.TaxReliefAmount} onChange={(e) => set("TaxReliefAmount", e.target.value)} />
         </FieldGroup>
 
-        <FieldGroup label="Maximum Provident Fund Relief Amount">
-          <Input type="number" min="0" step="0.01" value={form.MaximumProvidentFundReliefAmount} onChange={(e) => set("MaximumProvidentFundReliefAmount", e.target.value)} />
+        <FieldGroup label="Maximum Provident Fund Relief Amount" htmlFor="salary-period-provident" help="The maximum combined NSSF and provident fund contribution amount deducted from gross pay when calculating taxable pay for this period. The current monthly maximum is KSh 30,000 for eligible registered pension contributions.">
+          <Input id="salary-period-provident" type="number" min="0" step="0.01" value={form.MaximumProvidentFundReliefAmount} onChange={(e) => set("MaximumProvidentFundReliefAmount", e.target.value)} />
         </FieldGroup>
 
-        <FieldGroup label="Maximum Insurance Relief Amount">
-          <Input type="number" min="0" step="0.01" value={form.MaximumInsuranceReliefAmount} onChange={(e) => set("MaximumInsuranceReliefAmount", e.target.value)} />
+        <FieldGroup label="Maximum Insurance Relief Amount" htmlFor="salary-period-insurance" help="The maximum insurance relief deducted from calculated income tax for this period. Payroll uses the lower of this limit and the insurance relief on the employee’s salary card. Enter the already-calculated eligible relief on that card, not the premium; the monthly ceiling is KSh 5,000.">
+          <Input id="salary-period-insurance" type="number" min="0" step="0.01" value={form.MaximumInsuranceReliefAmount} onChange={(e) => set("MaximumInsuranceReliefAmount", e.target.value)} />
         </FieldGroup>
 
-        <FieldGroup label="Remarks">
-          <Input value={form.Remarks} onChange={(e) => set("Remarks", e.target.value)} required placeholder="e.g. August 2026 payroll" />
+        <FieldGroup label="Remarks" htmlFor="salary-period-remarks" help="A description of this salary period, such as September 2026 payroll. It is also used as the reference on salary posting transactions.">
+          <Input id="salary-period-remarks" value={form.Remarks} onChange={(e) => set("Remarks", e.target.value)} required placeholder="e.g. August 2026 payroll" />
         </FieldGroup>
 
         <div className="flex items-center gap-2">
           <input type="checkbox" id="period-enforcedate" checked={form.EnforceMonthValueDate} onChange={(e) => set("EnforceMonthValueDate", e.target.checked)} className="w-4 h-4 accent-indigo-600" />
           <Label htmlFor="period-enforcedate">Enforce Month Value Date?</Label>
+          <FieldHelp label="Enforce Month Value Date">Use the last day of the selected salary month as the transaction value date, using the posting period’s ending year. Future dates are capped at today. When off, transactions use the date they are posted.</FieldHelp>
         </div>
         <div className="flex items-center gap-2">
           <input type="checkbox" id="period-payouts" checked={form.ExecutePayoutStandingOrders} onChange={(e) => set("ExecutePayoutStandingOrders", e.target.checked)} className="w-4 h-4 accent-indigo-600" />
           <Label htmlFor="period-payouts">Execute Payout Standing Orders?</Label>
+          <FieldHelp label="Execute Payout Standing Orders">After a payslip is successfully posted, queue the employee’s payout standing orders from their payroll savings account for the selected month.</FieldHelp>
         </div>
-        <p className="text-xs text-gray-400">
-          When enabled, posting a payslip from this period also queues that employee's payout standing orders — a real money-movement side effect, not just a display flag.
-        </p>
 
         <Button type="submit" disabled={loading || loadingData || !form.PostingPeriodId} className="bg-indigo-600 hover:bg-indigo-700">
           {loading ? "Saving..." : "Create Salary Period"}

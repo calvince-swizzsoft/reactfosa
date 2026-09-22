@@ -15,25 +15,26 @@ const emptyForm = {
 };
 
 function EditSalaryHeadDrawer({ open, onClose, onSuccess, item }) {
-  const [form, setForm] = useState(emptyForm);
+  // Mount a fresh drawer per record with its saved values already present.
+  // Hydrating empty Selects in an effect can emit native empty change events.
+  const [form, setForm] = useState(() => ({
+    ...emptyForm,
+    Description: item?.Description || "",
+    Type: Number(item?.Type) || 0,
+    IsOneOff: item?.IsOneOff || false,
+    ChartOfAccountId: item?.ChartOfAccountId || "",
+    CustomerAccountTypeProductCode: Number(item?.CustomerAccountTypeProductCode) || 0,
+    CustomerAccountTypeTargetProductId: item?.CustomerAccountTypeTargetProductId || "",
+    CustomerAccountTypeTargetProductCode: Number(item?.CustomerAccountTypeTargetProductCode) || 0,
+  }));
   const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (item) {
-      setForm({
-        Description: item.Description || "",
-        Type: item.Type || 0,
-        IsOneOff: item.IsOneOff || false,
-        ChartOfAccountId: item.ChartOfAccountId || "",
-        CustomerAccountTypeProductCode: item.CustomerAccountTypeProductCode || 0,
-        CustomerAccountTypeTargetProductId: item.CustomerAccountTypeTargetProductId || "",
-        CustomerAccountTypeTargetProductCode: item.CustomerAccountTypeTargetProductCode || 0,
-      });
-    }
-  }, [item]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!form.Type || !form.ChartOfAccountId || !form.CustomerAccountTypeProductCode || !form.CustomerAccountTypeTargetProductId) {
+      Swal.fire("Missing Field", "Select a Type, Product Type, Product and G/L Account.", "warning");
+      return;
+    }
     setLoading(true);
     try {
       await updateSalaryHead(item.Id, form);
@@ -179,7 +180,7 @@ export default function SalaryHeads() {
         </div>
       </div>
 
-      <EditSalaryHeadDrawer open={!!editItem} onClose={() => setEditItem(null)} onSuccess={fetchItems} item={editItem} />
+      <EditSalaryHeadDrawer key={editItem?.Id || "closed"} open={!!editItem} onClose={() => setEditItem(null)} onSuccess={fetchItems} item={editItem} />
     </div>
   );
 }

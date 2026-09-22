@@ -24,6 +24,7 @@ import DynamicChargePicker from "../../lib/DynamicChargePicker";
 import TransferAccountLookup from "../lib/TransferAccountLookup";
 import TransferBalances from "../lib/TransferBalances";
 import { validateTransferEntry } from "../lib/transferValidation";
+import { validateIntraAccountEntry } from "../../IntraAccountTransfer/validation";
 
 const FIN_BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 const MODULE_NAVIGATION_ITEM_CODE = { origination: 23069, verification: 23079, authorization: 23089 };
@@ -55,7 +56,7 @@ function PickerField({ label, help, value, placeholder, onClick }) {
 
 const emptyCreateForm = { BranchId: "", BranchLabel: "", CustomerAccountId: "", CustomerLabel: "", Reference: "" };
 
-function CreateInterAccountTransferDrawer({ open, onClose, onSuccess }) {
+export function CreateInterAccountTransferDrawer({ open, onClose, onSuccess, intraAccount = false }) {
   const [form, setForm] = useState(emptyCreateForm);
   const [loading, setLoading] = useState(false);
   const [picker, setPicker] = useState(null);
@@ -71,14 +72,14 @@ function CreateInterAccountTransferDrawer({ open, onClose, onSuccess }) {
     }
     setLoading(true);
     try {
-      await createInterAccountTransferBatch({
+      const created = await createInterAccountTransferBatch({
         BranchId: form.BranchId,
         CustomerId: sourceAccount.CustomerId,
         CustomerAccountId: form.CustomerAccountId,
         Reference: form.Reference,
       });
-      Swal.fire("Success", "Inter account transfer batch created — it's now in the Pending queue.", "success");
-      onSuccess();
+      Swal.fire("Success", "Transfer batch created. Add the destination allocations, then complete verification and authorization before funds are posted.", "success");
+      onSuccess(created);
       onClose();
     } catch (err) {
       Swal.fire("Error", err.message, "error");
@@ -94,7 +95,7 @@ function CreateInterAccountTransferDrawer({ open, onClose, onSuccess }) {
           <motion.div className="fixed inset-0 bg-black z-40" initial={{ opacity: 0 }} animate={{ opacity: 0.4 }} exit={{ opacity: 0 }} onClick={onClose} />
           <motion.div className="fixed top-0 right-0 h-full w-full max-w-[520px] bg-white shadow-2xl z-50 flex flex-col" initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", stiffness: 300, damping: 30 }}>
             <div className="m-2 flex justify-between items-center bg-indigo-600 rounded-2xl px-4 py-3">
-              <h2 className="font-bold text-white">New Inter Account Transfer</h2>
+              <h2 className="font-bold text-white">New {intraAccount ? "Intra" : "Inter"} Account Transfer</h2>
               <Button variant="outline" size="sm" onClick={onClose}>Close</Button>
             </div>
             <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
@@ -123,6 +124,7 @@ function CreateInterAccountTransferDrawer({ open, onClose, onSuccess }) {
           setPicker(null); setSourceAccount(null); setForm((old) => ({ ...old, CustomerAccountId: "", CustomerLabel: "Loading account balances..." }));
           try {
             const account = await getTransferAccountBalances(item.Id);
+            if (intraAccount && ![1, 3].includes(Number(account.CustomerAccountTypeProductCode))) throw new Error("Choose a savings or investment account as the source.");
             setSourceAccount(account);
             setForm((old) => ({ ...old, CustomerAccountId: account.Id, CustomerLabel: [account.CustomerFullName, account.FullAccountNumber].filter(Boolean).join(" — ") }));
           } catch (error) { setForm((old) => ({ ...old, CustomerLabel: "" })); Swal.fire("Account unavailable", error.message, "error"); }
@@ -137,7 +139,7 @@ const emptyEntryForm = {
   CustomerAccountId: "", CustomerLabel: "", Principal: "", Interest: "", PrimaryDescription: "", SecondaryDescription: "", Reference: "",
 };
 
-function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
+export function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged, intraAccount = false }) {
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [entryForm, setEntryForm] = useState(emptyEntryForm);
@@ -186,7 +188,8 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
   if (!batch) return null;
 
   const isMine = batch.CreatedBy === currentUser;
-  const canManageEntries = stage === "origination" && batch.Status === BatchStatus.Pending && isMine;
+  const containsGL = entries.some((entry) => Number(entry.ApportionTo) !== ApportionTo.CustomerAccount);
+  const canManageEntries = stage === "origination" && batch.Status === BatchStatus.Pending && isMine && !(intraAccount && (loading || entriesError || containsGL));
   const entriesTotal = entries.reduce((sum, e) => sum + Number(e.Principal || 0) + Number(e.Interest || 0), 0);
   const isGL = Number(entryForm.ApportionTo) === ApportionTo.GeneralLedgerAccount;
 
@@ -204,7 +207,7 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
       Swal.fire("Missing Fields", "Principal or interest must be greater than zero.", "warning");
       return;
     }
-    const validation = validateTransferEntry(entryForm, sourceAccount, targetAccount, entries);
+    const validation = (intraAccount ? validateIntraAccountEntry : validateTransferEntry)(entryForm, sourceAccount, targetAccount, entries);
     if (validation) { Swal.fire("Check transfer", validation, "warning"); return; }
     setAddingEntry(true);
     try {
@@ -266,7 +269,7 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
       <motion.div className="fixed inset-0 bg-black z-40" initial={{ opacity: 0 }} animate={{ opacity: 0.4 }} exit={{ opacity: 0 }} onClick={onClose} />
       <motion.div className="fixed top-0 right-0 h-full w-full max-w-[720px] bg-white shadow-2xl z-50 flex flex-col" initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", stiffness: 300, damping: 30 }}>
         <div className="m-2 flex justify-between items-center bg-indigo-600 rounded-2xl px-4 py-3">
-          <h2 className="font-bold text-white">Inter Account Transfer #{batch.PaddedBatchNumber}</h2>
+          <h2 className="font-bold text-white">{intraAccount ? "Intra" : "Inter"} Account Transfer #{batch.PaddedBatchNumber}</h2>
           <Button variant="outline" size="sm" onClick={onClose}>Close</Button>
         </div>
 
@@ -280,6 +283,7 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
             <div><span className="text-gray-400">Entries Total</span><p className="font-semibold text-gray-800">{entriesTotal.toLocaleString()}</p></div>
           </div>
 
+          {intraAccount && containsGL && <p role="status" className="rounded-lg bg-amber-50 p-3 text-sm text-amber-700">This shared transfer batch contains G/L allocations. Manage it under Batch Origination → Inter Account Transfer.</p>}
           <TransferBalances account={sourceAccount} />
           <Button variant="outline" disabled={balanceLoading} onClick={refreshBalances}>{balanceLoading ? "Refreshing balances..." : "Refresh balances"}</Button>
           {balanceError && <p role="alert" className="text-red-600 text-sm">{balanceError}</p>}
@@ -336,19 +340,21 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
               <FieldGroup label="Apportion To" help="Choose the destination category for this allocation. It determines which account picker is shown and whether principal and interest apply.">
                 <select
                   className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                  disabled={intraAccount}
                   value={entryForm.ApportionTo}
                   onChange={(e) => { setTargetAccount(null); setEntryForm((p) => ({ ...p, ApportionTo: e.target.value, ChartOfAccountId: "", ChartOfAccountLabel: "", CustomerAccountId: "", CustomerLabel: "" })); }}
                 >
                   <option value={ApportionTo.CustomerAccount}>Customer Account</option>
-                  <option value={ApportionTo.GeneralLedgerAccount}>G/L Account</option>
+                  {!intraAccount && <option value={ApportionTo.GeneralLedgerAccount}>G/L Account</option>}
                 </select>
               </FieldGroup>
               {isGL ? (
                 <PickerField label="G/L Account" help="The general ledger account receiving this allocation from the source account." value={entryForm.ChartOfAccountLabel} placeholder="Search & select G/L account..." onClick={() => setPicker(true)} />
               ) : (
-                <PickerField label="Target Customer Account" help="The customer account receiving this allocation from the source account." value={entryForm.CustomerLabel} placeholder="Pick the target account..." onClick={() => setPicker(true)} />
+                <PickerField label="Target Customer Account" help="Select another account belonging to the source customer. Loan principal and interest cannot exceed the recorded balances." value={entryForm.CustomerLabel} placeholder="Pick the target account..." onClick={() => setPicker(true)} />
               )}
               {!isGL && <TransferBalances account={targetAccount} />}
+              {intraAccount && Number(targetAccount?.CustomerAccountTypeProductCode) === 2 && Number(targetAccount.InterestBalance) === 0 && <p className="text-sm text-gray-500">No outstanding interest is recorded. If interest should be due, capitalize it through the appropriate recurring procedure and refresh balances before allocating interest.</p>}
               <div className="grid grid-cols-2 gap-3">
                 <FieldGroup label="Principal" help="The main amount for this entry, excluding any amount entered separately as interest.">
                   <Input type="number" min="0" step="0.01" value={entryForm.Principal} onChange={(e) => setEntryForm((p) => ({ ...p, Principal: e.target.value }))} />

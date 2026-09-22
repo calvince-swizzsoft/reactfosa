@@ -6,13 +6,13 @@ import { apiJson as apiFetch } from "@/lib/api";
 // This is a DIFFERENT thing from Registration's inline guarantor rows —
 // Registration attaches guarantors as part of Create-ing a brand-new
 // LoanCase; this standalone controller adds ONE MORE guarantor to a case
-// that's already been registered (before appraisal). Only 9 fields are
+// that's already registered, disbursed or restructured. Only 9 fields are
 // ever written by Create (confirmed against LoanGuarantorFactory/the
 // domain aggregate — everything else on the DTO is a read-only echo):
 // CustomerId (the guarantor), LoaneeCustomerId, LoanProductId, LoanCaseId,
 // TotalShares, CommittedShares, AmountGuaranteed, AmountPledged,
 // AppraisalFactor. Unlike Registration's Create, TotalShares/
-// CommittedShares/AppraisalFactor are NOT recomputed server-side here —
+// CommittedShares/AppraisalFactor are recomputed server-side on save —
 // resolve them via lookupGuarantorEligibility (loanCaseApi.js) first and
 // send the real values.
 //
@@ -27,7 +27,7 @@ const BASE = `${FIN_BASE}/api/backoffice/loanguarantors`;
 
 async function unwrap(responsePromise) {
   const body = await responsePromise;
-  return body?.data ?? body;
+  return body?.data ?? body?.Data ?? body;
 }
 
 export function listLoanGuarantors({ text = "", pageIndex = 0, pageSize = 20 } = {}) {
@@ -51,4 +51,8 @@ export function listLoanGuarantorsByCustomer(customerId) {
 // module note above.
 export function createLoanGuarantor(request) {
   return unwrap(apiFetch(BASE, { method: "POST", body: JSON.stringify(request) }));
+}
+
+export function listGuarantorLoanCases(customerId) {
+  return unwrap(apiFetch(`${BASE}/loans/customer/${customerId}`));
 }

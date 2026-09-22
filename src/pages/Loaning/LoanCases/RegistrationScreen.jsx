@@ -20,7 +20,8 @@ import CustomerPickerModal from "./lib/CustomerPickerModal";
 import EntryPickerModal from "../../Accounts/BatchProcedures/lib/EntryPickerModal";
 import QuickCreateModal from "../lib/QuickCreateModal";
 import { createLoanPurpose, createLoaningRemark } from "../lib/loanMastersApi";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, apiJson } from "@/lib/api";
+import { getBranchIdFromToken } from "@/lib/auth";
 
 const FIN_BASE = `${import.meta.env.VITE_APP_FIN_URL}`;
 
@@ -97,7 +98,6 @@ const emptyForm = {
   SavingsProductId: "", SavingsProductLabel: "", savingsProduct: null,
   LoanPurposeId: "", LoanPurposeLabel: "", loanPurpose: null,
   RegistrationRemarkId: "", RegistrationRemarkLabel: "", registrationRemark: null,
-  BranchId: "", BranchLabel: "", branch: null,
   AmountApplied: "", ReceivedDate: localDateInputValue(),
 };
 
@@ -112,6 +112,10 @@ export function CreateLoanCaseDrawer({ open, onClose, onSuccess, title = "Regist
   const [context, setContext] = useState(null);
   const [activeTab, setActiveTab] = useState("loanDetails");
   const [contextLoading, setContextLoading] = useState(false);
+  const [operatorBranch, setOperatorBranch] = useState(null);
+  const [branchLoading, setBranchLoading] = useState(true);
+  const [branchError, setBranchError] = useState("");
+  const [branchAttempt, setBranchAttempt] = useState(0);
 
   useEffect(() => {
     if (open) {
@@ -123,17 +127,49 @@ export function CreateLoanCaseDrawer({ open, onClose, onSuccess, title = "Regist
     }
   }, [open]);
 
+  useEffect(() => {
+    if (!open) return;
+    const controller = new AbortController();
+    const branchId = getBranchIdFromToken();
+    setOperatorBranch(null);
+    setBranchError("");
+    if (!branchId) {
+      setBranchLoading(false);
+      setBranchError("Your login has no assigned branch. Ask an administrator to assign one, then sign in again.");
+      return;
+    }
+    setBranchLoading(true);
+    apiJson(`${FIN_BASE}/api/administration/branches/${branchId}`, { signal: controller.signal })
+      .then((body) => {
+        if (controller.signal.aborted) return;
+        const branch = body?.data ?? body?.Data ?? body;
+        if (branch?.Id?.toLowerCase() !== branchId.toLowerCase()) throw new Error("Your assigned branch could not be resolved.");
+        if (branch.IsLocked) throw new Error("Your assigned branch is locked. Contact an administrator.");
+        setOperatorBranch(branch);
+      })
+      .catch((error) => {
+        if (!controller.signal.aborted) setBranchError(error.message || "Could not load your assigned branch.");
+      })
+      .finally(() => { if (!controller.signal.aborted) setBranchLoading(false); });
+    return () => controller.abort();
+  }, [open, branchAttempt]);
+
   const needsGuarantors = Number(form.loanProduct?.LoanRegistrationMinimumGuarantors || 0) > 0;
 
   useEffect(() => {
-    if (!form.CustomerId) return;
+    let cancelled = false;
     setContext(null);
+    if (!open || !form.CustomerId) {
+      setContextLoading(false);
+      return;
+    }
     setContextLoading(true);
     getRegistrationContext(form.CustomerId, form.LoanProductId || undefined)
-      .then(setContext)
-      .catch(() => setContext(null))
-      .finally(() => setContextLoading(false));
-  }, [form.CustomerId, form.LoanProductId]);
+      .then((data) => { if (!cancelled) setContext(data); })
+      .catch(() => { if (!cancelled) setContext(null); })
+      .finally(() => { if (!cancelled) setContextLoading(false); });
+    return () => { cancelled = true; };
+  }, [open, form.CustomerId, form.LoanProductId]);
 
   useEffect(() => {
     if (!context) return;
@@ -142,8 +178,6 @@ export function CreateLoanCaseDrawer({ open, onClose, onSuccess, title = "Regist
       customer: context.customer || current.customer,
       loanProduct: context.loanProduct || current.loanProduct,
       LoanProductLabel: context.loanProduct?.Description || current.LoanProductLabel,
-      BranchId: current.BranchId || context.customer?.BranchId || "",
-      BranchLabel: current.BranchLabel || context.customer?.BranchDescription || "",
     }));
   }, [context]);
 
@@ -178,9 +212,14 @@ export function CreateLoanCaseDrawer({ open, onClose, onSuccess, title = "Regist
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.CustomerId || !form.LoanProductId || !form.SavingsProductId || !form.LoanPurposeId || !form.RegistrationRemarkId || !form.BranchId || !(Number(form.AmountApplied) > 0)) {
+    if (branchLoading || !operatorBranch || operatorBranch.Id.toLowerCase() !== getBranchIdFromToken()?.toLowerCase()) {
       setActiveTab("loanDetails");
-      Swal.fire("Missing Fields", "Customer, loan product, savings product, loan purpose, registration remark, branch and a positive amount applied are all required.", "warning");
+      Swal.fire("Branch Unavailable", branchError || "Your assigned branch must be loaded before registering a loan. Reopen the drawer if your login has changed.", "warning");
+      return;
+    }
+    if (!form.CustomerId || !form.LoanProductId || !form.SavingsProductId || !form.LoanPurposeId || !form.RegistrationRemarkId || !(Number(form.AmountApplied) > 0)) {
+      setActiveTab("loanDetails");
+      Swal.fire("Missing Fields", "Customer, loan product, savings product, loan purpose, registration remark and a positive amount applied are all required.", "warning");
       return;
     }
     if (form.CustomerRecordStatus !== RecordStatus.Approved) {
@@ -191,8 +230,8 @@ export function CreateLoanCaseDrawer({ open, onClose, onSuccess, title = "Regist
       Swal.fire("Loan Product Locked", "The selected loan product cannot accept new applications.", "warning");
       return;
     }
-    if (form.savingsProduct?.IsLocked || form.loanPurpose?.IsLocked || form.registrationRemark?.IsLocked || form.branch?.IsLocked) {
-      Swal.fire("Locked Selection", "The selected savings product, purpose, remark, or branch is locked. Choose an active option.", "warning");
+    if (form.savingsProduct?.IsLocked || form.loanPurpose?.IsLocked || form.registrationRemark?.IsLocked) {
+      Swal.fire("Locked Selection", "The selected savings product, purpose, or remark is locked. Choose an active option.", "warning");
       return;
     }
     const amountApplied = Number(form.AmountApplied);
@@ -223,7 +262,7 @@ export function CreateLoanCaseDrawer({ open, onClose, onSuccess, title = "Regist
           SavingsProductId: form.SavingsProductId,
           LoanPurposeId: form.LoanPurposeId,
           RegistrationRemarkId: form.RegistrationRemarkId,
-          BranchId: form.BranchId,
+          BranchId: operatorBranch.Id,
           AmountApplied: Number(form.AmountApplied),
           ReceivedDate: form.ReceivedDate,
         },
@@ -243,11 +282,19 @@ export function CreateLoanCaseDrawer({ open, onClose, onSuccess, title = "Regist
       onClose();
       if (nextStep.isConfirmed) navigate("/CommandHub/ApprovalRequests");
     } catch (err) {
-      if (requestId === lookupRequest.current) Swal.fire("Error", err.message, "error");
+      Swal.fire("Error", err.message, "error");
     } finally {
       setLoading(false);
     }
   };
+
+  const sameProductBalance = context?.selectedProductLoanBalance;
+  const hasSameProductBalance =
+    (typeof sameProductBalance === "number" || (typeof sameProductBalance === "string" && sameProductBalance.trim() !== "")) &&
+    Number.isFinite(Number(sameProductBalance));
+  const sameProductBalanceLabel = contextLoading
+    ? "Loading…"
+    : hasSameProductBalance ? Number(sameProductBalance).toLocaleString() : "Unavailable";
 
   const selectedAccount = context?.accounts?.[0];
   const selectedCustomer = context?.customer || form.customer || {};
@@ -268,7 +315,7 @@ export function CreateLoanCaseDrawer({ open, onClose, onSuccess, title = "Regist
               {form.CustomerId && (
                 <div className="grid grid-cols-2 gap-3 rounded-lg border border-indigo-100 bg-white p-4 text-sm shadow-sm md:grid-cols-4">
                   <div className="col-span-2 flex items-center gap-2 text-indigo-700 md:col-span-4"><FaUser /><strong>{form.CustomerLabel}</strong></div>
-                  <div><span className="block text-xs text-gray-400">Employer</span><strong>{selectedCustomer.EmployerDescription || selectedCustomer.CustomerEmployerDescription || "—"}</strong></div>
+                  <div><span className="block text-xs text-gray-400">Employer</span><strong>{selectedCustomer.StationZoneDivisionEmployerDescription || selectedCustomer.EmployerDescription || selectedCustomer.CustomerEmployerDescription || "—"}</strong></div>
                   <div><span className="block text-xs text-gray-400">Station</span><strong>{selectedCustomer.StationDescription || selectedCustomer.CustomerStationDescription || "—"}</strong></div>
                   <div><span className="block text-xs text-gray-400">Account number</span><strong>{selectedAccount?.FullAccountNumber || "—"}</strong></div>
                   <div><span className="block text-xs text-gray-400">Membership number</span><strong>{selectedCustomer.PaddedSerialNumber || selectedCustomer.SerialNumber || "—"}</strong></div>
@@ -291,7 +338,11 @@ export function CreateLoanCaseDrawer({ open, onClose, onSuccess, title = "Regist
                 <PickerField label="Savings Product" value={form.SavingsProductLabel} placeholder="Select savings product..." onClick={() => setPicker("savingsProduct")} />
                 <PickerFieldWithCreate label="Loan Purpose" value={form.LoanPurposeLabel} placeholder="Select loan purpose..." onClick={() => setPicker("loanPurpose")} onCreateNew={() => setCreating("loanPurpose")} />
                 <PickerFieldWithCreate label="Loan Remark" value={form.RegistrationRemarkLabel} placeholder="Select loan remark..." onClick={() => setPicker("registrationRemark")} onCreateNew={() => setCreating("registrationRemark")} />
-                <PickerField label="Branch" value={form.BranchLabel} placeholder="Select branch..." onClick={() => setPicker("branch")} />
+                <div>
+                  <Label htmlFor="loan-registration-branch" className="text-sm font-semibold text-gray-700">Branch (your assigned branch)</Label>
+                  <Input id="loan-registration-branch" readOnly value={branchLoading ? "Loading…" : operatorBranch?.Description || "Unavailable"} className="bg-gray-100" aria-describedby={branchError ? "loan-registration-branch-error" : undefined} />
+                  {branchError && <div className="mt-2"><p id="loan-registration-branch-error" role="alert" className="text-sm text-red-600">{branchError}</p><Button type="button" variant="outline" size="sm" className="mt-2" onClick={() => setBranchAttempt((value) => value + 1)}>Retry branch lookup</Button></div>}
+                </div>
                 <div className="grid grid-cols-2 gap-3">
                   <FieldGroup label="Amount Applied"><Input type="number" min={form.loanProduct?.LoanRegistrationMicrocredit ? 0 : form.loanProduct?.LoanRegistrationMinimumAmount || 0} max={form.loanProduct?.LoanRegistrationMicrocredit ? undefined : form.loanProduct?.LoanRegistrationMaximumAmount || undefined} value={form.AmountApplied} onChange={(e) => setForm((p) => ({ ...p, AmountApplied: e.target.value }))} required /></FieldGroup>
                   <FieldGroup label="Received Date"><Input type="date" max={localDateInputValue()} value={form.ReceivedDate} onChange={(e) => setForm((p) => ({ ...p, ReceivedDate: e.target.value }))} required /></FieldGroup>
@@ -304,7 +355,7 @@ export function CreateLoanCaseDrawer({ open, onClose, onSuccess, title = "Regist
                   <div><span className="block text-xs text-gray-400">Payment frequency</span><strong>{form.loanProduct.LoanRegistrationPaymentFrequencyPerYearDescription || form.loanProduct.LoanRegistrationPaymentFrequencyPerYear || "—"}</strong></div>
                   <div><span className="block text-xs text-gray-400">Payment due</span><strong>{form.loanProduct.LoanRegistrationPaymentDueDateDescription || "—"}</strong></div>
                   <div><span className="block text-xs text-gray-400">Amount range</span><strong>{Number(form.loanProduct.LoanRegistrationMinimumAmount || 0).toLocaleString()} – {Number(form.loanProduct.LoanRegistrationMaximumAmount || 0).toLocaleString()}</strong></div>
-                  <div><span className="block text-xs text-gray-400">Same-product balance</span><strong>{Number(context?.selectedProductLoanBalance || 0).toLocaleString()}</strong></div>
+                  <div><span className="block text-xs text-gray-400">Same-product balance</span><strong>{sameProductBalanceLabel}</strong></div>
                   <div><span className="block text-xs text-gray-400">Investment balance</span><strong>{Number(context?.investmentBalance || 0).toLocaleString()}</strong></div>
                   <div><span className="block text-xs text-gray-400">Appraisal balance</span><strong>{Number(context?.appraisalBaseBalance || 0).toLocaleString()}</strong></div>
                   <div><span className="block text-xs text-gray-400">Maximum loan</span><strong>{Number(context?.maximumLoan || 0).toLocaleString()}</strong></div>
@@ -362,7 +413,7 @@ export function CreateLoanCaseDrawer({ open, onClose, onSuccess, title = "Regist
             </form>
 
             <div className="shrink-0 px-4 py-3 border-t">
-              <Button onClick={handleSubmit} disabled={loading} className="w-full bg-indigo-600 hover:bg-indigo-700">
+              <Button onClick={handleSubmit} disabled={loading || branchLoading || !operatorBranch} className="w-full bg-indigo-600 hover:bg-indigo-700">
                 {loading ? "Registering..." : "Register Loan Case"}
               </Button>
             </div>
@@ -410,15 +461,6 @@ export function CreateLoanCaseDrawer({ open, onClose, onSuccess, title = "Regist
           fetchUrl={`${FIN_BASE}/api/backoffice/loaningremarks`}
           getLabel={(i) => i.Description}
           onSelect={(i) => i.IsLocked ? Swal.fire("Loan Remark Locked", "Choose an active registration remark.", "warning") : setForm((p) => ({ ...p, RegistrationRemarkId: i.Id, RegistrationRemarkLabel: i.Description, registrationRemark: i }))}
-          onClose={() => setPicker(null)}
-        />
-      )}
-      {picker === "branch" && (
-        <EntryPickerModal
-          title="Select Branch"
-          fetchUrl={`${FIN_BASE}/api/administration/branches/all`}
-          getLabel={(i) => i.Description}
-          onSelect={(i) => i.IsLocked ? Swal.fire("Branch Locked", "Choose an active branch.", "warning") : setForm((p) => ({ ...p, BranchId: i.Id, BranchLabel: i.Description, branch: i }))}
           onClose={() => setPicker(null)}
         />
       )}

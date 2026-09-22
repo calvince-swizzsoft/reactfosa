@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { guarantorDisplayName } from "../LoanCases/lib/guarantorDisplayName";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -75,7 +76,7 @@ export function AttachPanel() {
 
   const addRow = (guarantor) => {
     if (rows.some((r) => r.Id === guarantor.Id)) return;
-    setRows((p) => [...p, { Id: guarantor.Id, label: `${guarantor.CustomerFullName} → ${guarantor.LoaneeCustomerFullName}`, PrincipalAttached: "", InterestAttached: "" }]);
+    setRows((p) => [...p, { Id: guarantor.Id, label: `${guarantorDisplayName(guarantor)} → ${guarantor.LoaneeCustomerFullName}`, PrincipalAttached: "", InterestAttached: "" }]);
   };
   const updateRow = (id, patch) => setRows((p) => p.map((r) => (r.Id === id ? { ...r, ...patch } : r)));
   const removeRow = (id) => setRows((p) => p.filter((r) => r.Id !== id));
@@ -167,7 +168,7 @@ export function AttachPanel() {
         <EntryPickerModal
           title="Select Existing Guarantor Record"
           fetchUrl={`${FIN_BASE}/api/backoffice/loanguarantors?pageSize=1000`}
-          getLabel={(i) => i.CustomerFullName}
+          getLabel={guarantorDisplayName}
           getSublabel={(i) => `Loanee: ${i.LoaneeCustomerFullName} · Case #${i.LoanCasePaddedCaseNumber}`}
           onSelect={addRow}
           onClose={() => setPicker(null)}
@@ -364,7 +365,7 @@ export function SubstitutePanel() {
             items={allGuarantors}
             selectedIds={selectedIds}
             onToggle={toggle}
-            getLabel={(g) => g.CustomerFullName}
+            getLabel={guarantorDisplayName}
             getSublabel={(g) => `Loanee: ${g.LoaneeCustomerFullName} · Case #${g.LoanCasePaddedCaseNumber}`}
             emptyText="No guarantor records found."
           />

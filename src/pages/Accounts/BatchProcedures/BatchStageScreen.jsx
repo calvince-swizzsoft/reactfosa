@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { FaLayerGroup } from "react-icons/fa";
 import { BATCH_TYPES } from "./types/registry";
 
@@ -16,7 +16,10 @@ const STAGE_META = {
 };
 
 export default function BatchStageScreen({ stage }) {
-  const [activeType, setActiveType] = useState(BATCH_TYPES[0].id);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedType = searchParams.get("type");
+  const activeType = BATCH_TYPES.some((item) => item.id === requestedType && item.Panel) ? requestedType : BATCH_TYPES[0].id;
+  const setActiveType = (id) => setSearchParams((current) => { const next = new URLSearchParams(current); next.set("type", id); return next; }, { replace: true });
   const type = BATCH_TYPES.find((t) => t.id === activeType);
   const meta = STAGE_META[stage];
 

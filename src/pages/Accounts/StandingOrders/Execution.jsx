@@ -10,6 +10,7 @@ import { Link } from "react-router-dom";
 import { FaCogs, FaArrowLeft, FaPlay, FaWrench, FaBroom, FaMoneyCheckAlt, FaLayerGroup } from "react-icons/fa";
 import { apiFetch } from "@/lib/api";
 import { TargetDateOption } from "./api";
+import FieldHelp from "../SavingsProducts/FieldHelp";
 import {
   QueuePriority,
   executeDueStandingOrders,
@@ -41,10 +42,29 @@ const MONTH_OPTIONS = [
   "July", "August", "September", "October", "November", "December",
 ].map((label, i) => ({ value: i + 1, label }));
 
+const FIELD_HELP = {
+  "Due by (defaults to today)": "Select the date used to check which scheduled orders are due. Leave it blank to use today's server date. The schedule-date option below determines which date on each order is checked.",
+  "Use schedule date": "Actual Run Date uses the date adjusted for holidays. Expected Run Date uses the original scheduled date before that adjustment. For example, an order expected on a holiday may have a later actual run date.",
+  "Queue priority": "Sets the priority of the work sent for background processing. Normal is the default. A higher priority does not guarantee immediate posting or bypass account checks.",
+  "Retry limit": "Controls how many execution attempts a scheduled run can make before its schedule advances to the next run date, even if the balance check has not succeeded. The default is 3. Clicking Queue Due Orders does not perform all three attempts at once.",
+  "Batch size": "The number of records fetched per processing chunk. The system continues through the remaining matching records, so 100 does not limit the whole operation to 100 orders. Keep the default unless you need to adjust processing performance.",
+  "Skipped by (defaults to yesterday)": "Select the cutoff date for finding skipped orders whose attempt counts should be reset. Leave it blank to use yesterday's server date. After resetting, use Queue Due Orders to attempt execution again.",
+  "Customer": "Choose the customer whose account will fund the payout. This selection determines which source accounts are available below.",
+  "Source Account": "The account that funds the payout. The system uses the existing unlocked standing orders with a Payout trigger attached to this account; selecting an account does not create a new standing order.",
+  "Month": "The month recorded against the payout batch and its references. It labels this payout run; choosing a month does not schedule the action to wait until that month.",
+};
+
+const ACTION_HELP = {
+  "Queue Due Orders": "Finds scheduled standing orders due for the selected date and prepares a recurring batch for background posting. The run checks account status and available funds and updates execution attempts and schedule dates. Queued means submitted for processing, not that money has already moved. Open Recurring Batches to review the resulting batch and entries.",
+  "Retry Skipped Orders": "Resets the execution-attempt counters on matching skipped orders. This action does not post transfers. Use Queue Due Orders afterward to attempt execution again; the normal account and balance checks still apply.",
+  "Sweep": "Queues standing orders configured with the Sweep trigger for full-balance transfers. Use this for sweep instructions rather than scheduled fixed-amount orders. Review the resulting recurring batch to see the processing outcome.",
+  "Payout": "Queues the selected source account's existing unlocked Payout standing orders in a recurring batch for the chosen month. It applies to that account, rather than all customers. Posting happens through background processing; review the recurring batch for the outcome.",
+};
+
 function FieldGroup({ label, children }) {
   return (
     <div>
-      <Label className="text-sm font-semibold text-gray-700">{label}</Label>
+      <div className="mb-1 flex items-center gap-1"><Label className="text-sm font-semibold text-gray-700">{label}</Label><FieldHelp label={label}>{FIELD_HELP[label]}</FieldHelp></div>
       {children}
     </div>
   );
@@ -68,7 +88,8 @@ function ActionCard({ icon, title, description, children, submitLabel, onSubmit,
     <div className="rounded-xl border bg-white shadow p-6 space-y-4">
       <div className="flex items-center gap-2 text-indigo-700">
         {icon}
-        <h3 className="font-semibold text-slate-800">{title}</h3>
+        <h3 className="font-semibold text-gray-800">{title}</h3>
+        <FieldHelp label={title}>{ACTION_HELP[title]}</FieldHelp>
       </div>
       {description && <p className="text-sm text-gray-500">{description}</p>}
       <div className="space-y-3">{children}</div>
@@ -229,7 +250,7 @@ export default function StandingOrderExecution() {
       Swal.fire("Missing Field", "Select a benefactor account first.", "warning");
       return;
     }
-    const r = await confirmRun("Run payout?", "This runs this account's dividend payout for the selected month now.");
+    const r = await confirmRun("Run payout?", "This queues this account's payout orders for the selected month. Posting happens in the background.");
     if (!r.isConfirmed) return;
     setPayoutLoading(true);
     try {
@@ -259,7 +280,7 @@ export default function StandingOrderExecution() {
       </div>
 
       <div className="mb-6 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700">
-        These actions create background work. A queued order may post later through the Windows service.
+        Queued orders are awaiting background processing. Review Recurring Batches to check posting progress.
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

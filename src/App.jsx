@@ -261,6 +261,8 @@ import InHouseCheques from "./pages/FOSA/TellerTransactions/InHouseCheques.jsx";
 import CreateInHouseCheques from "./pages/FOSA/TellerTransactions/InHouseCheques/create.jsx";
 import AutomatedClearing from "./pages/FOSA/TellerTransactions/AutomatedClearing.jsx";
 import BatchStageScreen from "./pages/Accounts/BatchProcedures/BatchStageScreen.jsx";
+import MobileToBank from "./pages/Accounts/MobileToBank/index.jsx";
+import IntraAccountTransfer from "./pages/Accounts/IntraAccountTransfer/index.jsx";
 
 
 export default function App() {
@@ -572,6 +574,8 @@ export default function App() {
           <Route path="FrontOffice/InHouseCheques/create" element={<CreateInHouseCheques />} />
           <Route path="FrontOffice/AutomatedClearing" element={<AutomatedClearing />} />
           <Route path="FrontOffice/Transfers" element={<Transfers />} />
+          <Route path="Accounts/MobileToBank" element={<MobileToBank />} />
+          <Route path="Accounts/IntraAccountTransfer" element={<IntraAccountTransfer />} />
           <Route path="batch/origination" element={<BatchStageScreen stage="origination" />} />
           <Route path="batch/verification" element={<BatchStageScreen stage="verification" />} />
           <Route path="batch/authorization" element={<BatchStageScreen stage="authorization" />} />

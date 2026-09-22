@@ -2,7 +2,7 @@
 
 Company create/edit includes a Defaulter Notice Settings tab. Configure borrower reminders, first/second notices, final demands, guarantor notifications and guarantor demands. Each stage has an overdue-days threshold, minimum arrears, recipient, response period, channel, approval flag and plain-text template. Field popovers explain these values. The default policy is disabled with no stages.
 
-These are company policy settings, not automatic sending or recovery. Loaning > Defaulter Notices now consumes the policy for eligibility, saved drafts, independent approval and printable downloads. Email/SMS delivery remains unconnected. No universal statutory notice deadlines are assumed.
+These are company policy settings, not automatic sending or recovery. Loaning > Defaulter Notices consumes the policy for eligibility, saved drafts, independent approval, printable downloads and recorded external dispatch. First notice, Second notice and Final demand drive the sequential notice tabs followed by Recovery. Email/SMS notices now queue through the existing messaging dispatchers. The selected channel determines the drawer’s Send Email, Send SMS or printed dispatch action. No universal statutory notice deadlines are assumed.
 
 The template editor provides a **Use starter message** button for the selected notice type and channel, with **Undo starter** to restore the previous wording. Insert-detail buttons place supported placeholders at the text cursor. The live preview uses fictional details and displays an approximate sample character count for SMS. Changing notice type or channel does not overwrite a custom message. Starter messages are editable message bodies; previews are not generated or sent notices.
 

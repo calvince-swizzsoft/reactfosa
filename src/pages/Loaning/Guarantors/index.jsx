@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
+import { guarantorDisplayName } from "../LoanCases/lib/guarantorDisplayName";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { BatchFieldHelp } from "@/pages/Accounts/BatchProcedures/lib/BatchFieldLabel";
 import { FaUserShield, FaPlus, FaSearch } from "react-icons/fa";
 import NotFoundImage from "/assets/scopefinding.png";
 import { listLoanGuarantors } from "./api";
@@ -70,29 +72,32 @@ export default function Guarantors({initialTab = 'guarantors'}) {
         <Button type="submit" variant="outline">Search</Button>
       </form>
 
-      <div className="bg-gray-200 p-4 rounded-sm">
-        <div className="grid grid-cols-12 gap-4 bg-gray-700 text-gray-100 font-semibold p-3 rounded-lg mb-4 text-sm">
+      <div className="bg-gray-200 p-4 rounded-sm overflow-x-auto">
+        <div className="min-w-[1000px]">
+        <div className="grid grid-cols-[repeat(14,minmax(0,1fr))] gap-4 bg-gray-700 text-gray-100 font-semibold p-3 rounded-lg mb-4 text-sm">
           <span className="col-span-3">Guarantor</span>
           <span className="col-span-3">Loanee</span>
           <span className="col-span-2">Loan Case</span>
           <span className="col-span-2">Amount Guaranteed</span>
           <span className="col-span-2">Committed / Total Shares</span>
+          <span className="col-span-2 inline-flex items-center gap-1">Status<BatchFieldHelp label="Guarantor status">Attached guarantors are active. Released records are retained as history and do not qualify as active guarantors for notices.</BatchFieldHelp></span>
         </div>
 
         {loading ? (
           <div className="space-y-2 animate-pulse">
-            {[1, 2, 3].map((i) => <div key={i} className="h-12 bg-gray-100 rounded-lg" />)}
+            {[1, 2, 3].map((i) => <div key={i} className="grid grid-cols-[repeat(14,minmax(0,1fr))] gap-4 p-3 bg-gray-50 rounded-lg">{[3,3,2,2,2,2].map((span,index)=><span key={index} className={`${span===3?"col-span-3":"col-span-2"} h-5 bg-gray-200 rounded`}/>)}</div>)}
           </div>
         ) : items.length > 0 ? (
           <div className="space-y-2">
             {items.map((g) => (
-              <div key={g.Id} className="bg-white rounded-lg shadow-lg border">
-                <div className="grid grid-cols-12 gap-2 items-center py-3 px-6 text-sm">
-                  <span className="col-span-3 font-medium text-indigo-700 truncate">{g.CustomerFullName}</span>
+              <div key={g.Id} className="bg-white rounded-lg shadow-lg border hover:shadow-xl transition-all">
+                <div className="grid grid-cols-[repeat(14,minmax(0,1fr))] gap-4 items-center p-3 text-sm">
+                  <span className="col-span-3 font-medium text-indigo-700 truncate">{guarantorDisplayName(g)}</span>
                   <span className="col-span-3 text-gray-700 truncate">{g.LoaneeCustomerFullName}</span>
                   <span className="col-span-2 text-gray-700">{g.LoanCasePaddedCaseNumber}</span>
                   <span className="col-span-2 font-semibold text-gray-800">{g.AmountGuaranteed?.toLocaleString()}</span>
                   <span className="col-span-2 text-gray-700">{g.CommittedShares?.toLocaleString()} / {g.TotalShares?.toLocaleString()}</span>
+                  <span className="col-span-2"><span className={`px-2 py-1 rounded text-xs font-semibold ${(g.Status ?? g.status) === 0 ? "bg-green-100 text-green-600" : "bg-gray-100 text-gray-600"}`}>{(g.Status ?? g.status) === 0 ? "Attached" : (g.Status ?? g.status) === 1 ? "Released" : "Unknown"}</span></span>
                 </div>
               </div>
             ))}
@@ -103,6 +108,8 @@ export default function Guarantors({initialTab = 'guarantors'}) {
             <p className="text-gray-400 font-medium">No guarantors found.</p>
           </div>
         )}
+      </div>
+
       </div>
 
       {itemsCount > pageSize && (

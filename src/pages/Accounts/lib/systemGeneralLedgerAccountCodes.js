@@ -51,4 +51,5 @@ export const SYSTEM_GENERAL_LEDGER_ACCOUNT_CODES = [
   { value: 0xBEBA + 33, label: "Account Receivables" },
   { value: 0xBEBA + 34, label: "Internal Debtors" },
   { value: 0xBEBA + 35, label: "Inventory" },
+  { value: 0xBEBA + 36, label: "Employer's Contribution (Housing Levy)" },
 ];

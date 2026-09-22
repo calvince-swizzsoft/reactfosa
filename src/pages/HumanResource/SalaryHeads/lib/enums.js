@@ -12,6 +12,8 @@ export const SalaryHeadType = {
   VoluntaryProvidentFundDeduction: 0xF0F0 + 10,
   PartTimeBasicPayEarning: 0xF0F0 + 11,
   ContractBasicPayEarning: 0xF0F0 + 12,
+  SHIFDeduction: 0xF0F0 + 13,
+  AffordableHousingLevyDeduction: 0xF0F0 + 14,
 };
 
 export const SALARY_HEAD_TYPE_LABEL = {
@@ -20,7 +22,9 @@ export const SALARY_HEAD_TYPE_LABEL = {
   [SalaryHeadType.ContractBasicPayEarning]: "Basic Pay Earning (Contract)",
   [SalaryHeadType.OtherEarning]: "Other Earning",
   [SalaryHeadType.NSSFDeduction]: "N.S.S.F Deduction",
-  [SalaryHeadType.NHIFDeduction]: "N.H.I.F Deduction",
+  [SalaryHeadType.NHIFDeduction]: "NHIF Deduction (Legacy)",
+  [SalaryHeadType.SHIFDeduction]: "SHIF Deduction",
+  [SalaryHeadType.AffordableHousingLevyDeduction]: "Affordable Housing Levy",
   [SalaryHeadType.PAYEDeduction]: "P.A.Y.E Deduction",
   [SalaryHeadType.StatutoryProvidentFundDeduction]: "Provident Fund Deduction (Statutory)",
   [SalaryHeadType.VoluntaryProvidentFundDeduction]: "Provident Fund Deduction (Voluntary)",
@@ -48,9 +52,19 @@ export const SINGLETON_TYPES = new Set([
   SalaryHeadType.ContractBasicPayEarning,
   SalaryHeadType.NSSFDeduction,
   SalaryHeadType.NHIFDeduction,
+  SalaryHeadType.SHIFDeduction,
+  SalaryHeadType.AffordableHousingLevyDeduction,
   SalaryHeadType.PAYEDeduction,
   SalaryHeadType.StatutoryProvidentFundDeduction,
 ]);
 
 export const ProductCode = { Savings: 1, Loan: 2, Investment: 3 };
 export const PRODUCT_CODE_LABEL = { [ProductCode.Savings]: "Savings", [ProductCode.Loan]: "Loan", [ProductCode.Investment]: "Investment" };
+
+export const STATUTORY_TYPE_HELP = {
+  [SalaryHeadType.NSSFDeduction]: "Calculated automatically at 6% of gross cash pay, capped by the NSSF earnings limit for the payroll month. The employer contributes an equal amount through the Employer NSSF G/L mapping.",
+  [SalaryHeadType.SHIFDeduction]: "Calculated automatically at 2.75% of gross cash pay, with a KSh 300 monthly minimum. There is no matching employer contribution. Use a SHIF payable G/L account.",
+  [SalaryHeadType.AffordableHousingLevyDeduction]: "Calculated automatically at 1.5% of regular cash earnings; one-off earnings are excluded. The employer contributes an equal amount through the Employer Housing Levy G/L mapping. Use a Housing Levy payable G/L account.",
+  [SalaryHeadType.PAYEDeduction]: "Calculated using Kenya's monthly tax bands after eligible pension contributions, SHIF, Housing Levy and the salary-card exemption. The salary period controls personal and insurance relief. Fixed amounts and percentages on the salary card do not override statutory calculations.",
+  [SalaryHeadType.NHIFDeduction]: "For historical payroll only. Use SHIF for current salary groups and cards; NHIF cannot be processed for current periods.",
+};

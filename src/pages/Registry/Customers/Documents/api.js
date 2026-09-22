@@ -32,9 +32,9 @@ export async function listDocuments({ text = "", pageIndex = 0, pageSize = 20 } 
 }
 
 /** GET api/registry/customer — the same paged search the Customers list page uses, reused for the create form's customer lookup. */
-export async function searchCustomers({ text = "", customerFilter = 2, pageIndex = 0, pageSize = 20 } = {}) {
+export async function searchCustomers({ text = "", customerFilter = 2, pageIndex = 0, pageSize = 20, signal } = {}) {
   const params = new URLSearchParams({ pageIndex: String(pageIndex), pageSize: String(pageSize), text, customerFilter: String(customerFilter) });
-  const body = await apiJson(`${CUSTOMERS_BASE}?${params.toString()}`);
+  const body = await apiJson(`${CUSTOMERS_BASE}?${params.toString()}`, { signal });
   return customerLookupPage(body, pageSize);
 }
 
@@ -86,4 +86,12 @@ export async function downloadDocument(id, suggestedFileName) {
       cause: error,
     });
   }
+}
+
+/** Account branches are the persisted customer branch linkage. */
+export async function getCustomerBranchAccounts(customerId, signal) {
+  const body = await apiJson(`${BASE}/api/accounts/customer-accounts/${encodeURIComponent(customerId)}/accounts`, { signal });
+  const accounts = body?.data ?? body?.Data ?? body;
+  if (!Array.isArray(accounts)) throw new Error("Invalid customer account response");
+  return accounts;
 }

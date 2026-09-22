@@ -66,3 +66,10 @@ The UI exposes separate principal and interest overdue totals and G/L difference
 28 additional synthetic assertions cover interest due-day boundaries, independent interest dates, upfront recovery, partial payments, prepayments, shared accounts, refunds, linked/unlinked reversals, missing accruals, missing terms, explicit interest-free terms, invalid amounts/dates and restructuring guards.
 
 The additive interest migration and live read-only verification passed: four accounts, principal KSh 261,000.02, booked interest receivable KSh 0.00, and zero differences for both G/L controls. All four accounts require interest confirmation. API, Utility and Windows Service Debug builds contain matching updated models; the frontend development build and regression tests pass. No schedules were fabricated or loan postings changed.
+
+
+## Loan register expansion
+
+The existing Loan Ageing route now displays Loan Register & Ageing. The loans endpoint includes all cases created through the reporting date, including applications. Current processing stage is separate from risk classification. Added received/application and disbursement dates, applied/approved/disbursed amounts, term, remaining contractual interest and total remaining principal plus interest (excluding fees/penalties). Future uncharged contractual interest is included in remaining interest, not overdue interest. Unknown amounts are never treated as zero.
+
+RiskClassification uses the existing LoanRestructureAgeing category rules: Performing, Watch, Substandard, Doubtful, Loss, including missed-instalment escalation and retained restructuring risk. Not disbursed and Needs review are explicit non-risk states. The original Status ageing-band field remains compatible with notice consumers; notice report scope is unchanged. Register branch filtering follows the loan case branch. Processing stages are current, not historical snapshots.

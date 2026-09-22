@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,8 +8,8 @@ import {
 } from "@/components/ui/select";
 import Swal from "sweetalert2";
 import { FaUserShield, FaChevronDown } from "react-icons/fa";
-import { createLoanGuarantor } from "./api";
-import { checkInProcess, lookupGuarantorEligibility, normalizeList } from "../LoanCases/lib/loanCaseApi";
+import { createLoanGuarantor, listGuarantorLoanCases } from "./api";
+import { lookupGuarantorEligibility, normalizeList } from "../LoanCases/lib/loanCaseApi";
 import CustomerPickerModal from "../LoanCases/lib/CustomerPickerModal";
 
 function FieldGroup({ label, children }) {
@@ -45,9 +45,7 @@ const emptyForm = {
 };
 
 // api/backoffice/loanguarantors — docs/api/loan-guarantor-api-spec.md.
-// Adds one more guarantor to an already-registered case (before
-// appraisal) — a different flow from Registration's own inline guarantor
-// rows, which only run at case-creation time.
+// Adds a guarantor to an existing application, disbursed or restructured loan.
 export default function CreateLoanGuarantor() {
   const navigate = useNavigate();
   const [form, setForm] = useState(emptyForm);
@@ -58,40 +56,46 @@ export default function CreateLoanGuarantor() {
   const [picker, setPicker] = useState(null);
   const [loading, setLoading] = useState(false);
 
+  const caseRequest = useRef(0);
+  const eligibilityRequest = useRef(0);
+
   const selectedCase = cases.find((c) => c.Id === form.LoanCaseId);
 
   const handlePickLoanee = async (customer) => {
+    const request = ++caseRequest.current;
+    ++eligibilityRequest.current; setLoadingLookup(false); setCases([]);
     setForm((p) => ({ ...emptyForm, LoaneeCustomerId: customer.Id, LoaneeLabel: customer.FullName }));
     setLookup(null);
     setLoadingCases(true);
     try {
-      const inProcess = await checkInProcess(customer.Id);
-      setCases(normalizeList(inProcess) || inProcess || []);
+      const loans = await listGuarantorLoanCases(customer.Id);
+      if (request === caseRequest.current) setCases(normalizeList(loans));
     } catch (err) {
-      Swal.fire("Error", err.message, "error");
-      setCases([]);
+      if (request === caseRequest.current) { Swal.fire("Error", err.message, "error"); setCases([]); }
     } finally {
-      setLoadingCases(false);
+      if (request === caseRequest.current) setLoadingCases(false);
     }
   };
 
   const handlePickGuarantor = async (customer) => {
+    const request = ++eligibilityRequest.current;
+    setLookup(null);
     setForm((p) => ({ ...p, GuarantorCustomerId: customer.Id, GuarantorLabel: customer.FullName }));
     if (!selectedCase) return;
     setLoadingLookup(true);
     try {
       const result = await lookupGuarantorEligibility(customer.Id, selectedCase.LoanProductId);
-      setLookup(result);
+      if (request === eligibilityRequest.current) setLookup(result);
     } catch (err) {
       Swal.fire("Error", err.message, "error");
     } finally {
-      setLoadingLookup(false);
+      if (request === eligibilityRequest.current) setLoadingLookup(false);
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.LoaneeCustomerId || !form.LoanCaseId || !form.GuarantorCustomerId || !lookup) {
+    if (loadingCases || loadingLookup || !selectedCase || !form.LoaneeCustomerId || !form.LoanCaseId || !form.GuarantorCustomerId || !lookup) {
       Swal.fire("Missing Fields", "Loanee, loan case, and a guarantor with resolved eligibility are all required.", "warning");
       return;
     }
@@ -114,8 +118,8 @@ export default function CreateLoanGuarantor() {
       });
       // Duplicate-guarantor rejection comes back as success:true with
       // nothing persisted — ErrorMsgResult is set instead of a thrown error.
-      if (result?.ErrorMsgResult) {
-        Swal.fire("Not Attached", result.ErrorMsgResult, "warning");
+      if (result?.ErrorMsgResult || result?.errorMsgResult) {
+        Swal.fire("Not Attached", result.ErrorMsgResult || result.errorMsgResult, "warning");
         return;
       }
       Swal.fire("Success", "Guarantor attached to the loan case.", "success");
@@ -137,22 +141,22 @@ export default function CreateLoanGuarantor() {
       </div>
 
       <form onSubmit={handleSubmit} className="max-w-xl space-y-4">
-        <PickerField label="Loanee" value={form.LoaneeLabel} placeholder="Search & select the loanee..." onClick={() => setPicker("loanee")} />
+        <PickerField label="Loanee" value={form.LoaneeLabel} placeholder="Search & select the loanee..." onClick={() => setPicker("loanee")} disabled={loading} />
 
         <FieldGroup label="Loan Case">
           <Select
             value={form.LoanCaseId}
-            onValueChange={(v) => { setForm((p) => ({ ...p, LoanCaseId: v, GuarantorCustomerId: "", GuarantorLabel: "" })); setLookup(null); }}
-            disabled={!form.LoaneeCustomerId || loadingCases}
+            onValueChange={(v) => { ++eligibilityRequest.current; setLoadingLookup(false); setForm((p) => ({ ...p, LoanCaseId: v, GuarantorCustomerId: "", GuarantorLabel: "" })); setLookup(null); }}
+            disabled={loading || !form.LoaneeCustomerId || loadingCases}
           >
-            <SelectTrigger><SelectValue placeholder={loadingCases ? "Loading..." : cases.length === 0 && form.LoaneeCustomerId ? "No in-process cases for this customer" : "Select a case..."} /></SelectTrigger>
+            <SelectTrigger><SelectValue placeholder={loadingCases ? "Loading..." : cases.length === 0 && form.LoaneeCustomerId ? "No eligible loans for this customer" : "Select a case..."} /></SelectTrigger>
             <SelectContent>
               {cases.map((c) => <SelectItem key={c.Id} value={c.Id}>#{c.PaddedCaseNumber} — {c.LoanProductDescription} ({c.StatusDescription})</SelectItem>)}
             </SelectContent>
           </Select>
         </FieldGroup>
 
-        <PickerField label="Guarantor" value={form.GuarantorLabel} placeholder="Search & select the guarantor..." onClick={() => setPicker("guarantor")} disabled={!form.LoanCaseId} />
+        <PickerField label="Guarantor" value={form.GuarantorLabel} placeholder="Search & select the guarantor..." onClick={() => setPicker("guarantor")} disabled={loading || !form.LoanCaseId} />
 
         {loadingLookup && <p className="text-xs text-gray-400">Checking eligibility...</p>}
         {lookup && (
@@ -164,14 +168,14 @@ export default function CreateLoanGuarantor() {
 
         <div className="grid grid-cols-2 gap-3">
           <FieldGroup label="Amount Guaranteed">
-            <Input type="number" min="0" value={form.AmountGuaranteed} onChange={(e) => setForm((p) => ({ ...p, AmountGuaranteed: e.target.value }))} required />
+            <Input type="number" min="0" step="0.01" value={form.AmountGuaranteed} onChange={(e) => setForm((p) => ({ ...p, AmountGuaranteed: e.target.value }))} required />
           </FieldGroup>
           <FieldGroup label="Amount Pledged">
             <Input type="number" min="0" value={form.AmountPledged} onChange={(e) => setForm((p) => ({ ...p, AmountPledged: e.target.value }))} />
           </FieldGroup>
         </div>
 
-        <Button type="submit" disabled={loading} className="w-full bg-indigo-600 hover:bg-indigo-700">
+        <Button type="submit" disabled={loading || loadingCases || loadingLookup || !selectedCase || !lookup} className="w-full bg-indigo-600 hover:bg-indigo-700">
           {loading ? "Attaching..." : "Attach Guarantor"}
         </Button>
       </form>

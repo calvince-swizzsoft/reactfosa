@@ -67,3 +67,17 @@ export function getEmployeeIdFromToken() {
     return null;
   }
 }
+
+// BranchId is issued by JwtTokenService for the authenticated user.
+export function getBranchIdFromToken() {
+  try {
+    const payload = getToken()?.split(".")[1];
+    if (!payload) return null;
+    const claims = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")));
+    const branchId = claims.BranchId;
+    return typeof branchId === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(branchId) && branchId !== "00000000-0000-0000-0000-000000000000"
+      ? branchId : null;
+  } catch {
+    return null;
+  }
+}

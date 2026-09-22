@@ -238,6 +238,8 @@ export const moduleRouteMap = {
   // Operations (23002) > Customer Accounts (23043)
   23044: "/Accounts/CustomerAccounts",    // Register (ControllerName: CustomerAccounts)
   23047: "/Accounts/ChequeBooks",         // Cheque Books (ControllerName: CoA_ChequeBooks) — new ChequeBookController, docs/api/chequebook-api-spec.md; was unmapped entirely (only reachable via the legacy ChequeBookService.svc.cs WCF passthrough before this pass)
+  23050: "/Accounts/MobileToBank",
+  23049: "/Accounts/IntraAccountTransfer", // Same-customer transfers using the existing transfer-batch workflow.
   23048: "/Accounts/StandingOrders",      // Standing Orders (ControllerName: CustomerAccountStandingOrder)
   // 23051 real Description is "E-Statements" (ControllerName: eStatements,
   // confirmed unbuilt server-side) — deliberately reused for

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import Swal from "sweetalert2";
@@ -15,6 +15,8 @@ import {
   SalaryPeriodStatus, SALARY_PERIOD_STATUS_BADGE_CLASS, MONTH_LABEL, EMPLOYEE_CATEGORY_LABEL,
   PaySlipStatus, PAYSLIP_STATUS_LABEL, PAYSLIP_STATUS_BADGE_CLASS,
 } from "./lib/enums";
+
+import PayslipDrawer from "./PayslipDrawer";
 
 const money = (v) => Number(v || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -58,6 +60,9 @@ export default function SalaryPeriodDetail() {
   const [processing, setProcessing] = useState(false);
   const [closing, setClosing] = useState(false);
 
+  const [previewId, setPreviewId] = useState(null);
+  const closePreview = useCallback(() => setPreviewId(null), []);
+  const [paySlipsError, setPaySlipsError] = useState("");
   const [paySlips, setPaySlips] = useState([]);
   const [paySlipsLoading, setPaySlipsLoading] = useState(true);
   const [pageIndex, setPageIndex] = useState(0);
@@ -81,13 +86,14 @@ export default function SalaryPeriodDetail() {
 
   const loadPaySlips = () => {
     setPaySlipsLoading(true);
+    setPaySlipsError("");
     Promise.all([listPaySlips(id, { pageIndex, pageSize }), getPaySlipsSummary(id)])
       .then(([page, sum]) => {
         setPaySlips(page?.PageCollection || page?.pageCollection || []);
         setItemsCount(page?.ItemsCount || page?.itemsCount || 0);
         setSummary(sum);
       })
-      .catch(() => { setPaySlips([]); setItemsCount(0); })
+      .catch((err) => { setPaySlips([]); setItemsCount(0); setPaySlipsError(err.message || "Could not load payslips."); })
       .finally(() => setPaySlipsLoading(false));
   };
 
@@ -223,6 +229,8 @@ export default function SalaryPeriodDetail() {
         <span className="text-sm text-gray-500">{period.Remarks}</span>
       </div>
 
+      {previewId && <PayslipDrawer key={previewId} id={previewId} onClose={closePreview} />}
+
       {isOpen && (
         <div className="bg-gray-100 rounded-lg p-4 mb-8 space-y-4">
           <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Process Salaries</p>
@@ -252,10 +260,10 @@ export default function SalaryPeriodDetail() {
       <div className="bg-gray-200 p-4 rounded-sm">
         <div className="grid grid-cols-12 gap-4 bg-gray-700 text-gray-100 font-semibold p-3 rounded-lg mb-4">
           <span className="col-span-3">Employee</span>
-          <span className="col-span-3">Salary Group</span>
+          <span className="col-span-2">Salary Group</span>
           <span className="col-span-2">Net Pay</span>
           <span className="col-span-2">Status</span>
-          <span className="col-span-2 text-right">Actions</span>
+          <span className="col-span-3 text-right">Actions</span>
         </div>
 
         {paySlipsLoading ? (
@@ -268,6 +276,8 @@ export default function SalaryPeriodDetail() {
               </div>
             ))}
           </div>
+        ) : paySlipsError ? (
+          <div role="alert" className="text-center py-4 space-y-3"><p className="text-red-600">{paySlipsError}</p><Button variant="outline" onClick={loadPaySlips}>Retry</Button></div>
         ) : paySlips.length > 0 ? (
           <div className="space-y-2">
             {paySlips.map((slip) => (
@@ -276,14 +286,15 @@ export default function SalaryPeriodDetail() {
                   <span className="col-span-3 font-medium text-indigo-700 truncate">
                     {`${slip.SalaryCardEmployeeCustomerIndividualFirstName ?? ""} ${slip.SalaryCardEmployeeCustomerIndividualLastName ?? ""}`.trim() || "—"}
                   </span>
-                  <span className="col-span-3 text-sm text-gray-700 truncate">{slip.SalaryCardSalaryGroupDescription || "—"}</span>
+                  <span className="col-span-2 text-sm text-gray-700 truncate">{slip.SalaryCardSalaryGroupDescription || "—"}</span>
                   <span className="col-span-2 text-sm font-semibold text-gray-800">{money(slip.NetPay)}</span>
                   <span className="col-span-2">
                     <span className={`px-2 py-1 rounded text-xs font-semibold ${PAYSLIP_STATUS_BADGE_CLASS[slip.Status] || "bg-gray-100 text-gray-500"}`}>
                       {PAYSLIP_STATUS_LABEL[slip.Status] || "—"}
                     </span>
                   </span>
-                  <div className="col-span-2 flex justify-end">
+                  <div className="col-span-3 flex flex-wrap gap-2 justify-end">
+                    <Button size="sm" variant="outline" onClick={() => setPreviewId(slip.Id)}>View Payslip</Button>
                     {slip.Status === PaySlipStatus.Pending ? (
                       <Button
                         size="sm"
@@ -303,7 +314,7 @@ export default function SalaryPeriodDetail() {
           </div>
         ) : (
           <div className="text-gray-500 text-center py-4">
-            <p className="font-medium text-gray-400">No payslips yet — process the period above to stage them.</p>
+            <p className="font-medium text-gray-400">No payslips yet. Use Process Salaries to generate them.</p>
           </div>
         )}
 

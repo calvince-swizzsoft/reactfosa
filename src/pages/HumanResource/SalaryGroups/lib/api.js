@@ -47,5 +47,7 @@ export function listGroupEntries(groupId) {
 }
 
 export function updateGroupEntries(groupId, entries) {
-  return unwrapJson(apiFetch(`${SALARY_GROUPS_BASE}/${groupId}/entries`, { method: "PUT", body: JSON.stringify(entries) }));
+  // Missing IDs deserialize as Guid.Empty for new/replacement entries.
+  const payload = entries.map(({ Id, ...entry }) => Id ? { ...entry, Id } : entry);
+  return unwrapJson(apiFetch(`${SALARY_GROUPS_BASE}/${groupId}/entries`, { method: "PUT", body: JSON.stringify(payload) }));
 }

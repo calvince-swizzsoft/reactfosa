@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Link, useParams, useNavigate } from "react-router-dom";
+import { useState, useEffect, useRef } from "react";
+import { Link, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,7 +26,7 @@ const emptyEntryForm = { SalaryHeadId: "", ChargeType: ChargeType.FixedAmount, C
 
 export default function SalaryGroupDetail() {
   const { id } = useParams();
-  const navigate = useNavigate();
+  const editorRef = useRef(null);
 
   const [group, setGroup] = useState(null);
   const [description, setDescription] = useState("");
@@ -39,6 +39,8 @@ export default function SalaryGroupDetail() {
   const [dirty, setDirty] = useState(false);
 
   const [entryForm, setEntryForm] = useState(emptyEntryForm);
+  const [editingIndex, setEditingIndex] = useState(null);
+  const isEditing = editingIndex !== null;
 
   const load = () => {
     setLoading(true);
@@ -53,6 +55,8 @@ export default function SalaryGroupDetail() {
         setEntries(es || []);
         setSalaryHeads(heads);
         setDirty(false);
+        setEditingIndex(null);
+        setEntryForm(emptyEntryForm);
       })
       .catch(() => Swal.fire("Error", "Failed to load salary group.", "error"))
       .finally(() => setLoading(false));
@@ -82,28 +86,38 @@ export default function SalaryGroupDetail() {
       return;
     }
     const head = salaryHeads.find((h) => h.Id === entryForm.SalaryHeadId);
-    setEntries((prev) => [
-      ...prev,
-      {
-        Id: "",
-        SalaryGroupId: id,
-        SalaryHeadId: entryForm.SalaryHeadId,
-        SalaryHeadDescription: head?.Description || "",
-        ChargeType: entryForm.ChargeType,
-        ChargePercentage: entryForm.ChargeType === ChargeType.Percentage ? Number(entryForm.ChargePercentage) : 0,
-        ChargeFixedAmount: entryForm.ChargeType === ChargeType.FixedAmount ? Number(entryForm.ChargeFixedAmount) : 0,
-        MinimumValue: Number(entryForm.MinimumValue),
-        RoundingType: entryForm.RoundingType,
-      },
-    ]);
+    const next = {
+      SalaryGroupId: id,
+      SalaryHeadId: entryForm.SalaryHeadId,
+      SalaryHeadDescription: head?.Description || "",
+      ChargeType: Number(entryForm.ChargeType),
+      ChargePercentage: entryForm.ChargeType === ChargeType.Percentage ? Number(entryForm.ChargePercentage) : 0,
+      ChargeFixedAmount: entryForm.ChargeType === ChargeType.FixedAmount ? Number(entryForm.ChargeFixedAmount) : 0,
+      MinimumValue: Number(entryForm.MinimumValue),
+      RoundingType: Number(entryForm.RoundingType),
+    };
+    if ([next.ChargePercentage, next.ChargeFixedAmount, next.MinimumValue].some((value) => !Number.isFinite(value) || value < 0)) {
+      Swal.fire("Invalid Value", "Enter non-negative amounts and percentages.", "warning");
+      return;
+    }
+    if (isEditing) {
+      const original = entries[editingIndex];
+      const unchanged = ["SalaryHeadId", "ChargeType", "ChargePercentage", "ChargeFixedAmount", "MinimumValue", "RoundingType"]
+        .every((field) => original[field] === next[field]);
+      if (!unchanged) {
+        // The API replaces changed entries using a blank Id. Keep the original
+        // row until the user explicitly applies their changes; Cancel is local.
+        setEntries((prev) => prev.map((entry, index) => index === editingIndex ? { ...next, Id: "" } : entry));
+        setDirty(true);
+      }
+    } else {
+      setEntries((prev) => [...prev, { ...next, Id: "" }]);
+      setDirty(true);
+    }
     setEntryForm(emptyEntryForm);
-    setDirty(true);
+    setEditingIndex(null);
   };
 
-  // Backend has no in-place edit for a persisted entry (see lib/api.js) —
-  // "editing" means dropping it here and re-adding it with the new values,
-  // which the form below does: prefill from the row, remove the row, let
-  // the user tweak and Add again.
   const handleEditEntry = (index) => {
     const entry = entries[index];
     setEntryForm({
@@ -114,8 +128,13 @@ export default function SalaryGroupDetail() {
       MinimumValue: entry.MinimumValue,
       RoundingType: entry.RoundingType,
     });
-    setEntries((prev) => prev.filter((_, i) => i !== index));
-    setDirty(true);
+    setEditingIndex(index);
+    editorRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
+
+  const handleCancelEdit = () => {
+    setEntryForm(emptyEntryForm);
+    setEditingIndex(null);
   };
 
   const handleRemoveEntry = (index) => {
@@ -124,6 +143,7 @@ export default function SalaryGroupDetail() {
   };
 
   const handleSaveEntries = async () => {
+    if (isEditing || saving) return;
     setSaving(true);
     try {
       const saved = await updateGroupEntries(id, entries);
@@ -165,7 +185,7 @@ export default function SalaryGroupDetail() {
         <FieldGroup label="Name">
           <Input value={description} onChange={(e) => setDescription(e.target.value)} />
         </FieldGroup>
-        <Button onClick={handleSaveName} disabled={savingName || description === group.Description} className="bg-indigo-600 hover:bg-indigo-700">
+        <Button onClick={handleSaveName} disabled={savingName || saving || dirty || isEditing || description === group.Description} className="bg-indigo-600 hover:bg-indigo-700">
           {savingName ? "Saving..." : "Rename"}
         </Button>
       </div>
@@ -187,7 +207,7 @@ export default function SalaryGroupDetail() {
               <div key={entry.Id || `new-${index}`} className="bg-white rounded-lg shadow-lg border">
                 <div className="grid grid-cols-12 gap-2 items-center py-3 px-6 hover:shadow-xl transition-all">
                   <span className="col-span-4 font-medium text-indigo-700 truncate">
-                    {entry.SalaryHeadDescription || "—"}{!entry.Id && <span className="ml-2 text-xs text-amber-600">(unsaved)</span>}
+                    {entry.SalaryHeadDescription || "—"}{editingIndex === index && <span className="ml-2 text-xs text-indigo-600">(editing)</span>}{!entry.Id && <span className="ml-2 text-xs text-amber-600">(unsaved)</span>}
                   </span>
                   <span className="col-span-2 text-sm text-gray-700">{CHARGE_TYPE_LABEL[entry.ChargeType] || "—"}</span>
                   <span className="col-span-2 text-sm text-gray-700">
@@ -195,8 +215,8 @@ export default function SalaryGroupDetail() {
                   </span>
                   <span className="col-span-2 text-sm text-gray-700">{entry.MinimumValue}</span>
                   <div className="col-span-2 flex justify-end gap-1">
-                    <Button size="sm" variant="outline" onClick={() => handleEditEntry(index)}><FaEdit className="text-indigo-600" /></Button>
-                    <Button size="sm" variant="outline" onClick={() => handleRemoveEntry(index)}><FaTrash className="text-red-600" /></Button>
+                    <Button size="sm" variant="outline" aria-label={`Edit ${entry.SalaryHeadDescription}`} disabled={saving || isEditing} onClick={() => handleEditEntry(index)}><FaEdit className="text-indigo-600" /></Button>
+                    <Button size="sm" variant="outline" aria-label={`Remove ${entry.SalaryHeadDescription}`} disabled={saving || isEditing} onClick={() => handleRemoveEntry(index)}><FaTrash className="text-red-600" /></Button>
                   </div>
                 </div>
               </div>
@@ -209,11 +229,11 @@ export default function SalaryGroupDetail() {
         )}
       </div>
 
-      <div className="bg-gray-100 rounded-lg p-4 max-w-2xl space-y-4">
-        <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Add Entry</p>
+      <div ref={editorRef} className="bg-gray-100 rounded-lg p-4 max-w-2xl space-y-4">
+        <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">{isEditing ? "Edit Entry" : "Add Entry"}</p>
 
         <FieldGroup label="Salary Head">
-          <Select value={entryForm.SalaryHeadId} onValueChange={(v) => setEntryForm((p) => ({ ...p, SalaryHeadId: v }))}>
+          <Select value={entryForm.SalaryHeadId} onValueChange={(v) => { if (v) setEntryForm((p) => ({ ...p, SalaryHeadId: v })); }}>
             <SelectTrigger><SelectValue placeholder="Select Salary Head" /></SelectTrigger>
             <SelectContent className="max-h-60 overflow-y-auto">
               {salaryHeads.map((h) => (
@@ -225,7 +245,7 @@ export default function SalaryGroupDetail() {
 
         <div className="grid grid-cols-2 gap-3">
           <FieldGroup label="Value Type">
-            <Select value={String(entryForm.ChargeType)} onValueChange={(v) => setEntryForm((p) => ({ ...p, ChargeType: Number(v) }))}>
+            <Select value={String(entryForm.ChargeType)} onValueChange={(v) => { if (v) setEntryForm((p) => ({ ...p, ChargeType: Number(v) })); }}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 {Object.entries(CHARGE_TYPE_LABEL).map(([value, label]) => (
@@ -251,7 +271,7 @@ export default function SalaryGroupDetail() {
             <Input type="number" min="0" step="0.01" value={entryForm.MinimumValue} onChange={(e) => setEntryForm((p) => ({ ...p, MinimumValue: e.target.value }))} />
           </FieldGroup>
           <FieldGroup label="Rounding Type">
-            <Select value={String(entryForm.RoundingType)} onValueChange={(v) => setEntryForm((p) => ({ ...p, RoundingType: Number(v) }))}>
+            <Select value={String(entryForm.RoundingType)} onValueChange={(v) => { if (v) setEntryForm((p) => ({ ...p, RoundingType: Number(v) })); }}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 {Object.entries(ROUNDING_TYPE_LABEL).map(([value, label]) => (
@@ -262,13 +282,14 @@ export default function SalaryGroupDetail() {
           </FieldGroup>
         </div>
 
-        <Button type="button" onClick={handleAddEntry} className="bg-indigo-600 hover:bg-indigo-700 flex items-center gap-2">
-          <FaPlus /> Add Entry
+        <Button type="button" onClick={handleAddEntry} disabled={saving} className="bg-indigo-600 hover:bg-indigo-700 flex items-center gap-2">
+          {isEditing ? <FaEdit /> : <FaPlus />} {isEditing ? "Update Entry" : "Add Entry"}
         </Button>
+        {isEditing && <Button type="button" variant="outline" onClick={handleCancelEdit} disabled={saving}>Cancel</Button>}
       </div>
 
       <div className="mt-6 flex justify-end">
-        <Button onClick={handleSaveEntries} disabled={saving || !dirty} className="bg-indigo-600 hover:bg-indigo-700 flex items-center gap-2">
+        <Button onClick={handleSaveEntries} disabled={saving || !dirty || isEditing} className="bg-indigo-600 hover:bg-indigo-700 flex items-center gap-2">
           <FaSave /> {saving ? "Saving..." : "Save Entries"}
         </Button>
       </div>
