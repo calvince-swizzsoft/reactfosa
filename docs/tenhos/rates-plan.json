@@ -1,0 +1,89 @@
+{
+  "basis": "User-authorized provisional nominal annual reducing-balance test rates, not approved Tenhos rates. Fees excluded; products remain locked.",
+  "products": [
+    {
+      "Id": "75e09114-15b8-f111-b338-c8e2651ef92d",
+      "Description": "TENHOS - Boresha Elimu (School Fees Loan) [DRAFT]",
+      "previousRate": 0.0,
+      "rate": 12.0
+    },
+    {
+      "Id": "77e09114-15b8-f111-b338-c8e2651ef92d",
+      "Description": "TENHOS - Emergency Loan [DRAFT]",
+      "previousRate": 0.0,
+      "rate": 12.0
+    },
+    {
+      "Id": "79e09114-15b8-f111-b338-c8e2651ef92d",
+      "Description": "TENHOS - Asset Financing Loan [DRAFT]",
+      "previousRate": 0.0,
+      "rate": 15.0
+    },
+    {
+      "Id": "7be09114-15b8-f111-b338-c8e2651ef92d",
+      "Description": "TENHOS - Development Loan [DRAFT]",
+      "previousRate": 0.0,
+      "rate": 12.0
+    },
+    {
+      "Id": "7de09114-15b8-f111-b338-c8e2651ef92d",
+      "Description": "TENHOS - Advances [DRAFT]",
+      "previousRate": 0.0,
+      "rate": 24.0
+    },
+    {
+      "Id": "7fe09114-15b8-f111-b338-c8e2651ef92d",
+      "Description": "TENHOS - Start-Up Loan [DRAFT]",
+      "previousRate": 0.0,
+      "rate": 18.0
+    },
+    {
+      "Id": "81e09114-15b8-f111-b338-c8e2651ef92d",
+      "Description": "TENHOS - Bonus Advance [DRAFT]",
+      "previousRate": 0.0,
+      "rate": 24.0
+    },
+    {
+      "Id": "83e09114-15b8-f111-b338-c8e2651ef92d",
+      "Description": "TENHOS - Hospital Check-Off Advance [DRAFT]",
+      "previousRate": 0.0,
+      "rate": 18.0
+    },
+    {
+      "Id": "85e09114-15b8-f111-b338-c8e2651ef92d",
+      "Description": "TENHOS - Special Advance [DRAFT]",
+      "previousRate": 0.0,
+      "rate": 24.0
+    },
+    {
+      "Id": "87e09114-15b8-f111-b338-c8e2651ef92d",
+      "Description": "TENHOS - Overdraft Facility [DRAFT]",
+      "previousRate": 0.0,
+      "rate": 24.0
+    },
+    {
+      "Id": "89e09114-15b8-f111-b338-c8e2651ef92d",
+      "Description": "TENHOS - Loan Item Facility [DRAFT]",
+      "previousRate": 0.0,
+      "rate": 18.0
+    },
+    {
+      "Id": "8be09114-15b8-f111-b338-c8e2651ef92d",
+      "Description": "TENHOS - Vijana Loan [DRAFT]",
+      "previousRate": 0.0,
+      "rate": 18.0
+    },
+    {
+      "Id": "8de09114-15b8-f111-b338-c8e2651ef92d",
+      "Description": "TENHOS - Dairy Loan [DRAFT]",
+      "previousRate": 0.0,
+      "rate": 15.0
+    },
+    {
+      "Id": "8fe09114-15b8-f111-b338-c8e2651ef92d",
+      "Description": "TENHOS - Ukulima Loan [DRAFT]",
+      "previousRate": 0.0,
+      "rate": 15.0
+    }
+  ]
+}

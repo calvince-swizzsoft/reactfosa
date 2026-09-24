@@ -1,0 +1,347 @@
+{
+  "institution": "Tenhos SACCO",
+  "reviewDate": "2026-09-24",
+  "sourceCatalogue": "https://tenhossacco.co.ke/credit-products/",
+  "retrievalNote": "Official-domain indexed page content retrieved with web search; direct page opens timed out. Unknown values are null, not zero.",
+  "targetEnvironment": {
+    "alias": "SwiftFin_Dev",
+    "server": "(local)",
+    "database": "SwiftFinancialsDB_Live"
+  },
+  "existingProducts": [
+    {
+      "name": "Education Loan",
+      "termMonths": 12
+    },
+    {
+      "name": "SALARY ADVANCE",
+      "termMonths": 1
+    },
+    {
+      "name": "SUPA SAVER LOAN",
+      "termMonths": 3
+    }
+  ],
+  "commonBlockers": [
+    "Approved numeric interest rates, period, exact calculation method and fees",
+    "Approved principal caps and repayment timing",
+    "Four distinct accounting mappings per product",
+    "Eligible BOSA/Ukulima savings product IDs",
+    "Explicit qualification/security/repayment rules and approval roles"
+  ],
+  "products": [
+    {
+      "key": "boresha-elimu",
+      "name": "Boresha Elimu (School Fees Loan)",
+      "sourceUrl": "https://tenhossacco.co.ke/service/boresha-elimu/",
+      "published": {
+        "termMonths": 11,
+        "qualificationBasis": "BOSA deposits",
+        "depositMultiplier": 4,
+        "guarantorCount": 4,
+        "maximumPrincipalPercentOfNetPay": null,
+        "annualInterestRate": null,
+        "minimumPrincipal": null,
+        "maximumPrincipal": null,
+        "requirements": "Repayment ability; school fee structure, ID, KRA PIN, two photos and two payslips"
+      },
+      "unresolved": [
+        "Reducing basis published; exact method/rate missing"
+      ],
+      "activationStatus": "blocked-pending-approved-terms"
+    },
+    {
+      "key": "emergency-loan",
+      "name": "Emergency Loan",
+      "sourceUrl": "https://tenhossacco.co.ke/service/emergency-loan/",
+      "published": {
+        "termMonths": 11,
+        "qualificationBasis": "BOSA deposits",
+        "depositMultiplier": 4,
+        "guarantorCount": 4,
+        "maximumPrincipalPercentOfNetPay": null,
+        "annualInterestRate": null,
+        "minimumPrincipal": null,
+        "maximumPrincipal": null,
+        "requirements": "Repayment ability; waiver of guarantors when principal is strictly below deposits; ID, KRA PIN, two photos and two payslips"
+      },
+      "unresolved": [
+        "Conditional guarantor waiver unsupported by fixed minimum"
+      ],
+      "activationStatus": "blocked-pending-approved-terms"
+    },
+    {
+      "key": "asset-financing-loan",
+      "name": "Asset Financing Loan",
+      "sourceUrl": "https://tenhossacco.co.ke/service/asset-financing-loan/",
+      "published": {
+        "termMonths": 60,
+        "qualificationBasis": "BOSA deposits",
+        "depositMultiplier": 4,
+        "guarantorCount": 5,
+        "maximumPrincipalPercentOfNetPay": null,
+        "annualInterestRate": null,
+        "minimumPrincipal": null,
+        "maximumPrincipal": null,
+        "requirements": "Repayment ability; two-thirds rule; ID, KRA PIN, two photos and two payslips"
+      },
+      "unresolved": [
+        "Confirm two-thirds income basis; no collateral ratio published"
+      ],
+      "activationStatus": "blocked-pending-approved-terms"
+    },
+    {
+      "key": "development-loan",
+      "name": "Development Loan",
+      "sourceUrl": "https://tenhossacco.co.ke/service/development-loan/",
+      "published": {
+        "termMonths": 60,
+        "qualificationBasis": "BOSA deposits",
+        "depositMultiplier": 4,
+        "guarantorCount": 4,
+        "maximumPrincipalPercentOfNetPay": null,
+        "annualInterestRate": null,
+        "minimumPrincipal": null,
+        "maximumPrincipal": null,
+        "requirements": "Three months membership; two-thirds rule; ID, KRA PIN, two photos and two payslips"
+      },
+      "unresolved": [
+        "Confirm two-thirds income basis"
+      ],
+      "activationStatus": "blocked-pending-approved-terms"
+    },
+    {
+      "key": "advances",
+      "name": "Advances",
+      "sourceUrl": "https://tenhossacco.co.ke/service/advances/",
+      "published": {
+        "termMonths": 1,
+        "qualificationBasis": "Net pay",
+        "depositMultiplier": null,
+        "guarantorCount": 1,
+        "maximumPrincipalPercentOfNetPay": 50,
+        "annualInterestRate": null,
+        "minimumPrincipal": null,
+        "maximumPrincipal": null,
+        "requirements": "Three months salary/proceeds through FOSA; ID"
+      },
+      "unresolved": [
+        "Principal limit is not a take-home percentage"
+      ],
+      "activationStatus": "blocked-pending-approved-terms"
+    },
+    {
+      "key": "start-up-loan",
+      "name": "Start-Up Loan",
+      "sourceUrl": "https://tenhossacco.co.ke/service/start-up-loan/",
+      "published": {
+        "termMonths": 12,
+        "qualificationBasis": "Salary and repayment ability",
+        "depositMultiplier": null,
+        "guarantorCount": 3,
+        "maximumPrincipalPercentOfNetPay": null,
+        "annualInterestRate": null,
+        "minimumPrincipal": null,
+        "maximumPrincipal": null,
+        "requirements": "New employees/recent members; active FOSA salary account; ID, KRA PIN and photo"
+      },
+      "unresolved": [
+        "Salary multiplier/principal cap missing"
+      ],
+      "activationStatus": "blocked-pending-approved-terms"
+    },
+    {
+      "key": "bonus-advance",
+      "name": "Bonus Advance",
+      "sourceUrl": "https://tenhossacco.co.ke/credit-products/",
+      "published": {
+        "termMonths": null,
+        "qualificationBasis": "Tea proceeds",
+        "depositMultiplier": null,
+        "guarantorCount": null,
+        "maximumPrincipalPercentOfNetPay": null,
+        "annualInterestRate": null,
+        "minimumPrincipal": null,
+        "maximumPrincipal": null,
+        "requirements": "Active FOSA account receiving tea proceeds"
+      },
+      "unresolved": [
+        "Only catalogue description verified; detail page unavailable"
+      ],
+      "activationStatus": "blocked-pending-approved-terms"
+    },
+    {
+      "key": "hospital-check-off-advance",
+      "name": "Hospital Check-Off Advance",
+      "sourceUrl": "https://tenhossacco.co.ke/service/hospital-check-off-advance/",
+      "published": {
+        "termMonths": 1,
+        "qualificationBasis": "Net pay",
+        "depositMultiplier": null,
+        "guarantorCount": null,
+        "maximumPrincipalPercentOfNetPay": 50,
+        "annualInterestRate": null,
+        "minimumPrincipal": null,
+        "maximumPrincipal": null,
+        "requirements": "Tenwek Hospital employee; FOSA account; ID and payslip"
+      },
+      "unresolved": [
+        "Same-calendar-month versus one-month term; unstated guarantor count is not zero"
+      ],
+      "activationStatus": "blocked-pending-approved-terms"
+    },
+    {
+      "key": "special-advance",
+      "name": "Special Advance",
+      "sourceUrl": "https://tenhossacco.co.ke/service/special-advance/",
+      "published": {
+        "termMonths": 3,
+        "qualificationBasis": "Net pay",
+        "depositMultiplier": null,
+        "guarantorCount": 2,
+        "maximumPrincipalPercentOfNetPay": 50,
+        "annualInterestRate": null,
+        "minimumPrincipal": null,
+        "maximumPrincipal": null,
+        "requirements": "Three months salary/proceeds through FOSA; ID and payslip"
+      },
+      "unresolved": [
+        "Explicit income-based principal cap needed"
+      ],
+      "activationStatus": "blocked-pending-approved-terms"
+    },
+    {
+      "key": "overdraft-facility",
+      "name": "Overdraft Facility",
+      "sourceUrl": "https://tenhossacco.co.ke/service/overdraft-facility/",
+      "published": {
+        "termMonths": 6,
+        "qualificationBasis": "Net pay",
+        "depositMultiplier": null,
+        "guarantorCount": 4,
+        "maximumPrincipalPercentOfNetPay": 50,
+        "annualInterestRate": null,
+        "minimumPrincipal": null,
+        "maximumPrincipal": null,
+        "requirements": "Three months salary/proceeds through FOSA; ID and payslip"
+      },
+      "unresolved": [
+        "Confirm instalment advance versus revolving facility"
+      ],
+      "activationStatus": "blocked-pending-approved-terms"
+    },
+    {
+      "key": "loan-item-facility",
+      "name": "Loan Item Facility",
+      "sourceUrl": "https://tenhossacco.co.ke/service/loan-item-facility/",
+      "published": {
+        "termMonths": 10,
+        "qualificationBasis": "Net pay",
+        "depositMultiplier": null,
+        "guarantorCount": 3,
+        "maximumPrincipalPercentOfNetPay": 50,
+        "annualInterestRate": null,
+        "minimumPrincipal": null,
+        "maximumPrincipal": null,
+        "requirements": "Three months salary/proceeds through FOSA; approved supplier and item; ID, KRA PIN, payslip and photo; interest in first instalments"
+      },
+      "unresolved": [
+        "First-instalment interest is not upfront-at-disbursement interest; supplier workflow needed"
+      ],
+      "activationStatus": "blocked-pending-approved-terms"
+    },
+    {
+      "key": "vijana-loan",
+      "name": "Vijana Loan",
+      "sourceUrl": "https://tenhossacco.co.ke/service/vijana-loan/",
+      "published": {
+        "termMonths": null,
+        "qualificationBasis": "Savings",
+        "depositMultiplier": null,
+        "guarantorCount": null,
+        "maximumPrincipalPercentOfNetPay": null,
+        "annualInterestRate": null,
+        "minimumPrincipal": null,
+        "maximumPrincipal": null,
+        "requirements": "Age 18–45; group of ten; business eligibility; nonwithdrawable deposits; savings/assets/guarantees as security",
+        "levels": [
+          {
+            "level": 1,
+            "maximumPrincipal": 10000,
+            "termMonths": 3,
+            "savingsMultiplier": 5
+          },
+          {
+            "level": 2,
+            "maximumPrincipal": 20000,
+            "termMonths": 6,
+            "savingsMultiplier": 4
+          },
+          {
+            "level": 3,
+            "maximumPrincipal": 50000,
+            "termMonths": 11,
+            "savingsMultiplier": 3
+          },
+          {
+            "level": 4,
+            "maximumPrincipal": 100000,
+            "termMonths": 18,
+            "savingsMultiplier": 3
+          },
+          {
+            "level": 5,
+            "minimumPrincipalExclusive": 100000,
+            "maximumPrincipal": null,
+            "termMonths": 36,
+            "savingsMultiplier": 3
+          }
+        ]
+      },
+      "unresolved": [
+        "Level-dependent terms; 100,000 general cap conflicts with level V; business eligibility wording needs confirmation"
+      ],
+      "activationStatus": "blocked-pending-approved-terms"
+    },
+    {
+      "key": "dairy-loan",
+      "name": "Dairy Loan",
+      "sourceUrl": "https://tenhossacco.co.ke/service/dairy-loan/",
+      "published": {
+        "termMonths": 12,
+        "qualificationBasis": "Ukulima savings",
+        "depositMultiplier": 2,
+        "guarantorCount": null,
+        "maximumPrincipalPercentOfNetPay": null,
+        "annualInterestRate": null,
+        "minimumPrincipal": null,
+        "maximumPrincipal": null,
+        "requirements": "Repayment ability; ID, payslip, KRA PIN and photo; guarantor/witness proceeds through FOSA"
+      },
+      "unresolved": [
+        "Two guarantors plus witness versus three guarantors conflict"
+      ],
+      "activationStatus": "blocked-pending-approved-terms"
+    },
+    {
+      "key": "ukulima-loan",
+      "name": "Ukulima Loan",
+      "sourceUrl": "https://tenhossacco.co.ke/service/ukulima-loan/",
+      "published": {
+        "termMonths": 12,
+        "qualificationBasis": "Ukulima savings",
+        "depositMultiplier": 2,
+        "guarantorCount": null,
+        "maximumPrincipalPercentOfNetPay": null,
+        "annualInterestRate": null,
+        "minimumPrincipal": null,
+        "maximumPrincipal": null,
+        "requirements": "Repayment ability; ID, payslip, KRA PIN and photo; guarantor/witness proceeds through FOSA"
+      },
+      "unresolved": [
+        "Two guarantors plus witness versus three guarantors conflict"
+      ],
+      "activationStatus": "blocked-pending-approved-terms"
+    }
+  ]
+}

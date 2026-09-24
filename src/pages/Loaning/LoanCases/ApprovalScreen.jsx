@@ -11,6 +11,7 @@ import { listLoanCases, getApprovalWorksheet, getApprovalRepaymentSchedule, appr
 import { LoanCaseStatus, LoanApprovalOption } from "./lib/loanCaseEnums";
 import LoanCaseStatusBadge from "./lib/LoanCaseStatusBadge";
 import LoanCaseSummary from "./lib/LoanCaseSummary";
+import BoardDecision from "@/pages/Reports/GenerateSasraForm/BoardDecision";
 
 function FieldGroup({ label, children }) {
   return (
@@ -152,7 +153,7 @@ function ApprovalDrawer({ loanCaseId, workflowItemId, onClose, onChanged }) {
                 {[["overview", "Application"], ["assessment", "Appraisal Review"], ["attached", "Attached Loans"], ["schedule", "Repayment Schedule"], ["decision", "Decision"]].map(([key, label]) => <button key={key} type="button" onClick={() => setActiveTab(key)} className={`whitespace-nowrap rounded-md px-3 py-2 text-sm font-semibold ${activeTab === key ? "bg-indigo-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>{label}</button>)}
               </div>
 
-              {activeTab === "overview" && <LoanCaseSummary loanCase={data.loanCase} guarantors={data.guarantors} collaterals={data.collaterals} />}
+              {activeTab === "overview" && <><LoanCaseSummary loanCase={data.loanCase} guarantors={data.guarantors} collaterals={data.collaterals} /><details className="mt-4"><summary className="cursor-pointer text-indigo-700 font-semibold">Board decision for a director or employee loan</summary><BoardDecision loanCaseId={loanCaseId} /></details></>}
 
               {activeTab === "assessment" && <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <ReviewMetric label="Amount applied" value={data.loanCase?.AmountApplied} />

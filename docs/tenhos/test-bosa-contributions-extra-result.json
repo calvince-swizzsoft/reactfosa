@@ -1,0 +1,24 @@
+{
+  "verified": true,
+  "environment": "Local development",
+  "bank": "EQUITY CURRENT ACCOUNT",
+  "total": 50000.0,
+  "postings": [
+    {
+      "customer": "Mr NAFTALI ODALO",
+      "account": "001-0000009-003-002",
+      "amount": 50000.0,
+      "reference": "TENHOS-LOCAL-BOSA-EXTRA-20260924-9",
+      "journalId": "adf78727-3bb8-f111-b338-c8e2651ef92d",
+      "beforeBalance": 0.00
+    }
+  ],
+  "balances": [
+    {
+      "CustomerFullName": "Mr NAFTALI ODALO",
+      "FullAccountNumber": "001-0000009-003-002",
+      "before": 0.00,
+      "after": 50000.00
+    }
+  ]
+}

@@ -126,6 +126,7 @@ export default function AddLoanProducts({ open, onClose, refresh, product = null
         LoanRegistrationThrottleScheduledArrearsRecovery: false,
         LoanRegistrationRoundingType: "",
         Priority: 0,
+        RequireIncomeAssessment: null,
         TakeHomeType: 1,
         TakeHomePercentage: 0,
         TakeHomeFixedAmount: 0,
@@ -602,6 +603,13 @@ export default function AddLoanProducts({ open, onClose, refresh, product = null
                                 )}
                             </section>
 
+                            <section className="border-b-4 pb-4">
+                                <Label>Income Assessment</Label>
+                                <Select value={form.RequireIncomeAssessment == null ? "default" : String(form.RequireIncomeAssessment)} onValueChange={(value) => update("RequireIncomeAssessment", value === "default" ? null : value === "true")}>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent><SelectItem value="default">Use section default</SelectItem><SelectItem value="true">Required (minimum based on gross income)</SelectItem><SelectItem value="false">Not required</SelectItem></SelectContent>
+                                </Select>
+                            </section>
                             {/* TAKE-HOME RULE */}
                             <section className="grid grid-cols-1 md:grid-cols-4 gap-4 border-b-4 pb-4">
                                 <div>

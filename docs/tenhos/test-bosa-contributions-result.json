@@ -1,0 +1,66 @@
+{
+  "verified": true,
+  "environment": "Local development",
+  "bank": "EQUITY CURRENT ACCOUNT",
+  "total": 200000.0,
+  "postings": [
+    {
+      "customer": "Mr Dorothy Mogoi",
+      "account": "001-0000003-003-002",
+      "amount": 50000.0,
+      "reference": "TENHOS-LOCAL-BOSA-20260924-3",
+      "journalId": "8ea1f44f-3ab8-f111-b338-c8e2651ef92d",
+      "beforeBalance": 15200.00
+    },
+    {
+      "customer": "Mr Ernest Muriithi",
+      "account": "001-0000005-003-002",
+      "amount": 50000.0,
+      "reference": "TENHOS-LOCAL-BOSA-20260924-5",
+      "journalId": "94a1f44f-3ab8-f111-b338-c8e2651ef92d",
+      "beforeBalance": 10200.00
+    },
+    {
+      "customer": "Mr Godwell Mogoi",
+      "account": "001-0000006-003-002",
+      "amount": 50000.0,
+      "reference": "TENHOS-LOCAL-BOSA-20260924-6",
+      "journalId": "9aa1f44f-3ab8-f111-b338-c8e2651ef92d",
+      "beforeBalance": 200.00
+    },
+    {
+      "customer": "Mr Alfred Otieno",
+      "account": "001-0000007-003-002",
+      "amount": 50000.0,
+      "reference": "TENHOS-LOCAL-BOSA-20260924-7",
+      "journalId": "a0a1f44f-3ab8-f111-b338-c8e2651ef92d",
+      "beforeBalance": 399.97
+    }
+  ],
+  "balances": [
+    {
+      "CustomerFullName": "Mr Dorothy Mogoi",
+      "FullAccountNumber": "001-0000003-003-002",
+      "before": 15200.00,
+      "after": 65200.00
+    },
+    {
+      "CustomerFullName": "Mr Ernest Muriithi",
+      "FullAccountNumber": "001-0000005-003-002",
+      "before": 10200.00,
+      "after": 60200.00
+    },
+    {
+      "CustomerFullName": "Mr Godwell Mogoi",
+      "FullAccountNumber": "001-0000006-003-002",
+      "before": 200.00,
+      "after": 50200.00
+    },
+    {
+      "CustomerFullName": "Mr Alfred Otieno",
+      "FullAccountNumber": "001-0000007-003-002",
+      "before": 399.97,
+      "after": 50399.97
+    }
+  ]
+}

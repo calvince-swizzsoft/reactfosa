@@ -1,0 +1,11 @@
+{
+  "passed": 37,
+  "scope": "Real AppService and local product mappings with synthetic balances; read-only tests, no member balances or journals written",
+  "example": {
+    "bosaDeposits": 100000,
+    "shareCapital": 20000,
+    "ordinarySavings": 30000,
+    "multiplier": 4,
+    "entitlement": 400000
+  }
+}

@@ -196,6 +196,7 @@ const emptyForm = {
   LoanRegistrationPayoutRecoveryPercentage: 0,
   LoanRegistrationAggregateCheckOffRecoveryMode: AggregateCheckOffRecoveryMode.OutstandingBalance,
   LoanRegistrationRoundingType: RoundingType.NoRounding,
+  RequireIncomeAssessment: null,
   TakeHomeType: ChargeType.Percentage,
   TakeHomePercentage: 0,
   TakeHomeFixedAmount: 0,
@@ -492,7 +493,13 @@ export default function CreateLoanProduct() {
           </FieldGroup>
         </Section>
 
-        <Section title="Take-Home" help="Defines the affordability safeguard applied during loan appraisal. The system subtracts the proposed periodic instalment from the member's verified adjusted income and rejects the appraisal when the remainder is below this requirement.">
+        <Section title="Take-Home" help="When income assessment is Required, verified gross income less deductions and the server-calculated monthly instalment must leave this minimum. The percentage applies to gross income. Section default retains the existing FOSA income assessment behavior.">
+          <FieldGroup label="Income Assessment">
+            <Select value={form.RequireIncomeAssessment == null ? "default" : String(form.RequireIncomeAssessment)} onValueChange={(value) => set("RequireIncomeAssessment")(value === "default" ? null : value === "true")}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent><SelectItem value="default">Use section default</SelectItem><SelectItem value="true">Required</SelectItem><SelectItem value="false">Not required</SelectItem></SelectContent>
+            </Select>
+          </FieldGroup>
           <FieldGroup label="Type">
             <EnumSelect options={CHARGE_TYPE_OPTIONS} value={form.TakeHomeType} onChange={set("TakeHomeType")} />
           </FieldGroup>

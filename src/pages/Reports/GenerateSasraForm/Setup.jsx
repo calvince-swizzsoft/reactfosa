@@ -1,4 +1,5 @@
 import Form5 from "./Form5";
+import Form9 from "./Form9";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { FaFileAlt } from "react-icons/fa";
@@ -15,7 +16,7 @@ import Form7 from "./Form7";
 const base = `${import.meta.env.VITE_APP_FIN_URL}/api/accounts/sasra/setup`;
 const normalize = value => Array.isArray(value) ? value.map(normalize) : value && typeof value === "object" ? Object.fromEntries(Object.entries(value).map(([k, v]) => [k[0].toLowerCase() + k.slice(1), normalize(v)])) : value;
 async function request(path) { const r = await apiJson(base + path, { cache: "no-store" }); return normalize(r.data ?? r.Data); }
-const screens = { form5: Form5, form4: Form4, form3: Form3, form2: Form2, form1: Form1, form6: Form6, form7: Form7 };
+const screens = { form9: Form9, form5: Form5, form4: Form4, form3: Form3, form2: Form2, form1: Form1, form6: Form6, form7: Form7 };
 
 export default function SasraSetup({ profile = "DT" }) {
   const [rows, setRows] = useState(() => availableReportRows([], profile)), [selected, setSelected] = useState(null);
@@ -49,7 +50,7 @@ export default function SasraSetup({ profile = "DT" }) {
         setError(""); setLoading(true);
         try { setDetail(await request(`/versions/${r.id}`)); } catch (e) { setError(e.message); } finally { setLoading(false); }
       }} className="w-full text-left grid grid-cols-12 gap-3 items-center bg-white rounded-lg shadow-lg border hover:shadow-xl transition-all p-3 text-sm text-gray-700 focus-visible:outline-indigo-600">
-        <span className="col-span-7"><strong>{r.reportCode}</strong> · {r.title}</span><span className="col-span-2">{r.profile}</span><span className="col-span-3">{error ? "Could not load saved revisions" : r.derived ? "Loan ageing + dated reviews" : r.revision > 0 ? `Revision ${r.revision}` : "No saved mapping"}</span>
+        <span className="col-span-7"><strong>{r.reportCode}</strong> · {r.title}</span><span className="col-span-2">{r.profile}</span><span className="col-span-3">{error ? "Could not load saved revisions" : r.endpoint === "form9" ? "Insider records + saved drafts" : r.derived ? "Loan ageing + dated reviews" : r.revision > 0 ? `Revision ${r.revision}` : "No saved mapping"}</span>
       </button>)}</div>}
       {!loading && !error && !rows.length && <div className="text-center py-6"><img src="/assets/scopefinding.png" alt="" className="mx-auto w-32" /><p className="text-gray-500">{profile === "NWDT" ? "NWDT reports are not yet implemented. Forms 2A–2H will be added here." : "No saved DT reports."}</p></div>}
     </div>

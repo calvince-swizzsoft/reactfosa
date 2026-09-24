@@ -1,0 +1,89 @@
+{
+  "basis": "User-authorized provisional local testing ceilings, not approved Tenhos limits. Applicant qualification rules still apply.",
+  "products": [
+    {
+      "Id": "75e09114-15b8-f111-b338-c8e2651ef92d",
+      "Description": "TENHOS - Boresha Elimu (School Fees Loan) [DRAFT]",
+      "previousMaximum": 1.00,
+      "maximum": 500000.0
+    },
+    {
+      "Id": "77e09114-15b8-f111-b338-c8e2651ef92d",
+      "Description": "TENHOS - Emergency Loan [DRAFT]",
+      "previousMaximum": 1.00,
+      "maximum": 500000.0
+    },
+    {
+      "Id": "79e09114-15b8-f111-b338-c8e2651ef92d",
+      "Description": "TENHOS - Asset Financing Loan [DRAFT]",
+      "previousMaximum": 1.00,
+      "maximum": 3000000.0
+    },
+    {
+      "Id": "7be09114-15b8-f111-b338-c8e2651ef92d",
+      "Description": "TENHOS - Development Loan [DRAFT]",
+      "previousMaximum": 1.00,
+      "maximum": 3000000.0
+    },
+    {
+      "Id": "7de09114-15b8-f111-b338-c8e2651ef92d",
+      "Description": "TENHOS - Advances [DRAFT]",
+      "previousMaximum": 1.00,
+      "maximum": 100000.0
+    },
+    {
+      "Id": "7fe09114-15b8-f111-b338-c8e2651ef92d",
+      "Description": "TENHOS - Start-Up Loan [DRAFT]",
+      "previousMaximum": 1.00,
+      "maximum": 300000.0
+    },
+    {
+      "Id": "81e09114-15b8-f111-b338-c8e2651ef92d",
+      "Description": "TENHOS - Bonus Advance [DRAFT]",
+      "previousMaximum": 1.00,
+      "maximum": 200000.0
+    },
+    {
+      "Id": "83e09114-15b8-f111-b338-c8e2651ef92d",
+      "Description": "TENHOS - Hospital Check-Off Advance [DRAFT]",
+      "previousMaximum": 1.00,
+      "maximum": 100000.0
+    },
+    {
+      "Id": "85e09114-15b8-f111-b338-c8e2651ef92d",
+      "Description": "TENHOS - Special Advance [DRAFT]",
+      "previousMaximum": 1.00,
+      "maximum": 200000.0
+    },
+    {
+      "Id": "87e09114-15b8-f111-b338-c8e2651ef92d",
+      "Description": "TENHOS - Overdraft Facility [DRAFT]",
+      "previousMaximum": 1.00,
+      "maximum": 300000.0
+    },
+    {
+      "Id": "89e09114-15b8-f111-b338-c8e2651ef92d",
+      "Description": "TENHOS - Loan Item Facility [DRAFT]",
+      "previousMaximum": 1.00,
+      "maximum": 300000.0
+    },
+    {
+      "Id": "8be09114-15b8-f111-b338-c8e2651ef92d",
+      "Description": "TENHOS - Vijana Loan [DRAFT]",
+      "previousMaximum": 1.00,
+      "maximum": 300000.0
+    },
+    {
+      "Id": "8de09114-15b8-f111-b338-c8e2651ef92d",
+      "Description": "TENHOS - Dairy Loan [DRAFT]",
+      "previousMaximum": 1.00,
+      "maximum": 500000.0
+    },
+    {
+      "Id": "8fe09114-15b8-f111-b338-c8e2651ef92d",
+      "Description": "TENHOS - Ukulima Loan [DRAFT]",
+      "previousMaximum": 1.00,
+      "maximum": 500000.0
+    }
+  ]
+}

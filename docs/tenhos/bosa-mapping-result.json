@@ -1,0 +1,39 @@
+{
+  "verified": true,
+  "changedCount": 4,
+  "investmentProductId": "301de436-4aab-f111-b324-c8e2651ef92d",
+  "investmentProduct": "DEPOSIT CONTRIBUTION",
+  "ledgerId": "5a3da529-4aab-f111-b324-c8e2651ef92d",
+  "ledger": "BOSA DEPOSITS",
+  "ledgerCode": 2009,
+  "products": [
+    {
+      "Id": "75e09114-15b8-f111-b338-c8e2651ef92d",
+      "Description": "TENHOS - Boresha Elimu (School Fees Loan) [DRAFT]",
+      "selectedInvestmentProducts": [
+        "301de436-4aab-f111-b324-c8e2651ef92d"
+      ]
+    },
+    {
+      "Id": "77e09114-15b8-f111-b338-c8e2651ef92d",
+      "Description": "TENHOS - Emergency Loan [DRAFT]",
+      "selectedInvestmentProducts": [
+        "301de436-4aab-f111-b324-c8e2651ef92d"
+      ]
+    },
+    {
+      "Id": "79e09114-15b8-f111-b338-c8e2651ef92d",
+      "Description": "TENHOS - Asset Financing Loan [DRAFT]",
+      "selectedInvestmentProducts": [
+        "301de436-4aab-f111-b324-c8e2651ef92d"
+      ]
+    },
+    {
+      "Id": "7be09114-15b8-f111-b338-c8e2651ef92d",
+      "Description": "TENHOS - Development Loan [DRAFT]",
+      "selectedInvestmentProducts": [
+        "301de436-4aab-f111-b324-c8e2651ef92d"
+      ]
+    }
+  ]
+}

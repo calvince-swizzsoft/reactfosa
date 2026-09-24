@@ -1,4 +1,5 @@
 export const implementedReports = [
+  { reportCode: "FORM 9", title: "Insider Lending and Performance", endpoint: "form9", version: "WORKBOOK-07AA18B8F484", derived: true },
   { reportCode: "FORM 5", title: "Investment Return", endpoint: "form5", version: "WORKBOOK-C1A7CED517A5" },
   { reportCode: "FORM 4", title: "Risk Classification of Assets and Provisioning", endpoint: "form4", version: "WORKBOOK-5E8DB04FC69D", derived: true },
   { reportCode: "FORM 3", title: "Statement of Deposit Return", endpoint: "form3", version: "WORKBOOK-25B1834496BC" },

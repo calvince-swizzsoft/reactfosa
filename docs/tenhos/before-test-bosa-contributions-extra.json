@@ -1,0 +1,15 @@
+{
+  "environment": "Local development",
+  "bank": "EQUITY CURRENT ACCOUNT",
+  "valueDate": "2026-09-24T00:00:00+01:00",
+  "accounts": [
+    {
+      "Id": "572b6dba-4fab-f111-b324-c8e2651ef92d",
+      "CustomerId": "482b6dba-4fab-f111-b324-c8e2651ef92d",
+      "CustomerFullName": "Mr NAFTALI ODALO",
+      "FullAccountNumber": "001-0000009-003-002",
+      "BookBalance": 0.00,
+      "contribution": 50000.0
+    }
+  ]
+}

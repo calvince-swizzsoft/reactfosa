@@ -1,0 +1,39 @@
+{
+  "environment": "Local development",
+  "bank": "EQUITY CURRENT ACCOUNT",
+  "valueDate": "2026-09-24T00:00:00+01:00",
+  "accounts": [
+    {
+      "Id": "fc5583f6-53ab-f111-b324-c8e2651ef92d",
+      "CustomerId": "73168fc5-d4a2-f111-b322-c8e2651ef92d",
+      "CustomerFullName": "Mr Dorothy Mogoi",
+      "FullAccountNumber": "001-0000003-003-002",
+      "BookBalance": 15200.00,
+      "contribution": 50000.0
+    },
+    {
+      "Id": "ed03b2e4-53ab-f111-b324-c8e2651ef92d",
+      "CustomerId": "1ff41856-62a5-f111-b323-c8e2651ef92d",
+      "CustomerFullName": "Mr Ernest Muriithi",
+      "FullAccountNumber": "001-0000005-003-002",
+      "BookBalance": 10200.00,
+      "contribution": 50000.0
+    },
+    {
+      "Id": "3b03d616-54ab-f111-b324-c8e2651ef92d",
+      "CustomerId": "93c194b7-63a5-f111-b323-c8e2651ef92d",
+      "CustomerFullName": "Mr Godwell Mogoi",
+      "FullAccountNumber": "001-0000006-003-002",
+      "BookBalance": 200.00,
+      "contribution": 50000.0
+    },
+    {
+      "Id": "497f2405-54ab-f111-b324-c8e2651ef92d",
+      "CustomerId": "38be9be8-2ea6-f111-b324-c8e2651ef92d",
+      "CustomerFullName": "Mr Alfred Otieno",
+      "FullAccountNumber": "001-0000007-003-002",
+      "BookBalance": 399.97,
+      "contribution": 50000.0
+    }
+  ]
+}

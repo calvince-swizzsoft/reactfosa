@@ -1,0 +1,470 @@
+{
+  "accounts": [
+    {
+      "Id": "572b6dba-4fab-f111-b324-c8e2651ef92d",
+      "CustomerId": "482b6dba-4fab-f111-b324-c8e2651ef92d",
+      "CustomerFullName": "Mr NAFTALI ODALO",
+      "CustomerSerialNumber": 9,
+      "FullAccountNumber": "001-0000009-003-002",
+      "BranchId": "9945b715-a2a2-f111-b321-c8e2651ef92d",
+      "Status": 0,
+      "RecordStatus": 2,
+      "BookBalance": 0.0
+    },
+    {
+      "Id": "ed03b2e4-53ab-f111-b324-c8e2651ef92d",
+      "CustomerId": "1ff41856-62a5-f111-b323-c8e2651ef92d",
+      "CustomerFullName": "Mr Ernest Muriithi",
+      "CustomerSerialNumber": 5,
+      "FullAccountNumber": "001-0000005-003-002",
+      "BranchId": "9945b715-a2a2-f111-b321-c8e2651ef92d",
+      "Status": 0,
+      "RecordStatus": 2,
+      "BookBalance": 0.0
+    },
+    {
+      "Id": "fc5583f6-53ab-f111-b324-c8e2651ef92d",
+      "CustomerId": "73168fc5-d4a2-f111-b322-c8e2651ef92d",
+      "CustomerFullName": "Mr Dorothy Mogoi",
+      "CustomerSerialNumber": 3,
+      "FullAccountNumber": "001-0000003-003-002",
+      "BranchId": "9945b715-a2a2-f111-b321-c8e2651ef92d",
+      "Status": 0,
+      "RecordStatus": 2,
+      "BookBalance": 0.0
+    },
+    {
+      "Id": "497f2405-54ab-f111-b324-c8e2651ef92d",
+      "CustomerId": "38be9be8-2ea6-f111-b324-c8e2651ef92d",
+      "CustomerFullName": "Mr Alfred Otieno",
+      "CustomerSerialNumber": 7,
+      "FullAccountNumber": "001-0000007-003-002",
+      "BranchId": "9945b715-a2a2-f111-b321-c8e2651ef92d",
+      "Status": 0,
+      "RecordStatus": 2,
+      "BookBalance": 0.0
+    },
+    {
+      "Id": "3b03d616-54ab-f111-b324-c8e2651ef92d",
+      "CustomerId": "93c194b7-63a5-f111-b323-c8e2651ef92d",
+      "CustomerFullName": "Mr Godwell Mogoi",
+      "CustomerSerialNumber": 6,
+      "FullAccountNumber": "001-0000006-003-002",
+      "BranchId": "9945b715-a2a2-f111-b321-c8e2651ef92d",
+      "Status": 0,
+      "RecordStatus": 2,
+      "BookBalance": 0.0
+    },
+    {
+      "Id": "1886acd5-82ab-f111-b324-c8e2651ef92d",
+      "CustomerId": "0986acd5-82ab-f111-b324-c8e2651ef92d",
+      "CustomerFullName": "Dr SAMWEL WARUHIU",
+      "CustomerSerialNumber": 10,
+      "FullAccountNumber": "001-0000010-003-002",
+      "BranchId": "9945b715-a2a2-f111-b321-c8e2651ef92d",
+      "Status": 0,
+      "RecordStatus": 2,
+      "BookBalance": 0.0
+    },
+    {
+      "Id": "ddb83ff8-83ab-f111-b324-c8e2651ef92d",
+      "CustomerId": "ceb83ff8-83ab-f111-b324-c8e2651ef92d",
+      "CustomerFullName": "Dr Wilfred Wanyoike",
+      "CustomerSerialNumber": 11,
+      "FullAccountNumber": "001-0000011-003-002",
+      "BranchId": "9945b715-a2a2-f111-b321-c8e2651ef92d",
+      "Status": 0,
+      "RecordStatus": 2,
+      "BookBalance": 0.0
+    },
+    {
+      "Id": "2e86dee8-8cab-f111-b324-c8e2651ef92d",
+      "CustomerId": "1f86dee8-8cab-f111-b324-c8e2651ef92d",
+      "CustomerFullName": "Dr Samwel Waruhiu",
+      "CustomerSerialNumber": 12,
+      "FullAccountNumber": "001-0000012-003-002",
+      "BranchId": "9945b715-a2a2-f111-b321-c8e2651ef92d",
+      "Status": 0,
+      "RecordStatus": 2,
+      "BookBalance": 0.0
+    },
+    {
+      "Id": "39338498-b6b2-f111-b335-c8e2651ef92d",
+      "CustomerId": "2a338498-b6b2-f111-b335-c8e2651ef92d",
+      "CustomerFullName": "Mr Ian Odhiambo",
+      "CustomerSerialNumber": 13,
+      "FullAccountNumber": "002-0000013-003-002",
+      "BranchId": "0b379d7e-b5b2-f111-b335-c8e2651ef92d",
+      "Status": 0,
+      "RecordStatus": 2,
+      "BookBalance": 0.0
+    },
+    {
+      "Id": "018cd4d9-b8b2-f111-b335-c8e2651ef92d",
+      "CustomerId": "f28bd4d9-b8b2-f111-b335-c8e2651ef92d",
+      "CustomerFullName": "Mr Ian Odhiambo",
+      "CustomerSerialNumber": 14,
+      "FullAccountNumber": "001-0000014-003-002",
+      "BranchId": "9945b715-a2a2-f111-b321-c8e2651ef92d",
+      "Status": 0,
+      "RecordStatus": 2,
+      "BookBalance": 0.0
+    }
+  ],
+  "ledgers": [
+    {
+      "Id": "08d45d75-b7a2-f111-b321-c8e2651ef92d",
+      "AccountCode": 1001,
+      "AccountName": "EQUITY CURRENT ACCOUNT",
+      "AccountType": 1000,
+      "AccountCategory": 4097,
+      "IsLocked": false,
+      "IsControlAccount": false
+    },
+    {
+      "Id": "0af27bf2-dba2-f111-b322-c8e2651ef92d",
+      "AccountCode": 2001,
+      "AccountName": "ORDINARY SAVINGS",
+      "AccountType": 2000,
+      "AccountCategory": 4097,
+      "IsLocked": false,
+      "IsControlAccount": false
+    },
+    {
+      "Id": "ac174e26-dca2-f111-b322-c8e2651ef92d",
+      "AccountCode": 2002,
+      "AccountName": "Mandatory Share Capital",
+      "AccountType": 3000,
+      "AccountCategory": 4097,
+      "IsLocked": false,
+      "IsControlAccount": false
+    },
+    {
+      "Id": "b6d4f9b3-f3a2-f111-b322-c8e2651ef92d",
+      "AccountCode": 2004,
+      "AccountName": "Swizz Payroll Control",
+      "AccountType": 2000,
+      "AccountCategory": 4097,
+      "IsLocked": false,
+      "IsControlAccount": true
+    },
+    {
+      "Id": "d4f7d37e-70a3-f111-b322-c8e2651ef92d",
+      "AccountCode": 1002,
+      "AccountName": "Teller Chart of Account",
+      "AccountType": 1000,
+      "AccountCategory": 4097,
+      "IsLocked": false,
+      "IsControlAccount": false
+    },
+    {
+      "Id": "0d5db4cb-70a3-f111-b322-c8e2651ef92d",
+      "AccountCode": 2011,
+      "AccountName": "Teller Shortage Account",
+      "AccountType": 1000,
+      "AccountCategory": 4097,
+      "IsLocked": false,
+      "IsControlAccount": false
+    },
+    {
+      "Id": "17e485e0-70a3-f111-b322-c8e2651ef92d",
+      "AccountCode": 4001,
+      "AccountName": "Teller Excess Chart of Account",
+      "AccountType": 4000,
+      "AccountCategory": 4097,
+      "IsLocked": false,
+      "IsControlAccount": false
+    },
+    {
+      "Id": "5edf9da1-8ca4-f111-b323-c8e2651ef92d",
+      "AccountCode": 4002,
+      "AccountName": "Income from Commissions",
+      "AccountType": 4000,
+      "AccountCategory": 4097,
+      "IsLocked": false,
+      "IsControlAccount": false
+    },
+    {
+      "Id": "f632f352-91a4-f111-b323-c8e2651ef92d",
+      "AccountCode": 2005,
+      "AccountName": "Statutory Fees",
+      "AccountType": 2000,
+      "AccountCategory": 4097,
+      "IsLocked": false,
+      "IsControlAccount": false
+    },
+    {
+      "Id": "ee71bff5-a4a4-f111-b323-c8e2651ef92d",
+      "AccountCode": 1003,
+      "AccountName": "Interest Receivable",
+      "AccountType": 1000,
+      "AccountCategory": 4097,
+      "IsLocked": false,
+      "IsControlAccount": false
+    },
+    {
+      "Id": "078a9a0b-a5a4-f111-b323-c8e2651ef92d",
+      "AccountCode": 4003,
+      "AccountName": "Interest Receieved",
+      "AccountType": 4000,
+      "AccountCategory": 4097,
+      "IsLocked": false,
+      "IsControlAccount": false
+    },
+    {
+      "Id": "a782a78e-a5a4-f111-b323-c8e2651ef92d",
+      "AccountCode": 1004,
+      "AccountName": "Loan Principal",
+      "AccountType": 1000,
+      "AccountCategory": 4097,
+      "IsLocked": false,
+      "IsControlAccount": true
+    },
+    {
+      "Id": "76637da3-a5a4-f111-b323-c8e2651ef92d",
+      "AccountCode": 1005,
+      "AccountName": "Interest Charged",
+      "AccountType": 1000,
+      "AccountCategory": 4097,
+      "IsLocked": false,
+      "IsControlAccount": true
+    },
+    {
+      "Id": "2fddf992-a7a4-f111-b323-c8e2651ef92d",
+      "AccountCode": 2006,
+      "AccountName": "External Cheques Control",
+      "AccountType": 2000,
+      "AccountCategory": 4097,
+      "IsLocked": false,
+      "IsControlAccount": true
+    },
+    {
+      "Id": "74e347da-aba4-f111-b323-c8e2651ef92d",
+      "AccountCode": 1006,
+      "AccountName": "External Cheques in Hand",
+      "AccountType": 1000,
+      "AccountCategory": 4097,
+      "IsLocked": false,
+      "IsControlAccount": false
+    },
+    {
+      "Id": "6f6436c1-dba5-f111-b324-c8e2651ef92d",
+      "AccountCode": 2007,
+      "AccountName": "Fixed Deposit Payable",
+      "AccountType": 2000,
+      "AccountCategory": 4097,
+      "IsLocked": false,
+      "IsControlAccount": true
+    },
+    {
+      "Id": "ae2b9f88-d6a6-f111-b324-c8e2651ef92d",
+      "AccountCode": 3001,
+      "AccountName": "Profit and Loss",
+      "AccountType": 3000,
+      "AccountCategory": 4097,
+      "IsLocked": false,
+      "IsControlAccount": false
+    },
+    {
+      "Id": "b5484c20-08a8-f111-b324-c8e2651ef92d",
+      "AccountCode": 2008,
+      "AccountName": "Accrued Payables",
+      "AccountType": 2000,
+      "AccountCategory": 4097,
+      "IsLocked": false,
+      "IsControlAccount": false
+    },
+    {
+      "Id": "0c472756-26a8-f111-b324-c8e2651ef92d",
+      "AccountCode": 1007,
+      "AccountName": "Motor Vehicle Purchase",
+      "AccountType": 1000,
+      "AccountCategory": 4097,
+      "IsLocked": false,
+      "IsControlAccount": false
+    },
+    {
+      "Id": "5a46a061-27a8-f111-b324-c8e2651ef92d",
+      "AccountCode": 1008,
+      "AccountName": "Motor Vehicle Depreciation",
+      "AccountType": 1000,
+      "AccountCategory": 4097,
+      "IsLocked": false,
+      "IsControlAccount": false
+    },
+    {
+      "Id": "9dbdb378-27a8-f111-b324-c8e2651ef92d",
+      "AccountCode": 5002,
+      "AccountName": "Motor Vehicle Expense",
+      "AccountType": 1000,
+      "AccountCategory": 4097,
+      "IsLocked": false,
+      "IsControlAccount": false
+    },
+    {
+      "Id": "a99c8b20-39a8-f111-b324-c8e2651ef92d",
+      "AccountCode": 1009,
+      "AccountName": "TEST ASSETS",
+      "AccountType": 1000,
+      "AccountCategory": 4097,
+      "IsLocked": false,
+      "IsControlAccount": false
+    },
+    {
+      "Id": "5a3da529-4aab-f111-b324-c8e2651ef92d",
+      "AccountCode": 2009,
+      "AccountName": "BOSA DEPOSITS",
+      "AccountType": 2000,
+      "AccountCategory": 4097,
+      "IsLocked": false,
+      "IsControlAccount": false
+    },
+    {
+      "Id": "cdae55f8-1fad-f111-b32c-c8e2651ef92d",
+      "AccountCode": 2010,
+      "AccountName": "Wire Transfer Clearing Acc",
+      "AccountType": 2000,
+      "AccountCategory": 4097,
+      "IsLocked": false,
+      "IsControlAccount": false
+    },
+    {
+      "Id": "2a327c0f-3cad-f111-b32c-c8e2651ef92d",
+      "AccountCode": 1011,
+      "AccountName": "Petty Cash",
+      "AccountType": 1000,
+      "AccountCategory": 4097,
+      "IsLocked": false,
+      "IsControlAccount": false
+    },
+    {
+      "Id": "f9539fae-d9b5-f111-b338-c8e2651ef92d",
+      "AccountCode": 5001,
+      "AccountName": "Basic Salaries Expense",
+      "AccountType": 5000,
+      "AccountCategory": 4097,
+      "IsLocked": false,
+      "IsControlAccount": false
+    },
+    {
+      "Id": "fb539fae-d9b5-f111-b338-c8e2651ef92d",
+      "AccountCode": 5003,
+      "AccountName": "House Allowance Expense",
+      "AccountType": 5000,
+      "AccountCategory": 4097,
+      "IsLocked": false,
+      "IsControlAccount": false
+    },
+    {
+      "Id": "fd539fae-d9b5-f111-b338-c8e2651ef92d",
+      "AccountCode": 5004,
+      "AccountName": "Transport Allowance Expense",
+      "AccountType": 5000,
+      "AccountCategory": 4097,
+      "IsLocked": false,
+      "IsControlAccount": false
+    },
+    {
+      "Id": "ff539fae-d9b5-f111-b338-c8e2651ef92d",
+      "AccountCode": 5005,
+      "AccountName": "Overtime Expense",
+      "AccountType": 5000,
+      "AccountCategory": 4097,
+      "IsLocked": false,
+      "IsControlAccount": false
+    },
+    {
+      "Id": "01549fae-d9b5-f111-b338-c8e2651ef92d",
+      "AccountCode": 5006,
+      "AccountName": "Staff Bonus Expense",
+      "AccountType": 5000,
+      "AccountCategory": 4097,
+      "IsLocked": false,
+      "IsControlAccount": false
+    },
+    {
+      "Id": "03549fae-d9b5-f111-b338-c8e2651ef92d",
+      "AccountCode": 2003,
+      "AccountName": "NSSF Payable",
+      "AccountType": 2000,
+      "AccountCategory": 4097,
+      "IsLocked": false,
+      "IsControlAccount": false
+    },
+    {
+      "Id": "05549fae-d9b5-f111-b338-c8e2651ef92d",
+      "AccountCode": 2012,
+      "AccountName": "PAYE Payable",
+      "AccountType": 2000,
+      "AccountCategory": 4097,
+      "IsLocked": false,
+      "IsControlAccount": false
+    },
+    {
+      "Id": "07549fae-d9b5-f111-b338-c8e2651ef92d",
+      "AccountCode": 2013,
+      "AccountName": "SHIF Payable",
+      "AccountType": 2000,
+      "AccountCategory": 4097,
+      "IsLocked": false,
+      "IsControlAccount": false
+    },
+    {
+      "Id": "09549fae-d9b5-f111-b338-c8e2651ef92d",
+      "AccountCode": 2014,
+      "AccountName": "Affordable Housing Levy Payable",
+      "AccountType": 2000,
+      "AccountCategory": 4097,
+      "IsLocked": false,
+      "IsControlAccount": false
+    },
+    {
+      "Id": "0b549fae-d9b5-f111-b338-c8e2651ef92d",
+      "AccountCode": 5007,
+      "AccountName": "Employer NSSF Expense",
+      "AccountType": 5000,
+      "AccountCategory": 4097,
+      "IsLocked": false,
+      "IsControlAccount": false
+    },
+    {
+      "Id": "0d549fae-d9b5-f111-b338-c8e2651ef92d",
+      "AccountCode": 5008,
+      "AccountName": "Employer Housing Levy Expense",
+      "AccountType": 5000,
+      "AccountCategory": 4097,
+      "IsLocked": false,
+      "IsControlAccount": false
+    }
+  ],
+  "banks": [
+    {
+      "Id": "aba70bf3-dda2-f111-b322-c8e2651ef92d",
+      "BankId": "e38ed17f-a2a2-f111-b321-c8e2651ef92d",
+      "BankName": "Equity Bank",
+      "BankBranchName": "CBD",
+      "BankAccountNumber": "EQ001",
+      "Remarks": "",
+      "IsLocked": false,
+      "CreatedDate": "2026-08-28T13:42:38.43",
+      "BranchId": "9945b715-a2a2-f111-b321-c8e2651ef92d",
+      "BranchDescription": "SYOKIMAU",
+      "ChartOfAccountId": "08d45d75-b7a2-f111-b321-c8e2651ef92d",
+      "ChartOfAccountAccountType": 1000,
+      "ChartOfAccountAccountCode": 1001,
+      "ChartOfAccountAccountName": "EQUITY CURRENT ACCOUNT",
+      "ChartOfAccountName": "1-1001 EQUITY CURRENT ACCOUNT",
+      "ChartOfAccountCostCenterId": null,
+      "ChartOfAccountCostCenterDescription": null,
+      "BankLinkageBalance": 0.0,
+      "Code": 0,
+      "PaddedCode": "00",
+      "Description": null,
+      "Address": null,
+      "City": null,
+      "IbanNo": null,
+      "SwiftCode": null,
+      "No": 0
+    }
+  ]
+}

@@ -3,7 +3,7 @@ import { FaFileAlt, FaFolder, FaChevronRight } from "react-icons/fa";
 
 export default function SasraReports() {
   const categories = [
-    { code: "DT", title: "Deposit-taking SACCOs", description: "Forms 1–7 · Mappings, preview and Excel downloads" },
+    { code: "DT", title: "Deposit-taking SACCOs", description: "Forms 1–7 and 9 · Preview and Excel downloads" },
     { code: "NWDT", title: "Non-withdrawable-deposit SACCOs", description: "Form 2 reports · To be added" },
   ];
   return <main className="bg-white m-8 px-8 py-8 shadow-2xl rounded-lg relative">

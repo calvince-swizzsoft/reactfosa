@@ -8,7 +8,7 @@ import Swal from "sweetalert2";
 import { motion, AnimatePresence } from "framer-motion";
 import { FaPlus, FaChevronDown, FaTrash, FaClipboardCheck, FaUser, FaChartLine, FaWallet, FaShieldAlt, FaCalculator, FaCalendarAlt, FaGavel } from "react-icons/fa";
 import NotFoundImage from "/assets/scopefinding.png";
-import { listLoanCases, getAppraisalWorksheet, appraiseLoanCase } from "./lib/loanCaseApi";
+import { listLoanCases, getAppraisalWorksheet, getAppraisalRepaymentSchedule, appraiseLoanCase } from "./lib/loanCaseApi";
 import { LoanCaseStatus, LoanAppraisalOption } from "./lib/loanCaseEnums";
 import LoanCaseStatusBadge from "./lib/LoanCaseStatusBadge";
 import LoanCaseSummary from "./lib/LoanCaseSummary";
@@ -72,7 +72,7 @@ function PickerField({ label, value, placeholder, onClick }) {
 }
 
 const emptyDecisionForm = {
-  LoanProductLatestIncome: "", AppraisedNetIncome: "", AppraisedAbility: "",
+  IncomeAssessmentReference: "", LoanProductLatestIncome: "", AppraisedNetIncome: "", AppraisedAbility: "",
   SystemAppraisedAmount: "", SystemAppraisalRemarks: "",
   AppraisedAmount: "", AppraisedAmountRemarks: "", AppraisalRemarks: "",
   MonthlyPaybackAmount: "", TotalPaybackAmount: "", TotalLoansBalance: "",
@@ -160,6 +160,8 @@ function AppraisalDrawer({ loanCaseId, workflowItemId, onClose, onChanged }) {
   const [creatingIncomeAdjustment, setCreatingIncomeAdjustment] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [usedBiometrics, setUsedBiometrics] = useState(false);
+  const [scheduleLoading, setScheduleLoading] = useState(false);
+  const [scheduleError, setScheduleError] = useState("");
   const [activeTab, setActiveTab] = useState("overview");
   const [attachedLoanIds, setAttachedLoanIds] = useState([]);
 
@@ -171,6 +173,7 @@ function AppraisalDrawer({ loanCaseId, workflowItemId, onClose, onChanged }) {
       .then((data) => {
         setWorksheet(data);
         setForm({
+          IncomeAssessmentReference: data.loanCase?.IncomeAssessmentReference || "",
           LoanProductLatestIncome: "",
           AppraisedNetIncome: "",
           AppraisedAbility: "",
@@ -191,6 +194,29 @@ function AppraisalDrawer({ loanCaseId, workflowItemId, onClose, onChanged }) {
       .finally(() => setLoading(false));
   }, [loanCaseId]);
 
+  useEffect(() => {
+    if (!loanCaseId || worksheet?.loanCase?.RequireIncomeAssessment !== true) return;
+    const amount = Number(form.AppraisedAmount);
+    if (!Number.isFinite(amount) || amount <= 0) return;
+    let cancelled = false;
+    setScheduleLoading(true);
+    setScheduleError("");
+    const timer = setTimeout(() => {
+      getAppraisalRepaymentSchedule(loanCaseId, amount)
+        .then((schedule) => {
+          if (cancelled) return;
+          const entries = schedule || [];
+          setForm((previous) => ({ ...previous,
+            MonthlyPaybackAmount: entries.length ? Math.max(...entries.map((entry) => Number(entry.Payment || 0))) : 0,
+            TotalPaybackAmount: entries.reduce((sum, entry) => sum + Number(entry.Payment || 0), 0),
+          }));
+        })
+        .catch((error) => { if (!cancelled) setScheduleError(error.message); })
+        .finally(() => { if (!cancelled) setScheduleLoading(false); });
+    }, 300);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [loanCaseId, form.AppraisedAmount, worksheet?.loanCase?.RequireIncomeAssessment]);
+
   if (!loanCaseId) return null;
 
   const addIncomeAdjustment = (item) => {
@@ -199,6 +225,7 @@ function AppraisalDrawer({ loanCaseId, workflowItemId, onClose, onChanged }) {
   };
   const updateIncomeAdjustment = (index, patch) => setIncomeAdjustments((p) => p.map((r, i) => (i === index ? { ...r, ...patch } : r)));
   const removeIncomeAdjustment = (index) => setIncomeAdjustments((p) => p.filter((_, i) => i !== index));
+  const explicitIncomeAssessment = worksheet?.loanCase?.RequireIncomeAssessment === true;
   const requiresIncomeAppraisal = worksheet?.requiresIncomeAppraisal !== false;
   const adjustedNetIncome = incomeAdjustments.reduce((netIncome, row) => {
     if (!row.IsEnabled) return netIncome;
@@ -213,6 +240,18 @@ function AppraisalDrawer({ loanCaseId, workflowItemId, onClose, onChanged }) {
       return;
     }
     if (option === LoanAppraisalOption.Appraise) {
+      if (explicitIncomeAssessment && (scheduleLoading || scheduleError)) {
+        Swal.fire("Repayment Schedule", scheduleError || "Wait for the repayment calculation to finish.", "warning");
+        return;
+      }
+      if (explicitIncomeAssessment && (!(Number(form.LoanProductLatestIncome) > 0) || !form.IncomeAssessmentReference?.trim())) {
+        Swal.fire("Income Evidence Required", "Enter verified monthly gross income and the payslip or income evidence reference.", "warning");
+        return;
+      }
+      if (explicitIncomeAssessment && incomeAdjustments.some((row) => row.IsEnabled && row.Type !== INCOME_ADJUSTMENT_DEDUCTION)) {
+        Swal.fire("Check Income", "Include allowances in gross income. List only deductions and existing commitments below.", "warning");
+        return;
+      }
       if (!worksheet?.fileReadyForAppraisal) {
         Swal.fire(
           "Physical File Required",
@@ -252,6 +291,7 @@ function AppraisalDrawer({ loanCaseId, workflowItemId, onClose, onChanged }) {
         UsedBiometrics: usedBiometrics,
         Option: option,
         ModuleNavigationItemCode: MODULE_NAVIGATION_ITEM_CODE,
+        IncomeAssessmentReference: form.IncomeAssessmentReference?.trim() || null,
         LoanProductLatestIncome: requiresIncomeAppraisal ? Number(form.LoanProductLatestIncome) || 0 : 0,
         AppraisedNetIncome: requiresIncomeAppraisal ? adjustedNetIncome : 0,
         AppraisedAbility: requiresIncomeAppraisal ? Number(form.AppraisedAbility) || 0 : 0,
@@ -384,15 +424,18 @@ function AppraisalDrawer({ loanCaseId, workflowItemId, onClose, onChanged }) {
 
               <div className="grid grid-cols-2 gap-3">
                 {requiresIncomeAppraisal && <>
-                  <FieldGroup label="Latest Verified Income" help="Enter the member's most recent regular income confirmed from an accepted source, such as a current payslip, payroll record, or employer confirmation. Enter the base figure before the allowances and deductions listed below; do not enter the requested loan amount or proposed instalment. A blank value is treated as zero.">
+                  <FieldGroup label={explicitIncomeAssessment ? "Verified Monthly Gross Income" : "Latest Verified Income"} help={explicitIncomeAssessment ? "Enter verified monthly gross income including regular allowances. List statutory deductions and all existing repayment commitments below, without double-counting. The protected take-home percentage applies to gross income." : "Enter verified base income before the allowances and deductions listed below."}>
                     <Input type="number" min="0" step="0.01" value={form.LoanProductLatestIncome} onChange={(e) => setForm((p) => ({ ...p, LoanProductLatestIncome: e.target.value }))} />
                   </FieldGroup>
+                  {explicitIncomeAssessment && <FieldGroup label="Payslip / Income Evidence Reference" help="Record the document references and pay periods reviewed, including the two payslips required for Boresha. Confirm the figures against the evidence; this is not an automatic payroll verification." required>
+                    <Input maxLength={512} value={form.IncomeAssessmentReference || ""} onChange={(e) => setForm((p) => ({ ...p, IncomeAssessmentReference: e.target.value }))} />
+                  </FieldGroup>}
                   <FieldGroup label="Net Income After Adjustments" help="Calculated automatically as Latest Verified Income + enabled allowances − enabled deductions. This adjusted figure is used for the product's take-home affordability check. Review the income adjustments below if it is lower than expected.">
                     <Input type="number" value={adjustedNetIncome} disabled />
                   </FieldGroup>
-                  <FieldGroup label="Assessed Repayment Capacity" help="Enter the maximum amount the member can reasonably repay in one payment period after reviewing income, expenses, existing commitments, and policy. This is an officer assessment; it is not the loan principal or the member's remaining take-home.">
+                  {!explicitIncomeAssessment && <FieldGroup label="Assessed Repayment Capacity" help="Enter the maximum amount the member can reasonably repay in one payment period after reviewing income, expenses, existing commitments, and policy. This is an officer assessment; it is not the loan principal or the member's remaining take-home.">
                     <Input type="number" min="0" step="0.01" value={form.AppraisedAbility} onChange={(e) => setForm((p) => ({ ...p, AppraisedAbility: e.target.value }))} />
-                  </FieldGroup>
+                  </FieldGroup>}
                 </>}
                 <FieldGroup label="System Recommended Principal" help="The loan principal calculated by the system from the product's entitlement, balances, limits, and appraisal rules. It is read-only. If the officer recommends a different principal, a reason must be entered below.">
                   <Input type="number" value={form.SystemAppraisedAmount} disabled />
@@ -403,14 +446,15 @@ function AppraisalDrawer({ loanCaseId, workflowItemId, onClose, onChanged }) {
                 <FieldGroup label="Outstanding Loan Balance" help="The member's existing unpaid loan exposure used in the assessment. Confirm that this agrees with the listed loan accounts; changing it does not change the new loan's scheduled instalment.">
                   <Input type="number" min="0" step="0.01" value={form.TotalLoansBalance} onChange={(e) => setForm((p) => ({ ...p, TotalLoansBalance: e.target.value }))} />
                 </FieldGroup>
-                <FieldGroup label="Proposed Monthly Instalment" help="The scheduled amount the member will pay each month, calculated from the recommended principal, interest rules, and term. It is not calculated from take-home; take-home is the affordability limit. For a percentage rule: maximum instalment = adjusted income × (100% − required percentage). Example: income 30,000 with 33% protected allows at most 20,100. Reduce the principal or extend the term if the scheduled instalment is too high." required>
-                  <Input type="number" min="0" step="0.01" value={form.MonthlyPaybackAmount} onChange={(e) => setForm((p) => ({ ...p, MonthlyPaybackAmount: e.target.value }))} />
+                <FieldGroup label="Proposed Monthly Instalment" help={explicitIncomeAssessment ? "Calculated by the server from the recommended principal and loan terms. The largest monthly instalment must leave the configured minimum take-home after deductions. Change the recommended principal to recalculate." : "The scheduled monthly payment must leave the minimum take-home required by the product."} required>
+                  <Input type="number" min="0" step="0.01" disabled={explicitIncomeAssessment} value={form.MonthlyPaybackAmount} onChange={(e) => setForm((p) => ({ ...p, MonthlyPaybackAmount: e.target.value }))} />
                 </FieldGroup>
                 <FieldGroup label="Estimated Total Repayment" help="The estimated total paid over the full term: principal plus applicable interest. This is not the monthly instalment or the amount disbursed to the member.">
-                  <Input type="number" min="0" step="0.01" value={form.TotalPaybackAmount} onChange={(e) => setForm((p) => ({ ...p, TotalPaybackAmount: e.target.value }))} />
+                  <Input type="number" min="0" step="0.01" disabled={explicitIncomeAssessment} value={form.TotalPaybackAmount} onChange={(e) => setForm((p) => ({ ...p, TotalPaybackAmount: e.target.value }))} />
                 </FieldGroup>
               </div>
 
+              {scheduleError && <p role="alert" className="text-sm text-red-600">{scheduleError}</p>}
               <FieldGroup label="System Appraisal Remarks" help="Generated and saved by the server when the decision is submitted.">
                 <Input value={form.SystemAppraisalRemarks} disabled placeholder="Generated by the server when submitted" />
               </FieldGroup>
@@ -473,7 +517,7 @@ function AppraisalDrawer({ loanCaseId, workflowItemId, onClose, onChanged }) {
               Open Assigned Task
             </Button>
           )}
-          <Button title={!worksheet?.fileReadyForAppraisal ? worksheet?.fileRegister?.LoanAppraisalReadinessMessage : undefined} disabled={submitting || !worksheet?.fileReadyForAppraisal || !workflowItemId} onClick={() => submit(LoanAppraisalOption.Appraise)} className="flex-1 bg-indigo-600 hover:bg-indigo-700">
+          <Button title={!worksheet?.fileReadyForAppraisal ? worksheet?.fileRegister?.LoanAppraisalReadinessMessage : undefined} disabled={submitting || (explicitIncomeAssessment && (scheduleLoading || Boolean(scheduleError))) || !worksheet?.fileReadyForAppraisal || !workflowItemId} onClick={() => submit(LoanAppraisalOption.Appraise)} className="flex-1 bg-indigo-600 hover:bg-indigo-700">
             {submitting ? "Working..." : "Appraise"}
           </Button>
           <Button disabled={submitting || !workflowItemId} onClick={() => submit(LoanAppraisalOption.Reject)} variant="outline" className="flex-1 border-red-300 text-red-600 hover:bg-red-50">

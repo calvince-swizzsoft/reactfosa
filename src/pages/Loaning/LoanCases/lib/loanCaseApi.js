@@ -90,6 +90,11 @@ export function getApprovalWorksheet(id) {
   return unwrap(apiFetch(`${BASE}/${id}/approval-worksheet`));
 }
 
+export function getAppraisalRepaymentSchedule(id, amount) {
+  const params = new URLSearchParams({ amount: String(amount) });
+  return unwrap(apiFetch(`${BASE}/${id}/appraisal-repayment-schedule?${params.toString()}`));
+}
+
 export function getApprovalRepaymentSchedule(id, amount) {
   const params = new URLSearchParams({ amount: String(amount) });
   return unwrap(apiFetch(`${BASE}/${id}/approval-repayment-schedule?${params.toString()}`));

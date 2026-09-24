@@ -1,0 +1,19 @@
+<Project ToolsVersion="Current" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup><Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration><OutputType>Exe</OutputType><TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion><AssemblyName>Tenhos.Import</AssemblyName><OutputPath>bin\$(Configuration)\</OutputPath><AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects><BackendRoot>..\..\..\..\SwiftFinancialz2</BackendRoot></PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System"/><Reference Include="System.Core"/><Reference Include="System.Data"/><Reference Include="System.Xml"/><Reference Include="System.Xml.Linq"/>
+    <Reference Include="EntityFramework"><HintPath>$(BackendRoot)\WebApplication1\bin\EntityFramework.dll</HintPath></Reference>
+    <Reference Include="EntityFramework.SqlServer"><HintPath>$(BackendRoot)\WebApplication1\bin\EntityFramework.SqlServer.dll</HintPath></Reference>
+    <Reference Include="Newtonsoft.Json"><HintPath>$(BackendRoot)\WebApplication1\bin\Newtonsoft.Json.dll</HintPath></Reference>
+    <Reference Include="Unity.Abstractions"><HintPath>$(BackendRoot)\WebApplication1\bin\Unity.Abstractions.dll</HintPath></Reference>
+    <Reference Include="Unity.Container"><HintPath>$(BackendRoot)\WebApplication1\bin\Unity.Container.dll</HintPath></Reference>
+    <Compile Include="Program.cs"/><Compile Include="TenhosAccounts.cs"/><Compile Include="TenhosMaximums.cs"/><Compile Include="TenhosRates.cs"/><Compile Include="TenhosBosa.cs"/><Compile Include="TenhosIncome.cs"/><Compile Include="TenhosContributions.cs"/><Compile Include="TenhosInsider.cs"/>
+    <ProjectReference Include="$(BackendRoot)\WebApplication1\WebApplication1.csproj"/><ProjectReference Include="$(BackendRoot)\Domain.MainBoundedContext\Domain.MainBoundedContext.csproj"/><ProjectReference Include="$(BackendRoot)\Domain.Seedwork\Domain.Seedwork.csproj"/>
+    <ProjectReference Include="$(BackendRoot)\Application.MainBoundedContext\Application.MainBoundedContext.csproj"/>
+    <ProjectReference Include="$(BackendRoot)\Application.MainBoundedContext.DTO\Application.MainBoundedContext.DTO.csproj"/>
+    <ProjectReference Include="$(BackendRoot)\Infrastructure.Data.MainBoundedContext\Infrastructure.Data.MainBoundedContext.csproj"/>
+    <ProjectReference Include="$(BackendRoot)\Infrastructure.Crosscutting.Framework\Infrastructure.Crosscutting.Framework.csproj"/>
+    <ProjectReference Include="$(BackendRoot)\EntityFramework.Interfaces\EntityFramework.Interfaces.csproj"/>
+  <ProjectReference Include="$(BackendRoot)/Application.Seedwork/Application.Seedwork.csproj"/><Reference Include="System.Runtime.CompilerServices.Unsafe"><HintPath>$(BackendRoot)/WebApplication1/bin/System.Runtime.CompilerServices.Unsafe.dll</HintPath></Reference></ItemGroup>
+  <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets"/>
+</Project>
