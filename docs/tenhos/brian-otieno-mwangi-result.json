@@ -1,0 +1,57 @@
+{
+  "verified": true,
+  "environment": "Local development",
+  "customer": {
+    "Id": "cc9f4819-b3b8-f111-b338-c8e2651ef92d",
+    "SerialNumber": 16,
+    "Reference2": "TNS-BOM-0926",
+    "IndividualFirstName": "BRIAN",
+    "IndividualLastName": "OTIENO MWANGI",
+    "RegistrationDate": "2026-09-01T00:00:00"
+  },
+  "appointment": {
+    "Id": "845604aa-ea3d-4d41-af21-24bab2e5a6c8",
+    "Revision": 1,
+    "CustomerId": "cc9f4819-b3b8-f111-b338-c8e2651ef92d",
+    "CustomerName": "BRIAN OTIENO MWANGI",
+    "MemberNumber": "TNS-BOM-0926",
+    "Kind": "Director",
+    "Position": "Director",
+    "StartsAt": "2026-09-01T00:00:00",
+    "EndsAt": null,
+    "Evidence": "LOCAL TEST FIXTURE: synthetic director appointment effective 2026-09-01; not real appointment evidence.",
+    "IsVoided": false
+  },
+  "accounts": [
+    {
+      "FullAccountNumber": "001-0000016-001-001",
+      "CustomerAccountTypeTargetProductId": "00f2c509-d8a2-f111-b322-c8e2651ef92d",
+      "BookBalance": 500.00
+    },
+    {
+      "FullAccountNumber": "001-0000016-001-002",
+      "CustomerAccountTypeTargetProductId": "1bc7e8e5-60a5-f111-b323-c8e2651ef92d",
+      "BookBalance": 0.00
+    },
+    {
+      "FullAccountNumber": "001-0000016-003-001",
+      "CustomerAccountTypeTargetProductId": "e38dce24-a6a4-f111-b323-c8e2651ef92d",
+      "BookBalance": 0.00
+    },
+    {
+      "FullAccountNumber": "001-0000016-003-002",
+      "CustomerAccountTypeTargetProductId": "301de436-4aab-f111-b324-c8e2651ef92d",
+      "BookBalance": 50000.00
+    },
+    {
+      "FullAccountNumber": "001-0000016-002-004",
+      "CustomerAccountTypeTargetProductId": "75e09114-15b8-f111-b338-c8e2651ef92d",
+      "BookBalance": 0.00
+    }
+  ],
+  "journalId": "e99f4819-b3b8-f111-b338-c8e2651ef92d",
+  "bank": "EQUITY CURRENT ACCOUNT",
+  "IsReadyForLoanAppraisal": true,
+  "LoanAppraisalReadinessMessage": null,
+  "loanCreated": false
+}

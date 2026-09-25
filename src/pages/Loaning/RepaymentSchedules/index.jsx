@@ -31,6 +31,17 @@ export default function RepaymentSchedules(){
    setSchedule(plan);setProposal(generated);setBasis(source);setWarnings(issues);
   }catch(e){if(id===requestId.current)setScheduleError(e.message);}finally{if(id===requestId.current)setScheduleLoading(false);}
  }
+ async function review(){
+  if(saveInFlight.current||scheduleLoading||!loan)return;
+  const id=++requestId.current;setScheduleLoading(true);setScheduleError('');
+  try{
+   const generated=await get(`/cases/${loan.id}/schedule-proposal`);
+   if(id!==requestId.current)return;
+   setSchedule(generated.plan);setProposal(generated);setWarnings(generated.warnings||[]);
+   setBasis('Calculated from saved loan terms');setLinePage(0);
+  }catch(e){if(id===requestId.current)setScheduleError(e.message);}
+  finally{if(id===requestId.current)setScheduleLoading(false);}
+ }
  async function save(){
   if(saveInFlight.current||!proposal?.canConfirm||!proposal.proposalHash||!schedule?.instalments?.length)return;
   const id=requestId.current;saveInFlight.current=true;setSaving(true);setScheduleError('');
@@ -56,11 +67,15 @@ export default function RepaymentSchedules(){
    <div className="flex-1 overflow-y-auto px-5 py-4"><div className="flex flex-wrap justify-between gap-2 text-sm text-gray-700 mb-4"><span>{loan.loaneeName?.trim()||'Name unavailable'} · {loan.product}</span><span>Disbursed: KSh {money(loan.disbursedAmount)}</span></div>
     {scheduleError&&<p role="alert" className="p-3 rounded-lg bg-red-50 text-red-700">{scheduleError}</p>}
     {scheduleLoading?<p role="status" className="animate-pulse text-gray-500 py-6">Loading repayment schedule…</p>:schedule&&<>
-     <div className="flex items-center gap-1 text-xs text-gray-500 mb-3"><span>{warnings.length?'Calculated schedule · interest terms need review':basis}</span><BatchFieldHelp label="Schedule basis">{warnings.length?warnings.join(' '):basis==='Calculated from saved loan terms'?'Calculated using the original disbursement and the loan’s saved terms. Use Save schedule to persist and confirm these terms for ageing. Viewing alone does not save anything.':'Shows the latest saved repayment schedule. Amounts are the scheduled payments, not the remaining balance after repayments.'}</BatchFieldHelp></div>
+     <div className="flex items-center gap-1 text-xs text-gray-500 mb-3"><span>{warnings.length?'Calculated schedule · interest terms need review':basis}</span><BatchFieldHelp label="Schedule basis">{warnings.length?warnings.join(' '):basis==='Calculated from saved loan terms'?'Calculated using the original disbursement and the loan’s saved terms. Use Save schedule to persist and confirm these terms for ageing. Viewing alone does not save anything.':(schedule.evidence||'Shows the latest saved repayment schedule. Amounts are the scheduled payments, not the remaining balance after repayments.')}</BatchFieldHelp></div>
      <div className="overflow-x-auto bg-gray-200 p-3 rounded-sm" role="table" aria-label="Repayment schedule"><div className="min-w-[640px]"><div role="row" className="grid grid-cols-12 gap-3 bg-gray-700 text-gray-100 font-semibold text-sm p-3 rounded-lg mb-2"><span role="columnheader">No.</span><span role="columnheader" className="col-span-3">Principal due</span><span role="columnheader" className="col-span-3 text-right">Principal (KSh)</span><span role="columnheader" className="col-span-3">Interest due</span><span role="columnheader" className="col-span-2 text-right">Interest (KSh)</span></div><div role="rowgroup" className="space-y-1">{schedule.instalments.slice(linePage*20,linePage*20+20).map(r=><div role="row" key={r.number} className="grid grid-cols-12 gap-3 bg-white border rounded-lg px-3 py-2 text-sm text-gray-700 tabular-nums"><span role="cell">{r.number}</span><span role="cell" className="col-span-3">{date(r.dueDate)}</span><span role="cell" className="col-span-3 text-right">{money(r.principal)}</span><span role="cell" className="col-span-3">{date(r.interestDueDate)}</span><span role="cell" className="col-span-2 text-right">{r.interest==null?'Unspecified':money(r.interest)}</span></div>)}</div></div></div>
      {!schedule.instalments.length&&<p className="py-4 text-gray-500">No repayment instalments are available.</p>}
     </>}
    </div>{schedule&&<footer className="shrink-0 border-t p-4">
+     {!proposal&&(!schedule.isConfirmed||!schedule.interestTermsConfirmed)&&<div className="flex items-center justify-end gap-2">
+      <BatchFieldHelp label="Review schedule">This existing schedule has not been confirmed. Preview the saved loan terms and effective disbursement date, review the instalments, then save to confirm. Viewing or generating a preview does not confirm it.</BatchFieldHelp>
+      <Button className="bg-indigo-600 hover:bg-indigo-700" disabled={saving||scheduleLoading} onClick={review}>{scheduleLoading?'Preparing...':'Review and confirm schedule'}</Button>
+     </div>}
      {proposal&&<div className="flex flex-wrap items-center justify-end gap-2">
       {!proposal.canConfirm&&<p className="text-sm text-amber-700 mr-auto" role="status">Saving is unavailable until the schedule issues are resolved. {warnings.join(' ')}</p>}
       <BatchFieldHelp label="Save schedule">Saves this calculated schedule and confirms its principal and interest terms for loan ageing. The server checks that the loan terms have not changed since this preview.</BatchFieldHelp>

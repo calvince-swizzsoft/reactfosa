@@ -15,11 +15,38 @@ using Unity;
 
 internal static class TenhosInsider
 {
-    const string Identity="TEST-INS-0926";
-    const string Member="TEST-INS-SEP26";
-    const string Marker="TENHOS-LOCAL-INSIDER-SEP26-DEPOSIT";
-    public static void Run(string mode,string directory,IUnityContainer c,IDbContextScopeFactory scopes,ServiceHeader h)
+
+
+
+    public static void Run(string mode,string directory,IUnityContainer c,IDbContextScopeFactory scopes,ServiceHeader h,string[] fixture=null)
     {
+        if(mode=="insider-create-five")
+        {
+            var fixtures=new[]{
+                new[]{"AMINA","WANJIRU KAMAU","AWK"},
+                new[]{"DANIEL","KIPROTICH BETT","DKB"},
+                new[]{"FAITH","AKINYI OMONDI","FAO"},
+                new[]{"PETER","MUTUA NZIOKA","PMN"},
+                new[]{"GRACE","NJERI MAINA","GNM"}
+            };
+            foreach(var item in fixtures)Run("insider-create-batch-item",directory,c,scopes,h,item);
+            Console.WriteLine("VERIFIED: five customers, KES 250,000 total BOSA funding, no loan applications created.");
+            return;
+        }
+        var namedCustomer=mode=="insider-create-brian" || fixture!=null;
+        var Identity=namedCustomer ? "SYN-0925-BOM" : "TEST-INS-0926";
+        var Member=namedCustomer ? "TNS-BOM-0926" : "TEST-INS-SEP26";
+        var Marker=namedCustomer ? "TENHOS-LOCAL-BRIAN-0925-DEPOSIT" : "TENHOS-LOCAL-INSIDER-SEP26-DEPOSIT";
+        var firstName=namedCustomer ? "BRIAN" : "TEST SEPTEMBER";
+        var lastName=namedCustomer ? "OTIENO MWANGI" : "INSIDER";
+        var resultFile=namedCustomer ? "brian-otieno-mwangi-result.json" : "test-september-insider-result.json";
+        if(fixture!=null)
+        {
+            firstName=fixture[0];lastName=fixture[1];
+            Identity="SYN-0925-"+fixture[2];Member="TNS-"+fixture[2]+"-0926";
+            Marker="TENHOS-LOCAL-FIVE-0925-"+fixture[2];
+            resultFile="customer-"+fixture[2].ToLowerInvariant()+"-result.json";
+        }
         h.ApplicationUserName="TENHOS-LOCAL-TEST";
         var grants=c.Resolve<INavigationItemInRoleAppService>().GetRolesForNavigationItemCode(26016,h);
         if(grants==null || grants.Length==0)throw new InvalidOperationException("SASRA roles are not configured.");
@@ -43,10 +70,10 @@ internal static class TenhosInsider
         var customer=matches.SingleOrDefault();
         if(customer==null)
         {
-            customer=customers.AddNewCustomerAsync(new CustomerDTO{Type=0,IndividualType=0,IndividualFirstName="TEST SEPTEMBER",IndividualLastName="INSIDER",IndividualIdentityCardNumber=Identity,IndividualBirthDate=new DateTime(1990,1,1),IndividualNationality=1,BranchId=bank.BranchId,Reference2=Member,RegistrationDate=new DateTime(2026,9,1),Remarks="LOCAL TEST ONLY - synthetic insider customer for September 2026 loan workflow. No real person or appointment."},new List<DebitTypeDTO>(),investments.Where(x=>x.Id==deposit.Id || x.Id==new Guid("e38dce24-a6a4-f111-b323-c8e2651ef92d")).ToList(),new List<SavingsProductDTO>{savings},0,h).GetAwaiter().GetResult();
+            customer=customers.AddNewCustomerAsync(new CustomerDTO{Type=0,IndividualType=0,IndividualFirstName=firstName,IndividualLastName=lastName,IndividualIdentityCardNumber=Identity,IndividualBirthDate=new DateTime(1990,1,1),IndividualNationality=1,BranchId=bank.BranchId,Reference2=Member,RegistrationDate=new DateTime(2026,9,1),Remarks="LOCAL TEST ONLY - synthetic insider customer for September 2026 loan workflow. No real person or appointment."},new List<DebitTypeDTO>(),investments.Where(x=>x.Id==deposit.Id || x.Id==new Guid("e38dce24-a6a4-f111-b323-c8e2651ef92d")).ToList(),new List<SavingsProductDTO>{savings},0,h).GetAwaiter().GetResult();
             if(customer==null || customer.Id==Guid.Empty)throw new InvalidOperationException("Customer creation failed.");
         }
-        if(customer.Reference2!=Member || customer.IndividualFirstName!="TEST SEPTEMBER" || customer.IsLocked)throw new InvalidOperationException("Fixture identity collision or locked record.");
+        if(customer.Reference2!=Member || customer.IndividualFirstName!=firstName || customer.IndividualLastName!=lastName || customer.IsLocked)throw new InvalidOperationException("Fixture identity collision or locked record.");
         if(customer.RecordStatus!=(int)RecordStatus.Approved)throw new InvalidOperationException("Customer needs normal verification before funding; customer created, no loan created.");
         // Service provisioning is idempotent by customer/product and includes mandatory accounts.
         var existingAccounts=accounts.FindCustomerAccountsByCustomerId(customer.Id,h) ?? new List<CustomerAccountDTO>();
@@ -62,7 +89,7 @@ internal static class TenhosInsider
         if(director==null || director.IsLocked)throw new InvalidOperationException("Director registration failed.");
         var insider=c.Resolve<ISasraInsiderAppService>();
         var appointment=insider.GetAppointments(Member,0,100,h).Items.SingleOrDefault(x=>x.CustomerId==customer.Id && !x.IsVoided);
-        if(appointment==null)appointment=insider.SaveAppointment(new InsiderAppointmentDTO{CustomerId=customer.Id,Kind="Director",Position="LOCAL TEST Director",StartsAt=new DateTime(2026,9,1),Evidence="LOCAL TEST FIXTURE: synthetic director appointment effective 2026-09-01; not real appointment evidence."},h);
+        if(appointment==null)appointment=insider.SaveAppointment(new InsiderAppointmentDTO{CustomerId=customer.Id,Kind="Director",Position=namedCustomer ? "Director" : "LOCAL TEST Director",StartsAt=new DateTime(2026,9,1),Evidence="LOCAL TEST FIXTURE: synthetic director appointment effective 2026-09-01; not real appointment evidence."},h);
         var all=accounts.FindCustomerAccountsByCustomerId(customer.Id,h);
         var account=all.Single(x=>x.CustomerAccountTypeTargetProductId==deposit.Id);
         if(all.Any(x=>x.Status!=(int)CustomerAccountStatus.Normal || x.RecordStatus!=(int)RecordStatus.Approved))throw new InvalidOperationException("Customer accounts need normal verification.");
@@ -97,7 +124,7 @@ internal static class TenhosInsider
         if(!candidate.HasHistory || candidate.IsLocked)throw new InvalidOperationException("Insider candidate verification failed.");
         var file=c.Resolve<IFileRegisterAppService>().FindFileRegisterAndLastDepartmentByCustomerId(customer.Id,bank.BranchId,h);
         var result=new{verified=true,environment="Local development",customer=new{customer.Id,customer.SerialNumber,customer.Reference2,customer.IndividualFirstName,customer.IndividualLastName,customer.RegistrationDate},appointment,accounts=all.Select(x=>new{x.FullAccountNumber,x.CustomerAccountTypeTargetProductId,x.BookBalance}),journalId,bank=bankLedger.AccountName,file.IsReadyForLoanAppraisal,file.LoanAppraisalReadinessMessage,loanCreated=false};
-        File.WriteAllText(Path.Combine(directory,"test-september-insider-result.json"),JsonConvert.SerializeObject(result,Formatting.Indented));
+        File.WriteAllText(Path.Combine(directory,resultFile),JsonConvert.SerializeObject(result,Formatting.Indented));
         Console.WriteLine(JsonConvert.SerializeObject(result,Formatting.Indented));
     }
 }

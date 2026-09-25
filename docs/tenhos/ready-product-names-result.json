@@ -1,0 +1,18 @@
+{
+  "verified": true,
+  "environment": "Local development",
+  "terms": "Provisional test estimates remain unchanged; not Tenhos-approved terms.",
+  "products": [
+    {
+      "Id": "75e09114-15b8-f111-b338-c8e2651ef92d",
+      "Description": "TENHOS - Boresha Elimu (School Fees Loan)",
+      "IsLocked": false
+    },
+    {
+      "Id": "77e09114-15b8-f111-b338-c8e2651ef92d",
+      "Description": "TENHOS - Emergency Loan",
+      "IsLocked": false
+    }
+  ],
+  "otherSettingsAndProductsUnchanged": true
+}

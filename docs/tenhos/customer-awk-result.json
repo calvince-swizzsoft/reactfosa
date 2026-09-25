@@ -1,0 +1,57 @@
+{
+  "verified": true,
+  "environment": "Local development",
+  "customer": {
+    "Id": "d322af9a-b4b8-f111-b338-c8e2651ef92d",
+    "SerialNumber": 17,
+    "Reference2": "TNS-AWK-0926",
+    "IndividualFirstName": "AMINA",
+    "IndividualLastName": "WANJIRU KAMAU",
+    "RegistrationDate": "2026-09-01T00:00:00"
+  },
+  "appointment": {
+    "Id": "662e9b4a-a24a-405f-b8bc-03b0b326a9b9",
+    "Revision": 1,
+    "CustomerId": "d322af9a-b4b8-f111-b338-c8e2651ef92d",
+    "CustomerName": "AMINA WANJIRU KAMAU",
+    "MemberNumber": "TNS-AWK-0926",
+    "Kind": "Director",
+    "Position": "Director",
+    "StartsAt": "2026-09-01T00:00:00",
+    "EndsAt": null,
+    "Evidence": "LOCAL TEST FIXTURE: synthetic director appointment effective 2026-09-01; not real appointment evidence.",
+    "IsVoided": false
+  },
+  "accounts": [
+    {
+      "FullAccountNumber": "001-0000017-001-001",
+      "CustomerAccountTypeTargetProductId": "00f2c509-d8a2-f111-b322-c8e2651ef92d",
+      "BookBalance": 500.00
+    },
+    {
+      "FullAccountNumber": "001-0000017-001-002",
+      "CustomerAccountTypeTargetProductId": "1bc7e8e5-60a5-f111-b323-c8e2651ef92d",
+      "BookBalance": 0.00
+    },
+    {
+      "FullAccountNumber": "001-0000017-003-001",
+      "CustomerAccountTypeTargetProductId": "e38dce24-a6a4-f111-b323-c8e2651ef92d",
+      "BookBalance": 0.00
+    },
+    {
+      "FullAccountNumber": "001-0000017-003-002",
+      "CustomerAccountTypeTargetProductId": "301de436-4aab-f111-b324-c8e2651ef92d",
+      "BookBalance": 50000.00
+    },
+    {
+      "FullAccountNumber": "001-0000017-002-004",
+      "CustomerAccountTypeTargetProductId": "75e09114-15b8-f111-b338-c8e2651ef92d",
+      "BookBalance": 0.00
+    }
+  ],
+  "journalId": "f022af9a-b4b8-f111-b338-c8e2651ef92d",
+  "bank": "EQUITY CURRENT ACCOUNT",
+  "IsReadyForLoanAppraisal": true,
+  "LoanAppraisalReadinessMessage": null,
+  "loanCreated": false
+}

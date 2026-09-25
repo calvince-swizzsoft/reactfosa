@@ -8,7 +8,7 @@ import { FaPlus, FaChevronDown, FaTrash } from "react-icons/fa";
 import { useAuth } from "@/context/AuthContext";
 import NotFoundImage from "/assets/scopefinding.png";
 import {
-  listDisbursementBatches, createDisbursementBatch, listDisbursementBatchEntries,
+  listDisbursementBatches, createDisbursementBatch, updateDisbursementBatch, listDisbursementBatchEntries,
   addDisbursementBatchEntry, removeDisbursementBatchEntries, auditDisbursementBatch, authorizeDisbursementBatch,
 } from "./disbursementBatchApi";
 import { BatchStatus } from "../lib/batchEnums";
@@ -57,6 +57,8 @@ function PickerField({ label, help, value, placeholder, onClick }) {
   );
 }
 
+const todayLocal = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
+
 const emptyCreateForm = { BranchId: "", BranchLabel: "", Type: 1, LoanProductCategory: 0, Reference: "", Priority: 3 };
 
 function CreateDisbursementBatchDrawer({ open, onClose, onSuccess }) {
@@ -64,18 +66,19 @@ function CreateDisbursementBatchDrawer({ open, onClose, onSuccess }) {
   const [loading, setLoading] = useState(false);
   const [picker, setPicker] = useState(false);
 
-  useEffect(() => { if (open) setForm(emptyCreateForm); }, [open]);
+  useEffect(() => { if (open) setForm({ ...emptyCreateForm, EffectiveDisbursementDate: todayLocal() }); }, [open]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.BranchId) {
-      Swal.fire("Missing Fields", "Branch is required.", "warning");
+    if (!form.BranchId || !form.EffectiveDisbursementDate) {
+      Swal.fire("Missing Fields", "Branch and effective disbursement date are required.", "warning");
       return;
     }
     setLoading(true);
     try {
       await createDisbursementBatch({
         BranchId: form.BranchId,
+        EffectiveDisbursementDate: form.EffectiveDisbursementDate,
         Type: Number(form.Type),
         LoanProductCategory: Number(form.LoanProductCategory),
         Reference: form.Reference,
@@ -103,6 +106,9 @@ function CreateDisbursementBatchDrawer({ open, onClose, onSuccess }) {
             </div>
             <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
               <PickerField label="Branch" help="The branch responsible for this batch. Check it before adding entries." value={form.BranchLabel} placeholder="Select branch..." onClick={() => setPicker(true)} />
+              <FieldGroup label="Effective Disbursement Date" help="Applies to every loan in this batch, its accounting value date and repayment schedule. Select a date in an open posting period, on or after application and approval. The system separately records when processing occurs.">
+                <Input type="date" required max={todayLocal()} value={form.EffectiveDisbursementDate || ""} onChange={(e) => setForm((p) => ({ ...p, EffectiveDisbursementDate: e.target.value }))} />
+              </FieldGroup>
               <FieldGroup label="Disbursement Type" help="The disbursement category for this batch. Choose the option that matches the loans you intend to release.">
                 <select className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm" value={form.Type} onChange={(e) => setForm((p) => ({ ...p, Type: e.target.value }))}>
                   {DISBURSEMENT_TYPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -155,6 +161,8 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
   const [entryForm, setEntryForm] = useState(emptyEntryForm);
   const [addingEntry, setAddingEntry] = useState(false);
   const [auditOpen, setAuditOpen] = useState(false);
+  const [effectiveDate, setEffectiveDate] = useState("");
+  const [savingDate, setSavingDate] = useState(false);
   const [loanCasePickerOpen, setLoanCasePickerOpen] = useState(false);
 
   const fetchEntries = () => {
@@ -177,10 +185,25 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
 
   useEffect(() => { fetchEntries(); setEntryForm(emptyEntryForm); }, [batch?.Id]);
 
+  useEffect(() => { setEffectiveDate(batch?.EffectiveDisbursementDate?.slice(0, 10) || ""); }, [batch?.Id, batch?.EffectiveDisbursementDate]);
+
   if (!batch) return null;
 
   const isMine = batch.CreatedBy === currentUser;
   const canManageEntries = stage === "origination" && batch.Status === BatchStatus.Pending && isMine;
+
+  const handleSaveDate = async () => {
+    if (!effectiveDate) return Swal.fire("Missing Date", "Select an effective disbursement date.", "warning");
+    setSavingDate(true);
+    try {
+      await updateDisbursementBatch(batch.Id, { Reference: batch.Reference, Priority: batch.Priority, EffectiveDisbursementDate: effectiveDate });
+      onChanged();
+      onClose();
+      await Swal.fire("Date Updated", "The effective disbursement date was saved and checked against the loans in this batch.", "success");
+    } catch (err) {
+      await Swal.fire("Cannot Update Date", err.message, "error");
+    } finally { setSavingDate(false); }
+  };
 
   const handleAddEntry = async (e) => {
     e.preventDefault();
@@ -258,9 +281,19 @@ function BatchDetailDrawer({ batch, stage, currentUser, onClose, onChanged }) {
             <div><span className="text-gray-400">Type</span><p className="font-semibold text-gray-800">{batch.TypeDescription}</p></div>
             <div><span className="text-gray-400">Status</span><p><BatchStatusBadge status={batch.Status} /></p></div>
             <div><span className="text-gray-400">Category</span><p className="font-semibold text-gray-800">{batch.LoanProductCategoryDescription}</p></div>
+            <div><span className="text-gray-400">Effective disbursement date</span><p className="font-semibold text-gray-800">{batch.EffectiveDisbursementDate?.slice(0, 10) || "Set at authorization (legacy batch)"}</p></div>
             <div><span className="text-gray-400">Reference</span><p className="font-semibold text-gray-800">{batch.Reference || "—"}</p></div>
             <div><span className="text-gray-400">Created By</span><p className="font-semibold text-gray-800">{batch.CreatedBy}</p></div>
           </div>
+
+          {canManageEntries && (
+            <FieldGroup label="Update Effective Disbursement Date" help="Available while Pending. Saving checks the posting period and the application and approval dates of every attached loan. The date is locked after verification.">
+              <div className="flex items-center gap-2">
+                <Input type="date" max={todayLocal()} value={effectiveDate} disabled={savingDate} onChange={(e) => setEffectiveDate(e.target.value)} />
+                <Button type="button" className="shrink-0 bg-indigo-600 hover:bg-indigo-700" disabled={savingDate || !effectiveDate || effectiveDate === batch.EffectiveDisbursementDate?.slice(0, 10)} onClick={handleSaveDate}>{savingDate ? "Saving..." : "Save Date"}</Button>
+              </div>
+            </FieldGroup>
+          )}
 
           {batch.AuditRemarks && (
             <div className="text-xs bg-gray-50 border rounded-lg p-3">

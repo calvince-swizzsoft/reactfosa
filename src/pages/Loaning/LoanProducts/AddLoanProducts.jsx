@@ -603,6 +603,7 @@ export default function AddLoanProducts({ open, onClose, refresh, product = null
                                 )}
                             </section>
 
+                            <label className="flex items-center gap-2 text-sm text-gray-700"><input type="checkbox" className="w-4 h-4 accent-indigo-600" checked={form.WaiveGuarantorsBelowOwnDeposits === true} onChange={(e) => update("WaiveGuarantorsBelowOwnDeposits", e.target.checked)}/>Waive guarantors when the loan is below uncommitted BOSA deposits</label>
                             <section className="border-b-4 pb-4">
                                 <Label>Income Assessment</Label>
                                 <Select value={form.RequireIncomeAssessment == null ? "default" : String(form.RequireIncomeAssessment)} onValueChange={(value) => update("RequireIncomeAssessment", value === "default" ? null : value === "true")}>

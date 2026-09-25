@@ -31,7 +31,7 @@ public class Program
     static void Save(string path,object value){File.WriteAllText(path,JsonConvert.SerializeObject(value,Formatting.Indented));}
     static void Main(string[] args)
     {
-        if(args.Length!=4||!new[]{"plan","apply","accounts-inventory","accounts-plan","accounts-apply","maximums-plan","maximums-apply","rates-plan","rates-apply","bosa-inventory","bosa-apply","bosa-test","income-apply","income-test","boresha-unlock","contributions-plan","contributions-apply","contributions-extra","appraisal-audit","income-signature-audit","insider-inventory","insider-create"}.Contains(args[0]))throw new ArgumentException("plan|apply Web.config research.json output-directory");
+        if(args.Length!=4||!new[]{"plan","apply","accounts-inventory","accounts-plan","accounts-apply","maximums-plan","maximums-apply","rates-plan","rates-apply","bosa-inventory","bosa-apply","bosa-test","income-apply","income-test","boresha-unlock","emergency-unlock","ready-product-names","waiver-migration-preview","waiver-migration-apply","disbursement-migration-preview","disbursement-migration-apply","waiver-enable","waiver-test","waiver-cleanup","contributions-plan","contributions-apply","contributions-extra","appraisal-audit","income-signature-audit","insider-inventory","insider-create","insider-create-brian","insider-create-five"}.Contains(args[0]))throw new ArgumentException("plan|apply Web.config research.json output-directory");
         var config=XDocument.Load(args[1]);
         var domain=(string)config.Root.Element("appSettings").Elements("add").Single(x=>(string)x.Attribute("key")=="ApplicationDomainName").Attribute("value");
         var connection=(string)config.Root.Element("connectionStrings").Elements("add").Single(x=>(string)x.Attribute("name")==domain).Attribute("connectionString");
@@ -48,8 +48,23 @@ public class Program
         var service=container.Resolve<ILoanProductAppService>();
         var scopes=container.Resolve<IDbContextScopeFactory>();
         var header=new ServiceHeader{ApplicationDomainName=domain,ApplicationUserName="TENHOS-DRAFT-20260924"};
+        if(args[0].StartsWith("waiver-migration-") || args[0].StartsWith("disbursement-migration-"))
+        {
+            var migrationConfig=new Infrastructure.Data.MainBoundedContext.Migrations.Configuration();
+            migrationConfig.TargetDatabase=new System.Data.Entity.Infrastructure.DbConnectionInfo(connection,"System.Data.SqlClient");
+            var migrator=new System.Data.Entity.Migrations.DbMigrator(migrationConfig);
+            if(args[0].EndsWith("migration-preview"))
+            {
+                var script=new System.Data.Entity.Migrations.Infrastructure.MigratorScriptingDecorator(migrator).ScriptUpdate(null,null);
+                File.WriteAllText(Path.Combine(args[3],args[0].StartsWith("disbursement-") ? "effective-disbursement-migration.sql" : "deposit-waiver-migration.sql"),script);
+                Console.WriteLine("EF migration preview written; no database changes.");
+            }
+            else {migrator.Update();Console.WriteLine("EF migration and model history updated.");}
+            return;
+        }
         var before=service.FindLoanProducts(header)??new List<LoanProductDTO>();
         if(args[0].StartsWith("insider-")){TenhosInsider.Run(args[0],args[3],container,scopes,header);return;}
+        if(args[0]=="waiver-enable" || args[0]=="waiver-test" || args[0]=="waiver-cleanup"){TenhosWaiver.Run(args[0],args[3],container,scopes,header);return;}
         if(args[0]=="income-signature-audit")
         {
             var cases=container.Resolve<Application.MainBoundedContext.BackOfficeModule.Services.ILoanCaseAppService>().FindLoanCases(header);
@@ -98,22 +113,60 @@ public class Program
             Console.WriteLine("Contribution account and bank inventory saved; no writes.");
             return;
         }
-        if(args[0]=="boresha-unlock")
+        if(args[0]=="ready-product-names")
         {
-            var original=before.Single(p=>p.Description=="TENHOS - Boresha Elimu (School Fees Loan) [DRAFT]");
+            var names=new Dictionary<Guid,string>{
+                {new Guid("75e09114-15b8-f111-b338-c8e2651ef92d"),"TENHOS - Boresha Elimu (School Fees Loan)"},
+                {new Guid("77e09114-15b8-f111-b338-c8e2651ef92d"),"TENHOS - Emergency Loan"}
+            };
+            var expected=JsonConvert.DeserializeObject<List<LoanProductDTO>>(JsonConvert.SerializeObject(before));
+            foreach(var entry in names)
+            {
+                var product=expected.Single(p=>p.Id==entry.Key);
+                if(product.IsLocked || (product.Description!=entry.Value && product.Description!=entry.Value+" [DRAFT]"))
+                    throw new InvalidOperationException("Expected the known unlocked local product: "+entry.Value);
+                product.Description=entry.Value;
+                var errors=service.ValidateLoanProduct(product,header);
+                if(errors.Any())throw new InvalidOperationException(string.Join("; ",errors.SelectMany(e=>e.Value)));
+            }
+            var backup=Path.Combine(args[3],"before-ready-product-names.json");
+            if(!File.Exists(backup))Save(backup,before);
+            using(var scope=scopes.CreateWithTransaction(IsolationLevel.Serializable))
+            {
+                foreach(var product in expected.Where(p=>names.ContainsKey(p.Id)))
+                    if(before.Single(p=>p.Id==product.Id).Description!=product.Description && !service.UpdateLoanProduct(product,header))
+                        throw new InvalidOperationException("Product rename failed.");
+                scope.SaveChanges(header);
+            }
+            var renamedProducts=service.FindLoanProducts(header);
+            if(renamedProducts.Count!=expected.Count)throw new InvalidOperationException("Product count changed.");
+            foreach(var product in expected)
+                if(!JToken.DeepEquals(JObject.FromObject(product),JObject.FromObject(renamedProducts.Single(p=>p.Id==product.Id))))
+                    throw new InvalidOperationException("Unexpected configuration change: "+product.Description);
+            var result=new{verified=true,environment="Local development",terms="Provisional test estimates remain unchanged; not Tenhos-approved terms.",products=renamedProducts.Where(p=>names.ContainsKey(p.Id)).Select(p=>new{p.Id,p.Description,p.IsLocked}),otherSettingsAndProductsUnchanged=true};
+            Save(Path.Combine(args[3],"ready-product-names-result.json"),result);
+            Console.WriteLine(JsonConvert.SerializeObject(result,Formatting.Indented));
+            return;
+        }
+        if(args[0]=="boresha-unlock" || args[0]=="emergency-unlock")
+        {
+            var emergency=args[0]=="emergency-unlock";
+            var key=emergency ? "emergency" : "boresha";
+            var name=emergency ? "TENHOS - Emergency Loan [DRAFT]" : "TENHOS - Boresha Elimu (School Fees Loan) [DRAFT]";
+            var original=before.Single(p=>p.Description==name);
             var others=before.Where(p=>p.Description.StartsWith("TENHOS - ") && p.Id!=original.Id).ToList();
-            if(others.Count!=13 || others.Any(p=>!p.IsLocked))throw new InvalidOperationException("Expected the other 13 Tenhos products to be locked.");
+            if(others.Count!=13)throw new InvalidOperationException("Expected 14 Tenhos products.");
             var proposed=JsonConvert.DeserializeObject<LoanProductDTO>(JsonConvert.SerializeObject(original));
             proposed.IsLocked=false;
             var errors=service.ValidateLoanProduct(proposed,header);
             if(errors.Any())throw new InvalidOperationException(string.Join("; ",errors.SelectMany(e=>e.Value)));
-            var backup=Path.Combine(args[3],"before-boresha-unlock.json");
+            var backup=Path.Combine(args[3],"before-"+key+"-unlock.json");
             if(!File.Exists(backup))Save(backup,before);
             if(original.IsLocked)
             {
                 using(var scope=scopes.CreateWithTransaction(IsolationLevel.Serializable))
                 {
-                    if(!service.UpdateLoanProduct(proposed,header))throw new InvalidOperationException("Boresha unlock failed.");
+                    if(!service.UpdateLoanProduct(proposed,header))throw new InvalidOperationException("Product unlock failed.");
                     scope.SaveChanges(header);
                 }
             }
@@ -125,8 +178,8 @@ public class Program
                 if(!JToken.DeepEquals(JObject.FromObject(expected),JObject.FromObject(unlockedProducts.Single(p=>p.Id==old.Id))))
                     throw new InvalidOperationException("Unexpected configuration change: "+old.Description);
             }
-            Save(Path.Combine(args[3],"boresha-unlock-result.json"),new{verified=true,environment="Local development",product=unlockedProducts.Single(p=>p.Id==original.Id),otherTenhosProductsLocked=13});
-            Console.WriteLine("Boresha Elimu unlocked in local development. Verified the other 13 Tenhos products remain locked; all other product settings unchanged.");
+            Save(Path.Combine(args[3],key+"-unlock-result.json"),new{verified=true,environment="Local development",product=unlockedProducts.Single(p=>p.Id==original.Id),otherTenhosProductsLocked=others.Count(p=>p.IsLocked)});
+            Console.WriteLine(JsonConvert.SerializeObject(new{verified=true,product=unlockedProducts.Single(p=>p.Id==original.Id),otherProductsUnchanged=true},Formatting.Indented));
             return;
         }
         if(args[0]=="income-apply" || args[0]=="income-test")

@@ -1,0 +1,10 @@
+{
+  "Enabled": true,
+  "Waived": true,
+  "Amount": 40000.0,
+  "Deposits": 50000.00,
+  "Committed": 0.00,
+  "Available": 50000.00,
+  "RequiredGuarantors": 0,
+  "AccountId": "6e23af9a-b4b8-f111-b338-c8e2651ef92d"
+}

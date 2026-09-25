@@ -32,6 +32,10 @@ export function createDisbursementBatch(dto) {
   return unwrap(apiFetch(BASE, { method: "POST", body: JSON.stringify(dto) }));
 }
 
+export function updateDisbursementBatch(id, dto) {
+  return unwrap(apiFetch(`${BASE}/${id}`, { method: "PUT", body: JSON.stringify(dto) }));
+}
+
 export function auditDisbursementBatch(id, request) {
   return unwrap(apiFetch(`${BASE}/${id}/audit`, { method: "POST", body: JSON.stringify(request) }));
 }

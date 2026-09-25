@@ -1,3 +1,4 @@
+import { apiJson } from "@/lib/api";
 import GuarantorEditor from "./GuarantorEditor";
 import { guarantorDisplayName } from "./guarantorDisplayName";
 import { LoanCaseStatus } from "./loanCaseEnums";
@@ -22,6 +23,7 @@ export default function LoanCaseSummary({ loanCase, guarantors = [], collaterals
   const [draft, setDraft] = useState(null);
   const [picker, setPicker] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [releasedId, setReleasedId] = useState(null);
 
   if (!loanCase) return null;
 
@@ -70,9 +72,20 @@ export default function LoanCaseSummary({ loanCase, guarantors = [], collaterals
         <div><span className="text-gray-400">Loan Product</span><p className="font-semibold text-gray-800 truncate">{loanCase.LoanProductDescription}</p></div>
         <div><span className="text-gray-400">Amount Applied</span><p className="font-semibold text-indigo-600">{loanCase.AmountApplied?.toLocaleString()}</p></div>
         <div><span className="text-gray-400">Received Date</span><p className="font-semibold text-gray-800">{loanCase.ReceivedDate ? new Date(loanCase.ReceivedDate).toLocaleDateString() : "—"}</p></div>
+        {loanCase.DisbursedDate && <div><span className="text-gray-400">Effective disbursement date</span><p className="font-semibold text-gray-800">{loanCase.DisbursedDate.slice(0, 10)}</p></div>}
+        {loanCase.DisbursementProcessedDate && <div><span className="text-gray-400">Disbursement processed</span><p className="font-semibold text-gray-800">{new Date(loanCase.DisbursementProcessedDate).toLocaleString()}</p></div>}
       </div>
 
-      {editableGuarantors && Number(loanCase.Status) === LoanCaseStatus.Registered ? (
+      {Number(loanCase.DepositSecurityAmount) > 0 && releasedId !== loanCase.Id && <p className="rounded-lg bg-green-50 p-3 text-sm text-green-700">Guarantors waived: KES {Number(loanCase.DepositSecurityAmount).toLocaleString()} reserved from the borrower's BOSA deposits.
+        {[LoanCaseStatus.Disbursed, LoanCaseStatus.Rejected].includes(Number(loanCase.Status)) && <Button type="button" disabled={saving} className="ml-2" onClick={async () => {
+          const confirmation = await Swal.fire({title:"Release deposit security?",text:"Release requires BOSA loan approval permission and a fully repaid loan account, or a rejected application.",showCancelButton:true,confirmButtonText:"Check and release"});
+          if(!confirmation.isConfirmed)return;
+          setSaving(true);
+          try { await apiJson(`${FIN_BASE}/api/backoffice/loancases/${loanCase.Id}/deposit-security/release`,{method:"POST"});setReleasedId(loanCase.Id);await Swal.fire("Released","Deposit security has been released.","success"); }
+          catch(error){await Swal.fire("Cannot release",error.message,"error");}finally{setSaving(false);}
+        }}>Release security</Button>}
+      </p>}
+      {editableGuarantors && !loanCase.DepositSecurityAccountId && Number(loanCase.Status) === LoanCaseStatus.Registered ? (
         <GuarantorEditor loanCase={loanCase} guarantors={guarantors} collaterals={collaterals} onSaved={onGuarantorsSaved} />
       ) : guarantors.length > 0 && (
         <div>

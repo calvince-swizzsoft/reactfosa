@@ -1,5 +1,5 @@
 import { getToken, clearToken, clearRoles, clearUserName } from "@/lib/auth";
-import { ApiError, readApiResponse } from "@/lib/api-errors";
+import { fetchWithApiErrors, readApiResponse } from "@/lib/api-errors";
 
 export { ApiError, apiErrorFromResponse, apiErrorMessage, isAbortError, readApiResponse, readResponseBody } from "@/lib/api-errors";
 
@@ -21,7 +21,7 @@ export async function apiFetch(url, options = {}) {
   }
   new Headers(callerHeaders).forEach((value, key) => headers.set(key, value));
 
-  const response = await fetch(url, { ...rest, headers, body });
+  const response = await fetchWithApiErrors(url, { ...rest, headers, body });
 
   if (response.status === 401) {
     clearToken();
@@ -48,19 +48,8 @@ function getClientDeviceId() {
 }
 
 export async function apiJson(url, options = {}, config = {}) {
-  try {
-    const response = await apiFetch(url, options);
-    return await readApiResponse(response, config);
-  } catch (error) {
-    if (error instanceof ApiError || error?.name === "AbortError") throw error;
-
-    throw new ApiError({
-      status: 0,
-      code: "NETWORK_ERROR",
-      message: "The server could not be reached. Check your connection and try again.",
-      cause: error,
-    });
-  }
+  const response = await apiFetch(url, options);
+  return await readApiResponse(response, config);
 }
 
 // Unwraps a list out of whichever envelope shape the endpoint uses: a bare

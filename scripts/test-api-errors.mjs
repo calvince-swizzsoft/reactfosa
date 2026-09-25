@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import {
   ApiError,
+  apiTransportError,
+  fetchWithApiErrors,
   apiErrorFromResponse,
   apiErrorMessage,
   readApiResponse,
@@ -41,7 +43,7 @@ await assert.rejects(
 );
 
 const internalError = apiErrorFromResponse(response(500, null), {}, null);
-assert.equal(internalError.message, "An unexpected error occurred.");
+assert.equal(internalError.message, "The server could not complete the request. If this continues, contact your administrator.");
 assert.equal(apiErrorMessage(new ApiError({ message: "Failed.", correlationId: "abc-123" })), "Failed.\nReference: abc-123");
 
 const plainTextError = apiErrorFromResponse(response(400, null), "Customer must have an account.");
@@ -75,4 +77,35 @@ assert.deepEqual(budgetError.validationErrors, budgetFields);
 assert.equal(budgetError.correlationId, "budget-validation-reference");
 assert.equal(budgetError.code, "VALIDATION_FAILED");
 
-console.log("All frontend API error-handling tests passed.");
+const network = apiTransportError(new TypeError("Failed to fetch"), {online:true});
+assert.equal(network.code, "NETWORK_ERROR");
+assert.match(network.message, /Cannot connect to the server/);
+assert.doesNotMatch(network.message, /Failed to fetch/);
+assert.equal(apiTransportError(new TypeError("Failed to fetch"), {online:false}).code, "NETWORK_OFFLINE");
+assert.match(apiTransportError(new TypeError("Failed to fetch"), {method:"POST"}).message, /check whether your previous action completed/);
+assert.equal(apiTransportError(new DOMException("Timed out", "TimeoutError")).code, "REQUEST_TIMEOUT");
+const cancelled = new DOMException("Cancelled", "AbortError");
+assert.equal(apiTransportError(cancelled), cancelled);
+const customCancel = new Error("Navigation changed");
+assert.equal(apiTransportError(customCancel, {signal:{aborted:true,reason:customCancel}}), customCancel);
+assert.equal(apiTransportError(validationError), validationError);
+assert.match(apiErrorMessage(new TypeError("Failed to fetch")), /Cannot connect|offline/);
+assert.equal(apiErrorMessage(new Error("Choose a customer.")), "Choose a customer.");
+for (const status of [404, 500, 502, 503, 504]) {
+  const html = new Response("<!DOCTYPE html><html><body>Internal server details</body></html>", {status});
+  await assert.rejects(() => readApiResponse(html), error => error instanceof ApiError && error.status === status && !error.message.includes("<html>") && !error.message.includes("Internal server details"));
+}
+await assert.rejects(() => readApiResponse(new Response("<!doctype html><html>Application shell</html>", {status:200})), error => error.code === "UNEXPECTED_RESPONSE");
+assert.equal(await readApiResponse(new Response("Operation complete", {status:200})), "Operation complete");
+const originalFetch = globalThis.fetch;
+try {
+  globalThis.fetch = async () => { throw new TypeError("Failed to fetch"); };
+  await assert.rejects(() => fetchWithApiErrors("http://localhost/api", {method:"POST"}), error => error.code === "NETWORK_ERROR" && error.message.includes("previous action completed"));
+  globalThis.fetch = async () => { throw cancelled; };
+  await assert.rejects(() => fetchWithApiErrors("http://localhost/api"), error => error === cancelled);
+  const missing = response(404, {message:"Selected loan no longer exists."});
+  globalThis.fetch = async () => missing;
+  assert.equal(await fetchWithApiErrors("http://localhost/api"), missing, "Raw fetch callers retain their HTTP response handling contract");
+  await assert.rejects(() => readApiResponse(missing), error => error.message === "Selected loan no longer exists.");
+} finally { globalThis.fetch = originalFetch; }
+console.log("All frontend API error-handling tests passed (network, offline, timeout, cancellation, HTTP failures and server validation).");

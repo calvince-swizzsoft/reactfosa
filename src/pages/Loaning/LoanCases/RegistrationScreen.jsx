@@ -154,7 +154,25 @@ export function CreateLoanCaseDrawer({ open, onClose, onSuccess, title = "Regist
     return () => controller.abort();
   }, [open, branchAttempt]);
 
-  const needsGuarantors = Number(form.loanProduct?.LoanRegistrationMinimumGuarantors || 0) > 0;
+  const [depositSecurity, setDepositSecurity] = useState(null);
+  const [securityError, setSecurityError] = useState("");
+  const securityKey = `${form.CustomerId}/${form.LoanProductId}/${Number(form.AmountApplied)}`;
+  const waiverEnabled = form.loanProduct?.WaiveGuarantorsBelowOwnDeposits === true;
+  const securityCurrent = depositSecurity?.key === securityKey;
+  const waiver = waiverEnabled && securityCurrent && depositSecurity.quote.Waived === true;
+  const needsGuarantors = !waiver && Number(form.loanProduct?.LoanRegistrationMinimumGuarantors || 0) > 0;
+  useEffect(() => {
+    let cancelled = false;
+    setDepositSecurity(null); setSecurityError("");
+    if (!open || !waiverEnabled || !form.CustomerId || !(Number(form.AmountApplied) > 0)) return;
+    const timer = setTimeout(() => {
+      const query = new URLSearchParams({customerId:form.CustomerId,loanProductId:form.LoanProductId,amount:String(Number(form.AmountApplied))});
+      apiJson(`${FIN_BASE}/api/backoffice/loancases/deposit-security?${query}`).then(body => {
+        if (!cancelled) setDepositSecurity({key:securityKey,quote:body?.data ?? body?.Data ?? body});
+      }).catch(error => { if (!cancelled) setSecurityError(error.message || "Could not check deposit security."); });
+    }, 300);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [open,waiverEnabled,securityKey]);
 
   useEffect(() => {
     let cancelled = false;
@@ -245,9 +263,13 @@ export function CreateLoanCaseDrawer({ open, onClose, onSuccess, title = "Regist
       Swal.fire("Invalid Received Date", "Received date cannot be in the future.", "warning");
       return;
     }
+    if (waiverEnabled && !securityCurrent) {
+      Swal.fire("Deposit security", securityError || "Wait for the deposit security check to finish.", "warning");
+      return;
+    }
     const selectedGuarantors = guarantors;
     const collateralTotal = collaterals.reduce((sum, collateral) => sum + Number(collateral.CollateralValue || 0), 0);
-    const guarantorError = validateRegistrationGuarantors(form.loanProduct, form.CustomerId, amountApplied, selectedGuarantors, collateralTotal);
+    const guarantorError = validateRegistrationGuarantors(waiver && !selectedGuarantors.length ? {...form.loanProduct,LoanRegistrationMinimumGuarantors:0,LoanRegistrationSecurityRequired:false} : form.loanProduct, form.CustomerId, amountApplied, selectedGuarantors, collateralTotal);
     if (guarantorError) {
       setActiveTab("guarantors");
       Swal.fire("Check Guarantors", guarantorError, "warning");
@@ -311,6 +333,7 @@ export function CreateLoanCaseDrawer({ open, onClose, onSuccess, title = "Regist
             </div>
 
             <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto bg-gray-50 px-4 py-4 space-y-4">
+            {waiverEnabled && <p role="status" className="text-sm text-gray-700 my-2">{securityError || (!securityCurrent ? "Checking available BOSA deposits…" : waiver ? `Guarantors waived. KES ${Number(form.AmountApplied).toLocaleString()} will be reserved from your BOSA deposits.` : `Required guarantors: ${depositSecurity.quote.RequiredGuarantors}. Uncommitted BOSA deposits: KES ${Number(depositSecurity.quote.Available).toLocaleString()}.`)}</p>}
               <PickerField label="Loanee" value={form.CustomerLabel} placeholder="Search & select customer..." onClick={() => setPicker("customer")} />
               {form.CustomerId && (
                 <div className="grid grid-cols-2 gap-3 rounded-lg border border-indigo-100 bg-white p-4 text-sm shadow-sm md:grid-cols-4">

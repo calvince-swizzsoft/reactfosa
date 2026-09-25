@@ -494,7 +494,8 @@ export default function CreateLoanProduct() {
         </Section>
 
         <Section title="Take-Home" help="When income assessment is Required, verified gross income less deductions and the server-calculated monthly instalment must leave this minimum. The percentage applies to gross income. Section default retains the existing FOSA income assessment behavior.">
-          <FieldGroup label="Income Assessment">
+          <label className="flex items-center gap-2 text-sm text-gray-700"><input type="checkbox" className="w-4 h-4 accent-indigo-600" checked={form.WaiveGuarantorsBelowOwnDeposits === true} onChange={(e) => set("WaiveGuarantorsBelowOwnDeposits")(e.target.checked)}/>Waive guarantors when the loan is below uncommitted BOSA deposits</label>
+            <FieldGroup label="Income Assessment">
             <Select value={form.RequireIncomeAssessment == null ? "default" : String(form.RequireIncomeAssessment)} onValueChange={(value) => set("RequireIncomeAssessment")(value === "default" ? null : value === "true")}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent><SelectItem value="default">Use section default</SelectItem><SelectItem value="true">Required</SelectItem><SelectItem value="false">Not required</SelectItem></SelectContent>
