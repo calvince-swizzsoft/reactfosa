@@ -120,6 +120,7 @@ export default function AdministrationUsers() {
       BranchId: user?.BranchId || user?.branchId || "",
       twoFactorEnabled: Boolean(user?.twoFactorEnabled ?? user?.TwoFactorEnabled),
       lockoutEnabled: Boolean(user?.lockoutEnabled ?? user?.LockoutEnabled),
+      emailConfirmed: Boolean(user?.emailConfirmed ?? user?.EmailConfirmed),
       createdDate: user?.createdDate || user?.CreatedDate || "",
     });
 
@@ -161,10 +162,28 @@ export default function AdministrationUsers() {
           CustomerId: selectedUser.CustomerId || selectedUser.customerId || null,
           TwoFactorEnabled: Boolean(editForm.twoFactorEnabled),
           LockoutEnabled: Boolean(editForm.lockoutEnabled),
+          ...(Boolean(editForm.emailConfirmed) !== Boolean(selectedUser.emailConfirmed ?? selectedUser.EmailConfirmed)
+            ? { EmailConfirmed: Boolean(editForm.emailConfirmed) }
+            : {}),
           BranchId: editForm.BranchId || null,
         }),
       }, { fallbackMessage: "Failed to update user." });
 
+      const refreshedData = await apiJson(`${import.meta.env.VITE_APP_ADMIN_URL}/api/administration/users`, {}, {
+        fallbackMessage: "The update was submitted, but the saved confirmation status could not be verified.",
+      });
+      const refreshedUsers = Array.isArray(refreshedData) ? refreshedData : refreshedData?.data ?? refreshedData?.Data;
+      const savedUser = Array.isArray(refreshedUsers) ? refreshedUsers.find((user) =>
+        getValue(user, ["userName", "UserName", "name", "Name"]) === editForm.userName
+      ) : null;
+      if (Array.isArray(refreshedUsers)) setUsers(refreshedUsers);
+      const savedEmailConfirmed = savedUser?.emailConfirmed ?? savedUser?.EmailConfirmed;
+      if (savedEmailConfirmed === undefined || savedEmailConfirmed === null) {
+        throw new Error("The update was submitted, but the server did not return EmailConfirmed. The saved confirmation status could not be verified.");
+      }
+      if (Boolean(savedEmailConfirmed) !== Boolean(editForm.emailConfirmed)) {
+        throw new Error("The server did not retain the Email Confirmed setting. The user update API must support saving EmailConfirmed before this toggle can be used.");
+      }
       Swal.fire("Success", data?.message || "User updated successfully.", "success");
       setDrawerOpen(false);
     } catch (error) {
@@ -464,6 +483,10 @@ export default function AdministrationUsers() {
                     <div className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white p-3">
                       <input id="lockout" type="checkbox" checked={editForm.lockoutEnabled || false} onChange={(e) => handleDrawerChange("lockoutEnabled", e.target.checked)} className="w-4 h-4 accent-indigo-600" />
                       <Label htmlFor="lockout">Allow Automatic Lockout</Label>
+                    </div>
+                    <div className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white p-3">
+                      <input id="emailConfirmed" type="checkbox" checked={editForm.emailConfirmed || false} onChange={(e) => handleDrawerChange("emailConfirmed", e.target.checked)} className="w-4 h-4 accent-indigo-600" />
+                      <Label htmlFor="emailConfirmed">Email Confirmed</Label>
                     </div>
                   </div>
 
